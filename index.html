@@ -9527,7 +9527,10 @@ window.UFOTO_rodapeHTML=rodapeHTML;
       const dados=[["ENTREVISTADO:",g("rel_expropriado")||g("rel_nome")],["EMPREENDIMENTO:",g("rel_ferrovia")],["LOTE:",g("rel_lote")],["Nº DO PROCESSO:",g("rel_processo")],["DENOMINAÇÃO DO IMÓVEL:",g("rel_prop_id")],["MATRÍCULA:",g("rel_matricula")],["ÁREA TOTAL (ha):",g("rel_area_total")],["ÁREA DE DESAPROPRIAÇÃO (ha):",g("rel_area_desap")],["CIB/ITR:",g("rel_cib")],["CARTÓRIO / REGISTRO:",g("rel_cartorio")]].filter(d=>d[1]);
       if(dados.length){
         K.push(new Paragraph({spacing:{before:160,after:60},border:{bottom:{style:BorderStyle.SINGLE,size:4,color:BLK,space:1}},children:[R("Expropriado e processo de desapropriação de referência:",{bold:true,size:21})]}));
-        K.push(new Table({width:{size:CW,type:WidthType.DXA},layout:FIX,columnWidths:colw([33,67]),borders:tableBorders,rows:dados.map(function(d){ return new TableRow({children:[ new TableCell({borders:cellBorder,margins:cellM,children:[new Paragraph({children:[R(d[0],{bold:true,size:19})]})]}), new TableCell({borders:cellBorder,margins:cellM,children:[new Paragraph({children:[R(d[1],{bold:true,size:19})]})]}) ]}); })}));
+        // Estilo A (zebra suave): rótulo tonalizado, valores com zebra, só separadores horizontais
+        var hsep={top:NB,bottom:{style:BorderStyle.SINGLE,size:4,color:"E6EBF1"},left:NB,right:NB};
+        var mId={top:60,bottom:60,left:90,right:90};
+        K.push(new Table({width:{size:CW,type:WidthType.DXA},layout:FIX,columnWidths:colw([33,67]),borders:noBorders,rows:dados.map(function(d,ri){ return new TableRow({children:[ new TableCell({borders:hsep,margins:mId,shading:{type:ShadingType.CLEAR,fill:"F4F8FC",color:"auto"},children:[new Paragraph({children:[R(d[0].replace(/:$/,""),{bold:true,size:18,color:"14294A"})]})]}), new TableCell({borders:hsep,margins:mId,shading:(ri%2===1?{type:ShadingType.CLEAR,fill:"FBFCFE",color:"auto"}:undefined),children:[new Paragraph({children:[R(d[1],{size:18,color:"26323F"})]})]}) ]}); })}));
         K.push(new Paragraph({spacing:{after:80},children:[R("")]}));
       }
     })();
@@ -9541,22 +9544,28 @@ window.UFOTO_rodapeHTML=rodapeHTML;
 
     // ================= 4. PARECER SOCIAL =================
     titulo("4. PARECER SOCIAL",TB["4"]); par(g("rel_parecer_intro"));
+    // Estilo B: cabeçalho tinta clara (azul-claro + navy) com régua de destaque; corpo com zebra e só separadores horizontais
+    var _accentB={top:NB,bottom:{style:BorderStyle.SINGLE,size:12,color:"1F6FC0"},left:NB,right:NB};
+    var _hsepB={top:NB,bottom:{style:BorderStyle.SINGLE,size:4,color:"EDF1F5"},left:NB,right:NB};
+    var _mCrit={top:55,bottom:55,left:95,right:95};
+    function _hcB(t,al){ return new TableCell({shading:{type:ShadingType.CLEAR,fill:"DAE8F6",color:"auto"},borders:_accentB,margins:_mCrit,children:[new Paragraph({alignment:al,children:[R(t,{bold:true,size:18,color:"14294A"})]})]}); }
+    function _bcB(t,al,z,chk){ return new TableCell({shading:z?{type:ShadingType.CLEAR,fill:"FAFCFE",color:"auto"}:undefined,borders:_hsepB,margins:_mCrit,children:[new Paragraph({alignment:al,children:[ chk?R("✓",{bold:true,size:22,color:"1F6FC0"}):R(t,{size:17,color:"28333F"}) ]})]}); }
     function tabelaCrit(rotulo, arr, comNA){
       if(!arr||!arr.length) return;
       K.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{before:120,after:80},children:[R(rotulo,{bold:true,italics:true,size:19})]}));
       const cols = comNA?["Sim","Não","N/A"]:["Sim","Não"];
-      const head=[hcell("Critérios de Análise",{align:AlignmentType.LEFT})].concat(cols.map(c=>hcell(c,{align:AlignmentType.CENTER}))).concat([hcell("Observações",{align:AlignmentType.LEFT})]);
+      const head=[_hcB("Critérios de Análise",AlignmentType.LEFT)].concat(cols.map(c=>_hcB(c,AlignmentType.CENTER))).concat([_hcB("Observações",AlignmentType.LEFT)]);
       const rows=[new TableRow({tableHeader:true,children:head})];
-      arr.forEach(function(l){ rows.push(new TableRow({children:[dcell(l.crit||"",{align:AlignmentType.LEFT})].concat(cols.map(c=>dcell(((l.resp||"")===c)?"X":"",{align:AlignmentType.CENTER,bold:true}))).concat([dcell(l.obs||"",{align:AlignmentType.LEFT})]) })); });
+      arr.forEach(function(l,ri){ var z=(ri%2===1); rows.push(new TableRow({children:[_bcB(l.crit||"",AlignmentType.LEFT,z,false)].concat(cols.map(c=>_bcB("",AlignmentType.CENTER,z,((l.resp||"")===c)))).concat([_bcB(l.obs||"",AlignmentType.LEFT,z,false)]) })); });
       const cwT = comNA?colw([50,7,7,7,22]):colw([56,7,7,23]);
-      K.push(new Table({width:{size:CW,type:WidthType.DXA},layout:FIX,columnWidths:cwT,borders:tableBorders,rows:rows}));
+      K.push(new Table({width:{size:CW,type:WidthType.DXA},layout:FIX,columnWidths:cwT,borders:noBorders,rows:rows}));
     }
     function tabelaIVS(){
       const sims=(window.REL_getTabela?window.REL_getTabela(1):[]).filter(l=>(l.resp||"")==="Sim").length;
       let faixa; if(sims===0)faixa=0; else if(sims<=2)faixa=1; else if(sims<=5)faixa=2; else faixa=3;
       const linhas=[["Sem respostas “Sim”","Ausência de vulnerabilidade"],["1 a 2 respostas “Sim”","Baixa vulnerabilidade"],["3 a 5 respostas “Sim”","Vulnerabilidade moderada"],["6 a 8 respostas “Sim”","Alta vulnerabilidade"]];
       K.push(new Paragraph({spacing:{before:120,after:60},children:[R("Classificação do IVS:",{bold:true,size:21})]}));
-      K.push(new Table({width:{size:CW,type:WidthType.DXA},layout:FIX,columnWidths:colw([8,92]),borders:tableBorders,rows:linhas.map(function(l,i){ const mk=i===faixa; return new TableRow({children:[ new TableCell({shading:mk?{type:ShadingType.CLEAR,fill:"FFE94D",color:"auto"}:undefined,borders:cellBorder,margins:cellM,children:[new Paragraph({children:[R(mk?"X":"",{bold:true,size:18})],alignment:AlignmentType.CENTER})]}), new TableCell({shading:mk?{type:ShadingType.CLEAR,fill:"FFF7C2",color:"auto"}:undefined,borders:cellBorder,margins:cellM,children:[new Paragraph({children:[R(l[0]+"  →  "+l[1],{size:18})]})]}) ]}); })}));
+      K.push(new Table({width:{size:CW,type:WidthType.DXA},layout:FIX,columnWidths:colw([8,92]),borders:noBorders,rows:linhas.map(function(l,i){ const mk=i===faixa; return new TableRow({children:[ new TableCell({shading:mk?{type:ShadingType.CLEAR,fill:"FFE94D",color:"auto"}:undefined,borders:_hsepB,margins:_mCrit,children:[new Paragraph({children:[R(mk?"X":"",{bold:true,size:18,color:"1E1E1E"})],alignment:AlignmentType.CENTER})]}), new TableCell({shading:mk?{type:ShadingType.CLEAR,fill:"FFF7C2",color:"auto"}:undefined,borders:_hsepB,margins:_mCrit,children:[new Paragraph({children:[R(l[0]+"  →  "+l[1],{size:18,bold:mk,color:"28333F"})]})]}) ]}); })}));
     }
     tabelaCrit("Tabela 1 — Critérios de Avaliação de Vulnerabilidade Socioeconômica (IVS/IPEA)", (window.REL_getTabela?window.REL_getTabela(1):[]), true);
     tabelaIVS(); par(g("rel_tab1_coment"));
@@ -9799,34 +9808,34 @@ window.UFOTO_rodapeHTML=rodapeHTML;
       const wObs = 40;
       const wCrit = cw - wResp*nResp - wObs;
       const cabs = comNA ? ["Sim","Não","N/A"] : ["Sim","Não"];
+      // Estilo B: cabeçalho tinta clara (azul-claro + texto navy) com régua de destaque; corpo com zebra e só separadores horizontais
       function cabecalhoTab(){
         const hh=7;
-        pdf.setDrawColor(80,80,80); pdf.setLineWidth(0.2);
-        pdf.rect(mL, yc, cw, hh);
-        let xb=mL+wCrit; pdf.line(xb,yc,xb,yc+hh);
-        cabs.forEach(()=>{ xb+=wResp; pdf.line(xb,yc,xb,yc+hh); });
-        pdf.setFont(FONT,"bold"); pdf.setFontSize(9); pdf.setTextColor(0,0,0);
-        pdf.text("Critérios de Análise", mL+2, yc+4.6);
+        pdf.setFillColor(218,232,246); pdf.rect(mL, yc, cw, hh, 'F');           // header tinta clara
+        pdf.setFont(FONT,"bold"); pdf.setFontSize(9); pdf.setTextColor(20,41,74);
+        pdf.text("Critérios de Análise", mL+2.5, yc+4.6);
         let x=mL+wCrit;
         cabs.forEach(c=>{ pdf.text(c, x+wResp/2, yc+4.6, {align:"center"}); x+=wResp; });
-        pdf.text("Observações", x+2, yc+4.6);
+        pdf.text("Observações", x+2.5, yc+4.6);
+        pdf.setDrawColor(31,111,192); pdf.setLineWidth(0.6); pdf.line(mL, yc+hh, mL+cw, yc+hh);  // régua de destaque
         yc+=hh;
       }
-      ensure(6+10); cabecalhoTab();
+      ensure(6+10); cabecalhoTab(); let __ri=0;
       arr.forEach(lin=>{
         pdf.setFont(FONT,"normal"); pdf.setFontSize(8.5); pdf.setTextColor(0,0,0);
         const critLs=pdf.splitTextToSize(lin.crit||"", wCrit-3);
         const obsLs=pdf.splitTextToSize(lin.obs||"", wObs-3);
         const rowH=Math.max(critLs.length, obsLs.length, 1)*3.8 + 3;
         if(yc+rowH>botY){ rod(); nova(); cabecalhoTab(); pdf.setFont(FONT,"normal"); pdf.setFontSize(8.5); pdf.setTextColor(0,0,0); }
+        if(__ri%2===1){ pdf.setFillColor(250,252,254); pdf.rect(mL,yc,cw,rowH,'F'); }    // zebra sutil
         let x=mL;
-        pdf.setDrawColor(80,80,80); pdf.setLineWidth(0.2);
-        pdf.rect(x,yc,wCrit,rowH); pdf.text(critLs, x+1.5, yc+3.6); x+=wCrit;
+        pdf.setTextColor(40,51,63); pdf.text(critLs, x+2.5, yc+3.6); x+=wCrit;
         const resp=(lin.resp||"");
         const marca={"Sim":0,"Não":1,"N/A":2};
-        cabs.forEach((c,ci)=>{ pdf.rect(x,yc,wResp,rowH); if(marca[resp]===ci){ pdf.setFont(FONT,"bold"); pdf.setFontSize(9); pdf.text("X", x+wResp/2, yc+rowH/2+1.4, {align:"center"}); pdf.setFont(FONT,"normal"); pdf.setFontSize(8.5); } x+=wResp; });
-        pdf.rect(x,yc,wObs,rowH); pdf.text(obsLs, x+1.5, yc+3.6);
-        yc+=rowH;
+        cabs.forEach((c,ci)=>{ if(marca[resp]===ci){ var cx=x+wResp/2, cyy=yc+rowH/2; pdf.setDrawColor(31,111,192); pdf.setLineWidth(0.7); pdf.setLineCap('round'); pdf.setLineJoin('round'); pdf.lines([[1.1,1.3],[2.6,-3.0]], cx-1.5, cyy+0.4); pdf.setLineCap('butt'); } x+=wResp; });
+        pdf.setTextColor(40,51,63); pdf.text(obsLs, x+2.5, yc+3.6);
+        pdf.setDrawColor(237,241,245); pdf.setLineWidth(0.2); pdf.line(mL, yc+rowH, mL+cw, yc+rowH);  // separador horizontal fino
+        yc+=rowH; __ri++;
       });
       yc+=3;
     }
@@ -9837,15 +9846,14 @@ window.UFOTO_rodapeHTML=rodapeHTML;
       ensure(8+linhas.length*6);
       pdf.setFont(FONT,"bold"); pdf.setFontSize(11); pdf.setTextColor(0,0,0); pdf.text("Classificação do IVS:", mL, yc); yc+=6;
       const wx=14, wq=cw-wx;
+      // Estilo B: só separadores horizontais; realce amarelo mantido na faixa selecionada
       linhas.forEach((l,idx)=>{
-        const mk=idx===faixa; const hh=6;
-        pdf.setDrawColor(160,175,190); pdf.setLineWidth(0.2);
-        if(mk){ pdf.setFillColor(255,233,77); pdf.rect(mL,yc,wx,hh,"FD"); } else pdf.rect(mL,yc,wx,hh);
-        if(mk){ pdf.setFont(FONT,"bold"); pdf.setFontSize(9); pdf.setTextColor(30,30,30); pdf.text("X", mL+wx/2, yc+4, {align:"center"}); }
-        if(mk) pdf.setFillColor(255,247,194); pdf.setDrawColor(160,175,190);
-        if(mk){ pdf.rect(mL+wx,yc,wq,hh,"FD"); } else pdf.rect(mL+wx,yc,wq,hh);
-        pdf.setFont(FONT, mk?"bold":"normal"); pdf.setFontSize(9); pdf.setTextColor(0,0,0);
-        pdf.text(l[0]+"  →  "+l[1], mL+wx+2, yc+4);
+        const mk=idx===faixa; const hh=6.4;
+        if(mk){ pdf.setFillColor(255,233,77); pdf.rect(mL,yc,wx,hh,'F'); pdf.setFillColor(255,247,194); pdf.rect(mL+wx,yc,wq,hh,'F'); }
+        if(mk){ pdf.setFont(FONT,"bold"); pdf.setFontSize(9); pdf.setTextColor(30,30,30); pdf.text("X", mL+wx/2, yc+4.2, {align:"center"}); }
+        pdf.setFont(FONT, mk?"bold":"normal"); pdf.setFontSize(9); pdf.setTextColor(40,51,63);
+        pdf.text(l[0]+"  →  "+l[1], mL+wx+2.5, yc+4.2);
+        pdf.setDrawColor(237,241,245); pdf.setLineWidth(0.2); pdf.line(mL,yc+hh,mL+cw,yc+hh);
         yc+=hh;
       });
       yc+=3;
@@ -9871,16 +9879,20 @@ window.UFOTO_rodapeHTML=rodapeHTML;
       const tit="Expropriado e processo de desapropriação de referência:";
       pdf.text(tit, mL, yc); const tw=pdf.getTextWidth(tit);
       pdf.setDrawColor(0,0,0); pdf.setLineWidth(0.2); pdf.line(mL, yc+0.9, mL+tw, yc+0.9); yc+=5;
-      const wL=58, wR=cw-wL, hh=6.6;
-      dados.forEach(d=>{
+      // Estilo A (zebra suave): coluna de rótulos tonalizada, valores com zebra, só separadores horizontais
+      const wL=58, wR=cw-wL, hh=6.8;
+      dados.forEach((d,ri)=>{
         ensure(hh);
-        pdf.setDrawColor(80,80,80); pdf.setLineWidth(0.2);
-        pdf.rect(mL,yc,wL,hh); pdf.rect(mL+wL,yc,wR,hh);
-        pdf.setFont(FONT,"bold"); pdf.setFontSize(9.5); pdf.setTextColor(0,0,0);
-        pdf.text(d[0], mL+2, yc+4.4);
-        pdf.setFont(FONT,"bold");
-        const vls=pdf.splitTextToSize(String(d[1]), wR-4);
-        pdf.text(vls.slice(0,1), mL+wL+2, yc+4.4);
+        // fundo do rótulo (azul bem claro) e zebra dos valores (linhas pares)
+        pdf.setFillColor(244,248,252); pdf.rect(mL,yc,wL,hh,'F');
+        if(ri%2===1){ pdf.setFillColor(251,252,254); pdf.rect(mL+wL,yc,wR,hh,'F'); }
+        // separador horizontal fino
+        pdf.setDrawColor(230,235,241); pdf.setLineWidth(0.2); pdf.line(mL,yc+hh,mL+cw,yc+hh);
+        pdf.setFont(FONT,"bold"); pdf.setFontSize(9); pdf.setTextColor(20,41,74);
+        pdf.text(d[0].replace(/:$/,""), mL+2.5, yc+4.5);
+        pdf.setFont(FONT,"normal"); pdf.setTextColor(38,50,63);
+        const vls=pdf.splitTextToSize(String(d[1]), wR-5);
+        pdf.text(vls.slice(0,1), mL+wL+2.5, yc+4.5);
         yc+=hh;
       });
       yc+=5;
