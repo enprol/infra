@@ -9215,6 +9215,9 @@ window.UFOTO_rodapeHTML=rodapeHTML;
   const TXT_PREMISSAS="O Plano Básico Ambiental (PBA) do empreendimento Ferrovia Transnordestina (FTN) estabelece um conjunto de Objetivos Específicos que funcionam como o arcabouço programático para a gestão do processo de desapropriação. Tais diretrizes garantem que as ações de reparação e mitigação ocorram de forma justa, transparente e legal, fundamentando-se na Resolução Normativa nº 7/2023/DIREX-INFRASA, que, por sua vez, se baseia na Lei nº 9.469/97 e no Decreto nº 10.201/20.\nAs medidas compensatórias e mitigatórias adotadas pelo PBA transcendem a mera indenização e visam o pleno restabelecimento do atingido, por isso as ações realizadas no âmbito das desapropriações serão pautadas nas seguintes premissas:\n1. Garantias Sociais e de Informação\nGarantia de Conhecimento Prévio - Mitigação Social: É essencial garantir a compreensão prévia de todo o processo por parte dos atingidos. Esta é uma medida de mitigação social que assegura o direito à informação e participação;\nMediação e Solução Amigável: A gestão prioriza a negociação e a solução consensual para evitar a judicialização da desapropriação, minimizando o tempo de espera;\n2. Compensação Patrimonial e Funcional\nCompensação Justa: Princípio fundamental consiste em garantir que as famílias não sofram perdas patrimoniais. A indenização deve cobrir o valor real de mercado, assegurando que os recursos sejam suficientes para o restabelecimento do padrão de vida;\nSuporte Socioeconômico e Continuidade: O suporte socioeconômico visa garantir a continuidade das atividades desenvolvidas no imóvel, onde o expropriado consiga dar seguimento às suas atividades sem prejuízo causado pela desapropriação;\nDireito de Extensão e Funcionalidade da Propriedade: É garantida a escuta ativa do expropriado sobre áreas remanescentes, reconhecendo o direito de extensão quando o traçado do projeto tornar a porção restante do imóvel inutilizável ou inviável economicamente;\nMitigação da Interrupção de Uso: São consideradas as necessidades de manutenção da funcionalidade do imóvel rural, garantindo a criação e adequação de passagens para gado, água e veículos, conforme as necessidades operacionais das glebas remanescentes;";
 
   function g(id){ const e=document.getElementById(id); return e?(e.value||"").trim():""; }
+  // Texto do item 1.1 (premissas): sempre usa o texto padrão do PBA. Se o campo estiver vazio
+  // ou tiver o boilerplate antigo (sem "Plano Básico Ambiental"), força o texto atual.
+  function PREM(){ var v=g("rel_premissas"); return (v && v.indexOf("Plano Básico Ambiental")>=0) ? v : TXT_PREMISSAS; }
   function set(id,v){ const e=document.getElementById(id); if(e && !e.value) e.value=v; }
   function setF(id,v){ const e=document.getElementById(id); if(e) e.value=v; }
   // lê um campo da aba 1.9
@@ -9506,7 +9509,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     // ================= 1. APRESENTAÇÃO =================
     K.push(new Paragraph({children:[R("")],pageBreakBefore:true,spacing:{after:0}}));
     titulo("1. APRESENTAÇÃO"); par(g("rel_apresentacao"));
-    subt("1.1 Referencial Normativo e Premissas Gerais Acerca das Opções de Medidas Compensatórias"); par(g("rel_premissas"));
+    subt("1.1 Referencial Normativo e Premissas Gerais Acerca das Opções de Medidas Compensatórias"); par(PREM());
 
     // ================= 2. IDENTIFICAÇÃO =================
     titulo("2. IDENTIFICAÇÃO E QUALIFICAÇÃO DO PROPRIETÁRIO E DO IMÓVEL",TB["2"]);
@@ -9710,11 +9713,14 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     function nova(){ pdf.addPage(); cab(); yc=topY; }
     function ensure(h){ if(yc+h>botY){ const _fs=pdf.getFontSize(); const _f=pdf.getFont(); const _tc=pdf.getTextColor(); rod(); nova(); try{pdf.setFont(_f.fontName,_f.fontStyle);}catch(e){} pdf.setFontSize(_fs); try{pdf.setTextColor(_tc);}catch(e){} } }
     // Regra de paginação de tópicos (espelhada no Word via window.__REL_TB):
-    // um tópico deve iniciar em nova página quando o espaço útil restante for menor que 25% da área útil da página.
+    // Cada tópico inicia, preferencialmente, em NOVA PÁGINA (quebra antes do título).
+    // Exceção (regra dos 25%): NÃO quebra se a página atual mal começou — ou seja, se o
+    // conteúdo já existente antes do tópico ocupa 25% ou menos da área útil (evita gerar
+    // uma página praticamente vazia). Nesse caso o tópico permanece na página atual.
     window.__REL_TB={};
     function topico(t){
-      const usable=botY-topY, remaining=botY-yc;
-      const brk = (remaining < 0.25*usable);
+      const usable=botY-topY, used=yc-topY;
+      const brk = (used > 0.25*usable);
       const m=String(t).match(/^(\d+)\./); if(m) window.__REL_TB[m[1]]=brk;
       if(brk){ rod(); nova(); }
       titulo(t);
@@ -9926,7 +9932,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     rod();
     nova();
     titulo("1. APRESENTAÇÃO"); paragrafo(g("rel_apresentacao"));
-    subt("1.1 Referencial Normativo e Premissas Gerais Acerca das Opções de Medidas Compensatórias"); paragrafo(g("rel_premissas"));
+    subt("1.1 Referencial Normativo e Premissas Gerais Acerca das Opções de Medidas Compensatórias"); paragrafo(PREM());
     topico("2. IDENTIFICAÇÃO E QUALIFICAÇÃO DO PROPRIETÁRIO E DO IMÓVEL");
     (function(){
       let qual=g("rel_qualificacao")||"";
