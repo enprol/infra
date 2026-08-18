@@ -7849,7 +7849,7 @@ function AV_gerarDescSituacao(){
         || (document.getElementById("fv_processo") && document.getElementById("fv_processo").value.trim())
         || (document.getElementById("fb_processo") && document.getElementById("fb_processo").value.trim())
         || "cadastro";
-      const nomeArq = "Cadastro_" + nomeBase.replace(/[^\w\-]+/g,"_").slice(0,40) + ".json";
+      const nomeArq = (window.__CTDsuf?window.__CTDsuf():"CTD 000") + ".json";
       const blob = new Blob([JSON.stringify(pacote, null, 2)], {type:"application/json"});
       if(opts&&opts.retornar) return {blob:blob, nome:nomeArq};
       if(window.FS_salvar){ await window.FS_salvar(blob, nomeArq); }
@@ -8372,7 +8372,7 @@ function AV_gerarDescSituacao(){
     const footPars=[new Paragraph({border:{top:{color:"1F6FC0",space:2,style:BorderStyle.SINGLE,size:6}},spacing:{after:0,line:20},children:[new TextRun({text:"",size:2})]})].concat(END.map((l,i)=>new Paragraph({spacing:{after:0,line:150},tabStops:[{type:TabStopType.RIGHT,position:CWa}],children:[new TextRun({text:l,size:11,color:"5A6470",font:FONT}),new TextRun({text:"\t"+(END_TEL[i]||"(+55 85) 3289-6363")+"   comercial@enprol.com.br",size:11,color:"5A6470",font:FONT})]})));
 
     const doc=new Document({sections:[{properties:{page:{margin:{top:1701,left:1701,bottom:980,right:1134,header:454,footer:900}}},headers:{default:new Header({children:[headerTbl,new Paragraph({border:{bottom:{color:"1F6FC0",space:1,style:BorderStyle.SINGLE,size:6}},children:[R("")]})]})},footers:{default:new Footer({children:footPars})},children:K}]});
-    const _blob=await Packer.toBlob(doc); if(opts&&opts.retornar) return {blob:_blob, nome:"Ficha_Anexo_B_1.9.docx"}; await FS_salvar(_blob, "Ficha_Anexo_B_1.9.docx");
+    const _blob=await Packer.toBlob(doc); const _nomeF="Ficha_"+(window.__CTDsuf?window.__CTDsuf():"CTD 000")+".docx"; if(opts&&opts.retornar) return {blob:_blob, nome:_nomeF}; await FS_salvar(_blob, _nomeF);
   };
 
   // ---- Puxar dados SIM/NÃO: bloqueia (espelho) ou libera (edição manual) ----
@@ -8859,7 +8859,7 @@ function AV_gerarDescSituacao(){
     if(gv("fb_ass_reg")){ pdf.text(gv("fb_ass_reg"), W/2, y, {align:"center"}); y+=LH+0.6; }
 
     rodape();
-    const _blob=pdf.output("blob"); if(opts&&opts.retornar) return {blob:_blob, nome:"Ficha_Anexo_B_1.9.pdf"}; await FS_salvar(_blob, "Ficha_Anexo_B_1.9.pdf");
+    const _blob=pdf.output("blob"); const _nomeF="Ficha_"+(window.__CTDsuf?window.__CTDsuf():"CTD 000")+".pdf"; if(opts&&opts.retornar) return {blob:_blob, nome:_nomeF}; await FS_salvar(_blob, _nomeF);
   };
 
   // init
@@ -9212,7 +9212,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
   const TXT_PARECER_INTRO="Para constatação da existência de situação de vulnerabilidade socioeconômica foram empregadas duas metodologias, uma baseada nas diretrizes da Política Nacional de Assistência Social (PNAS) e da LOAS (Lei nº 8.742/1993), e outra pautada nos critérios estabelecidos nos Art. 2º e 3º da Resolução nº 07.";
   const TXT_NORMATIVO="Conforme a metodologia prevista na Política Nacional de Assistência Social (PNAS), instituída pela Resolução CNAS nº 145/2004, verifica-se que, no momento da análise, a proprietária em questão apresenta características que indiquem situação de vulnerabilidade social moderada.\n\nA segunda metodologia empregada é fundamentada nos Art. 2º e 3º da RESOLUÇÃO NORMATIVA - INFRASA Nº 7/2023 (7667755), em especial o 3º, o qual estabelece quatro critérios para identificação de situações de vulnerabilidade social, sendo que a ocorrência de quaisquer um destes caracteriza vulnerabilidade social.\n\nArt. 2º Para fins desta Resolução Normativa, consideram-se população afetada:\nI - Pessoas que sofrerão desocupação involuntária de sua habitação em função da implantação de projeto ferroviário;\nII - Pessoas que em função de projeto ferroviário terão impactadas, de forma especial e anormal, as atividades das quais dependam para sustento próprio e de suas famílias; ou\nIII - pessoas que em função de projeto ferroviário, terão impactadas, de forma integral, específica e individualizada, infraestruturas que forneçam itens de primeira necessidade (água, esgotamento sanitário, energia elétrica) às suas residências.\n§ 1º Os casos contemplados pelo inciso I são limitados aos habitantes de edificações localizadas na faixa de domínio, observadas as exceções previstas nesta Resolução.\n§ 2º É possível incluir, excepcionalmente, nos casos contemplados no inciso I, habitantes de edificações fora da faixa de domínio, desde que haja necessidade de desocupação involuntária, temporária ou permanente, de sua habitação.\n\nArt. 3º As pessoas afetadas poderão ter também sua vulnerabilidade social reconhecida por meio de cadastro socioeconômico.\n§ 1º O cadastro socioeconômico deverá detalhar a utilização da propriedade pelo núcleo familiar afetado e apontar eventuais impactos sobre terceiros, principalmente quanto a prejuízos no fornecimento de itens de primeira necessidade (Capítulo V).\n§ 2º O cadastro socioeconômico identificará situações de vulnerabilidade social, condição que estará caracterizada quando o núcleo familiar se enquadrar em, ao menos, um dos seguintes critérios:\na) quando indivíduos ou núcleos familiares forem consideradas de baixa renda, segundo critérios constantes do “Cadastro Único” administrado pelo Governo Federal;\nb) quando o empreendimento comprometer mais de 30% da única ou principal fonte de renda familiar oriunda de pequenos negócios, agricultura familiar ou locação/arrendamento para terceiros;\nc) quando se tratar da família monoparental chefiada por pessoa com baixo nível de escolaridade (até 5º ano completo – primeiro segmento do ensino fundamental) e que detenha a guarda fática ou jurídica de descendentes menores de 18 anos; ou\nd) quando habitar edificação que se enquadre no padrão RP1Q (Residência Unifamiliar Popular) da NBR 12.721 e/ou que apresente estado de conservação severamente deteriorado, assim considerado por laudo específico.\n§ 3º Os documentos que fundamentarem o cadastro socioeconômico, assim como o parecer do profissional que o realizar, serão juntados ao processo de desapropriação do imóvel correspondente.\n§ 4º Em caso de impactos negativos decorrentes do empreendimento que afetem pessoas residentes em imóveis que não são objeto de desapropriação, os documentos e parecer que trata o parágrafo anterior serão juntados em processo administrativo específico.\n§ 5º A caracterização socioeconômica observará o disposto no art. 10 da Resolução Normativa 10/2022/Direx-Valec/Presi-Valec, bem como no art. 20 da Lei 8.742, de 7 de dezembro de 1993.\n\nConsiderando o referido artigo, foi elaborada a Tabela 2 para exposição dos critérios e assinalar a ocorrência ou inexistência destes:";
   const TXT_TAB2_COMENT="Observando a Tabela 2, é possível verificar que a proprietária do imóvel interceptado atende aos critérios estabelecidos, dessa forma, nos termos do Art. 3º da Resolução Normativa INFRASA nº 7/2023, apresenta baixo grau de vulnerabilidade social.\n\nAssim, conforme os resultados da avaliação de vulnerabilidade segundo metodologia da Política Nacional de Assistência Social (PNAS) e da Resolução Normativa INFRASA nº 7/2023, a proprietária enquadra-se em situação de vulnerabilidade social moderada.";
-  const TXT_PREMISSAS="Garantia de Conhecimento Prévio - Mitigação Social: É essencial garantir a compreensão prévia de todo o processo por parte dos atingidos. Esta é uma medida de mitigação social que assegura o direito à informação e participação; Mediação e Solução Amigável: A gestão prioriza a negociação e a solução consensual para evitar a judicialização da desapropriação, minimizando o tempo de espera; Compensação Justa: Princípio fundamental consiste em garantir que as famílias não sofram perdas patrimoniais. A indenização deve cobrir o valor real de mercado, assegurando que os recursos sejam suficientes para o restabelecimento do padrão de vida; Suporte Socioeconômico e Continuidade: O suporte socioeconômico visa garantir a continuidade das atividades desenvolvidas no imóvel, onde o expropriado consiga dar seguimento às suas atividades sem prejuízo causado pela desapropriação; Direito de Extensão e Funcionalidade da Propriedade: É garantida a escuta ativa do expropriado.";
+  const TXT_PREMISSAS="O Plano Básico Ambiental (PBA) do empreendimento Ferrovia Transnordestina (FTN) estabelece um conjunto de Objetivos Específicos que funcionam como o arcabouço programático para a gestão do processo de desapropriação. Tais diretrizes garantem que as ações de reparação e mitigação ocorram de forma justa, transparente e legal, fundamentando-se na Resolução Normativa nº 7/2023/DIREX-INFRASA, que, por sua vez, se baseia na Lei nº 9.469/97 e no Decreto nº 10.201/20.\nAs medidas compensatórias e mitigatórias adotadas pelo PBA transcendem a mera indenização e visam o pleno restabelecimento do atingido, por isso as ações realizadas no âmbito das desapropriações serão pautadas nas seguintes premissas:\n1. Garantias Sociais e de Informação\nGarantia de Conhecimento Prévio - Mitigação Social: É essencial garantir a compreensão prévia de todo o processo por parte dos atingidos. Esta é uma medida de mitigação social que assegura o direito à informação e participação;\nMediação e Solução Amigável: A gestão prioriza a negociação e a solução consensual para evitar a judicialização da desapropriação, minimizando o tempo de espera;\n2. Compensação Patrimonial e Funcional\nCompensação Justa: Princípio fundamental consiste em garantir que as famílias não sofram perdas patrimoniais. A indenização deve cobrir o valor real de mercado, assegurando que os recursos sejam suficientes para o restabelecimento do padrão de vida;\nSuporte Socioeconômico e Continuidade: O suporte socioeconômico visa garantir a continuidade das atividades desenvolvidas no imóvel, onde o expropriado consiga dar seguimento às suas atividades sem prejuízo causado pela desapropriação;\nDireito de Extensão e Funcionalidade da Propriedade: É garantida a escuta ativa do expropriado sobre áreas remanescentes, reconhecendo o direito de extensão quando o traçado do projeto tornar a porção restante do imóvel inutilizável ou inviável economicamente;\nMitigação da Interrupção de Uso: São consideradas as necessidades de manutenção da funcionalidade do imóvel rural, garantindo a criação e adequação de passagens para gado, água e veículos, conforme as necessidades operacionais das glebas remanescentes;";
 
   function g(id){ const e=document.getElementById(id); return e?(e.value||"").trim():""; }
   function set(id,v){ const e=document.getElementById(id); if(e && !e.value) e.value=v; }
@@ -9424,6 +9424,9 @@ window.UFOTO_rodapeHTML=rodapeHTML;
   // Word (.doc) do Relatório com o layout aprovado (capa faixa azul + índice + seções + tabelas)
   window.REL_gerarWord=async function(opts){
     if(window.REL_syncFotos) window.REL_syncFotos();
+    // Espelha a paginação de tópicos do PDF: roda uma passagem de medição (sem salvar) para obter as quebras.
+    try{ if(typeof window.REL_gerarPDF==='function' && (window.jspdf||window.jsPDF)) await window.REL_gerarPDF({retornar:true, medir:true}); }catch(e){}
+    const TB=window.__REL_TB||{};
     const D=window.docx;
     if(!D){ alert("Biblioteca Word ainda carregando. Tente novamente em instantes."); return; }
     const {Document,Packer,Paragraph,TextRun,Table,TableRow,TableCell,WidthType,BorderStyle,AlignmentType,ImageRun,ShadingType,VerticalAlign,Header,Footer,TableLayoutType}=D;
@@ -9444,10 +9447,10 @@ window.UFOTO_rodapeHTML=rodapeHTML;
 
     // ---- helpers espelhando o PDF ----
     // título nível 1: preto, negrito, número + TÍTULO em maiúsculas, com régua abaixo
-    function titulo(t){
+    function titulo(t,brk){
       const m=String(t).match(/^(\d+)\.\s*(.*)$/);
       const kids = m ? [R(m[1]+".  ",{bold:true,size:27}), R(m[2].toUpperCase(),{bold:true,size:27})] : [R(String(t).toUpperCase(),{bold:true,size:27})];
-      K.push(new Paragraph({children:kids,spacing:{before:240,after:140,line:264},border:{bottom:{style:BorderStyle.SINGLE,size:6,color:"464646",space:3}}}));
+      K.push(new Paragraph({children:kids,pageBreakBefore:!!brk,spacing:{before:240,after:140,line:264},border:{bottom:{style:BorderStyle.SINGLE,size:6,color:"464646",space:3}}}));
     }
     // subtítulo nível 2: preto, negrito, N.N. + TÍTULO em maiúsculas, recuo pendente
     function subt(t){
@@ -9457,7 +9460,10 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     }
     // parágrafo: justificado, recuo de 1ª linha, entrelinha 1,5
     function par(t,o){ o=o||{}; if(t==null||!String(t).trim()) return;
-      String(t).split("\n").forEach(function(line){ if(line.trim()) K.push(new Paragraph({children:[R(line.trim(),{italics:!!o.italics,size:o.size||22})],alignment:AlignmentType.JUSTIFIED,spacing:{after:170,line:330,lineRule:"exact"},indent:Object.assign({firstLine:o.noIndent?0:mm(9)},o.indentLeft?{left:o.indentLeft}:{})})); });
+      // Espelha o PDF: linhas separadas por \n ficam empilhadas SEM espaço entre si; só há espaço após o bloco.
+      var lns=String(t).split("\n").filter(function(l){return l.trim();});
+      lns.forEach(function(line,li){ var last=(li===lns.length-1);
+        K.push(new Paragraph({children:[R(line.trim(),{italics:!!o.italics,size:o.size||22})],alignment:AlignmentType.JUSTIFIED,spacing:{after:(last?170:0),line:330,lineRule:"exact"},indent:Object.assign({firstLine:o.noIndent?0:mm(9)},o.indentLeft?{left:o.indentLeft}:{})})); });
     }
     function hcell(t,o){o=o||{};return new TableCell({shading:{type:ShadingType.CLEAR,fill:"DAE8F6",color:"auto"},borders:cellBorder,margins:cellM,children:[new Paragraph({children:[R(t,{bold:true,size:18,color:"1A3A5C"})],alignment:o.align||AlignmentType.CENTER})]});}
     function dcell(t,o){o=o||{};return new TableCell({shading:o.fill?{type:ShadingType.CLEAR,fill:o.fill,color:"auto"}:undefined,borders:cellBorder,margins:cellM,children:[new Paragraph({children:[R(t,{size:18,bold:!!o.bold})],alignment:o.align||AlignmentType.LEFT})]});}
@@ -9503,7 +9509,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     subt("1.1 Referencial Normativo e Premissas Gerais Acerca das Opções de Medidas Compensatórias"); par(g("rel_premissas"));
 
     // ================= 2. IDENTIFICAÇÃO =================
-    titulo("2. IDENTIFICAÇÃO E QUALIFICAÇÃO DO PROPRIETÁRIO E DO IMÓVEL");
+    titulo("2. IDENTIFICAÇÃO E QUALIFICAÇÃO DO PROPRIETÁRIO E DO IMÓVEL",TB["2"]);
     (function(){
       let qual=g("rel_qualificacao")||"";
       const segMark="O imóvel encontra-se inserido no seguinte segmento do traçado:";
@@ -9524,14 +9530,14 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     })();
 
     // ================= 3. CADASTRO SOCIOECONÔMICO =================
-    titulo("3. CADASTRO SOCIOECONÔMICO");
+    titulo("3. CADASTRO SOCIOECONÔMICO",TB["3"]);
     subt("3.1 Atividade Realizada"); par(g("rel_31_atividade"));
     subt("3.2 Objetivo"); par(g("rel_32_objetivo"));
     subt("3.3 Metodologia"); par(g("rel_33_metodologia"));
     subt("3.4 Síntese da Caracterização Socioeconômica"); par(g("rel_34_sintese"));
 
     // ================= 4. PARECER SOCIAL =================
-    titulo("4. PARECER SOCIAL"); par(g("rel_parecer_intro"));
+    titulo("4. PARECER SOCIAL",TB["4"]); par(g("rel_parecer_intro"));
     function tabelaCrit(rotulo, arr, comNA){
       if(!arr||!arr.length) return;
       K.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{before:120,after:80},children:[R(rotulo,{bold:true,italics:true,size:19})]}));
@@ -9562,12 +9568,12 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     par(g("rel_tab2_coment"));
 
     // ================= 5. CONCLUSÃO =================
-    titulo("5. CONCLUSÃO"); par(g("rel_conclusao"));
+    titulo("5. CONCLUSÃO",TB["5"]); par(g("rel_conclusao"));
     // Bloco de assinatura isolado em página própria (espelho do PDF: ensure(58) empurra a assinatura para nova página)
     (function(){
       var ld=(window.__localData?window.__localData('rel_local_data','rel_municipio','','fb_data'):g("rel_local_data"));
       var im=window.__getAssin?window.__getAssin('rel'):null; var u=im?b64u8(im):null;
-      var first=true; function pb(){ var v=first; first=false; return v; }
+      var first=true; function pb(){ var v=first&&!!TB.sig; first=false; return v; }
       if(ld) K.push(new Paragraph({children:[R(ld)],alignment:AlignmentType.CENTER,pageBreakBefore:pb(),keepNext:true,spacing:{before:0,after:(u?140:220)}}));
       if(u) K.push(new Paragraph({alignment:AlignmentType.CENTER,pageBreakBefore:pb(),keepNext:true,spacing:{before:(ld?0:0),after:20},children:[new ImageRun({data:u,transformation:{width:200,height:74}})]}));
       K.push(new Paragraph({children:[R("____________________________________")],alignment:AlignmentType.CENTER,pageBreakBefore:pb(),keepNext:true,spacing:{before:0,after:40}}));
@@ -9611,7 +9617,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
       { properties:coverProps, children:Kcapa },
       { properties:contentProps, headers:{default:runHeader}, footers:{default:foot}, children:K }
     ]});
-    const _blob=await Packer.toBlob(doc); const _nome="Relatorio_Socioeconomico_DESP-1.docx";
+    const _blob=await Packer.toBlob(doc); const _nome="Relatorio_"+(window.__CTDsuf?window.__CTDsuf():"CTD 000")+".docx";
     if(opts&&opts.retornar) return {blob:_blob, nome:_nome};
     await window.FS_salvar(_blob, _nome);
   };
@@ -9703,6 +9709,16 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     const topY=30, botY=H-mB-16-3; let yc=0;
     function nova(){ pdf.addPage(); cab(); yc=topY; }
     function ensure(h){ if(yc+h>botY){ const _fs=pdf.getFontSize(); const _f=pdf.getFont(); const _tc=pdf.getTextColor(); rod(); nova(); try{pdf.setFont(_f.fontName,_f.fontStyle);}catch(e){} pdf.setFontSize(_fs); try{pdf.setTextColor(_tc);}catch(e){} } }
+    // Regra de paginação de tópicos (espelhada no Word via window.__REL_TB):
+    // um tópico deve iniciar em nova página quando o espaço útil restante for menor que 25% da área útil da página.
+    window.__REL_TB={};
+    function topico(t){
+      const usable=botY-topY, remaining=botY-yc;
+      const brk = (remaining < 0.25*usable);
+      const m=String(t).match(/^(\d+)\./); if(m) window.__REL_TB[m[1]]=brk;
+      if(brk){ rod(); nova(); }
+      titulo(t);
+    }
     // título nível 1: preto, negrito, com régua abaixo (padrão do modelo Word)
     function titulo(t){ ensure(16); pdf.setFont(FONT,"bold"); pdf.setFontSize(13.5); pdf.setTextColor(0,0,0);
       const m=String(t).match(/^(\d+)\.\s*(.*)$/);
@@ -9911,7 +9927,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     nova();
     titulo("1. APRESENTAÇÃO"); paragrafo(g("rel_apresentacao"));
     subt("1.1 Referencial Normativo e Premissas Gerais Acerca das Opções de Medidas Compensatórias"); paragrafo(g("rel_premissas"));
-    titulo("2. IDENTIFICAÇÃO E QUALIFICAÇÃO DO PROPRIETÁRIO E DO IMÓVEL");
+    topico("2. IDENTIFICAÇÃO E QUALIFICAÇÃO DO PROPRIETÁRIO E DO IMÓVEL");
     (function(){
       let qual=g("rel_qualificacao")||"";
       const segMark="O imóvel encontra-se inserido no seguinte segmento do traçado:";
@@ -9927,12 +9943,12 @@ window.UFOTO_rodapeHTML=rodapeHTML;
       }
       quadroIdent();
     })();
-    titulo("3. CADASTRO SOCIOECONÔMICO");
+    topico("3. CADASTRO SOCIOECONÔMICO");
     subt("3.1 Atividade Realizada"); paragrafo(g("rel_31_atividade"));
     subt("3.2 Objetivo"); paragrafo(g("rel_32_objetivo"));
     subt("3.3 Metodologia"); paragrafo(g("rel_33_metodologia"));
     subt("3.4 Síntese da Caracterização Socioeconômica"); paragrafo(g("rel_34_sintese"));
-    titulo("4. PARECER SOCIAL"); paragrafo(g("rel_parecer_intro"));
+    topico("4. PARECER SOCIAL"); paragrafo(g("rel_parecer_intro"));
     desenharTabela("Tabela 1 — Critérios de Avaliação de Vulnerabilidade Socioeconômica (IVS/IPEA)", tabelas[1], true);
     desenharIVS();
     paragrafo(g("rel_tab1_coment"));
@@ -9953,8 +9969,8 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     })();
     desenharTabela("Tabela 2 — Critérios conforme Art. 3º da Resolução Normativa INFRASA nº 7/2023", tabelas[2], false);
     paragrafo(g("rel_tab2_coment"));
-    titulo("5. CONCLUSÃO"); paragrafo(g("rel_conclusao"));
-    yc+=10; ensure(58);
+    topico("5. CONCLUSÃO"); paragrafo(g("rel_conclusao"));
+    yc+=10; window.__REL_TB.sig=(yc+58>botY); ensure(58);
     (function(){ var ld=(window.__localData?window.__localData('rel_local_data','rel_municipio','','fb_data'):g("rel_local_data")); if(ld){ pdf.setFont(FONT,"normal"); pdf.setFontSize(11); pdf.setTextColor(0,0,0); pdf.text(ld, W/2, yc, {align:"center"}); } yc+=8; })();
     (function(){ var im=window.__getAssin?window.__getAssin('rel'):null; if(im){ try{ var fmt=/^data:image\/png/i.test(im)?"PNG":"JPEG"; pdf.addImage(im,fmt,W/2-27,yc,54,20); }catch(e){} yc+=22; } else { yc+=8; } })();
     pdf.setDrawColor(60,60,60); pdf.setLineWidth(0.3); pdf.line(W/2-40, yc, W/2+40, yc); yc+=4.5;
@@ -9968,7 +9984,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
       for(let i=0;i<fotos.length;i++){ if(col===0 && yc+fh>botY){ rod(); nova(); } const x=mL+col*(fw+6); try{ pdf.addImage(fotos[i],"JPEG",x,yc,fw,fh); }catch(e){} col++; if(col===2){ col=0; yc+=fh+5; } }
       if(col===1) yc+=fh+5; }
     rod();
-    const _blob=pdf.output("blob"); if(opts&&opts.retornar) return {blob:_blob, nome:"Relatorio_Socioeconomico_DESP-1_1.10.pdf"}; await FS_salvar(_blob, "Relatorio_Socioeconomico_DESP-1_1.10.pdf");
+    const _blob=pdf.output("blob"); const _nomeR="Relatorio_"+(window.__CTDsuf?window.__CTDsuf():"CTD 000")+".pdf"; if(opts&&opts.retornar) return {blob:_blob, nome:_nomeR}; await FS_salvar(_blob, _nomeR);
   };
 
   function preencherFixos(){
@@ -10186,8 +10202,9 @@ window.DRL_gerarPDF=async function(opts){
   pdf.text(DRL_bl(d.municipio)+' – '+DRL_bl(d.uf)+', ________ de __________________ de '+(d.ano||'________'), mL, y);
   (function(){ var A=["Av. Des. Moreira, nº 1300, T. Norte, Conj. 1016/1021, Aldeota, 60.170-002, Fortaleza-CE","Rua Idelfonso Freire, nº 106, Sala 202, Centro, 56.506-520, Arcoverde-PE","Rua Pedro Batista Ferreira, nº 278, Centro, 76.500-000, Santa Terezinha de Goiás-GO","Rua Nilo Peçanha, nº 25, 1º Andar, Sala 07, Centro, 47.640-000, Santa Maria da Vitória-BA","Rua Irmã Ambrosina, nº 249, Conj 03 e 04, Centro, 61.760-405, Eusébio-CE","Rua dos Timbiras, nº 2213, Conj.1206/1209, Lourdes, 30.140-069, Belo Horizonte-MG"]; var T=["(+55 85) 3289-6363   comercial@enprol.com.br","(+55 85) 3289-6363   comercial@enprol.com.br","(+55 85) 3289-6363   comercial@enprol.com.br","(+55 85) 3289-6363   comercial@enprol.com.br","(+55 85) 3289-6363   comercial@enprol.com.br","(+55 31) 3253-5500   comercial@enprol.com.br"]; var yL=H-28; pdf.setDrawColor(31,111,192); pdf.setLineWidth(0.6); pdf.line(mL,yL,W-mR,yL); pdf.setFont('helvetica','normal'); pdf.setFontSize(6); pdf.setTextColor(90,107,124); var yy=yL+3.4; for(var i=0;i<A.length;i++){ pdf.text(A[i],mL,yy); pdf.text(T[i],W-mR,yy,{align:'right'}); yy+=3; } })();
   var blob=pdf.output('blob');
-  if(opts&&opts.retornar) return {blob:blob, nome:'DRL_Declaracao_Respeito_Limites.pdf'};
-  await window.FS_salvar(blob, 'DRL_Declaracao_Respeito_Limites.pdf');
+  var _nomeD="DRL_"+(window.__CTDsuf?window.__CTDsuf():"CTD 000")+".pdf";
+  if(opts&&opts.retornar) return {blob:blob, nome:_nomeD};
+  await window.FS_salvar(blob, _nomeD);
 };
 window.DRL_gerarWord=async function(opts){
   if(!window.WORD_htmlDoc){ alert('Módulo Word ainda carregando. Tente novamente em instantes.'); return; }
@@ -10222,8 +10239,9 @@ window.DRL_gerarWord=async function(opts){
   var _rod='<div style="border-top:1pt solid #1F6FC0;margin-top:26pt;padding-top:4pt;font-size:7.5pt;color:#5A6B7C;line-height:1.4;">Av. Des. Moreira, nº 1300, T. Norte, Conj. 1016/1021, Aldeota, 60.170-002, Fortaleza-CE &nbsp; (+55 85) 3289-6363<br>Rua Idelfonso Freire, nº 106, Sala 202, Centro, 56.506-520, Arcoverde-PE &nbsp; (+55 85) 3289-6363<br>Rua Pedro Batista Ferreira, nº 278, Centro, 76.500-000, Santa Terezinha de Goiás-GO &nbsp; (+55 85) 3289-6363<br>Rua Nilo Peçanha, nº 25, 1º Andar, Sala 07, Centro, 47.640-000, Santa Maria da Vitória-BA &nbsp; (+55 85) 3289-6363<br>Rua Irmã Ambrosina, nº 249, Conj 03 e 04, Centro, 61.760-405, Eusébio-CE &nbsp; (+55 85) 3289-6363<br>Rua dos Timbiras, nº 2213, Conj.1206/1209, Lourdes, 30.140-069, Belo Horizonte-MG &nbsp; (+55 31) 3253-5500 &nbsp; comercial@enprol.com.br</div>';
   c=_cab+c+_rod;
   var _html=window.WORD_htmlDoc('Declaração de Respeito de Limites', c, true);
-  if(opts&&opts.retornar) return {blob:window.WORD_blob(_html), nome:'DRL_Declaracao_Respeito_Limites.doc'};
-  await window.WORD_baixar('DRL_Declaracao_Respeito_Limites', _html);
+  var _nomeDW="DRL_"+(window.__CTDsuf?window.__CTDsuf():"CTD 000");
+  if(opts&&opts.retornar) return {blob:window.WORD_blob(_html), nome:_nomeDW+'.doc'};
+  await window.WORD_baixar(_nomeDW, _html);
 };
 
 /* ===== Baixar .zip com TODOS os documentos numa única pasta (Ficha PDF+Word, Relatório PDF+Word, DRL PDF+Word e .json) ===== */
@@ -10239,10 +10257,10 @@ window.REL_baixarTudoZip = async function(){
     await add(window.DRL_gerarWord, 'DRL Word');
     await add(window.CAD_salvar, 'JSON');
     if(!arqs.length){ alert('Nenhum arquivo pôde ser gerado. Verifique se as bibliotecas terminaram de carregar.'); return; }
-    const pasta="DESP-1_Documentos";
+    const pasta=(window.__CTDsuf?window.__CTDsuf():"CTD 000");
     const entries=arqs.map(a=>({path:pasta+"/"+a.nome, blob:a.blob}));
     const zip=await window.ZIP_build(entries);
-    await window.FS_salvar(zip, "DESP-1_Documentos.zip");
+    await window.FS_salvar(zip, pasta+".zip");
   }catch(e){ alert('Erro ao gerar o arquivo .zip: '+(e&&e.message||e)); }
 };
 
@@ -10269,6 +10287,14 @@ window.__localData=function(overrideId, munId, ufId, dataId){
   if(loc&&dt) return loc+", "+dt;
   return loc||dt||"";
 };
+// Nº do CTD (para nomear os arquivos salvos): usa o campo fb_proc_ctd; senão extrai de "... CTD 001 ..." do processo.
+window.__CTD=function(){
+  function gv(id){ var e=document.getElementById(id); return e?((e.value||"").trim()):""; }
+  var v=gv('fb_proc_ctd');
+  if(!v){ var p=gv('fb_processo')||gv('fb_proc_preview')||gv('rel_processo')||''; var m=p.match(/CTD\s*([0-9A-Za-z\-\.]+)/i); if(m) v=m[1]; }
+  return v||'000';
+};
+window.__CTDsuf=function(){ return 'CTD '+window.__CTD(); };
 document.addEventListener('DOMContentLoaded', function(){ __bindAssin('fb_ass_img_file','fb','fb_ass_img_prev'); __bindAssin('rel_ass_img_file','rel','rel_ass_img_prev'); });
 </script>
 </body>
