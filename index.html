@@ -9563,15 +9563,17 @@ window.UFOTO_rodapeHTML=rodapeHTML;
 
     // ================= 5. CONCLUSÃO =================
     titulo("5. CONCLUSÃO"); par(g("rel_conclusao"));
+    // Bloco de assinatura isolado em página própria (espelho do PDF: ensure(58) empurra a assinatura para nova página)
     (function(){
       var ld=(window.__localData?window.__localData('rel_local_data','rel_municipio','','fb_data'):g("rel_local_data"));
       var im=window.__getAssin?window.__getAssin('rel'):null; var u=im?b64u8(im):null;
-      if(ld) K.push(new Paragraph({children:[R(ld)],alignment:AlignmentType.CENTER,spacing:{before:500,after:(u?140:220)}}));
-      if(u) K.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{before:(ld?0:400),after:20},children:[new ImageRun({data:u,transformation:{width:200,height:74}})]}));
-      K.push(new Paragraph({children:[R("____________________________________")],alignment:AlignmentType.CENTER,spacing:{before:((ld||u)?0:400),after:40}}));
+      var first=true; function pb(){ var v=first; first=false; return v; }
+      if(ld) K.push(new Paragraph({children:[R(ld)],alignment:AlignmentType.CENTER,pageBreakBefore:pb(),keepNext:true,spacing:{before:0,after:(u?140:220)}}));
+      if(u) K.push(new Paragraph({alignment:AlignmentType.CENTER,pageBreakBefore:pb(),keepNext:true,spacing:{before:(ld?0:0),after:20},children:[new ImageRun({data:u,transformation:{width:200,height:74}})]}));
+      K.push(new Paragraph({children:[R("____________________________________")],alignment:AlignmentType.CENTER,pageBreakBefore:pb(),keepNext:true,spacing:{before:0,after:40}}));
     })();
-    if(g("rel_resp_nome")) K.push(new Paragraph({children:[R(g("rel_resp_nome"),{bold:true})],alignment:AlignmentType.CENTER,spacing:{after:0}}));
-    if(g("rel_resp_cargo")) K.push(new Paragraph({children:[R(g("rel_resp_cargo"))],alignment:AlignmentType.CENTER,spacing:{after:0}}));
+    if(g("rel_resp_nome")) K.push(new Paragraph({children:[R(g("rel_resp_nome"),{bold:true})],alignment:AlignmentType.CENTER,keepNext:true,spacing:{after:0}}));
+    if(g("rel_resp_cargo")) K.push(new Paragraph({children:[R(g("rel_resp_cargo"))],alignment:AlignmentType.CENTER,keepNext:true,spacing:{after:0}}));
     if(g("rel_resp_reg")) K.push(new Paragraph({children:[R(g("rel_resp_reg"))],alignment:AlignmentType.CENTER,spacing:{after:0}}));
 
     // ================= 6. RELATÓRIO FOTOGRÁFICO =================
@@ -9581,7 +9583,15 @@ window.UFOTO_rodapeHTML=rodapeHTML;
       titulo("6. RELATÓRIO FOTOGRÁFICO DO IMÓVEL");
       if(g("rel_processo")) K.push(new Paragraph({spacing:{after:20},children:[R("Nº do Processo / Lote: ",{}),R(g("rel_processo"),{bold:true})]}));
       if(g("rel_expropriado")) K.push(new Paragraph({spacing:{after:120},children:[R("Nome do Expropriado: ",{}),R(g("rel_expropriado"),{bold:true})]}));
-      fts.forEach(function(src){ const u=b64u8(src); if(u){ K.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:20},children:[new ImageRun({data:u,transformation:{width:470,height:291}})]})); K.push(new Paragraph({spacing:{after:120},children:[R("Fonte: Enprol Engenharia",{italics:true,size:16,color:"5A6470"})]})); } });
+      // 2 fotos por linha (espelho do PDF: fw=77mm≈291px, fh=55mm≈209px)
+      const frows=[];
+      for(let i=0;i<fts.length;i+=2){ const cells=[];
+        for(let j=i;j<Math.min(i+2,fts.length);j++){ const u=b64u8(fts[j]); const kid = u?[new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:0},children:[new ImageRun({data:u,transformation:{width:291,height:209}})]})]:[new Paragraph({children:[R("")]})];
+          cells.push(new TableCell({width:{size:50,type:WidthType.PERCENTAGE},borders:noBorders,children:kid})); }
+        if(cells.length===1) cells.push(new TableCell({width:{size:50,type:WidthType.PERCENTAGE},borders:noBorders,children:[new Paragraph({children:[R("")]})]}));
+        frows.push(new TableRow({children:cells}));
+      }
+      if(frows.length) K.push(new Table({width:{size:CW,type:WidthType.DXA},layout:FIX,columnWidths:colw([50,50]),borders:noBorders,rows:frows}));
     }
 
     // ================= CABEÇALHO / RODAPÉ =================
