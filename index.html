@@ -8368,9 +8368,10 @@ function AV_gerarDescSituacao(){
     ];
     const headerTbl=new Table({width:{size:CWa,type:WidthType.DXA},layout:FIXa,columnWidths:colwa([50,50]),borders:{top:{style:BorderStyle.NONE},bottom:{style:BorderStyle.NONE},left:{style:BorderStyle.NONE},right:{style:BorderStyle.NONE},insideHorizontal:{style:BorderStyle.NONE},insideVertical:{style:BorderStyle.NONE}},rows:[new TableRow({children:headerCells})]});
     const END=["Av. Des. Moreira, nº 1300, T. Norte, Conj. 1016/1021, Aldeota, 60.170-002, Fortaleza-CE","Rua Idelfonso Freire, nº 106, Sala 202, Centro, 56.506-520, Arcoverde-PE","Rua Pedro Batista Ferreira, nº 278, Centro, 76.500-000, Santa Terezinha de Goiás-GO","Rua Nilo Peçanha, nº 25, 1º Andar, Sala 07, Centro, 47.640-000, Santa Maria da Vitória-BA","Rua Irmã Ambrosina, nº 249, Conj 03 e 04, Centro, 61.760-405, Eusébio-CE","Rua dos Timbiras, nº 2213, Conj.1206/1209, Lourdes, 30.140-069, Belo Horizonte-MG"];
-    const footPars=END.map(l=>new Paragraph({spacing:{after:0,line:200},tabStops:[{type:TabStopType.RIGHT,position:CWa}],children:[new TextRun({text:l,size:12,color:"5A6B7C",font:FONT}),new TextRun({text:"\t(+55 85) 3289-6363   comercial@enprol.com.br",size:12,color:"5A6B7C",font:FONT})]}));
+    const END_TEL=["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 31) 3253-5500"];
+    const footPars=[new Paragraph({border:{top:{color:"1F6FC0",space:2,style:BorderStyle.SINGLE,size:6}},spacing:{after:0,line:20},children:[new TextRun({text:"",size:2})]})].concat(END.map((l,i)=>new Paragraph({spacing:{after:0,line:150},tabStops:[{type:TabStopType.RIGHT,position:CWa}],children:[new TextRun({text:l,size:11,color:"5A6470",font:FONT}),new TextRun({text:"\t"+(END_TEL[i]||"(+55 85) 3289-6363")+"   comercial@enprol.com.br",size:11,color:"5A6470",font:FONT})]})));
 
-    const doc=new Document({sections:[{properties:{page:{margin:{top:1701,left:1701,bottom:1134,right:1134,header:454,footer:397}}},headers:{default:new Header({children:[headerTbl,new Paragraph({border:{bottom:{color:"1F6FC0",space:1,style:BorderStyle.SINGLE,size:6}},children:[R("")]})]})},footers:{default:new Footer({children:footPars})},children:K}]});
+    const doc=new Document({sections:[{properties:{page:{margin:{top:1701,left:1701,bottom:980,right:1134,header:454,footer:900}}},headers:{default:new Header({children:[headerTbl,new Paragraph({border:{bottom:{color:"1F6FC0",space:1,style:BorderStyle.SINGLE,size:6}},children:[R("")]})]})},footers:{default:new Footer({children:footPars})},children:K}]});
     const _blob=await Packer.toBlob(doc); if(opts&&opts.retornar) return {blob:_blob, nome:"Ficha_Anexo_B_1.9.docx"}; await FS_salvar(_blob, "Ficha_Anexo_B_1.9.docx");
   };
 
@@ -8532,7 +8533,7 @@ function AV_gerarDescSituacao(){
     }
     const jsPDFctor = (window.jspdf && window.jspdf.jsPDF) ? window.jspdf.jsPDF : window.jsPDF;
     const pdf = new jsPDFctor({orientation:"portrait", unit:"mm", format:"a4"});
-    const W=210, H=297, mL=30, mR=20, mT=12, mB=20;
+    const W=210, H=297, mL=30, mR=20, mT=12, mB=10;
     const contentW=W-mL-mR;
 
     // logos e rodapé (padrão DESP 3)
@@ -9426,7 +9427,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     const D=window.docx;
     if(!D){ alert("Biblioteca Word ainda carregando. Tente novamente em instantes."); return; }
     const {Document,Packer,Paragraph,TextRun,Table,TableRow,TableCell,WidthType,BorderStyle,AlignmentType,ImageRun,ShadingType,VerticalAlign,Header,Footer,TableLayoutType}=D;
-    const LeaderType=D.LeaderType, HeightRule=D.HeightRule, TabStopType=D.TabStopType;
+    const LeaderType=D.LeaderType, HeightRule=D.HeightRule, TabStopType=D.TabStopType, PageNumber=D.PageNumber;
     const FONT="Calibri", BLK="000000", GRID="808080", BLUE="3C5A82";
     const CW=9071; /* largura útil = A4(11906) − margens 3cm(1701) − 2cm(1134) */
     const FIX=(TableLayoutType&&TableLayoutType.FIXED)||undefined;
@@ -9586,12 +9587,16 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     // ================= CABEÇALHO / RODAPÉ =================
     const headerTbl=new Table({width:{size:CW,type:WidthType.DXA},layout:FIX,columnWidths:colw([50,50]),borders:noBorders,rows:[new TableRow({children:[ new TableCell({borders:noBorders,children:[new Paragraph({children: uE?[new ImageRun({data:uE,transformation:{width:100,height:28}})]:[R("")]})]}), new TableCell({borders:noBorders,children:[new Paragraph({alignment:AlignmentType.RIGHT,children: uI?[new ImageRun({data:uI,transformation:{width:100,height:28}})]:[R("")]})]}) ]})]});
     const sei=g("rel_sei"); const docId="DESP-1 (Relatório Socioeconômico): "+(g("rel_processo")||"")+(sei?(" (SEI nº "+sei+")"):"");
-    const runHeader=new Header({children:[headerTbl,new Paragraph({tabStops:[{type:D.TabStopType.RIGHT,position:CW}],border:{bottom:{color:"1F6FC0",space:2,style:BorderStyle.SINGLE,size:6}},children:[R(docId,{size:14,color:"5A5A5A"}),new TextRun({text:"\t"}),R("Página",{size:14,color:"5A5A5A"})]})]});
+    const runHeader=new Header({children:[headerTbl,new Paragraph({tabStops:[{type:TabStopType.RIGHT,position:CW}],border:{bottom:{color:"1F6FC0",space:2,style:BorderStyle.SINGLE,size:6}},children:[R(docId,{size:14,color:"5A5A5A"}),new TextRun({text:"\t"}),R("Página | ",{size:14,color:"5A5A5A"}),new TextRun({children:[PageNumber.CURRENT],size:14,color:"5A5A5A",font:FONT})]})]});
     const emptyHeader=new Header({children:[new Paragraph({children:[R("")]})]});
-    const foot=new Footer({children:[new Paragraph({alignment:AlignmentType.CENTER,children:[R("DESP-1 · Relatório de Caracterização Socioeconômica",{size:14,color:"5A6B7C"})]})]});
+    // Rodapé = endereços ENPROL (idêntico ao PDF)
+    const RELEND=["Av. Des. Moreira, n° 1300, T. Norte, Conj. 1016/1021, Aldeota, 60.170-002, Fortaleza-CE","Rua Irmã Ambrosina, nº 249, Conj 03 e 04, Centro, 61.760-405, Eusébio-CE","Rua Araguari, nº 358, Conj.1903/1904, Barro Preto, 30.190-110, Belo Horizonte-MG","Rua Des. Mário da Silva Nunes, nº 120, Sala 201, Enseada do Suá, 29.050-240, Vitória-ES","Rua Avertano Rocha, n°192, Campina, 66.023-120, Belém-PA"];
+    const RELTEL=["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 31) 3253-5500","(+55 27) 3029-5540","(+55 94) 3346-8994"];
+    const footChildren=[new Paragraph({border:{top:{color:"1F6FC0",space:2,style:BorderStyle.SINGLE,size:6}},spacing:{after:0,line:20},children:[R("",{size:2})]})].concat(RELEND.map(function(l,i){ return new Paragraph({spacing:{after:0,line:150},tabStops:[{type:TabStopType.RIGHT,position:CW}],children:[R(l,{size:11,color:"5A6470"}),new TextRun({text:"\t"}),R((RELTEL[i]||"")+"   comercial@enprol.com.br",{size:11,color:"5A6470"})]}); }));
+    const foot=new Footer({children:footChildren});
 
     const coverProps={ page:{ size:{width:11906,height:16838}, margin:{top:0,bottom:0,left:0,right:0,header:0,footer:0} } };
-    const contentProps={ page:{ size:{width:11906,height:16838}, margin:{top:1701,left:1701,bottom:1134,right:1134,header:454,footer:397} } };
+    const contentProps={ page:{ size:{width:11906,height:16838}, margin:{top:1701,left:1701,bottom:900,right:1134,header:454,footer:820}, pageNumbers:{start:1} } };
     const doc=new Document({sections:[
       { properties:coverProps, children:Kcapa },
       { properties:contentProps, headers:{default:runHeader}, footers:{default:foot}, children:K }
@@ -9614,7 +9619,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
       pdf.addFileToVFS("Carlito-bi.ttf",CF.bolditalic); pdf.addFont("Carlito-bi.ttf","Carlito","bolditalic");
       FONT="Carlito";
     } }catch(e){}
-    const W=210,H=297,mL=30,mR=20,mT=14,mB=20,cw=W-mL-mR;
+    const W=210,H=297,mL=30,mR=20,mT=14,mB=10,cw=W-mL-mR;
     const LI=window.__LOGO_INFRA__, LE=window.__LOGO_ENPROL__;
     function carregar(s){ return new Promise(r=>{ if(!s){r(null);return;} const im=new Image(); im.onload=()=>r(im); im.onerror=()=>r(null); im.src=s; }); }
     const imgI=await carregar(LI), imgE=await carregar(LE);
