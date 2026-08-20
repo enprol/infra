@@ -2672,7 +2672,7 @@ igual DESP 3) */
 
       <div class="vactions" style="margin:0 0 16px;">
         <button class="vbtn vbtn-primary" type="button" onclick="D2_gerarPDF()">📄 Gerar PDF — DESP-2</button>
-        <button class="vbtn vbtn-ghost" type="button" onclick="D2_puxar(true)">↧ Puxar dados da DESP 1</button>
+        <button class="vbtn vbtn-ghost" type="button" onclick="D2_puxar(true);D2_atualizarAuto()">↧ Puxar dados da DESP 1</button>
         <button class="vbtn vbtn-ghost" type="button" onclick="if(confirm('Atualizar TODOS os textos para o padrão do Word com os dados atuais da identificação? Isto sobrescreve edições feitas nos tópicos.')) D2_gerarTextos(true);">↻ Gerar/atualizar textos padrão</button>
         <button class="vbtn vbtn-ghost" type="button" onclick="D2_limpar()">Limpar tópicos</button>
       </div>
@@ -2723,7 +2723,7 @@ igual DESP 3) */
 
       <div class="vactions" style="margin-top:16px;">
         <button class="vbtn vbtn-primary" type="button" onclick="D2_gerarPDF()">📄 Gerar PDF — DESP-2</button>
-        <button class="vbtn vbtn-ghost" type="button" onclick="D2_puxar(true)">↧ Puxar dados da DESP 1</button>
+        <button class="vbtn vbtn-ghost" type="button" onclick="D2_puxar(true);D2_atualizarAuto()">↧ Puxar dados da DESP 1</button>
       </div>
     </div>
   </section>
@@ -8367,6 +8367,7 @@ function AV_gerarDescSituacao(){
         if(pacote.relTabelas && window.REL_setTabela){ window.REL_setTabela(1, pacote.relTabelas["1"]||pacote.relTabelas[1]||[]); window.REL_setTabela(2, pacote.relTabelas["2"]||pacote.relTabelas[2]||[]); }
         if(pacote.assinaturas){ window.__ASSIN__=window.__ASSIN__||{}; window.__ASSIN__.fb=pacote.assinaturas.fb||null; window.__ASSIN__.rel=pacote.assinaturas.rel||null; [["fb","fb_ass_img_prev"],["rel","rel_ass_img_prev"]].forEach(function(p){ var im=window.__ASSIN__[p[0]], pv=document.getElementById(p[1]); if(pv){ pv.innerHTML= im?('<img src="'+im+'" style="max-height:64px;border:1px solid #cfd9e4;border-radius:6px;padding:3px;background:#fff;"> <button type="button" class="vbtn vbtn-ghost" style="padding:4px 10px;" onclick="window.__ASSIN__.'+p[0]+'=null;document.getElementById(\''+p[1]+'\').innerHTML=\'\';">remover</button>'):''; } }); }
         restaurarCampos(pacote.campos);   // depois das estacas/NA/família para recalcular com tudo
+        if(window.D2_marcarTopicosManual) window.D2_marcarTopicosManual();
         restaurarImagens(pacote.imagens);
         if(typeof window.AV_recalcular==="function") window.AV_recalcular();
         alert("Cadastro carregado com sucesso.");
@@ -10872,7 +10873,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     t=rep(t,"2,3842 ha",(C("areaDesap")?C("areaDesap")+" ha":""));
     t=rep(t,"7,4927 ha",(C("areaDesap")?C("areaDesap")+" ha":""));
     t=rep(t,"15,2797 ha",(C("areaRem")?C("areaRem")+" ha":""));
-    t=rep(t,"Brasília - DF, 19 de agosto de 2026",C("localData"));
+    t=rep(t,"Brasília - DF, 19 de agosto de 2026",C("localData")||gid("fb_ass_local"));
     return t;
   }
   const VINC_IDS=["apresenta_o","caracteriza_o_do_im_vel","situa_o_fundi_ria_da_gleba_d","roteiro_de_acesso","planta_da_rea_total_do_im_ve","planta_contendo_a_dimens_o_d","descritivo_de_como_ficar_o_a","estudo_das_medidas_mitigador","conclus_o"];
@@ -10922,9 +10923,21 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     }
     return lines.join('\n').replace(/ /g,' ').replace(/\*\*\s*\*\*/g,'').replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
   }
+  var D2_edited={};
   window.D2_renderView=function(id){ var v=document.getElementById('d2_view_'+id), t=document.getElementById('d2_tx_'+id); if(v&&t && v.getAttribute('contenteditable')!=='true') v.innerHTML=mdToHtml(t.value); };
-  window.D2_syncFromView=function(id){ var v=document.getElementById('d2_view_'+id), t=document.getElementById('d2_tx_'+id); if(v&&t) t.value=htmlToMd(v); };
+  window.D2_syncFromView=function(id){ var v=document.getElementById('d2_view_'+id), t=document.getElementById('d2_tx_'+id); if(v&&t){ t.value=htmlToMd(v); D2_edited[id]=true; } };
   function renderAll(){ DESP2_TOPICOS.forEach(function(tp){ window.D2_renderView(tp.id); }); }
+  function D2_atualizarAuto(){
+    DESP2_TOPICOS.forEach(function(tp){
+      if(VINC_IDS.indexOf(tp.id)<0) return;
+      if(D2_edited[tp.id]) return;
+      var el=document.getElementById("d2_tx_"+tp.id); if(!el) return;
+      el.value=vinc(tp.tpl);
+      window.D2_renderView(tp.id);
+    });
+  }
+  window.D2_atualizarAuto=D2_atualizarAuto;
+  window.D2_marcarTopicosManual=function(){ DESP2_TOPICOS.forEach(function(tp){ D2_edited[tp.id]=true; }); renderAll(); };
   window.D2_toggleEdit=function(id,btn){
     var v=document.getElementById('d2_view_'+id); if(!v) return;
     var editing=v.getAttribute('contenteditable')==='true';
@@ -11044,7 +11057,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
   };
 
   /* gera/atualiza os textos padrão (verbatim do Word + vínculos) */
-  window.D2_gerarTextos=function(force){
+  window.D2_gerarTextos=function(force){ if(force){ for(var _k in D2_edited) delete D2_edited[_k]; }
     DESP2_TOPICOS.forEach(function(tp){
       const el=document.getElementById("d2_tx_"+tp.id); if(!el) return;
       if(tp.id==="custos_das_medidas_mitigador"){ el.value=CUSTOS_FIXO; return; }
@@ -11291,7 +11304,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     window.D2_gerarTextos(false);
     renderAll();
     const linkBtn=document.querySelector('.sb-link[data-alvo="panel-desp2-relatorio"]');
-    if(linkBtn){ linkBtn.addEventListener("click", function(){ setTimeout(function(){ window.D2_puxar(false); renderAll(); }, 60); }); }
+    if(linkBtn){ linkBtn.addEventListener("click", function(){ setTimeout(function(){ window.D2_puxar(false); D2_atualizarAuto(); }, 60); }); }
     // recalcula remanescente ao editar áreas
     ["areaTotal","areaDesap"].forEach(function(k){ const e=document.getElementById("d2_"+k); if(e) e.addEventListener("input", function(){ const rem=num(C("areaTotal"))-num(C("areaDesap")); setC("areaRem", isNaN(rem)?"":ha(rem)); }); });
   }
