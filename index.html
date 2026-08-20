@@ -1521,7 +1521,8 @@ window.REL_baixarConjunto = async function(){
   #panel-desp1-vist .fb-fam-linha .fam-n{ flex:0 0 24px; color:#6b7887; font-weight:700; font-size:13px; }
   #panel-desp1-vist .fb-fam-linha input{ padding:9px 11px; border:1.5px solid #d6dee7; border-radius:8px; font-size:13.5px; }
   #panel-desp1-vist .fb-fam-linha .fam-nome{ flex:1; }
-  #panel-desp1-vist .fb-fam-linha .fam-idade{ flex:0 0 120px; }
+  #panel-desp1-vist .fb-fam-linha .fam-idade{ flex:0 0 96px; }
+  #panel-desp1-vist .fb-fam-linha .fam-par{ flex:0 0 178px; padding:9px 8px; border:1.5px solid #d6dee7; border-radius:8px; font-size:13px; background:#fff; font-family:inherit; }
   #panel-desp1-vist .fb-fam-linha .fam-rm{ flex:0 0 auto; border:none; background:#f3d6d6; color:#a33; border-radius:6px; width:28px; height:28px; cursor:pointer; }
   #panel-desp1-vist .fb-fotos-prev{ display:flex; flex-wrap:wrap; gap:10px; margin-top:10px; }
   #panel-desp1-vist .fb-fotos-prev .foto{ position:relative; }
@@ -2255,7 +2256,7 @@ window.REL_baixarConjunto = async function(){
     </div>
     <div class="sb-sub-grupo" data-grupo="desp2" style="display:none;">
       <div class="sb-grp">Documentação</div>
-      <button class="sb-link" data-alvo="panel-desp2-info" onclick="trocarAba(this)">Em breve</button>
+      <button class="sb-link" data-alvo="panel-desp2-relatorio" onclick="trocarAba(this)">Relatório de Análise de Impacto e Transposição (DESP-2)</button>
     </div>
     <div class="sb-sub-grupo" data-grupo="laudo">
       <div class="sb-grp">Documentos</div>
@@ -2286,12 +2287,443 @@ window.REL_baixarConjunto = async function(){
 </aside>
 <div class="app-main">
 <main>
-  <section class="tab-panel" id="panel-desp2-info">
+  <section class="tab-panel" id="panel-desp2-relatorio">
+    <style>
+#panel-desp2-relatorio{--azul:#1F6FC0; --azul-esc:#175a9f; --verde:#159a3c;
+    --borda:#c3ccd6; --borda-forte:#9aa7b5; --texto:#243447;
+    --bg:#eef2f6; --zebra:#f5f8fb; --erro:#c0392b; --ok:#159a3c;}
+#panel-desp2-relatorio *{box-sizing:border-box;}
+#panel-desp2-relatorio{margin:0;}
+#panel-desp2-relatorio{font-family:"Segoe UI", Arial, Helvetica, sans-serif;
+    background:var(--bg); color:var(--texto); padding:28px 20px 60px;}
+#panel-desp2-relatorio .wrap{max-width:1180px; margin:0 auto;}
+#panel-desp2-relatorio h1{font-size:22px; margin:0 0 4px; color:var(--azul-esc); letter-spacing:.3px;}
+#panel-desp2-relatorio .sub{font-size:14px; color:#5a6b7c; margin:0 0 24px;}
+#panel-desp2-relatorio .grid{display:grid; grid-template-columns:1fr 1fr; gap:22px;}
+#panel-desp2-relatorio .grid{grid-template-columns:1fr;}
+#panel-desp2-relatorio .card{background:#fff; border-radius:14px;
+    box-shadow:0 10px 30px rgba(30,50,80,.10);
+    padding:20px; display:flex; flex-direction:column;}
+#panel-desp2-relatorio .card h2{font-size:16px; margin:0 0 2px; color:#fff;
+    background:linear-gradient(180deg,#2478c9,#1F6FC0);
+    padding:12px 16px; border-radius:9px; letter-spacing:.3px;}
+#panel-desp2-relatorio .card .desc{font-size:12.5px; color:#5a6b7c; margin:12px 0 14px; line-height:1.4;}
+#panel-desp2-relatorio .drop{border:2px dashed var(--borda-forte); border-radius:10px;
+    padding:26px 16px; text-align:center; cursor:pointer;
+    transition:background .15s, border-color .15s; background:#fbfcfe;}
+#panel-desp2-relatorio .drop:hover{background:#eef5fc; border-color:var(--azul);}
+#panel-desp2-relatorio .drop .ic{font-size:30px; display:block; margin-bottom:6px;}
+#panel-desp2-relatorio .drop .t{font-weight:600; font-size:14px; color:var(--azul-esc);}
+#panel-desp2-relatorio .drop .h{font-size:12px; color:#7a8899; margin-top:3px;}
+#panel-desp2-relatorio input[type=file]{display:none;}
+#panel-desp2-relatorio ul.lista{list-style:none; margin:14px 0 0; padding:0; display:flex; flex-direction:column; gap:6px;}
+#panel-desp2-relatorio ul.lista:empty{display:none;}
+#panel-desp2-relatorio .item{display:flex; align-items:center; gap:8px;
+    background:var(--zebra); border:1px solid var(--borda);
+    border-radius:8px; padding:7px 10px; font-size:12.5px;}
+#panel-desp2-relatorio .item .num{background:var(--azul); color:#fff; font-weight:700;
+    min-width:22px; height:22px; border-radius:50%;
+    display:inline-flex; align-items:center; justify-content:center; font-size:11px;}
+#panel-desp2-relatorio .item .nome{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+#panel-desp2-relatorio .item .pg{color:#7a8899; font-size:11px; white-space:nowrap;}
+#panel-desp2-relatorio .item button{border:none; background:transparent; cursor:pointer;
+    font-size:15px; color:#7a8899; padding:2px 5px; border-radius:5px; line-height:1;}
+#panel-desp2-relatorio .item button:hover{background:#e2e8ef; color:var(--texto);}
+#panel-desp2-relatorio .item button.rm:hover{color:var(--erro);}
+#panel-desp2-relatorio .acoes{margin-top:16px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;}
+#panel-desp2-relatorio .btn{display:inline-flex; align-items:center; gap:8px; border:none;
+    padding:11px 20px; font-size:14px; font-weight:600; border-radius:8px;
+    cursor:pointer; transition:background .15s, transform .05s; letter-spacing:.2px;}
+#panel-desp2-relatorio .btn:active{transform:translateY(1px);}
+#panel-desp2-relatorio .btn:disabled{opacity:.5; cursor:not-allowed;}
+#panel-desp2-relatorio .btn-primary{background:var(--azul); color:#fff; box-shadow:0 2px 6px rgba(31,111,192,.35);}
+#panel-desp2-relatorio .btn-primary:hover:not(:disabled){background:var(--azul-esc);}
+#panel-desp2-relatorio .btn-ghost{background:#fff; color:var(--texto); border:1px solid var(--borda-forte);}
+#panel-desp2-relatorio .btn-ghost:hover:not(:disabled){background:#f3f6f9;}
+#panel-desp2-relatorio .status{font-size:12.5px; margin-top:10px; min-height:16px;}
+#panel-desp2-relatorio .status.ok{color:var(--ok);}
+#panel-desp2-relatorio .status.err{color:var(--erro);}
+#panel-desp2-relatorio .status.work{color:var(--azul-esc);}
+#panel-desp2-relatorio .opts{font-size:12.5px; color:#5a6b7c; margin-top:12px; display:flex; align-items:center; gap:7px;}
+#panel-desp2-relatorio .opts input{width:15px; height:15px;}
+#panel-desp2-relatorio{padding-bottom:96px;}
+/* ===== 1.10 Relatório Técnico — form styling ===== */
+  #panel-desp2-relatorio{--azul:#1F6FC0; --azul-esc:#175a9f; --azul-inf:#0a4d7c;
+    --borda:#d3dbe4; --borda-forte:#b3bfcc; --texto:#243447;
+    --bg:#eef2f6; --card:#ffffff; --label:#5a6b7c; --suave:#f7f9fc;
+    font-family:"Segoe UI", Arial, Helvetica, sans-serif;
+    background:var(--bg); color:var(--texto); padding:26px 20px 80px;}
+#panel-desp2-relatorio .vwrap{max-width:1080px; margin:0 auto;}
+#panel-desp2-relatorio .doc-head{margin-bottom:18px;}
+#panel-desp2-relatorio h1{font-size:23px; margin:0 0 4px; color:var(--azul-esc); letter-spacing:.3px;}
+#panel-desp2-relatorio .sub{font-size:13.5px; color:var(--label); margin:0;}
+#panel-desp2-relatorio .vsec{font-size:14px; font-weight:800; letter-spacing:.4px; text-transform:uppercase;
+    color:#fff; background:linear-gradient(180deg,#2478c9,var(--azul));
+    padding:9px 16px; border-radius:9px 9px 0 0; margin:22px 0 0;
+    box-shadow:0 2px 8px rgba(31,111,192,.22);}
+#panel-desp2-relatorio .vcard{background:var(--card); border:1px solid var(--borda);
+    border-radius:0 0 12px 12px; padding:18px 18px 20px; margin-bottom:8px;
+    box-shadow:0 8px 22px rgba(30,50,80,.07);}
+#panel-desp2-relatorio .vsub{font-size:12.5px; font-weight:700; color:var(--azul-esc);
+    letter-spacing:.3px; margin:16px 0 8px; padding-bottom:4px;
+    border-bottom:1px solid var(--borda); display:flex; align-items:center; justify-content:space-between;}
+#panel-desp2-relatorio .vsub:first-child{margin-top:0;}
+#panel-desp2-relatorio .vrow{display:flex; gap:14px; flex-wrap:wrap; margin-bottom:10px;}
+#panel-desp2-relatorio .vfield{display:flex; flex-direction:column; gap:4px; min-width:150px;}
+#panel-desp2-relatorio .vfield.grow{flex:1; min-width:220px;}
+#panel-desp2-relatorio label{font-size:11px; font-weight:700; color:var(--label); text-transform:uppercase; letter-spacing:.4px;}
+#panel-desp2-relatorio .vlbl{display:block; margin:14px 0 5px;}
+#panel-desp2-relatorio input[type=text]{width:100%; border:1px solid var(--borda-forte); border-radius:7px;
+    padding:8px 11px; font-size:13.5px; color:var(--texto); background:#fff;
+    font-family:inherit; outline:none; transition:border-color .15s, box-shadow .15s;}
+#panel-desp2-relatorio textarea{resize:vertical; line-height:1.45;}
+#panel-desp2-relatorio input:focus{border-color:var(--azul); box-shadow:0 0 0 3px rgba(31,111,192,.12);}
+#panel-desp2-relatorio .mini-add{border:1px solid var(--azul); background:#eaf3fc; color:var(--azul-esc);
+    font-size:11.5px; font-weight:700; padding:4px 12px; border-radius:14px; cursor:pointer;
+    text-transform:none; letter-spacing:0; transition:background .15s;}
+#panel-desp2-relatorio .mini-add:hover{background:#d8ebfb;}
+#panel-desp2-relatorio .vactions{position:sticky; bottom:0; margin-top:20px;
+    background:linear-gradient(180deg, rgba(238,242,246,0), var(--bg) 40%);
+    padding:14px 0 4px; display:flex; gap:10px; flex-wrap:wrap;}
+#panel-desp2-relatorio .vbtn{border:none; padding:11px 22px; font-size:14px; font-weight:700; border-radius:9px; cursor:pointer;
+    display:inline-flex; align-items:center; gap:8px;}
+#panel-desp2-relatorio .vbtn-primary{background:var(--azul); color:#fff; box-shadow:0 3px 10px rgba(31,111,192,.3);}
+#panel-desp2-relatorio .vbtn-primary:hover{background:var(--azul-esc);}
+#panel-desp2-relatorio .vbtn-ghost{background:#fff; color:var(--texto); border:1px solid var(--borda-forte);}
+#panel-desp2-relatorio .auto-tag{font-size:9px; font-weight:800; background:#e3f0e6; color:#159a3c;
+    padding:1px 6px; border-radius:8px; letter-spacing:.3px; text-transform:uppercase; margin-left:5px;}
+#panel-desp2-relatorio .av-estacas-view{display:flex; flex-direction:column; gap:6px;}
+#panel-desp2-relatorio .av-estaca-item{background:var(--suave); border:1px solid var(--borda); border-radius:8px;
+    padding:8px 12px; font-size:13px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
+#panel-desp2-relatorio .av-estaca-item b{color:var(--azul-esc); min-width:62px;}
+#panel-desp2-relatorio .av-estaca-item .km{color:var(--texto);}
+#panel-desp2-relatorio .av-estaca-item .tag{margin-left:auto; font-size:10px; font-weight:700; color:#fff; background:var(--azul);
+    padding:2px 9px; border-radius:10px;}
+#panel-desp2-relatorio .img-drop{display:flex; flex-direction:column; align-items:center; gap:5px;
+    border:2px dashed var(--borda-forte); border-radius:12px; padding:26px 16px;
+    cursor:pointer; background:var(--suave); transition:border-color .15s, background .15s; text-align:center;}
+#panel-desp2-relatorio .img-drop:hover{border-color:var(--azul); background:#eaf3fc;}
+#panel-desp2-relatorio .img-drop .ic{font-size:30px;}
+#panel-desp2-relatorio .img-drop .t{font-size:13.5px; font-weight:600; color:var(--texto);}
+#panel-desp2-relatorio .img-drop .h{font-size:11.5px; color:var(--label);}
+#panel-desp2-relatorio .img-drop input{display:none;}
+#panel-desp2-relatorio .img-preview{margin-top:12px; display:none;}
+#panel-desp2-relatorio .img-preview.show{display:block;}
+#panel-desp2-relatorio .img-preview img{max-width:100%; border-radius:10px; border:1px solid var(--borda); box-shadow:0 4px 14px rgba(30,50,80,.12);}
+#panel-desp2-relatorio .img-preview .rm-img{margin-top:8px; border:1px solid var(--borda-forte); background:#fff; color:#c0392b;
+    font-size:12px; font-weight:700; padding:5px 14px; border-radius:8px; cursor:pointer;}
+#panel-desp2-relatorio .av-area-aval{background:#fff9e8; border:1px solid #e7d38a; border-radius:9px; padding:12px 14px; margin-bottom:12px;}
+#panel-desp2-relatorio .av-area-aval label{color:#8a6d1a; margin-bottom:5px;}
+#panel-desp2-relatorio .av-area-aval input{max-width:200px; border-color:#e0b400;}
+#panel-desp2-relatorio .hint-inline{display:block; font-size:11px; color:#a08028; margin-top:5px; text-transform:none; letter-spacing:0; font-weight:400;}
+#panel-desp2-relatorio .gleba-linha{display:flex; gap:10px; align-items:flex-end; margin-bottom:10px; flex-wrap:wrap;
+    background:var(--suave); border:1px solid var(--borda); border-radius:9px; padding:11px 12px;}
+#panel-desp2-relatorio .gleba-linha .rot{font-size:11px; font-weight:800; color:var(--azul-esc); align-self:center; min-width:70px;}
+#panel-desp2-relatorio .gleba-linha .cel{display:flex; flex-direction:column; gap:4px;}
+#panel-desp2-relatorio .gleba-linha .cel span{font-size:10px; font-weight:700; color:var(--label); text-transform:uppercase;}
+#panel-desp2-relatorio .gleba-linha .cel.classe{min-width:100px;}
+#panel-desp2-relatorio .gleba-linha .cel.area{min-width:110px;}
+#panel-desp2-relatorio .gleba-linha .cel.fator{flex:1; min-width:200px;}
+#panel-desp2-relatorio .gleba-linha .cel.pct{min-width:90px;}
+#panel-desp2-relatorio .gleba-linha .pct-val{font-size:15px; font-weight:800; color:var(--azul-esc);
+    padding:7px 0; text-align:center; background:#eaf3fc; border-radius:7px;}
+#panel-desp2-relatorio .gleba-linha .rm{border:none; background:#fdecec; color:#c0392b; font-weight:700;
+    width:30px; height:34px; border-radius:7px; cursor:pointer; font-size:15px; align-self:flex-end;}
+#panel-desp2-relatorio .gleba-linha .rm:hover{background:#f8d7d7;}
+#panel-desp2-relatorio .ccu-formula{background:linear-gradient(180deg,#f0f7ff,#e9f2fc); border:1px solid #bcd6f0;
+    border-radius:10px; padding:14px 18px; font-family:"Consolas","Courier New",monospace; font-size:14px; color:var(--azul-inf);}
+#panel-desp2-relatorio .ccu-formula .linha3{font-weight:800; font-size:16px; margin-top:4px; color:var(--azul-esc);}
+#panel-desp2-relatorio .na-calc{display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    background:#f0f7ff; border:1px solid #bcd6f0; border-radius:10px; padding:12px 16px; font-weight:700; color:var(--azul-esc);}
+#panel-desp2-relatorio .na-calc input{max-width:120px; font-weight:700;}
+#panel-desp2-relatorio .na-calc .resultado{max-width:140px; background:#eaf3fc; border-color:var(--azul); color:var(--azul-inf); font-size:15px;}
+#panel-desp2-relatorio table.memoria{width:100%; border-collapse:collapse; font-size:12.5px; margin-top:4px;}
+#panel-desp2-relatorio table.memoria th{background:var(--azul); color:#fff; padding:8px 10px; text-align:left; font-weight:700;}
+#panel-desp2-relatorio table.memoria td{border:1px solid var(--borda); padding:7px 10px; vertical-align:middle;}
+#panel-desp2-relatorio table.memoria td:first-child{font-weight:700; color:var(--azul-esc); background:#fbfcfe;}
+#panel-desp2-relatorio table.memoria input{max-width:120px; padding:5px 8px;}
+#panel-desp2-relatorio table.memoria span{font-weight:700;}
+#panel-desp2-relatorio .vtn-box{margin-top:14px; background:#fff4e6; border:1px solid #f0c891; border-radius:10px; padding:14px 16px;}
+#panel-desp2-relatorio .vtn-formula{font-family:"Consolas","Courier New",monospace; font-size:12px; color:#8a5a1a; line-height:1.5;}
+#panel-desp2-relatorio .vtn-result{margin-top:8px; font-size:16px; color:var(--texto);}
+#panel-desp2-relatorio .vtn-result strong{color:#c0700a; font-size:20px;}
+#panel-desp2-relatorio .calc-line{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:12px;}
+#panel-desp2-relatorio .calc-line label{flex:1; min-width:240px;}
+#panel-desp2-relatorio .calc-line input{max-width:150px;}
+#panel-desp2-relatorio .calc-line strong{color:var(--azul-esc); font-size:16px; min-width:120px;}
+#panel-desp2-relatorio table.resumo{width:100%; border-collapse:collapse; font-size:13px;}
+#panel-desp2-relatorio table.resumo td{border-bottom:1px solid var(--borda); padding:8px 12px;}
+#panel-desp2-relatorio table.resumo td.v{text-align:right; width:200px;}
+#panel-desp2-relatorio table.resumo td.v input{max-width:150px; text-align:right; margin-left:auto;}
+#panel-desp2-relatorio table.resumo tr.sub-tot td{background:#f0f5fb; font-weight:700; color:var(--azul-esc);}
+#panel-desp2-relatorio table.resumo tr.total td{background:#e9eff6; color:var(--azul-esc); font-weight:800; font-size:14px; border-top:2px solid var(--azul-esc);}
+#panel-desp2-relatorio table.resumo tr.total strong{color:var(--azul-esc);}
+#panel-desp2-relatorio ol.anexos-list{margin:0; padding-left:22px; font-size:13px; color:var(--texto); line-height:1.9;}
+#panel-desp2-relatorio .vsec.acc{display:flex; align-items:center; justify-content:space-between;
+    cursor:pointer; user-select:none;}
+#panel-desp2-relatorio .vsec.acc .acc-chevron{font-size:13px; transition:transform .2s;}
+#panel-desp2-relatorio .vsec.acc.fechado{border-radius:9px;}
+#panel-desp2-relatorio .vsec.acc.fechado .acc-chevron{transform:rotate(-90deg);}
+#panel-desp2-relatorio .vcard.oculto{display:none;}
+#panel-desp2-relatorio input.bloqueado{background:#eef1f4 !important; color:#5a6b7c !important; cursor:not-allowed;
+    border-color:#d3dbe4 !important;}
+#panel-desp2-relatorio .ocupante-sel{display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+    background:#eef4fa; border:1px solid #cfe0f0; border-radius:8px;
+    padding:10px 14px; margin-bottom:14px;}
+#panel-desp2-relatorio .ocup-lbl{font-weight:700; color:var(--azul-esc); font-size:12px; text-transform:none; letter-spacing:0;}
+#panel-desp2-relatorio .ocup-opt{display:flex; align-items:center; gap:6px; font-size:13px; color:var(--texto); text-transform:none; letter-spacing:0; font-weight:500; cursor:pointer;}
+#panel-desp2-relatorio .ocup-opt input{width:15px; height:15px;}
+#panel-desp2-relatorio .antes-depois-sel{display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+    background:#fff4e6; border:1px solid #f0c891; border-radius:8px;
+    padding:10px 14px; margin-bottom:12px;}
+#panel-desp2-relatorio .ad-lbl{font-weight:700; color:#8a5a1a; font-size:12px; text-transform:none; letter-spacing:0;}
+#panel-desp2-relatorio .ad-opt{display:flex; align-items:center; gap:6px; font-size:13px; color:var(--texto); text-transform:none; letter-spacing:0; font-weight:500; cursor:pointer;}
+#panel-desp2-relatorio .ad-opt input{width:15px; height:15px;}
+#panel-desp2-relatorio .area-restante{background:#f0f5fb; border:1px solid #cfe0f0; border-radius:8px;
+    padding:8px 14px; margin:10px 0 14px; font-size:13px; color:var(--texto);}
+#panel-desp2-relatorio .area-restante strong{color:var(--azul-esc);}
+#panel-desp2-relatorio .depois-box{background:#fdf3e8; border:1px solid #f0c891; border-radius:10px;
+    padding:14px 16px; margin:12px 0;}
+#panel-desp2-relatorio .depois-box h4{margin:0 0 10px; color:#8a5a1a; font-size:13px;}
+#panel-desp2-relatorio .desval-result{background:#fff; border:2px solid #c0700a; border-radius:8px; padding:12px 16px; margin-top:12px;}
+#panel-desp2-relatorio .desval-result .v{font-size:18px; font-weight:800; color:#c0700a;}
+#panel-desp2-relatorio .na-tabela-wrap{overflow-x:auto; margin-bottom:16px;}
+#panel-desp2-relatorio table.na-tabela{width:100%; border-collapse:collapse; font-size:12px; min-width:720px;}
+#panel-desp2-relatorio table.na-tabela th{background:var(--azul); color:#fff; padding:6px 8px; text-align:center; font-weight:700; border:1px solid #fff; line-height:1.25;}
+#panel-desp2-relatorio table.na-tabela th.grp-ccu{background:#175a9f;}
+#panel-desp2-relatorio table.na-tabela th.grp-na{background:#159a3c;}
+#panel-desp2-relatorio table.na-tabela td{border:1px solid var(--borda); padding:5px 8px; text-align:center; vertical-align:middle;}
+#panel-desp2-relatorio table.na-tabela td.classe{font-weight:700; color:var(--azul-esc); background:#f0f5fb;}
+#panel-desp2-relatorio table.na-tabela tr.total td{background:#e3f0fc; font-weight:800; color:var(--azul-esc);}
+#panel-desp2-relatorio table.na-tabela td.na-area-preenchida{background:#fff9e8;}
+#panel-desp2-relatorio table.na-tabela .sit-cell{cursor:pointer; transition:background .12s;}
+#panel-desp2-relatorio table.na-tabela .sit-cell:hover{background:#eaf7ee;}
+#panel-desp2-relatorio table.na-tabela .sit-cell.sel{background:#159a3c; color:#fff; font-weight:700;}
+#panel-desp2-relatorio table.na-tabela .sit-na{font-weight:700; color:#159a3c;}
+#panel-desp2-relatorio .hint-auto{font-size:10.5px; font-weight:600; color:#159a3c; text-transform:none; letter-spacing:0;}
+#panel-desp2-relatorio table.na-tabela td.area-edit{padding:2px;}
+#panel-desp2-relatorio table.na-tabela td.area-edit input.na-area{width:100%; border:1px solid var(--borda-forte); border-radius:5px;
+    padding:4px 6px; font-size:12px; text-align:center; color:var(--texto); background:#fff;}
+#panel-desp2-relatorio table.na-tabela td.area-edit input.na-area:focus{border-color:var(--azul); outline:none; box-shadow:0 0 0 2px rgba(31,111,192,.15);}
+#panel-desp2-relatorio table.na-tabela td.area-edit.na-area-preenchida input.na-area{background:#fff9e8; font-weight:600;}
+#panel-desp2-relatorio .gleba-linha .g-classe-disp{text-align:center; font-weight:700;}
+#panel-desp2-relatorio .gleba-vazia{padding:14px; text-align:center; color:#8a97a6; font-style:italic; background:var(--suave); border-radius:8px;}
+#panel-desp2-relatorio .gleba-bloco{flex-direction:column; align-items:stretch; gap:10px;}
+#panel-desp2-relatorio .gleba-topo{display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap;}
+#panel-desp2-relatorio .gleba-selecoes{display:flex; gap:12px; flex-wrap:wrap;}
+#panel-desp2-relatorio .gleba-selecoes .cel{flex:1; min-width:240px;}
+#panel-desp2-relatorio .cel.selfator{display:flex; flex-direction:column; gap:4px;}
+#panel-desp2-relatorio .cel.selfator span{font-size:10px; font-weight:700; color:var(--label); text-transform:uppercase; letter-spacing:.3px;}
+#panel-desp2-relatorio .cel.fator.full{display:flex; flex-direction:column; gap:4px;}
+#panel-desp2-relatorio .g-fatorlim{width:100%; border:1px solid var(--borda-forte); border-radius:7px; padding:7px 9px; font-size:12.5px; background:#fff; color:var(--texto);}
+#panel-desp2-relatorio .g-fatorlim:focus{border-color:var(--azul); outline:none; box-shadow:0 0 0 2px rgba(31,111,192,.15);}
+#panel-desp2-relatorio .import-amostra{display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin:14px 0;
+    background:#f0f5fb; border:1px solid #cfe0f0; border-radius:9px; padding:12px 16px;}
+#panel-desp2-relatorio .import-hint{font-size:12px; color:var(--label);}
+#panel-desp2-relatorio .imovel-avaliando{margin:12px 0;}
+#panel-desp2-relatorio .ia-grid{display:flex; gap:14px; flex-wrap:wrap;}
+#panel-desp2-relatorio .ia-tabela{flex:2; min-width:420px;}
+#panel-desp2-relatorio .ia-mapa{flex:1; min-width:240px; display:flex; flex-direction:column;}
+#panel-desp2-relatorio .ia-titulo{background:#1F6FC0; color:#fff; font-weight:800; text-align:center;
+    padding:7px; font-size:13px; letter-spacing:.4px; border-radius:6px 6px 0 0;}
+#panel-desp2-relatorio table.ia-tab{width:100%; border-collapse:collapse; font-size:12.5px;}
+#panel-desp2-relatorio table.ia-tab td{border:1px solid #c3d3e2; padding:6px 9px; text-align:center; vertical-align:middle;}
+#panel-desp2-relatorio table.ia-tab tr.ia-sub td{background:#175a9f; color:#fff; font-weight:700; text-align:center;}
+#panel-desp2-relatorio table.ia-tab tr.ia-cols td{background:#eef4fa; font-weight:700; color:var(--azul-esc);}
+#panel-desp2-relatorio table.ia-tab td.ia-lbl{background:#f7f9fc; font-weight:700; color:var(--texto); text-align:center;}
+#panel-desp2-relatorio table.ia-tab td.ia-eq{font-size:10.5px; text-align:center; line-height:1.5; color:#243447;}
+#panel-desp2-relatorio table.ia-tab td.ia-destaque{font-weight:800; color:var(--azul-esc); background:#eaf3fc;}
+#panel-desp2-relatorio table.ia-tab td.ia-centro{text-align:center;}
+#panel-desp2-relatorio .ia-mapa .img-drop{flex:1; border-radius:0 0 6px 6px; margin:0;}
+#panel-desp2-relatorio .bnf-sub{font-weight:800; color:var(--azul-esc); margin:14px 0 6px; font-size:13px; border-left:4px solid var(--azul); padding-left:8px;}
+#panel-desp2-relatorio .bnf-tab-wrap{overflow-x:auto; margin-bottom:8px;}
+#panel-desp2-relatorio table.bnf-tab{width:100%; border-collapse:collapse; font-size:11.5px; min-width:760px;}
+#panel-desp2-relatorio table.bnf-tab th{background:var(--azul); color:#fff; padding:6px 7px; text-align:center; font-weight:700; border:1px solid #fff; line-height:1.2;}
+#panel-desp2-relatorio table.bnf-tab td{border:1px solid var(--borda); padding:3px 5px; vertical-align:middle;}
+#panel-desp2-relatorio table.bnf-tab textarea.bnf-disc{width:100%; min-width:200px; min-height:38px; border:1px solid var(--borda-forte); border-radius:5px; padding:5px; font-size:11px; resize:vertical; font-family:inherit;}
+#panel-desp2-relatorio table.bnf-tab input{width:100%; border:1px solid var(--borda-forte); border-radius:5px; padding:5px 6px; font-size:11.5px; text-align:center;}
+#panel-desp2-relatorio table.bnf-tab input:focus{border-color:var(--azul); outline:none; box-shadow:0 0 0 2px rgba(31,111,192,.12);}
+#panel-desp2-relatorio table.bnf-tab .bnf-vtotal{font-weight:700; color:var(--azul-esc); text-align:right; white-space:nowrap;}
+#panel-desp2-relatorio table.bnf-tab tfoot .bnf-tot-lbl{text-align:right; font-weight:800; background:#eef4fa; color:var(--azul-esc);}
+#panel-desp2-relatorio table.bnf-tab tfoot .bnf-tot{font-weight:800; background:#e3f0fc; color:var(--azul-esc); text-align:right; white-space:nowrap;}
+#panel-desp2-relatorio .bnf-rm{border:none; background:#fbe9e9; color:#c0392b; border-radius:5px; width:26px; height:26px; cursor:pointer; font-weight:700;}
+#panel-desp2-relatorio .bnf-rm:hover{background:#f5d5d5;}
+#panel-desp2-relatorio .bnf-add{background:#eef4fa; border:1px dashed var(--azul); color:var(--azul-esc); border-radius:7px; padding:7px 14px; font-size:12px; font-weight:600; cursor:pointer; margin-top:4px;}
+#panel-desp2-relatorio .bnf-add:hover{background:#e3f0fc;}
+#panel-desp2-relatorio .bnf-total-geral{margin-top:16px; padding:12px 16px; background:#e3f0fc; border:2px solid var(--azul); border-radius:9px; font-size:14px; font-weight:700; color:var(--azul-esc); text-align:right;}
+#panel-desp2-relatorio .bnf-nota{font-size:11px; color:var(--label); margin-top:8px; font-style:italic;}
+#panel-desp2-relatorio .bnf-col-dep{width:110px;}
+#panel-desp2-relatorio .bnf-col-un{width:70px;}
+#panel-desp2-relatorio .bnf-col-qtd{width:80px;}
+#panel-desp2-relatorio .bnf-col-vu{width:100px;}
+#panel-desp2-relatorio input::placeholder{font-style:italic; color:#9aa7b5; opacity:1;}
+#panel-desp2-relatorio .vlbl{font-size:11px; font-weight:700; color:var(--label); text-transform:uppercase; letter-spacing:.4px;}
+#panel-desp2-relatorio select:focus{border-color:var(--azul); box-shadow:0 0 0 3px rgba(31,111,192,.12);}
+#panel-desp2-relatorio .img-drop.over{border-color:var(--azul); background:#eaf3fc;}
+#panel-desp2-relatorio .na-calc select{max-width:120px; font-weight:700;}
+#panel-desp2-relatorio table.memoria select{max-width:120px; padding:5px 8px;}
+#panel-desp2-relatorio select.bloqueado{background:#eef1f4 !important; color:#5a6b7c !important; cursor:not-allowed;
+    border-color:#d3dbe4 !important;}
+#panel-desp2-relatorio .cel.selcaract{display:flex; flex-direction:column; gap:4px;}
+#panel-desp2-relatorio .cel.selcaract span{font-size:10px; font-weight:700; color:var(--label); text-transform:uppercase; letter-spacing:.3px;}
+#panel-desp2-relatorio .g-caract{width:100%; border:1px solid var(--borda-forte); border-radius:7px; padding:7px 9px; font-size:12.5px; background:#fff; color:var(--texto);}
+#panel-desp2-relatorio .g-caract:focus{border-color:var(--azul); outline:none; box-shadow:0 0 0 2px rgba(31,111,192,.15);}
+#panel-desp2-relatorio table.bnf-tab textarea:focus{border-color:var(--azul); outline:none; box-shadow:0 0 0 2px rgba(31,111,192,.12);}
+#panel-desp2-relatorio textarea::placeholder{font-style:italic; color:#9aa7b5; opacity:1;}
+#panel-desp2-relatorio .rel-tabela{display:flex; flex-direction:column; gap:6px; margin-top:6px;}
+#panel-desp2-relatorio .rel-lin{display:flex; gap:8px; align-items:flex-start;}
+#panel-desp2-relatorio .rel-lin .crit{flex:1;}
+#panel-desp2-relatorio .rel-lin .resp{flex:0 0 90px;}
+#panel-desp2-relatorio .rel-lin .obs{flex:1.2;}
+#panel-desp2-relatorio .rel-lin textarea{width:100%; border:1px solid var(--borda-forte); border-radius:7px; padding:7px 9px; font-size:13px; font-family:inherit; resize:vertical;}
+#panel-desp2-relatorio .rel-lin select{width:100%;}
+#panel-desp2-relatorio .rel-lin .rm{flex:0 0 auto; border:none; background:#f3d6d6; color:#a33; border-radius:6px; width:28px; height:28px; cursor:pointer;}
+#panel-desp2-relatorio .fb-fotos-prev{display:flex; flex-wrap:wrap; gap:10px; margin-top:10px;}
+#panel-desp2-relatorio .fb-fotos-prev img{width:130px; height:100px; object-fit:cover; border-radius:8px; border:1px solid #d6dee7;}
+#panel-desp2-relatorio .fb-fotos-prev .foto{position:relative;}
+#panel-desp2-relatorio .fb-fotos-prev .rm{position:absolute; top:4px; right:4px; background:rgba(160,40,40,.9); color:#fff; border:none; border-radius:50%; width:22px; height:22px; cursor:pointer;}
+/* 1.10 — áreas dinâmicas */
+  #panel-desp2-relatorio .rel-areas{display:flex; flex-direction:column; gap:8px;}
+#panel-desp2-relatorio .rel-area-lin{display:flex; align-items:center; gap:10px;}
+#panel-desp2-relatorio .rel-area-lbl{flex:0 0 70px; font-weight:700; font-size:12px; color:var(--azul-esc); text-transform:uppercase; letter-spacing:.3px;}
+#panel-desp2-relatorio .rel-area-lin input{flex:1; border:1px solid var(--borda-forte); border-radius:7px; padding:8px 11px; font-size:13.5px; font-family:inherit;}
+#panel-desp2-relatorio .rel-area-lin .rm{flex:0 0 auto; border:none; background:#f3d6d6; color:#a33; border-radius:6px; width:30px; height:30px; cursor:pointer; font-size:13px;}
+#panel-desp2-relatorio .hint-auto{font-weight:400; font-size:11px; color:#8a97a6; text-transform:none; letter-spacing:0;}
+/* 1.10 — Classificação do IVS */
+  #panel-desp2-relatorio .rel-ivs{margin:14px 0 4px;}
+#panel-desp2-relatorio .rel-ivs-tit{font-weight:700; font-size:13px; color:var(--azul-esc); margin-bottom:6px;}
+#panel-desp2-relatorio .rel-ivs-cont{font-weight:400; font-size:12px; color:#8a97a6;}
+#panel-desp2-relatorio .rel-ivs-tab{border-collapse:collapse; width:100%; max-width:640px;}
+#panel-desp2-relatorio .rel-ivs-tab td{border:1px solid #c3ccd6; padding:7px 10px; font-size:13px;}
+#panel-desp2-relatorio .rel-ivs-tab td.x{width:44px; text-align:center; font-weight:700; color:#243447;}
+#panel-desp2-relatorio .rel-ivs-tab tr.mk td{background:#fff7c2;}
+#panel-desp2-relatorio .rel-ivs-tab tr.mk td.x{background:#ffe94d;}
+/* 1.10 — Tabelas de critérios em grade (estilo documento) */
+  #panel-desp2-relatorio .rel-tabela{overflow-x:auto; margin-top:6px;}
+#panel-desp2-relatorio .rel-grid{border-collapse:collapse; width:100%; font-size:13px;}
+#panel-desp2-relatorio .rel-grid th, #panel-desp2-relatorio .rel-grid td{border:1px solid #b7c2ce; padding:0; vertical-align:middle;}
+#panel-desp2-relatorio .rel-grid thead th{background:#eaf2fb; color:var(--azul-esc); font-weight:700; text-align:center; padding:7px 6px; font-size:12.5px;}
+#panel-desp2-relatorio .rel-grid th.c-crit{text-align:left;}
+#panel-desp2-relatorio .rel-grid .c-crit{width:auto; min-width:220px;}
+#panel-desp2-relatorio .rel-grid .c-resp{width:46px; text-align:center;}
+#panel-desp2-relatorio .rel-grid .c-obs{width:200px;}
+#panel-desp2-relatorio .rel-grid .c-rm{width:32px; text-align:center;}
+#panel-desp2-relatorio .rel-grid textarea.crit, #panel-desp2-relatorio .rel-grid textarea.obs{width:100%; border:none; background:transparent; padding:7px 8px; font-size:13px;
+    font-family:inherit; color:#243447; resize:vertical; outline:none; min-height:44px; line-height:1.35;}
+#panel-desp2-relatorio .rel-grid textarea.crit:focus, #panel-desp2-relatorio .rel-grid textarea.obs:focus{background:#f5f9fe;}
+#panel-desp2-relatorio .rel-grid .rel-mk{display:inline-flex; align-items:center; justify-content:center;
+    width:26px; height:26px; border:1px solid #b7c2ce; border-radius:5px;
+    cursor:pointer; font-weight:700; color:#243447; background:#fff; user-select:none; transition:background .12s;}
+#panel-desp2-relatorio .rel-grid .rel-mk:hover{background:#eef5fc;}
+#panel-desp2-relatorio .rel-grid .rel-mk.on{background:#1F6FC0; color:#fff; border-color:#1a5a9f;}
+#panel-desp2-relatorio .rel-grid .rm{border:none; background:transparent; color:#c0392b; cursor:pointer; font-size:14px; padding:4px;}
+#panel-desp2-relatorio .rel-grid .rm:hover{color:#e04b39;}
+igual DESP 3) */
+  #panel-desp2-relatorio .rel-estaca-linha{display:flex; gap:10px; align-items:flex-start; margin-bottom:10px; background:#f7f9fc; border:1px solid #e2e8f0; border-radius:9px; padding:10px 12px; flex-wrap:wrap;}
+#panel-desp2-relatorio .rel-estaca-linha .rot{font-size:11px; font-weight:800; color:var(--azul-esc); align-self:center; min-width:64px;}
+#panel-desp2-relatorio .rel-estaca-linha .par{display:flex; flex-direction:column; gap:4px; flex:1; min-width:130px;}
+#panel-desp2-relatorio .rel-estaca-linha .par span{font-size:10px; font-weight:700; color:var(--label); text-transform:uppercase; letter-spacing:.3px;}
+#panel-desp2-relatorio .rel-estaca-linha .par input, #panel-desp2-relatorio .rel-estaca-linha .par select{width:100%; border:1px solid var(--borda-forte); border-radius:7px; padding:8px 10px; font-size:13px; font-family:inherit;}
+#panel-desp2-relatorio .rel-estaca-linha .rm{align-self:center; border:none; background:#f3d6d6; color:#a33; border-radius:6px; width:30px; height:30px; cursor:pointer; font-size:13px;}
+#panel-desp2-relatorio .rel-estaca-linha .rm:hover{background:#f8c4c4;}
+#panel-desp2-relatorio .vsub{background:#dae8f6; color:#1a3a5c; font-weight:800;
+    padding:7px 12px !important; border-radius:6px; border-bottom:none !important;
+    margin:18px 0 10px !important;}
+#panel-desp2-relatorio label{color:#6b7887 !important; font-weight:700;}
+#panel-desp2-relatorio input[type=text], #panel-desp2-relatorio select{font-weight:600; color:#1e2b3a;}
+#panel-desp2-relatorio input::placeholder{font-weight:400; color:#a7b3c0;}
+#panel-desp2-relatorio .vrow{margin-bottom:13px;}
+#panel-desp2-relatorio .vsec{background:linear-gradient(180deg,#3a83cc,#1F6FC0) !important;
+    box-shadow:0 1px 4px rgba(31,111,192,.18) !important;}
+
+      #panel-desp2-relatorio .d2-figgrid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:12px; margin-top:10px; }
+      #panel-desp2-relatorio .hint-desp1{ color:#1F6FC0; }
+      /* fonte proporcional (corrige aparência monoespaçada) */
+      #panel-desp2-relatorio textarea, #panel-desp2-relatorio input, #panel-desp2-relatorio .d2-view{ font-family:"Segoe UI", Arial, Helvetica, sans-serif; }
+      #panel-desp2-relatorio textarea{ line-height:1.5; }
+      /* Componente de campo de texto (visualização + edição) — padrão DESP 3 */
+      #panel-desp2-relatorio .d2-fhead{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px; }
+      #panel-desp2-relatorio .auto-tag{ font-size:10.5px; font-weight:700; letter-spacing:.4px; text-transform:uppercase; color:#159a3c; }
+      #panel-desp2-relatorio .d2-tools{ display:flex; gap:6px; flex-wrap:wrap; }
+      #panel-desp2-relatorio .d2b{ border:1px solid var(--borda-forte); background:#fff; color:var(--texto); border-radius:6px; padding:3px 10px; font-size:12px; font-weight:600; cursor:pointer; line-height:1.3; }
+      #panel-desp2-relatorio .d2b:hover{ background:#f0f5fb; }
+      #panel-desp2-relatorio .d2b-bold{ font-weight:800; min-width:30px; font-family:Georgia, "Times New Roman", serif; }
+      #panel-desp2-relatorio .d2b-edit.on{ background:var(--azul); color:#fff; border-color:var(--azul); }
+      #panel-desp2-relatorio .d2-view{ border:1px solid var(--borda); border-radius:8px; background:#fbfdff; padding:12px 15px; font-size:13px; line-height:1.6; color:#243447; text-align:justify; min-height:56px; }
+      #panel-desp2-relatorio .d2-view.editing{ background:#fff; border-color:var(--azul); box-shadow:0 0 0 2px rgba(31,111,192,.15); outline:none; text-align:left; }
+      #panel-desp2-relatorio .d2-view > div{ margin-bottom:8px; }
+      #panel-desp2-relatorio .d2-view > div:last-child{ margin-bottom:0; }
+      #panel-desp2-relatorio .d2-view .d2-li{ padding-left:16px; text-indent:-13px; }
+      #panel-desp2-relatorio .d2-view b{ color:#12203a; }
+      #panel-desp2-relatorio .d2-view:empty::before{ content:"(vazio)"; color:#9aa7b5; font-style:italic; }
+      #panel-desp2-relatorio .d2-locked{ background:#f5f7fa; color:#3a4757; }
+      #panel-desp2-relatorio .d2-ress{ border:1px solid var(--borda); border-radius:8px; padding:10px 12px; margin-bottom:10px; background:#fff; }
+      #panel-desp2-relatorio .d2-ress-h{ display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
+      #panel-desp2-relatorio .d2-ress textarea{ width:100%; border:1px solid var(--borda-forte); border-radius:7px; padding:8px 10px; font-size:13px; font-family:inherit; resize:vertical; }
+      #panel-desp2-relatorio .d2-row{ display:flex; gap:8px; margin-bottom:6px; align-items:center; }
+      #panel-desp2-relatorio .d2-row input{ border:1.5px solid #d6dee7; border-radius:8px; padding:9px 11px; font-size:13px; font-family:inherit; }
+      #panel-desp2-relatorio .d2-row .a-nome{ flex:1; }
+      #panel-desp2-relatorio .d2-row .a-area{ flex:0 0 130px; }
+      #panel-desp2-relatorio .d2-rm{ border:none; background:#f3d6d6; color:#a33; border-radius:6px; width:28px; height:28px; cursor:pointer; flex:0 0 auto; }
+    </style>
     <div class="wrap">
-      <h1>DESP 2 · Documentação</h1>
-      <p class="sub">Esta seção está em desenvolvimento.</p>
+      <h1>Relatório de Análise de Impacto e Transposição da Faixa de Domínio — DESP-2</h1>
+      <p class="sub">Os tópicos abaixo reproduzem o modelo Word validado — cada um é um campo editável. O texto padrão é carregado automaticamente; edite o que for necessário (use <b>**texto**</b> para negrito). Os campos de <b class="hint-desp1">Identificação</b> vêm da DESP&nbsp;1 e alimentam os tópicos ao gerar/atualizar os textos.</p>
+
+      <div class="vactions" style="margin:0 0 16px;">
+        <button class="vbtn vbtn-primary" type="button" onclick="D2_gerarPDF()">📄 Gerar PDF — DESP-2</button>
+        <button class="vbtn vbtn-ghost" type="button" onclick="D2_puxar(true)">↧ Puxar dados da DESP 1</button>
+        <button class="vbtn vbtn-ghost" type="button" onclick="if(confirm('Atualizar TODOS os textos para o padrão do Word com os dados atuais da identificação? Isto sobrescreve edições feitas nos tópicos.')) D2_gerarTextos(true);">↻ Gerar/atualizar textos padrão</button>
+        <button class="vbtn vbtn-ghost" type="button" onclick="D2_limpar()">Limpar tópicos</button>
+      </div>
+
+      <h2 class="vsec acc" onclick="FV_toggleSec(this)"><span>Identificação (vínculo com a DESP 1)</span><span class="acc-chevron">▾</span></h2>
       <div class="vcard">
-        <p style="color:#5a6b7c; font-size:14px; line-height:1.6;">Os documentos e formulários da DESP 2 serão disponibilizados em breve. A estrutura da aba já está preparada para receber os painéis assim que forem definidos.</p>
+        <p class="hint-auto hint-desp1" style="margin:0 0 8px;">Preenchido automaticamente a partir da Ficha de Vistoria e Cadastro (DESP 1) — editável.</p>
+        <div class="vrow">
+          <div class="vfield grow"><label>Cadastro (CTD)</label><input type="text" id="d2_cadastro" placeholder="006A"></div>
+          <div class="vfield grow"><label>Trecho / Segmento</label><input type="text" id="d2_trecho" placeholder="SPS-04"></div>
+          <div class="vfield grow"><label>Ferrovia</label><input type="text" id="d2_ferrovia" placeholder="Transnordestina – FTN"></div>
+        </div>
+        <div class="vrow">
+          <div class="vfield grow"><label>Cód. ferrovia</label><input type="text" id="d2_codFerrovia" placeholder="EF-232"></div>
+          <div class="vfield grow"><label>Processo (SEI)</label><input type="text" id="d2_sei" placeholder="50050.004743/2026-89"></div>
+          <div class="vfield grow"><label>Contrato nº</label><input type="text" id="d2_contrato" placeholder="037/2024"></div>
+        </div>
+        <div class="vrow">
+          <div class="vfield grow"><label>Data da vistoria</label><input type="text" id="d2_dataVistoria" placeholder="16 de julho de 2026"></div>
+          <div class="vfield grow"><label>Mês/ano de execução (capa)</label><input type="text" id="d2_execucao" placeholder="julho de 2026"></div>
+          <div class="vfield grow"><label>Trecho km (de → a)</label><input type="text" id="d2_km" placeholder="KM ... ao KM ..."></div>
+        </div>
+        <div class="vfield grow"><label>Nome do imóvel</label><input type="text" id="d2_imovel" placeholder="Denominação do imóvel"></div>
+        <div class="vrow">
+          <div class="vfield grow"><label>Município / UF</label><input type="text" id="d2_municipio" placeholder="Sertânia/PE"></div>
+          <div class="vfield grow"><label>Proprietário / Espólio</label><input type="text" id="d2_proprietario" placeholder="Nome do proprietário"></div>
+        </div>
+        <div class="vrow">
+          <div class="vfield grow"><label>Matrícula nº</label><input type="text" id="d2_matricula" placeholder="0.000"></div>
+          <div class="vfield grow"><label>Cartório / Comarca</label><input type="text" id="d2_cartorio" placeholder="Cartório..."></div>
+        </div>
+        <div class="vrow">
+          <div class="vfield grow"><label>Área total (ha)</label><input type="text" id="d2_areaTotal" placeholder="0,0000"></div>
+          <div class="vfield grow"><label>Área a desapropriar (ha)</label><input type="text" id="d2_areaDesap" placeholder="0,0000"></div>
+          <div class="vfield grow"><label>Área remanescente (auto)</label><input type="text" id="d2_areaRem" class="bloqueado" readonly></div>
+        </div>
+        <div class="vrow">
+          <div class="vfield grow"><label>CCIR (INCRA)</label><input type="text" id="d2_ccir" placeholder="000.000.000.000-0"></div>
+          <div class="vfield grow"><label>NIRF / CIB</label><input type="text" id="d2_cib" placeholder="0.000.000-0"></div>
+        </div>
+        <div class="vrow">
+          <div class="vfield grow"><label>Responsável técnico (assinatura)</label><input type="text" id="d2_responsavel" placeholder="Eng. Agrônomo responsável"></div>
+          <div class="vfield grow"><label>Registro (CREA)</label><input type="text" id="d2_crea" placeholder="CREA-..."></div>
+        </div>
+      </div>
+
+      <div id="d2_topicos"></div>
+
+      <div class="vactions" style="margin-top:16px;">
+        <button class="vbtn vbtn-primary" type="button" onclick="D2_gerarPDF()">📄 Gerar PDF — DESP-2</button>
+        <button class="vbtn vbtn-ghost" type="button" onclick="D2_puxar(true)">↧ Puxar dados da DESP 1</button>
       </div>
     </div>
   </section>
@@ -3532,7 +3964,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 <div class="wrap">
 <h1>Ficha de Vistoria e Cadastro Socioeconômico (Anexo B)</h1>
 <p class="sub">Preencha os campos abaixo. Você pode puxar os dados já preenchidos na DESP 3 ou optar por digitar manualmente.</p>
-<div class="vcard"><div class="vfield grow"><label>Puxar dados da DESP 3?</label><select id="fb_puxar" onchange="FB_togglePuxar(this.value)"><option value="nao" selected>NÃO — digitar manualmente</option><option value="sim">SIM — preencher automaticamente</option></select></div><input type="hidden" id="fb_processo" data-fb-from="processo"><div class="vsub">Montar Processo Nº automaticamente</div><div class="vrow"><div class="vfield grow"><label>Nº CTD</label><input type="text" id="fb_proc_ctd" oninput="FB_montarProcesso()" placeholder="Ex.: 001"></div><div class="vfield grow"><label>Nº Lote (SPS-__)</label><input type="text" id="fb_proc_lote" oninput="FB_montarProcesso()" placeholder="Ex.: 04"></div><div class="vfield grow"><label>Ferrovia</label><select id="fb_proc_ferrovia" onchange="FB_montarProcesso()"><option value="FTN" selected>FTN</option><option value="FICO">FICO</option><option value="FIOL">FIOL</option></select></div></div><div class="vfield grow"><label>Resultado (Processo administrativo)</label><input type="text" id="fb_proc_preview" readonly class="bloqueado" placeholder="INFRA S.A. CTD ___ - SPS-__ – FTN"></div><div class="vrow"><div class="vfield grow"><label>Nome do Aplicador(a)</label><input type="text" id="fb_aplicador" placeholder="Nome do aplicador(a)"></div><div class="vfield grow"><label>Data</label><input type="text" id="fb_data" inputmode="numeric" maxlength="10" class="data-br" placeholder="dd/mm/aaaa"></div></div></div>
+<div class="vcard"><div class="vfield grow"><label>Puxar dados da DESP 3?</label><select id="fb_puxar" onchange="FB_togglePuxar(this.value)"><option value="nao" selected>NÃO — digitar manualmente</option><option value="sim">SIM — preencher automaticamente</option></select></div><input type="hidden" id="fb_processo" data-fb-from="processo"><div class="vsub">Montar Processo Nº automaticamente</div><div class="vrow"><div class="vfield grow"><label>Nº CTD</label><input type="text" id="fb_proc_ctd" oninput="FB_montarProcesso()" placeholder="Ex.: 001"></div><div class="vfield grow"><label>Nº Lote (SPS-__)</label><input type="text" id="fb_proc_lote" oninput="FB_montarProcesso()" placeholder="Ex.: 04"></div><div class="vfield grow"><label>Ferrovia</label><select id="fb_proc_ferrovia" onchange="FB_montarProcesso()"><option value="FTN" selected>FTN</option><option value="FICO">FICO</option><option value="FIOL">FIOL</option></select></div></div><div class="vfield grow"><label>Processo (SEI)</label><input type="text" id="fb_proc_sei" inputmode="numeric" maxlength="20" oninput="FB_maskSEI(this);FB_montarProcesso();" placeholder="99999.999999/9999-99"></div><div class="vfield grow"><label>Resultado (Processo administrativo)</label><input type="text" id="fb_proc_preview" readonly class="bloqueado" placeholder="INFRA S.A. CTD ___ - SPS-__ – FTN"></div><div class="vrow"><div class="vfield grow"><label>Nome do Aplicador(a)</label><input type="text" id="fb_aplicador" placeholder="Nome do aplicador(a)"></div><div class="vfield grow"><label>Data</label><input type="text" id="fb_data" inputmode="numeric" maxlength="10" class="data-br" placeholder="dd/mm/aaaa"></div></div></div>
 <h2 class="vsec acc" onclick="FV_toggleSec(this)"><span>1 — IDENTIFICAÇÃO</span><span class="acc-chevron">▾</span></h2>
   <div class="vcard">
     <div class="vrow">
@@ -3593,10 +4025,10 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
   </div>
   <h2 class="vsec acc" onclick="FV_toggleSec(this)"><span>2 — CARACTERIZAÇÃO DO IMÓVEL</span><span class="acc-chevron">▾</span></h2><div class="vcard"><div class="vfield grow"><label>2.1 Ambientais</label><textarea id="fb_21_amb" rows="2" placeholder="Restrições ambientais..."></textarea></div><div class="vfield grow"><label>2.2 Localização</label><textarea id="fb_22_loc" rows="3" placeholder="Localização e acesso..."></textarea></div><div class="vfield grow"><label>2.3 Características Físicas</label><textarea id="fb_23_fis" rows="2" placeholder="Características físicas..."></textarea></div><div class="vsub">2.4 Imóvel Rural</div><div class="vfield grow"><label>2.4.1 Infraestrutura</label><textarea id="fb_241_infra" rows="3" placeholder="Energia, acesso, cercamento, benfeitorias..."></textarea></div><div class="vfield grow"><label>2.4.2 Características da terra</label><textarea id="fb_242_terra" rows="2" placeholder="Relevo, tráfego..."></textarea></div><div class="vfield grow"><label>2.4.3 Hidrografia / Vazão (m³ ou L/s)</label><textarea id="fb_243_hidro" rows="2" placeholder="Hidrografia..."></textarea></div><div class="vfield grow"><label>2.4.4 Informações Complementares</label><textarea id="fb_244_comp" rows="2" placeholder="Informações complementares..."></textarea></div><div class="vsub">2.5 Imóvel Urbano</div><div class="vfield grow"><label>2.5.1 Infraestrutura</label><input type="text" id="fb_251_infra" placeholder="NÃO SE APLICA"></div><div class="vfield grow"><label>2.5.2 Topográfica</label><input type="text" id="fb_252_topo" placeholder="NÃO SE APLICA"></div><div class="vfield grow"><label>2.5.3 Distância do centro</label><input type="text" id="fb_253_dist" placeholder="NÃO SE APLICA"></div><div class="vfield grow"><label>2.5.4 Informações Complementares</label><input type="text" id="fb_254_comp" placeholder="NÃO SE APLICA"></div></div>
 <h2 class="vsec acc" onclick="FV_toggleSec(this)"><span>3 — DESCRIÇÃO DAS BENFEITORIAS</span><span class="acc-chevron">▾</span></h2><div class="vcard"><div class="vfield grow"><label>3.1 Não reprodutivas</label><textarea id="fb_31_nrep" rows="2" placeholder="Casa/depósito, poço, cercas, forno..."></textarea></div><div class="vfield grow"><label>3.1.1 Benfeitorias não reprodutivas da faixa não edificante</label><input type="text" id="fb_311" placeholder="AUSENTES"></div><div class="vfield grow"><label>3.1.2 Informações complementares</label><textarea id="fb_312" rows="2" placeholder="O detalhamento das benfeitorias consta no laudo de avaliação – DESP 3"></textarea></div><div class="vfield grow"><label>3.2 Reprodutivas</label><textarea id="fb_32_rep" rows="2" placeholder="Imbuzeiro, acerola, milho, feijão e pastagem..."></textarea></div><div class="vfield grow"><label>3.2.1 Benfeitorias reprodutivas da faixa não edificante</label><input type="text" id="fb_321" placeholder="AUSENTES"></div><div class="vfield grow"><label>3.2.2 Informações complementares</label><textarea id="fb_322" rows="2" placeholder="O detalhamento das benfeitorias consta no laudo de avaliação – DESP 3"></textarea></div></div>
-<h2 class="vsec acc" onclick="FV_toggleSec(this)"><span>4 — CARACTERIZAÇÃO SOCIOECONÔMICA</span><span class="acc-chevron">▾</span></h2><div class="vcard"><div class="vsub">4.1 Identificação</div><div class="vfield grow"><label>Proprietário(a) do imóvel</label><select id="fb_41_prop"><option value="">Selecione</option><option>1 - Sim</option><option>2 - Não</option></select></div><div class="vfield grow"><label>Nome</label><input type="text" id="fb_41_nome" data-fb-from="nome" class="bloqueado" data-lock="1" placeholder="Nome"></div><div class="vfield grow"><label>4.1.1 Grau de parentesco</label><select id="fb_411_par"><option value=""></option><option>Cônjuge</option><option>Filho(a)</option><option>Neto(a)</option><option>Irmão(ã)</option><option>Pai/Mãe</option><option>Sobrinho(a)</option><option>Genro/Nora</option><option>Outro</option><option>Não se aplica</option></select></div><div class="vsub">4.2 Naturalidade</div><div class="vrow"><div class="vfield grow"><label>Origem</label><select id="fb_42_nat"><option value=""></option><option>Do município (1)</option><option>Outro município (2)</option><option>Outro estado (3)</option></select></div><div class="vfield grow"><label>Qual?</label><input type="text" id="fb_42_qual" placeholder="Ex.: SERTÂNIA - PE"></div><div class="vfield grow"><label>Há quanto tempo reside na comunidade?</label><input type="text" id="fb_42_tempo" placeholder="Ex.: NÃO INFORMADO"></div></div><div class="vsub">4.3 Nível de Escolaridade</div><div class="vfield grow"><label>Escolaridade</label><select id="fb_43_esc"><option value=""></option><option>Analfabeto(a)</option><option>Alfabetizado(a)</option><option>Ensino Fundamental</option><option>Ensino Médio</option><option>Ensino Técnico</option><option>Ensino Superior</option></select></div><div class="vsub">4.4 Dados Profissionais</div><div class="vrow"><div class="vfield grow"><label>Trabalha</label><select id="fb_44_trab"><option value="">Selecione</option><option>1 - Sim</option><option>2 - Não</option></select></div><div class="vfield grow"><label>Empresa que trabalha</label><input type="text" id="fb_44_empresa" placeholder="NÃO SE APLICA"></div><div class="vfield grow"><label>Tempo de trabalho</label><input type="text" id="fb_44_tempo" placeholder="NÃO SE APLICA"></div></div><div class="vrow"><div class="vfield grow"><label>Profissão</label><input type="text" id="fb_44_prof" placeholder="NÃO SE APLICA"></div><div class="vfield grow"><label>Remuneração</label><input type="text" id="fb_44_remun" placeholder="Ex.: PENSIONISTA"></div><div class="vfield grow"><label>Renda familiar</label><input type="text" id="fb_44_renda" placeholder="DADO NÃO DECLARADO"></div></div><div class="vsub">4.5 Composição Familiar</div><div class="fb-familia" id="fb_familia"></div><div class="vactions" style="margin-top:8px;"><button class="vbtn vbtn-ghost" type="button" onclick="FB_addFamilia()">+ Adicionar pessoa</button></div><div class="vrow"><div class="vfield grow"><label>4.5.1 Os filhos ou familiares estudam na escola do bairro</label><select id="fb_451"><option value="">Selecione</option><option>1 - Sim</option><option>2 - Não</option></select></div><div class="vfield grow"><label>Em qual bairro?</label><input type="text" id="fb_451_bairro" placeholder="Bairro"></div></div><div class="vrow"><div class="vfield grow"><label>4.5.2 Reside na moradia alguma pessoa com deficiência</label><select id="fb_452"><option value="">Selecione</option><option>1 - Sim</option><option>2 - Não</option></select></div><div class="vfield grow"><label>Qual?</label><input type="text" id="fb_452_qual" placeholder="Descrição"></div></div><div class="vfield grow"><label>4.5.3 Recebe BPC – Benefício de Prestação Continuada</label><select id="fb_453_bpc"><option value="">Selecione</option><option>1 - Sim</option><option>2 - Não</option></select></div><div class="vfield grow"><label>4.5.4 Das doenças abaixo citadas, quais as que acontecem com mais frequência na família:</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_454_0" value="Alergia"> Alergia</label><label class="fb-chk"><input type="checkbox" id="fb_454_1" value="Desnutrição"> Desnutrição</label><label class="fb-chk"><input type="checkbox" id="fb_454_2" value="Diarreia"> Diarreia</label><label class="fb-chk"><input type="checkbox" id="fb_454_3" value="Doença respiratória"> Doença respiratória</label><label class="fb-chk"><input type="checkbox" id="fb_454_4" value="Verminose"> Verminose</label></div></div><div class="vsub">4.6 Situação da Moradia</div><div class="vfield grow"><label>4.6.1 Tipo do imóvel</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_461_tipo_0" value="Terreno"> Terreno</label><label class="fb-chk"><input type="checkbox" id="fb_461_tipo_1" value="Comércio"> Comércio</label><label class="fb-chk"><input type="checkbox" id="fb_461_tipo_2" value="Casa residencial"> Casa residencial</label><label class="fb-chk"><input type="checkbox" id="fb_461_tipo_3" value="Casa abandonada"> Casa abandonada</label><label class="fb-chk"><input type="checkbox" id="fb_461_tipo_4" value="Outros"> Outros</label></div></div><div class="vfield grow"><label>Outros (especificar)</label><input type="text" id="fb_461_outros" placeholder="Ex.: CASA/ARMAZÉM"></div><div class="vfield grow"><label>4.6.2 Forma de ocupação da moradia</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_462_ocup_0" value="Própria"> Própria</label><label class="fb-chk"><input type="checkbox" id="fb_462_ocup_1" value="Alugada"> Alugada</label><label class="fb-chk"><input type="checkbox" id="fb_462_ocup_2" value="Cedida"> Cedida</label></div></div><div class="vfield grow"><label>4.6.3 Número de famílias na residência</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_463_fam_0" value="Uma família"> Uma família</label><label class="fb-chk"><input type="checkbox" id="fb_463_fam_1" value="Duas famílias"> Duas famílias</label><label class="fb-chk"><input type="checkbox" id="fb_463_fam_2" value="Mais de duas famílias"> Mais de duas famílias</label></div></div><div class="vfield grow"><label>4.6.4 Estado de conservação do imóvel</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_464_cons_0" value="Bom"> Bom</label><label class="fb-chk"><input type="checkbox" id="fb_464_cons_1" value="Regular"> Regular</label><label class="fb-chk"><input type="checkbox" id="fb_464_cons_2" value="Ruim"> Ruim</label></div></div><div class="vfield grow"><label>4.6.5 Característica da construção</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_465_constr_0" value="Alvenaria"> Alvenaria</label><label class="fb-chk"><input type="checkbox" id="fb_465_constr_1" value="Madeira"> Madeira</label><label class="fb-chk"><input type="checkbox" id="fb_465_constr_2" value="Misto"> Misto</label></div></div><div class="vfield grow"><label>4.6.6 Número de cômodos</label><input type="text" id="fb_466_comodos" placeholder="Ex.: 10 cômodos"></div><div class="vfield grow"><label>Obs.</label><textarea id="fb_46_obs" rows="3" placeholder="Observações sobre a moradia..."></textarea></div><div class="vfield grow"><label>4.6.7 Situação do imóvel</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_467_sit_0" value="Com escritura"> Com escritura</label><label class="fb-chk"><input type="checkbox" id="fb_467_sit_1" value="Sem escritura"> Sem escritura</label><label class="fb-chk"><input type="checkbox" id="fb_467_sit_2" value="Comprovante de compra e venda"> Comprovante de compra e venda</label><label class="fb-chk"><input type="checkbox" id="fb_467_sit_3" value="Posseiro"> Posseiro</label><label class="fb-chk"><input type="checkbox" id="fb_467_sit_4" value="Título de posse do INCRA"> Título de posse do INCRA</label></div></div>
+<h2 class="vsec acc" onclick="FV_toggleSec(this)"><span>4 — CARACTERIZAÇÃO SOCIOECONÔMICA</span><span class="acc-chevron">▾</span></h2><div class="vcard"><div class="vsub">4.1 Identificação</div><div class="vfield grow"><label>Proprietário(a) do imóvel</label><select id="fb_41_prop"><option value="">Selecione</option><option>1 - Sim</option><option>2 - Não</option></select></div><div class="vfield grow"><label>Nome</label><input type="text" id="fb_41_nome" data-fb-from="nome" class="bloqueado" data-lock="1" placeholder="Nome"></div><div class="vfield grow"><label>4.1.1 Grau de parentesco</label><select id="fb_411_par"><option value=""></option><option>Cônjuge</option><option>Filho(a)</option><option>Neto(a)</option><option>Irmão(ã)</option><option>Pai/Mãe</option><option>Sobrinho(a)</option><option>Genro/Nora</option><option>Outro</option><option>Não se aplica</option></select></div><div class="vsub">4.2 Naturalidade</div><div class="vrow"><div class="vfield grow"><label>Origem</label><select id="fb_42_nat"><option value=""></option><option>Do município (1)</option><option>Outro município (2)</option><option>Outro estado (3)</option></select></div><div class="vfield grow"><label>Qual?</label><input type="text" id="fb_42_qual" placeholder="Ex.: SERTÂNIA - PE"></div><div class="vfield grow"><label>Há quanto tempo reside na comunidade?</label><input type="text" id="fb_42_tempo" placeholder="Ex.: NÃO INFORMADO"></div></div><div class="vsub">4.3 Nível de Escolaridade</div><div class="vfield grow"><label>Escolaridade</label><select id="fb_43_esc"><option value=""></option><option>Analfabeto(a)</option><option>Alfabetizado(a)</option><option>Ensino Fundamental Completo</option><option>Ensino Fundamental Incompleto</option><option>Ensino Médio Completo</option><option>Ensino Médio Incompleto</option><option>Ensino Técnico Completo</option><option>Ensino Técnico Incompleto</option><option>Ensino Superior Completo</option><option>Ensino Superior Incompleto</option></select></div><div class="vsub">4.4 Dados Profissionais</div><div class="vrow"><div class="vfield grow"><label>Trabalha</label><select id="fb_44_trab"><option value="">Selecione</option><option>1 - Sim</option><option>2 - Não</option></select></div><div class="vfield grow"><label>Empresa que trabalha</label><input type="text" id="fb_44_empresa" placeholder="NÃO SE APLICA"></div><div class="vfield grow"><label>Tempo de trabalho</label><input type="text" id="fb_44_tempo" placeholder="NÃO SE APLICA"></div></div><div class="vrow"><div class="vfield grow"><label>Profissão</label><input type="text" id="fb_44_prof" placeholder="NÃO SE APLICA"></div><div class="vfield grow"><label>Remuneração (R$)</label><input type="text" id="fb_44_remun" inputmode="numeric" placeholder="R$ 0,00"></div><div class="vfield grow"><label>Renda familiar (R$)</label><input type="text" id="fb_44_renda" inputmode="numeric" placeholder="R$ 0,00"></div></div><div class="vsub">4.5 Composição Familiar</div><div class="fb-familia" id="fb_familia"></div><div class="vactions" style="margin-top:8px;"><button class="vbtn vbtn-ghost" type="button" onclick="FB_addFamilia()">+ Adicionar pessoa</button></div><div class="vrow"><div class="vfield grow"><label>4.5.1 Os filhos ou familiares estudam na escola do bairro</label><select id="fb_451"><option value="">Selecione</option><option>1 - Sim</option><option>2 - Não</option></select></div><div class="vfield grow"><label>Em qual bairro?</label><input type="text" id="fb_451_bairro" placeholder="Bairro"></div></div><div class="vrow"><div class="vfield grow"><label>4.5.2 Reside na moradia alguma pessoa com deficiência</label><select id="fb_452"><option value="">Selecione</option><option>1 - Sim</option><option>2 - Não</option></select></div><div class="vfield grow"><label>Qual?</label><input type="text" id="fb_452_qual" placeholder="Descrição"></div></div><div class="vfield grow"><label>4.5.3 Recebe BPC – Benefício de Prestação Continuada</label><select id="fb_453_bpc"><option value="">Selecione</option><option>1 - Sim</option><option>2 - Não</option></select></div><div class="vfield grow"><label>4.5.4 Das doenças abaixo citadas, quais as que acontecem com mais frequência na família:</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_454_0" value="Alergia"> Alergia</label><label class="fb-chk"><input type="checkbox" id="fb_454_1" value="Desnutrição"> Desnutrição</label><label class="fb-chk"><input type="checkbox" id="fb_454_2" value="Diarreia"> Diarreia</label><label class="fb-chk"><input type="checkbox" id="fb_454_3" value="Doença respiratória"> Doença respiratória</label><label class="fb-chk"><input type="checkbox" id="fb_454_4" value="Verminose"> Verminose</label></div></div><div class="vsub">4.6 Situação da Moradia</div><div class="vfield grow"><label>4.6.1 Tipo do imóvel</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_461_tipo_0" value="Terreno"> Terreno</label><label class="fb-chk"><input type="checkbox" id="fb_461_tipo_1" value="Comércio"> Comércio</label><label class="fb-chk"><input type="checkbox" id="fb_461_tipo_2" value="Casa residencial"> Casa residencial</label><label class="fb-chk"><input type="checkbox" id="fb_461_tipo_3" value="Casa abandonada"> Casa abandonada</label><label class="fb-chk"><input type="checkbox" id="fb_461_tipo_4" value="Outros"> Outros</label></div></div><div class="vfield grow"><label>Outros (especificar)</label><input type="text" id="fb_461_outros" placeholder="Ex.: CASA/ARMAZÉM"></div><div class="vfield grow"><label>4.6.2 Forma de ocupação da moradia</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_462_ocup_0" value="Própria"> Própria</label><label class="fb-chk"><input type="checkbox" id="fb_462_ocup_1" value="Alugada"> Alugada</label><label class="fb-chk"><input type="checkbox" id="fb_462_ocup_2" value="Cedida"> Cedida</label></div></div><div class="vfield grow"><label>4.6.3 Número de famílias na residência</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_463_fam_0" value="Uma família"> Uma família</label><label class="fb-chk"><input type="checkbox" id="fb_463_fam_1" value="Duas famílias"> Duas famílias</label><label class="fb-chk"><input type="checkbox" id="fb_463_fam_2" value="Mais de duas famílias"> Mais de duas famílias</label></div></div><div class="vfield grow"><label>4.6.4 Estado de conservação do imóvel</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_464_cons_0" value="Bom"> Bom</label><label class="fb-chk"><input type="checkbox" id="fb_464_cons_1" value="Regular"> Regular</label><label class="fb-chk"><input type="checkbox" id="fb_464_cons_2" value="Ruim"> Ruim</label></div></div><div class="vfield grow"><label>4.6.5 Característica da construção</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_465_constr_0" value="Alvenaria"> Alvenaria</label><label class="fb-chk"><input type="checkbox" id="fb_465_constr_1" value="Madeira"> Madeira</label><label class="fb-chk"><input type="checkbox" id="fb_465_constr_2" value="Misto"> Misto</label></div></div><div class="vfield grow"><label>4.6.6 Número de cômodos</label><input type="text" id="fb_466_comodos" placeholder="Ex.: 10 cômodos"></div><div class="vfield grow"><label>Obs.</label><textarea id="fb_46_obs" rows="3" placeholder="Observações sobre a moradia..."></textarea></div><div class="vfield grow"><label>4.6.7 Situação do imóvel</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_467_sit_0" value="Com escritura"> Com escritura</label><label class="fb-chk"><input type="checkbox" id="fb_467_sit_1" value="Sem escritura"> Sem escritura</label><label class="fb-chk"><input type="checkbox" id="fb_467_sit_2" value="Comprovante de compra e venda"> Comprovante de compra e venda</label><label class="fb-chk"><input type="checkbox" id="fb_467_sit_3" value="Posseiro"> Posseiro</label><label class="fb-chk"><input type="checkbox" id="fb_467_sit_4" value="Título de posse do INCRA"> Título de posse do INCRA</label></div></div><div class="vfield grow" id="fb_467_incra_wrap" style="display:none;"><label>Título de posse do INCRA — descrição</label><textarea id="fb_467_incra_desc" rows="2" placeholder="Descreva o título de posse do INCRA (nº, data, órgão emissor...)"></textarea></div>
 <div class="vsub">4.7 — Infraestrutura do Imóvel</div><div class="vfield grow"><label>4.7.1 Abastecimento de água</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_471_agua_0" value="Rede pública"> Rede pública</label><label class="fb-chk"><input type="checkbox" id="fb_471_agua_1" value="Poço"> Poço</label><label class="fb-chk"><input type="checkbox" id="fb_471_agua_2" value="Fonte"> Fonte</label><label class="fb-chk"><input type="checkbox" id="fb_471_agua_3" value="Cedido por vizinho"> Cedido por vizinho</label><label class="fb-chk"><input type="checkbox" id="fb_471_agua_4" value="Rio"> Rio</label></div></div><div class="vfield grow"><label>4.7.2 Energia elétrica</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_472_energia_0" value="Com padrão"> Com padrão</label><label class="fb-chk"><input type="checkbox" id="fb_472_energia_1" value="Sem padrão"> Sem padrão</label></div></div><div class="vfield grow"><label>4.7.3 Eliminação de dejetos</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_473_dejetos_0" value="Rede de esgoto"> Rede de esgoto</label><label class="fb-chk"><input type="checkbox" id="fb_473_dejetos_1" value="Fossa séptica"> Fossa séptica</label><label class="fb-chk"><input type="checkbox" id="fb_473_dejetos_2" value="Vala a céu aberto"> Vala a céu aberto</label></div></div><div class="vfield grow"><label>4.7.4 Destino dado ao lixo doméstico</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_474_lixo_0" value="Coleta pública"> Coleta pública</label><label class="fb-chk"><input type="checkbox" id="fb_474_lixo_1" value="Queimado"> Queimado</label><label class="fb-chk"><input type="checkbox" id="fb_474_lixo_2" value="Enterrado"> Enterrado</label><label class="fb-chk"><input type="checkbox" id="fb_474_lixo_3" value="Jogado em terreno baldio"> Jogado em terreno baldio</label></div></div>
 <div class="vsub">4.8 — Sentidos de Identificação (Autorreconhecimento)</div><div class="vfield grow"><label>4.8.1 O Sr. ou a Sra. se autorreconhece como:</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_481_0" value="Quilombola – Liderança"> Quilombola – Liderança</label><label class="fb-chk"><input type="checkbox" id="fb_481_1" value="Indígena – Liderança"> Indígena – Liderança</label><label class="fb-chk"><input type="checkbox" id="fb_481_2" value="Comunidade tradicional – Liderança"> Comunidade tradicional – Liderança</label><label class="fb-chk"><input type="checkbox" id="fb_481_3" value="Outros"> Outros</label></div></div><div class="vfield grow" id="fb_481_esp_wrap" style="display:none;"><label>D) Outros — especificar</label><textarea id="fb_481_esp" rows="2" placeholder="Especificar..."></textarea></div>
-<div class="vsub">4.9 — Aproveitamento da Terra</div><div class="vfield grow"><label>4.9.1 Uso das terras</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_491_uso_0" value="Seca"> Seca</label><label class="fb-chk"><input type="checkbox" id="fb_491_uso_1" value="Chuva"> Chuva</label><label class="fb-chk"><input type="checkbox" id="fb_491_uso_2" value="Plantio"> Plantio</label><label class="fb-chk"><input type="checkbox" id="fb_491_uso_3" value="Criação de animais"> Criação de animais</label></div></div><div class="vfield grow" id="fb_491_plantio_wrap" style="display:none;"><label>Plantio — especificar</label><textarea id="fb_491_plantio" rows="2" placeholder="Ex.: Imbuzeiro, acerola, milho, feijão e pastagem"></textarea></div><div class="vfield grow" id="fb_491_criacao_wrap" style="display:none;"><label>Criação de animais — especificar</label><textarea id="fb_491_criacao" rows="2" placeholder="Descrição da criação de animais"></textarea></div><div class="vfield grow"><label>4.9.2 O que é produzido na propriedade</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_492_prod_0" value="Extrativismo"> Extrativismo</label><label class="fb-chk"><input type="checkbox" id="fb_492_prod_1" value="Agricultura"> Agricultura</label><label class="fb-chk"><input type="checkbox" id="fb_492_prod_2" value="Pecuária"> Pecuária</label></div></div><div class="vfield grow"><label>4.9.3 Quais impactos concebidos pela comunidade sobre a construção da ferrovia, e qual sua opinião?</label><textarea id="fb_493_impactos" rows="4" placeholder="Percepção da comunidade sobre a ferrovia..."></textarea></div>
+<div class="vsub">4.9 — Aproveitamento da Terra</div><div class="vfield grow"><label>4.9.1 Uso das terras</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_491_uso_0" value="Seca"> Seca</label><label class="fb-chk"><input type="checkbox" id="fb_491_uso_1" value="Chuva"> Chuva</label><label class="fb-chk"><input type="checkbox" id="fb_491_uso_2" value="Plantio"> Plantio</label><label class="fb-chk"><input type="checkbox" id="fb_491_uso_3" value="Criação de animais"> Criação de animais</label></div></div><div class="vfield grow" id="fb_491_plantio_wrap" style="display:none;"><label>Plantio — especificar</label><textarea id="fb_491_plantio" rows="2" placeholder="Ex.: Imbuzeiro, acerola, milho, feijão e pastagem"></textarea></div><div class="vfield grow" id="fb_491_criacao_wrap" style="display:none;"><label>Criação de animais — especificar</label><textarea id="fb_491_criacao" rows="2" placeholder="Descrição da criação de animais"></textarea></div><div class="vfield grow"><label>4.9.1 Uso das terras — descrição</label><textarea id="fb_491_desc" rows="2" placeholder="Descrição geral do uso das terras..."></textarea></div><div class="vfield grow"><label>4.9.2 O que é produzido na propriedade</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_492_prod_0" value="Extrativismo"> Extrativismo</label><label class="fb-chk"><input type="checkbox" id="fb_492_prod_1" value="Agricultura"> Agricultura</label><label class="fb-chk"><input type="checkbox" id="fb_492_prod_2" value="Pecuária"> Pecuária</label></div></div><div class="vfield grow"><label>4.9.3 Quais impactos concebidos pela comunidade sobre a construção da ferrovia, e qual sua opinião?</label><textarea id="fb_493_impactos" rows="4" placeholder="Percepção da comunidade sobre a ferrovia..."></textarea></div>
 <div class="vsub">4.10 — Outras Informações</div><div class="vfield grow"><label>4.10.1 Quais as expectativas futuras da família em relação à moradia atual e pós desapropriação</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_4101_0" value="Continuar morando nas redondezas da localidade"> Continuar morando nas redondezas da localidade</label><label class="fb-chk"><input type="checkbox" id="fb_4101_1" value="Construir em outro local fora da localidade"> Construir em outro local fora da localidade</label><label class="fb-chk"><input type="checkbox" id="fb_4101_2" value="Outra"> Outra</label></div></div><div class="vfield grow"><label>Outra (especificar)</label><input type="text" id="fb_4101_outra" placeholder="Especificar"></div><div class="vrow"><div class="vfield grow"><label>4.10.2 A família recebe algum benefício do Governo Federal</label><select id="fb_4102"><option value="">Selecione</option><option>1 - Sim</option><option>2 - Não</option></select></div><div class="vfield grow"><label>Qual?</label><input type="text" id="fb_4102_qual" placeholder="Qual benefício"></div></div><div class="vrow"><div class="vfield grow"><label>4.10.3 A família participa de algum programa do município</label><select id="fb_4103"><option value="">Selecione</option><option>1 - Sim</option><option>2 - Não</option></select></div><div class="vfield grow"><label>Qual?</label><input type="text" id="fb_4103_qual" placeholder="Qual programa"></div></div><div class="vrow"><div class="vfield grow"><label>4.10.4 A família participa de projetos e organizações da comunidade</label><select id="fb_4104"><option value="">Selecione</option><option>1 - Sim</option><option>2 - Não</option></select></div><div class="vfield grow"><label>Qual?</label><input type="text" id="fb_4104_qual" placeholder="Qual projeto/organização"></div></div><div class="vfield grow"><label>4.10.5 Dados relativos sobre saúde, educação, segurança comunitária e questões sociais, situações de vulnerabilidades relacionadas à família e seus membros</label><textarea id="fb_4105" rows="6" placeholder="Relato da abordagem social..."></textarea></div></div>
 <h2 class="vsec acc" onclick="FV_toggleSec(this)"><span>5 — INFORMAÇÕES COMPLEMENTARES (PROPRIEDADE)</span><span class="acc-chevron">▾</span></h2><div class="vcard"><div class="vfield grow"><label>5.1 Obras e Melhorias das Terras</label><input type="text" id="fb_51_obras" placeholder="Ex.: AUSENTES"></div><div class="vfield grow"><label>5.2 Outras Atividades</label><input type="text" id="fb_52_ativ" placeholder="Ex.: NÃO HÁ"></div><div class="vsub">5.3 Fotografias do imóvel</div><label class="img-drop" id="fb_fotos_drop"><span class="ic">📷</span><span class="t">Clique ou arraste as fotografias do imóvel</span><span class="h">Várias imagens • JPG ou PNG</span><input type="file" accept="image/*" multiple id="fb_fotos_file"></label><div class="fb-fotos-prev" id="fb_fotos_prev"></div><div class="vsub">Assinatura do(a) vistoriador(a)</div><div class="vfield grow"><label>Nome do(a) vistoriador(a)</label><input type="text" id="fb_ass_nome" placeholder="Nome"></div><div class="vrow"><div class="vfield grow"><label>Cargo/Função</label><input type="text" id="fb_ass_cargo" placeholder="Ex.: Assistente Social"></div><div class="vfield grow"><label>Registro (CRESS/CREA)</label><input type="text" id="fb_ass_reg" placeholder="Ex.: CRESS-PE 14780"></div></div><div class="vfield grow"><label>Local e data</label><input type="text" id="fb_ass_local" placeholder="Ex.: Custódia-PE, 16 de agosto de 2026"></div><div class="vsub">Assinatura digitalizada (imagem)</div><label class="img-drop" id="fb_ass_img_drop"><span class="ic">✍️</span><span class="t">Clique para enviar a imagem da assinatura</span><span class="h">Imagem única • JPG ou PNG</span><input type="file" accept="image/*" id="fb_ass_img_file"></label><div id="fb_ass_img_prev" style="margin-top:8px;"></div></div>
 <div class="vactions"><span style="font-size:12.5px;color:#7a8797;">Os downloads são feitos na aba <b>Relatório Técnico</b> (botão “Baixar tudo (.zip)”).</span></div>
@@ -3605,7 +4037,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 
 
 
-<section class="tab-panel" id="panel-desp1-rel"><div class="wrap"><h1>Relatório Técnico de Caracterização Socioeconômica</h1><p class="sub">Os dados são puxados da aba 1.9. Preencha os campos abaixo e gere o PDF completo com capa.</p><div class="vcard"><div class="vrow"><div class="vfield grow"><label>Processo administrativo</label><input type="text" id="rel_processo" data-rel-from="processo" class="bloqueado" readonly data-lock="1" placeholder="INFRA S.A. CTD ... - Lote ..."></div><div class="vfield grow"><label>SEI nº</label><input type="text" id="rel_sei" value="50050.003131/2026-79" placeholder="Ex.: 00000.000000/0000-00"></div></div><div class="vrow"><div class="vfield grow"><label>Empreendimento / Ferrovia</label><input type="text" id="rel_ferrovia" value="FERROVIA TRANSNORDESTINA EF-232 – FTN" placeholder="Ex.: Ferrovia ... (EF-...)"></div><div class="vfield grow"><label>Lote</label><input type="text" id="rel_lote" class="bloqueado" readonly placeholder="Ex.: SPS-04"></div></div><div class="vrow"><div class="vfield grow"><label>Subtrecho</label><input type="text" id="rel_subtrecho" value="Custódia/PE a Arcoverde/PE" placeholder="Ex.: Custódia/PE – Arcoverde/PE"></div><div class="vfield grow"><label>Contrato nº</label><input type="text" id="rel_contrato" value="037/2024" placeholder="Ex.: 000/0000"></div></div><div class="vrow"><div class="vfield grow"><label>Ordem de Serviço</label><input type="text" id="rel_os" value="INFRA 33 (10665856), Despacho 275 Solicitação de OS - FTN (10643430), Despacho 04/2026 (10749193,) Despacho 13/2026 (10791872), Plano de Trabalho 4 TRANSNORDESTINA (10614462)" placeholder="Ex.: INFRA 00 (0000000)"></div><div class="vfield grow"><label>Mês/Ano da capa</label><input type="text" id="rel_mesano" placeholder="Ex.: JULHO/2026"></div></div><div class="vfield grow"><label>Expropriado</label><input type="text" id="rel_expropriado" data-rel-from="rel_nome_prop" class="bloqueado" readonly data-lock="1" placeholder="Nome do expropriado"></div><div class="vsub">Áreas de Locação</div><div class="rel-areas" id="rel_areas"></div><div class="vactions" style="margin-top:6px;"><button class="vbtn vbtn-ghost" type="button" onclick="REL_addArea()">+ Adicionar área</button></div></div><h2 class="vsec acc" onclick="FV_toggleSec(this)"><span>1 — APRESENTAÇÃO</span><span class="acc-chevron">▾</span></h2><div class="vcard"><div class="vactions" style="margin-bottom:8px;"><button class="vbtn vbtn-ghost" type="button" onclick="REL_gerarTexto('apresentacao')">↻ Gerar texto automático</button></div><div class="vfield grow"><label>Texto de apresentação<span class="hint-auto"> (gerado automaticamente — editável)</span></label><textarea id="rel_apresentacao" rows="9" placeholder="Clique em 'Gerar texto automático' ou digite..."></textarea></div><div class="vsub">1.1 Referencial Normativo e Premissas Gerais</div><div class="vfield grow"><label>Premissas / medidas compensatórias</label><textarea id="rel_premissas" rows="8" placeholder="Texto padrão de premissas..."></textarea></div></div><h2 class="vsec acc" onclick="FV_toggleSec(this)"><span>2 — IDENTIFICAÇÃO E QUALIFICAÇÃO DO PROPRIETÁRIO E DO IMÓVEL</span><span class="acc-chevron">▾</span></h2><div class="vcard"><div class="vrow"><div class="vfield grow"><label>Nome do proprietário</label><input type="text" id="rel_nome" data-rel-from="fb_nome" class="bloqueado" readonly data-lock="1" placeholder=""></div><div class="vfield grow"><label>Estado civil</label><input type="text" id="rel_estcivil" data-rel-from="fb_estcivil" class="bloqueado" readonly data-lock="1" placeholder=""></div></div><div class="vrow"><div class="vfield grow"><label>RG</label><input type="text" id="rel_rg" data-rel-from="fb_rg" class="bloqueado" readonly data-lock="1" placeholder=""></div><div class="vfield grow"><label>CPF</label><input type="text" id="rel_cpf" data-rel-from="fb_cpf" class="bloqueado" readonly data-lock="1" placeholder=""></div></div><div class="vfield grow"><label>Endereço</label><input type="text" id="rel_endereco" data-rel-from="fb_endereco" class="bloqueado" readonly data-lock="1" placeholder=""></div><div class="vrow"><div class="vfield grow"><label>Município</label><input type="text" id="rel_municipio" data-rel-from="fb_municipio" class="bloqueado" readonly data-lock="1" placeholder=""></div><div class="vfield grow"><label>CEP</label><input type="text" id="rel_cep" data-rel-from="fb_cep" class="bloqueado" readonly data-lock="1" placeholder=""></div></div><div class="vsub">Imóvel</div><div class="vfield grow"><label>Denominação do imóvel</label><input type="text" id="rel_prop_id" data-rel-from="fb_prop_id" class="bloqueado" readonly data-lock="1" placeholder=""></div><div class="vrow"><div class="vfield grow"><label>Área total (ha)</label><input type="text" id="rel_area_total" data-rel-from="fb_area_total" class="bloqueado" readonly data-lock="1" placeholder=""></div><div class="vfield grow"><label>Área de desapropriação (ha)</label><input type="text" id="rel_area_desap" data-rel-from="fb_area_desap" class="bloqueado" readonly data-lock="1" placeholder=""></div></div><div class="vrow"><div class="vfield grow"><label>Matrícula / Livro / Fls.</label><input type="text" id="rel_matricula" data-rel-from="fb_matricula" class="bloqueado" readonly data-lock="1" placeholder=""></div><div class="vfield grow"><label>CIB/ITR</label><input type="text" id="rel_cib" data-rel-from="fb_cib" class="bloqueado" readonly data-lock="1" placeholder=""></div></div><div class="vfield grow"><label>Cartório / Registro</label><input type="text" id="rel_cartorio" data-rel-from="fb_cartorio" class="bloqueado" readonly data-lock="1" placeholder="Ex.: 1º Ofício de ..."></div><div class="vactions" style="margin:8px 0;"><button class="vbtn vbtn-ghost" type="button" onclick="REL_gerarTexto('qualificacao')">↻ Gerar texto automático</button></div><div class="vfield grow"><label>Texto de qualificação<span class="hint-auto"> (gerado automaticamente — editável)</span></label><textarea id="rel_qualificacao" rows="6" placeholder="Clique em 'Gerar texto automático' ou digite..."></textarea></div></div><h2 class="vsec acc" onclick="FV_toggleSec(this)"><span>3 — CADASTRO SOCIOECONÔMICO</span><span class="acc-chevron">▾</span></h2><div class="vcard"><div class="vsub">3.1 Atividade Realizada</div><div class="vactions" style="margin-bottom:6px;"><button class="vbtn vbtn-ghost" type="button" onclick="REL_gerarTexto('atividade')">↻ Gerar texto</button></div><div class="vfield grow"><label>Atividade<span class="hint-auto"> (gerado automaticamente — editável)</span></label><textarea id="rel_31_atividade" rows="2" placeholder=""></textarea></div><div class="vsub">3.2 Objetivo</div><div class="vactions" style="margin-bottom:6px;"><button class="vbtn vbtn-ghost" type="button" onclick="REL_gerarTexto('objetivo')">↻ Gerar texto</button></div><div class="vfield grow"><label>Objetivo<span class="hint-auto"> (gerado automaticamente — editável)</span></label><textarea id="rel_32_objetivo" rows="6" placeholder=""></textarea></div><div class="vsub">3.3 Metodologia (texto padrão)</div><div class="vfield grow"><label>Metodologia</label><textarea id="rel_33_metodologia" rows="8" placeholder=""></textarea></div><div class="vsub">3.4 Síntese da Caracterização Socioeconômica</div><div class="vactions" style="margin-bottom:6px;"><button class="vbtn vbtn-ghost" type="button" onclick="REL_gerarTexto('sintese')">↻ Gerar texto</button></div><div class="vfield grow"><label>Síntese<span class="hint-auto"> (gerado automaticamente — editável)</span></label><textarea id="rel_34_sintese" rows="9" placeholder=""></textarea></div></div><h2 class="vsec acc" onclick="FV_toggleSec(this)"><span>4 — PARECER SOCIAL</span><span class="acc-chevron">▾</span></h2><div class="vcard"><div class="vfield grow"><label>Introdução do parecer</label><textarea id="rel_parecer_intro" rows="4" placeholder=""></textarea></div><div class="vsub">Tabela 1 — Critérios de Avaliação de Vulnerabilidade Socioeconômica (IVS/IPEA)</div><div class="rel-tabela" id="rel_tabela1"></div><div class="vactions" style="margin-top:6px;"><button class="vbtn vbtn-ghost" type="button" onclick="REL_addLinha(1)">+ Adicionar critério (Tabela 1)</button></div><div class="rel-ivs" id="rel_ivs"></div><div class="vfield grow"><label>Comentário após Tabela 1</label><textarea id="rel_tab1_coment" rows="4" placeholder=""></textarea></div><div class="vsub">Texto normativo (Art. 2º e 3º da Resolução Normativa INFRASA nº 7/2023)</div><div class="vfield grow"><label>Texto normativo</label><textarea id="rel_texto_normativo" rows="8" placeholder=""></textarea></div><div class="vsub">Tabela 2 — Critérios conforme Art. 3º da Resolução Normativa INFRASA nº 7/2023</div><div class="rel-tabela" id="rel_tabela2"></div><div class="vactions" style="margin-top:6px;"><button class="vbtn vbtn-ghost" type="button" onclick="REL_addLinha(2)">+ Adicionar critério (Tabela 2)</button></div><div class="vfield grow"><label>Comentário após Tabela 2</label><textarea id="rel_tab2_coment" rows="5" placeholder=""></textarea></div></div><h2 class="vsec acc" onclick="FV_toggleSec(this)"><span>5 — CONCLUSÃO</span><span class="acc-chevron">▾</span></h2><div class="vcard"><div class="vactions" style="margin-bottom:6px;"><button class="vbtn vbtn-ghost" type="button" onclick="REL_gerarTexto('conclusao')">↻ Gerar texto</button></div><div class="vfield grow"><label>Conclusão<span class="hint-auto"> (gerado automaticamente — editável)</span></label><textarea id="rel_conclusao" rows="6" placeholder=""></textarea></div><div class="vrow"><div class="vfield grow"><label>Grau de vulnerabilidade</label><input type="text" id="rel_grau_vuln" placeholder="Ex.: moderada"></div><div class="vfield grow"><label>Local e data</label><input type="text" id="rel_local_data" placeholder="Ex.: Custódia-PE, 16 de agosto de 2026"></div></div><div class="vsub">Responsável técnico</div><div class="vfield grow"><label>Nome</label><input type="text" id="rel_resp_nome" data-rel-from="fb_ass_nome" class="bloqueado" readonly data-lock="1" placeholder=""></div><div class="vrow"><div class="vfield grow"><label>Cargo/Função</label><input type="text" id="rel_resp_cargo" data-rel-from="fb_ass_cargo" class="bloqueado" readonly data-lock="1" placeholder=""></div><div class="vfield grow"><label>Registro</label><input type="text" id="rel_resp_reg" data-rel-from="fb_ass_reg" class="bloqueado" readonly data-lock="1" placeholder=""></div></div><div class="vsub">Assinatura digitalizada (imagem)</div><label class="img-drop" id="rel_ass_img_drop"><span class="ic">✍️</span><span class="t">Clique para enviar a imagem da assinatura</span><span class="h">Imagem única • JPG ou PNG</span><input type="file" accept="image/*" id="rel_ass_img_file"></label><div id="rel_ass_img_prev" style="margin-top:8px;"></div></div><h2 class="vsec acc" onclick="FV_toggleSec(this)"><span>6 — RELATÓRIO FOTOGRÁFICO DO IMÓVEL</span><span class="acc-chevron">▾</span></h2><div class="vcard"><label class="img-drop" id="rel_fotos_drop"><span class="ic">📷</span><span class="t">Clique ou arraste as fotografias / ortofoto</span><span class="h">Imagens • JPG ou PNG</span><input type="file" accept="image/*" multiple id="rel_fotos_file"></label><div id="rel_fotos_aviso" style="display:none;margin:8px 0 2px;padding:9px 13px;background:#f0f5fb;border:1px solid #cfe0f0;border-radius:8px;font-size:12.5px;color:#22303f;">🔗 As fotografias são <b>vinculadas à Ficha de Vistoria (5.3)</b> e replicadas automaticamente. Para alterar, edite as imagens na Ficha de Vistoria.</div><div class="fb-fotos-prev" id="rel_fotos_prev"></div></div><div class="vactions"><button class="vbtn vbtn-primary" type="button" onclick="REL_baixarTudoZip()">📦 Baixar tudo (.zip)</button><button class="vbtn vbtn-ghost" onclick="REL_puxarDados()">↧ Puxar dados da 1.9</button><button class="vbtn vbtn-ghost" onclick="REL_gerarTodos()">↻ Gerar todos os textos automáticos</button></div></div></section>
+<section class="tab-panel" id="panel-desp1-rel"><div class="wrap"><h1>Relatório Técnico de Caracterização Socioeconômica</h1><p class="sub">Os dados são puxados da aba 1.9. Preencha os campos abaixo e gere o PDF completo com capa.</p><div class="vcard"><div class="vrow"><div class="vfield grow"><label>Processo administrativo</label><input type="text" id="rel_processo" data-rel-from="processo" class="bloqueado" readonly data-lock="1" placeholder="INFRA S.A. CTD ... - Lote ..."></div><div class="vfield grow"><label>SEI nº<span class="hint-auto"> (espelho do Processo SEI — DESP 1)</span></label><input type="text" id="rel_sei" readonly class="bloqueado" placeholder="Preenchido pela Ficha de Vistoria (Processo SEI)"></div></div><div class="vrow"><div class="vfield grow"><label>Empreendimento / Ferrovia</label><input type="text" id="rel_ferrovia" value="FERROVIA TRANSNORDESTINA EF-232 – FTN" placeholder="Ex.: Ferrovia ... (EF-...)"></div><div class="vfield grow"><label>Lote</label><input type="text" id="rel_lote" class="bloqueado" readonly placeholder="Ex.: SPS-04"></div></div><div class="vrow"><div class="vfield grow"><label>Subtrecho</label><input type="text" id="rel_subtrecho" value="Custódia/PE a Arcoverde/PE" placeholder="Ex.: Custódia/PE – Arcoverde/PE"></div><div class="vfield grow"><label>Contrato nº</label><input type="text" id="rel_contrato" value="037/2024" placeholder="Ex.: 000/0000"></div></div><div class="vrow"><div class="vfield grow"><label>Ordem de Serviço</label><input type="text" id="rel_os" value="INFRA 33 (10665856), Despacho 275 Solicitação de OS - FTN (10643430), Despacho 04/2026 (10749193,) Despacho 13/2026 (10791872), Plano de Trabalho 4 TRANSNORDESTINA (10614462)" placeholder="Ex.: INFRA 00 (0000000)"></div><div class="vfield grow"><label>Mês/Ano da capa</label><input type="text" id="rel_mesano" placeholder="Ex.: JULHO/2026"></div></div><div class="vfield grow"><label>Expropriado</label><input type="text" id="rel_expropriado" data-rel-from="rel_nome_prop" class="bloqueado" readonly data-lock="1" placeholder="Nome do expropriado"></div><div class="vsub">Áreas de Locação</div><div class="rel-areas" id="rel_areas"></div><div class="vactions" style="margin-top:6px;"><button class="vbtn vbtn-ghost" type="button" onclick="REL_addArea()">+ Adicionar área</button></div></div><h2 class="vsec acc" onclick="FV_toggleSec(this)"><span>1 — APRESENTAÇÃO</span><span class="acc-chevron">▾</span></h2><div class="vcard"><div class="vactions" style="margin-bottom:8px;"><button class="vbtn vbtn-ghost" type="button" onclick="REL_gerarTexto('apresentacao')">↻ Gerar texto automático</button></div><div class="vfield grow"><label>Texto de apresentação<span class="hint-auto"> (gerado automaticamente — editável)</span></label><textarea id="rel_apresentacao" rows="9" placeholder="Clique em 'Gerar texto automático' ou digite..."></textarea></div><div class="vsub">1.1 Referencial Normativo e Premissas Gerais</div><div class="vfield grow"><label>Premissas / medidas compensatórias</label><textarea id="rel_premissas" rows="8" placeholder="Texto padrão de premissas..."></textarea></div></div><h2 class="vsec acc" onclick="FV_toggleSec(this)"><span>2 — IDENTIFICAÇÃO E QUALIFICAÇÃO DO PROPRIETÁRIO E DO IMÓVEL</span><span class="acc-chevron">▾</span></h2><div class="vcard"><div class="vrow"><div class="vfield grow"><label>Nome do proprietário</label><input type="text" id="rel_nome" data-rel-from="fb_nome" class="bloqueado" readonly data-lock="1" placeholder=""></div><div class="vfield grow"><label>Estado civil</label><input type="text" id="rel_estcivil" data-rel-from="fb_estcivil" class="bloqueado" readonly data-lock="1" placeholder=""></div></div><div class="vrow"><div class="vfield grow"><label>RG</label><input type="text" id="rel_rg" data-rel-from="fb_rg" class="bloqueado" readonly data-lock="1" placeholder=""></div><div class="vfield grow"><label>CPF</label><input type="text" id="rel_cpf" data-rel-from="fb_cpf" class="bloqueado" readonly data-lock="1" placeholder=""></div></div><div class="vfield grow"><label>Endereço</label><input type="text" id="rel_endereco" data-rel-from="fb_endereco" class="bloqueado" readonly data-lock="1" placeholder=""></div><div class="vrow"><div class="vfield grow"><label>Município</label><input type="text" id="rel_municipio" data-rel-from="fb_municipio" class="bloqueado" readonly data-lock="1" placeholder=""></div><div class="vfield grow"><label>CEP</label><input type="text" id="rel_cep" data-rel-from="fb_cep" class="bloqueado" readonly data-lock="1" placeholder=""></div></div><div class="vsub">Imóvel</div><div class="vfield grow"><label>Denominação do imóvel</label><input type="text" id="rel_prop_id" data-rel-from="fb_prop_id" class="bloqueado" readonly data-lock="1" placeholder=""></div><div class="vrow"><div class="vfield grow"><label>Área total (ha)</label><input type="text" id="rel_area_total" data-rel-from="fb_area_total" class="bloqueado" readonly data-lock="1" placeholder=""></div><div class="vfield grow"><label>Área de desapropriação (ha)</label><input type="text" id="rel_area_desap" data-rel-from="fb_area_desap" class="bloqueado" readonly data-lock="1" placeholder=""></div></div><div class="vrow"><div class="vfield grow"><label>Matrícula / Livro / Fls.</label><input type="text" id="rel_matricula" data-rel-from="fb_matricula" class="bloqueado" readonly data-lock="1" placeholder=""></div><div class="vfield grow"><label>CIB/ITR</label><input type="text" id="rel_cib" data-rel-from="fb_cib" class="bloqueado" readonly data-lock="1" placeholder=""></div></div><div class="vfield grow"><label>Cartório / Registro</label><input type="text" id="rel_cartorio" data-rel-from="fb_cartorio" class="bloqueado" readonly data-lock="1" placeholder="Ex.: 1º Ofício de ..."></div><div class="vactions" style="margin:8px 0;"><button class="vbtn vbtn-ghost" type="button" onclick="REL_gerarTexto('qualificacao')">↻ Gerar texto automático</button></div><div class="vfield grow"><label>Texto de qualificação<span class="hint-auto"> (gerado automaticamente — editável)</span></label><textarea id="rel_qualificacao" rows="6" placeholder="Clique em 'Gerar texto automático' ou digite..."></textarea></div></div><h2 class="vsec acc" onclick="FV_toggleSec(this)"><span>3 — CADASTRO SOCIOECONÔMICO</span><span class="acc-chevron">▾</span></h2><div class="vcard"><div class="vsub">3.1 Atividade Realizada</div><div class="vactions" style="margin-bottom:6px;"><button class="vbtn vbtn-ghost" type="button" onclick="REL_gerarTexto('atividade')">↻ Gerar texto</button></div><div class="vfield grow"><label>Atividade<span class="hint-auto"> (gerado automaticamente — editável)</span></label><textarea id="rel_31_atividade" rows="2" placeholder=""></textarea></div><div class="vsub">3.2 Objetivo</div><div class="vactions" style="margin-bottom:6px;"><button class="vbtn vbtn-ghost" type="button" onclick="REL_gerarTexto('objetivo')">↻ Gerar texto</button></div><div class="vfield grow"><label>Objetivo<span class="hint-auto"> (gerado automaticamente — editável)</span></label><textarea id="rel_32_objetivo" rows="6" placeholder=""></textarea></div><div class="vsub">3.3 Metodologia (texto padrão)</div><div class="vfield grow"><label>Metodologia</label><textarea id="rel_33_metodologia" rows="8" placeholder=""></textarea></div><div class="vsub">3.4 Síntese da Caracterização Socioeconômica</div><div class="vactions" style="margin-bottom:6px;"><button class="vbtn vbtn-ghost" type="button" onclick="REL_gerarTexto('sintese')">↻ Gerar texto</button></div><div class="vfield grow"><label>Síntese<span class="hint-auto"> (gerado automaticamente — editável)</span></label><textarea id="rel_34_sintese" rows="9" placeholder=""></textarea></div></div><h2 class="vsec acc" onclick="FV_toggleSec(this)"><span>4 — PARECER SOCIAL</span><span class="acc-chevron">▾</span></h2><div class="vcard"><div class="vfield grow"><label>Introdução do parecer</label><textarea id="rel_parecer_intro" rows="4" placeholder=""></textarea></div><div class="vsub">Tabela 1 — Critérios de Avaliação de Vulnerabilidade Socioeconômica (IVS/IPEA)</div><div class="rel-tabela" id="rel_tabela1"></div><div class="vactions" style="margin-top:6px;"><button class="vbtn vbtn-ghost" type="button" onclick="REL_addLinha(1)">+ Adicionar critério (Tabela 1)</button></div><div class="rel-ivs" id="rel_ivs"></div><div class="vfield grow"><label>Comentário após Tabela 1</label><textarea id="rel_tab1_coment" rows="4" placeholder=""></textarea></div><div class="vsub">Texto normativo (Art. 2º e 3º da Resolução Normativa INFRASA nº 7/2023)</div><div class="vfield grow"><label>Texto normativo</label><textarea id="rel_texto_normativo" rows="8" placeholder=""></textarea></div><div class="vsub">Tabela 2 — Critérios conforme Art. 3º da Resolução Normativa INFRASA nº 7/2023</div><div class="rel-tabela" id="rel_tabela2"></div><div class="vactions" style="margin-top:6px;"><button class="vbtn vbtn-ghost" type="button" onclick="REL_addLinha(2)">+ Adicionar critério (Tabela 2)</button></div><div class="vfield grow"><label>Comentário após Tabela 2</label><textarea id="rel_tab2_coment" rows="5" placeholder=""></textarea></div></div><h2 class="vsec acc" onclick="FV_toggleSec(this)"><span>5 — CONCLUSÃO</span><span class="acc-chevron">▾</span></h2><div class="vcard"><div class="vactions" style="margin-bottom:6px;"><button class="vbtn vbtn-ghost" type="button" onclick="REL_gerarTexto('conclusao')">↻ Gerar texto</button></div><div class="vfield grow"><label>Conclusão<span class="hint-auto"> (gerado automaticamente — editável)</span></label><textarea id="rel_conclusao" rows="6" placeholder=""></textarea></div><div class="vrow"><div class="vfield grow"><label>Grau de vulnerabilidade</label><input type="text" id="rel_grau_vuln" placeholder="Ex.: moderada"></div><div class="vfield grow"><label>Local e data</label><input type="text" id="rel_local_data" placeholder="Ex.: Custódia-PE, 16 de agosto de 2026"></div></div><div class="vsub">Responsável técnico</div><div class="vfield grow"><label>Nome</label><input type="text" id="rel_resp_nome" data-rel-from="fb_ass_nome" class="bloqueado" readonly data-lock="1" placeholder=""></div><div class="vrow"><div class="vfield grow"><label>Cargo/Função</label><input type="text" id="rel_resp_cargo" data-rel-from="fb_ass_cargo" class="bloqueado" readonly data-lock="1" placeholder=""></div><div class="vfield grow"><label>Registro</label><input type="text" id="rel_resp_reg" data-rel-from="fb_ass_reg" class="bloqueado" readonly data-lock="1" placeholder=""></div></div><div class="vsub">Assinatura digitalizada (imagem)</div><label class="img-drop" id="rel_ass_img_drop"><span class="ic">✍️</span><span class="t">Clique para enviar a imagem da assinatura</span><span class="h">Imagem única • JPG ou PNG</span><input type="file" accept="image/*" id="rel_ass_img_file"></label><div id="rel_ass_img_prev" style="margin-top:8px;"></div></div><h2 class="vsec acc" onclick="FV_toggleSec(this)"><span>6 — RELATÓRIO FOTOGRÁFICO DO IMÓVEL</span><span class="acc-chevron">▾</span></h2><div class="vcard"><label class="img-drop" id="rel_fotos_drop"><span class="ic">📷</span><span class="t">Clique ou arraste as fotografias / ortofoto</span><span class="h">Imagens • JPG ou PNG</span><input type="file" accept="image/*" multiple id="rel_fotos_file"></label><div id="rel_fotos_aviso" style="display:none;margin:8px 0 2px;padding:9px 13px;background:#f0f5fb;border:1px solid #cfe0f0;border-radius:8px;font-size:12.5px;color:#22303f;">🔗 As fotografias são <b>vinculadas à Ficha de Vistoria (5.3)</b> e replicadas automaticamente. Para alterar, edite as imagens na Ficha de Vistoria.</div><div class="fb-fotos-prev" id="rel_fotos_prev"></div></div><div class="vactions"><button class="vbtn vbtn-primary" type="button" onclick="REL_baixarTudoZip()">📦 Baixar tudo (.zip)</button><button class="vbtn vbtn-ghost" onclick="REL_puxarDados()">↧ Puxar dados da 1.9</button><button class="vbtn vbtn-ghost" onclick="REL_gerarTodos()">↻ Gerar todos os textos automáticos</button></div></div></section>
 
 <section class="tab-panel" id="panel-desp1-parecer">
   <div class="wrap">
@@ -7841,6 +8273,8 @@ function AV_gerarDescSituacao(){
         na: coletarNA(),
         imagens: (window.__AV_IMAGENS__ || {}),
         familia: (window.FB_getFamilia?window.FB_getFamilia():[]),
+        d2ressalvas: (window.D2_getRessalvas?window.D2_getRessalvas():[]),
+        d2atividades: (window.D2_getAtividades?window.D2_getAtividades():[]),
         relAreas: (window.REL_getAreas?window.REL_getAreas():[]),
         relTabelas: { "1":(window.REL_getTabela?window.REL_getTabela(1):[]), "2":(window.REL_getTabela?window.REL_getTabela(2):[]) },
         assinaturas: (window.__ASSIN__ || {fb:null, rel:null})
@@ -7927,6 +8361,8 @@ function AV_gerarDescSituacao(){
         restaurarEstacas(pacote.estacas);
         restaurarNA(pacote.na);
         if(pacote.familia && window.FB_setFamilia) window.FB_setFamilia(pacote.familia);
+        if(pacote.d2ressalvas && window.D2_setRessalvas) window.D2_setRessalvas(pacote.d2ressalvas);
+        if(pacote.d2atividades && window.D2_setAtividades) window.D2_setAtividades(pacote.d2atividades);
         if(pacote.relAreas && window.REL_setAreas) window.REL_setAreas(pacote.relAreas);
         if(pacote.relTabelas && window.REL_setTabela){ window.REL_setTabela(1, pacote.relTabelas["1"]||pacote.relTabelas[1]||[]); window.REL_setTabela(2, pacote.relTabelas["2"]||pacote.relTabelas[2]||[]); }
         if(pacote.assinaturas){ window.__ASSIN__=window.__ASSIN__||{}; window.__ASSIN__.fb=pacote.assinaturas.fb||null; window.__ASSIN__.rel=pacote.assinaturas.rel||null; [["fb","fb_ass_img_prev"],["rel","rel_ass_img_prev"]].forEach(function(p){ var im=window.__ASSIN__[p[0]], pv=document.getElementById(p[1]); if(pv){ pv.innerHTML= im?('<img src="'+im+'" style="max-height:64px;border:1px solid #cfd9e4;border-radius:6px;padding:3px;background:#fff;"> <button type="button" class="vbtn vbtn-ghost" style="padding:4px 10px;" onclick="window.__ASSIN__.'+p[0]+'=null;document.getElementById(\''+p[1]+'\').innerHTML=\'\';">remover</button>'):''; } }); }
@@ -8099,6 +8535,24 @@ function AV_gerarDescSituacao(){
     });
   }
 
+  // ---- 4.5 Grau de parentesco (opções) ----
+  const FB_PARENTESCO=["","Titular","Cônjuge","Companheiro(a)","Filho(a)","Enteado(a)","Neto(a)","Irmão(ã)","Pai/Mãe","Sogro(a)","Genro/Nora","Sobrinho(a)","Primo(a)","Tio(a)","Outro","Não se aplica"];
+  function FB_parOpts(sel){ return FB_PARENTESCO.map(function(o){ return '<option'+(o===(sel||"")?' selected':'')+'>'+o+'</option>'; }).join(''); }
+  window.FB_parOpts=FB_parOpts;
+  // ---- máscara moeda BRL + preenchimento automático de "Local e data" ----
+  function FB_moedaBR(el){ if(!el) return; function fmt(){ var d=(el.value||"").replace(/\D/g,""); if(!d){ el.value=""; return; } el.value=(parseInt(d,10)/100).toLocaleString("pt-BR",{style:"currency",currency:"BRL"}); } el.addEventListener("input",fmt); el.addEventListener("blur",fmt); }
+  function FB_dataExtenso(dmy){ var meses=["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"]; var mt=String(dmy||"").match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/); var d,m,a; if(mt){ d=parseInt(mt[1],10); m=parseInt(mt[2],10); a=mt[3]; } else { var n=new Date(); d=n.getDate(); m=n.getMonth()+1; a=n.getFullYear(); } if(m<1||m>12) return ""; return d+" de "+meses[m-1]+" de "+a; }
+  function FB_gvid(id){ var e=document.getElementById(id); return e?(e.value||"").trim():""; }
+  function FB_preencherLocalData(){ var el=document.getElementById("fb_ass_local"); if(!el||el.dataset.manual==="1") return; var mun=FB_gvid("fb_prop_mun"), uf=FB_gvid("fb_prop_uf"); var local=mun?(mun+(uf?("-"+uf):"")):""; var dext=FB_dataExtenso(FB_gvid("fb_data")); var txt=(local?local:"")+((local&&dext)?", ":"")+(dext||""); if(txt.trim()) el.value=txt; }
+  window.FB_preencherLocalData=FB_preencherLocalData;
+  function FB_extrasSetup(){
+    FB_moedaBR(document.getElementById("fb_44_remun"));
+    FB_moedaBR(document.getElementById("fb_44_renda"));
+    var ld=document.getElementById("fb_ass_local");
+    if(ld){ ld.addEventListener("input", function(){ ld.dataset.manual="1"; }); }
+    ["fb_prop_mun","fb_prop_uf","fb_data"].forEach(function(id){ var e=document.getElementById(id); if(e) e.addEventListener("input", FB_preencherLocalData); });
+    FB_preencherLocalData();
+  }
   // ---- 4.5 Composição familiar (linhas dinâmicas) ----
   const familia = [];
   function renderFamilia(){
@@ -8111,12 +8565,13 @@ function AV_gerarDescSituacao(){
       div.innerHTML =
         '<span class="fam-n">'+(i+1)+'</span>'+
         '<input class="fam-nome" placeholder="Nome" value="'+(p.nome||"").replace(/"/g,"&quot;")+'" oninput="FB_setFam('+i+',\'nome\',this.value)">'+
+        '<select class="fam-par" title="Grau de parentesco" onchange="FB_setFam('+i+',\'parentesco\',this.value)">'+FB_parOpts(p.parentesco)+'</select>'+
         '<input class="fam-idade" placeholder="Idade" value="'+(p.idade||"").replace(/"/g,"&quot;")+'" oninput="FB_setFam('+i+',\'idade\',this.value)">'+
         '<button class="fam-rm" type="button" title="Remover" onclick="FB_remFamilia('+i+')">✕</button>';
       host.appendChild(div);
     });
   }
-  window.FB_addFamilia=function(){ familia.push({nome:"",idade:""}); renderFamilia(); };
+  window.FB_addFamilia=function(){ familia.push({nome:"",idade:"",parentesco:""}); renderFamilia(); };
   window.FB_remFamilia=function(i){ familia.splice(i,1); renderFamilia(); };
   window.FB_setFam=function(i,campo,val){ if(familia[i]) familia[i][campo]=val; };
   window.FB_getFamilia=function(){ return familia; };
@@ -8190,9 +8645,9 @@ function AV_gerarDescSituacao(){
     function checks(opts,ids,o){o=o||{};if(o.vert){opts.forEach((op,k)=>{const on=chkW(ids[k]);K.push(P([R(op+" ( "+(on?"X":"  ")+" )",{bold:on})]));});return;}const runs=[];opts.forEach((op,k)=>{const on=chkW(ids[k]);runs.push(R(op+" ( "+(on?"X":"  ")+" )   ",{bold:on}));});K.push(P(runs));}
     function simnao(id){const v=gvW(id);const s=/sim/i.test(v),n=/n[aã]o/i.test(v);return [R("SIM ( "+(s?"X":"  ")+" )   ",{bold:s}),R("NÃO ( "+(n?"X":"  ")+" )",{bold:n})];}
     function cell(text,o){o=o||{};return new TableCell({width:{size:o.w||10,type:WidthType.PERCENTAGE},children:[new Paragraph({alignment:o.center?AlignmentType.CENTER:AlignmentType.LEFT,spacing:{after:0,line:240},children:[R(text,{bold:!!o.bold})]})]});}
-    function tabelaFamilia(){const d=famW();const trs=[new TableRow({children:[cell("",{w:6,center:true}),cell("NOME",{w:74,bold:true,center:true}),cell("IDADE",{w:20,bold:true,center:true})]})];
-      for(let i=0;i<8;i++){const p=d[i]||{};trs.push(new TableRow({children:[cell(String(i+1),{w:6,center:true}),cell((p.nome||"").toUpperCase(),{w:74,bold:true}),cell(p.idade||"",{w:20,bold:true})]}));}
-      K.push(new Table({width:{size:CWa,type:WidthType.DXA},layout:FIXa,columnWidths:colwa([6,74,20]),rows:trs}));K.push(new Paragraph({spacing:{after:40},children:[R("")]}));}
+    function tabelaFamilia(){const d=famW();const trs=[new TableRow({children:[cell("",{w:6,center:true}),cell("NOME",{w:50,bold:true,center:true}),cell("GRAU DE PARENTESCO",{w:24,bold:true,center:true}),cell("IDADE",{w:20,bold:true,center:true})]})];
+      for(let i=0;i<8;i++){const p=d[i]||{};trs.push(new TableRow({children:[cell(String(i+1),{w:6,center:true}),cell((p.nome||"").toUpperCase(),{w:50,bold:true}),cell(p.parentesco||"",{w:24,bold:true,center:true}),cell(p.idade||"",{w:20,bold:true,center:true})]}));}
+      K.push(new Table({width:{size:CWa,type:WidthType.DXA},layout:FIXa,columnWidths:colwa([6,50,24,20]),rows:trs}));K.push(new Paragraph({spacing:{after:40},children:[R("")]}));}
 
     // ---------- TÍTULO ----------
     K.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:0,line:264},children:[R("FICHA DE VISTORIA E CADASTRO SOCIOECONÔMICO",{bold:true,size:24})]}));
@@ -8290,7 +8745,7 @@ function AV_gerarDescSituacao(){
     paraReg("4.6.5  Característica da construção:");checks(["Alvenaria","Madeira","Misto"],["fb_465_constr_0","fb_465_constr_1","fb_465_constr_2"]);
     rv("4.6.6  Número de cômodos:",gvW("fb_466_comodos"),{tab:TW(52),before:150});
     rv("Obs.:","");para(gvW("fb_46_obs"),TW(4));
-    paraReg("4.6.7  Situação do imóvel:");checks(["Com escritura","Sem escritura","Comprovante de compra e venda","Posseiro","Título de posse do INCRA"],["fb_467_sit_0","fb_467_sit_1","fb_467_sit_2","fb_467_sit_3","fb_467_sit_4"]);
+    paraReg("4.6.7  Situação do imóvel:");checks(["Com escritura","Sem escritura","Comprovante de compra e venda","Posseiro","Título de posse do INCRA"],["fb_467_sit_0","fb_467_sit_1","fb_467_sit_2","fb_467_sit_3","fb_467_sit_4"]);(function(){const on=chkW("fb_467_sit_4");const v=gvW("fb_467_incra_desc");if(on||v){paraReg("Título de posse do INCRA — descrição:");para(v);}})();
 
     h2("4.7     INFRAESTRUTURA DO IMOVÉL:", 140);
     paraReg("4.7.1  Abastecimento de água:");checks(["Rede pública","Poço","Fonte","Cedido por vizinho","Rio"],["fb_471_agua_0","fb_471_agua_1","fb_471_agua_2","fb_471_agua_3","fb_471_agua_4"]);
@@ -8308,7 +8763,7 @@ function AV_gerarDescSituacao(){
     paraReg("4.9.1  Uso das terras:");
     checks(["Seca","Chuva"],["fb_491_uso_0","fb_491_uso_1"]);
     (function(){const on=chkW("fb_491_uso_2");K.push(P([R("Plantio ( "+(on?"X":"  ")+" ) caracterizar: ",{bold:on}),R(gvW("fb_491_plantio"),{bold:true})]));})();
-    (function(){const on=chkW("fb_491_uso_3");K.push(P([R("Criação de animais ( "+(on?"X":"  ")+" ) caracterizar: ",{bold:on}),R(gvW("fb_491_criacao"),{bold:true})]));})();
+    (function(){const on=chkW("fb_491_uso_3");K.push(P([R("Criação de animais ( "+(on?"X":"  ")+" ) caracterizar: ",{bold:on}),R(gvW("fb_491_criacao"),{bold:true})]));})();(function(){const v=gvW("fb_491_desc");if(v){paraReg("Descrição do uso das terras:");para(v);}})();
     paraReg("4.9.2  O que é produzido na propriedade:");
     checks(["Extrativismo","Agricultura","Pecuária"],["fb_492_prod_0","fb_492_prod_1","fb_492_prod_2"],{vert:true});
     paraReg("4.9.3 Quais impactos concebidos pela comunidade sobre a construção da ferrovia, e qual a sua opinião?");
@@ -8377,12 +8832,19 @@ function AV_gerarDescSituacao(){
 
   // ---- Puxar dados SIM/NÃO: bloqueia (espelho) ou libera (edição manual) ----
   // monta o Processo Nº: "INFRA S.A. CTD 001 - SPS-04 – FTN"
+  // máscara SEI: 99999.999999/9999-99
+  window.FB_maskSEI = function(el){ if(!el) return; var d=(el.value||"").replace(/\D/g,"").slice(0,17); var o=""; if(d.length>0)o=d.slice(0,5); if(d.length>=6)o+="."+d.slice(5,11); if(d.length>=12)o+="/"+d.slice(11,15); if(d.length>=16)o+="-"+d.slice(15,17); el.value=o; };
   window.FB_montarProcesso = function(){
     const ctd=(document.getElementById("fb_proc_ctd")||{}).value||"";
     const lote=(document.getElementById("fb_proc_lote")||{}).value||"";
     const ferro=(document.getElementById("fb_proc_ferrovia")||{}).value||"FTN";
-    if(!ctd && !lote) return;
-    const proc="INFRA S.A. CTD "+(ctd||"___")+" - SPS-"+(lote||"__")+" – "+ferro;
+    const sei=(document.getElementById("fb_proc_sei")||{}).value||"";
+    // espelha o SEI no Relatório Socioeconômico (mesmo dado, sem duplicar)
+    const relSei=document.getElementById("rel_sei");
+    if(relSei){ relSei.value=sei; }
+    if(!ctd && !lote && !sei) return;
+    let proc="INFRA S.A. CTD "+(ctd||"___")+" - SPS-"+(lote||"__")+" – "+ferro;
+    if(sei) proc+=" - "+sei;
     const prev=document.getElementById("fb_proc_preview");
     if(prev){ prev.value="Processo administrativo: "+proc; }
     const campo=document.getElementById("fb_processo");
@@ -8469,6 +8931,13 @@ function AV_gerarDescSituacao(){
     if(criacao && criacaoWrap){
       criacao.addEventListener("change", ()=>{ criacaoWrap.style.display = criacao.checked ? "" : "none"; });
     }
+    // 4.6.7 Título de posse do INCRA → descrição
+    const incra = document.getElementById("fb_467_sit_4");
+    const incraWrap = document.getElementById("fb_467_incra_wrap");
+    if(incra && incraWrap){
+      incra.addEventListener("change", ()=>{ incraWrap.style.display = incra.checked ? "" : "none"; });
+    }
+    FB_extrasSetup();
   }
 
   // ---- Gerar PDF do formulário 1.9 preenchido ----
@@ -8496,7 +8965,7 @@ function AV_gerarDescSituacao(){
         const linhas=[];
         (window.FB_getFamilia?window.FB_getFamilia():[]).forEach((p,i)=>{
           if((p.nome||"").trim() || (p.idade||"").trim())
-            linhas.push((i+1)+". "+(p.nome||"—")+"  —  "+(p.idade||"—"));
+            linhas.push((i+1)+". "+(p.nome||"—")+"  —  "+(p.parentesco||"—")+"  —  "+(p.idade||"—"));
         });
         if(linhas.length) atual.itens.push({tipo:"lista", rotulo:"Composição familiar", valores:linhas});
       } else if(node.classList.contains("vfield")){
@@ -8647,23 +9116,25 @@ function AV_gerarDescSituacao(){
       return {t1,t2,s,n}; }
     // tabela de composição familiar (índice 1-8 + NOME + IDADE, com bordas)
     function tabelaFamilia(){ const dados=fam(); const rows=8; const rh=5.6;
-      const wIdx=9, wIdade=32, wNome=contentW-wIdx-wIdade;
+      const wIdx=9, wIdade=24, wPar=42, wNome=contentW-wIdx-wPar-wIdade;
       garantir((rows+1)*rh+2);
-      const x0=mL, xNome=x0+wIdx, xIdade=x0+wIdx+wNome;
+      const x0=mL, xNome=x0+wIdx, xPar=xNome+wNome, xIdade=xPar+wPar;
       pdf.setDrawColor(80,80,80); pdf.setLineWidth(0.2);
       // cabeçalho (NOME / IDADE) sem borda na célula do índice
       F("bold"); pdf.setFontSize(FS); C(BLK);
       pdf.text("NOME", xNome+wNome/2, y+3.6, {align:"center"});
+      pdf.text("GRAU DE PARENTESCO", xPar+wPar/2, y+3.6, {align:"center"});
       pdf.text("IDADE", xIdade+wIdade/2, y+3.6, {align:"center"});
       let yTop=y+rh;
       for(let r=0;r<rows;r++){ const yy=yTop+r*rh;
         // bordas
-        pdf.rect(x0, yy, wIdx, rh); pdf.rect(xNome, yy, wNome, rh); pdf.rect(xIdade, yy, wIdade, rh);
+        pdf.rect(x0, yy, wIdx, rh); pdf.rect(xNome, yy, wNome, rh); pdf.rect(xPar, yy, wPar, rh); pdf.rect(xIdade, yy, wIdade, rh);
         F("normal"); C(BLK); pdf.text(String(r+1), x0+wIdx/2, yy+3.8, {align:"center"});
         const p=dados[r];
-        if(p && ((p.nome||"").trim() || (p.idade||"").trim())){ F("bold");
+        if(p && ((p.nome||"").trim() || (p.idade||"").trim() || (p.parentesco||"").trim())){ F("bold");
           pdf.text(String(p.nome||"").toUpperCase(), xNome+1.5, yy+3.8);
-          pdf.text(String(p.idade||""), xIdade+1.5, yy+3.8); }
+          pdf.text(String(p.parentesco||""), xPar+wPar/2, yy+3.8, {align:"center"});
+          pdf.text(String(p.idade||""), xIdade+wIdade/2, yy+3.8, {align:"center"}); }
       }
       y = yTop + rows*rh + 5;
     }
@@ -8789,7 +9260,7 @@ function AV_gerarDescSituacao(){
     paraReg("4.6.5  Característica da construção:"); checks(["Alvenaria","Madeira","Misto"], ["fb_465_constr_0","fb_465_constr_1","fb_465_constr_2"]);
     rv("4.6.6  Número de cômodos:", gv("fb_466_comodos"), {valTab:52, gapTop:3.2});
     rv("Obs.:", "", {}); para(gv("fb_46_obs"), 4);
-    paraReg("4.6.7  Situação do imóvel:"); checks(["Com escritura","Sem escritura","Comprovante de compra e venda","Posseiro","Título de posse do INCRA"], ["fb_467_sit_0","fb_467_sit_1","fb_467_sit_2","fb_467_sit_3","fb_467_sit_4"]);
+    paraReg("4.6.7  Situação do imóvel:"); checks(["Com escritura","Sem escritura","Comprovante de compra e venda","Posseiro","Título de posse do INCRA"], ["fb_467_sit_0","fb_467_sit_1","fb_467_sit_2","fb_467_sit_3","fb_467_sit_4"]); (function(){ if(chk("fb_467_sit_4")||gv("fb_467_incra_desc")){ paraReg("Título de posse do INCRA — descrição:"); para(gv("fb_467_incra_desc")); } })();
 
     h2("4.7     INFRAESTRUTURA DO IMOVÉL:", 4);
     paraReg("4.7.1  Abastecimento de água:"); checks(["Rede pública","Poço","Fonte","Cedido por vizinho","Rio"], ["fb_471_agua_0","fb_471_agua_1","fb_471_agua_2","fb_471_agua_3","fb_471_agua_4"]);
@@ -8807,7 +9278,7 @@ function AV_gerarDescSituacao(){
     paraReg("4.9.1  Uso das terras:");
     checks(["Seca","Chuva"], ["fb_491_uso_0","fb_491_uso_1"]);
     (function(){ garantir(LH+1); const on=chk("fb_491_uso_2"); F(on?"bold":"normal"); pdf.setFontSize(FS); C(BLK); const l="Plantio ( "+(on?"X":"  ")+" ) caracterizar: "; pdf.text(l, mL, y); F("bold"); pdf.text(gv("fb_491_plantio"), mL+pdf.getTextWidth(l), y); y+=LH; })();
-    (function(){ garantir(LH+1); const on=chk("fb_491_uso_3"); F(on?"bold":"normal"); pdf.setFontSize(FS); C(BLK); const l="Criação de animais ( "+(on?"X":"  ")+" ) caracterizar: "; pdf.text(l, mL, y); F("bold"); pdf.text(gv("fb_491_criacao"), mL+pdf.getTextWidth(l), y); y+=LH; })();
+    (function(){ garantir(LH+1); const on=chk("fb_491_uso_3"); F(on?"bold":"normal"); pdf.setFontSize(FS); C(BLK); const l="Criação de animais ( "+(on?"X":"  ")+" ) caracterizar: "; pdf.text(l, mL, y); F("bold"); pdf.text(gv("fb_491_criacao"), mL+pdf.getTextWidth(l), y); y+=LH; })(); (function(){ const v=gv("fb_491_desc"); if(v){ paraReg("Descrição do uso das terras:"); para(v); } })();
     paraReg("4.9.2  O que é produzido na propriedade:");
     checks(["Extrativismo","Agricultura","Pecuária"], ["fb_492_prod_0","fb_492_prod_1","fb_492_prod_2"], {vert:true});
     paraReg("4.9.3 Quais impactos concebidos pela comunidade sobre a construção da ferrovia, e qual a sua opinião?");
@@ -10315,6 +10786,520 @@ window.__CTD=function(){
 window.__CTDsuf=function(){ return 'CTD '+window.__CTD(); };
 document.addEventListener('DOMContentLoaded', function(){ __bindAssin('fb_ass_img_file','fb','fb_ass_img_prev'); __bindAssin('rel_ass_img_file','rel','rel_ass_img_prev'); });
 </script>
+<script>
+/* =========================================================================
+   DESP-2 · Aba de preenchimento por tópicos (espelha o Word validado)
+   - Cada tópico do Word vira um campo editável (texto verbatim, negritos com **).
+   - Vínculos de auto-preenchimento a partir da DESP 1 (identificação).
+   - PDF em texto nativo (jsPDF + Carlito), padrão dos PDFs da DESP 1/3,
+     com negrito inline preservado e inserção das figuras.
+   ========================================================================= */
+(function(){
+const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APRESENTAÇÃO", "figs": [], "tpl": "A **ENPROL ENGENHARIA E PROJETOS LTDA.**, empresa privada inscrita no CNPJ sob o nº 06.562.920/0001-80, com sede na Rua Irmã Ambrosina, nº 249, Conj. 03 e 04, Centro, CEP: 61.760-405, Eusébio-CE, habilitada para realização de prestação de serviços especializados de engenharia consultiva, para atividades de desapropriação, ocupação temporária ou constituição de servidão administrativa de imóveis, gestão fundiária e regularização de passivos de desapropriação, de acordo com a Lei 13.303/2016, através do Procedimento Licitatório – Edital RLE nº 16/2024 homologado em 21 de outubro de 2024, contrato n° **Nº 037/2024** (Processo SEI/MT nº 50050.001354/2022-78), tendo como contratante a **INFRA S.A.**, razão social, **VALEC - ENGENHARIA, CONSTRUÇÕES E FERROVIAS S.A.**, empresa pública federal, vinculada ao Ministério dos Transportes, inscrita no CNPJ/MF sob o nº. 42.150.664/0001-87, com vigência de 42 (quarenta e dois) meses, contados a partir de sua assinatura, realizada em 12/11/2024, cuja contratação de empresa para realização de prestação de serviços especializados, conforme diretrizes contratuais, nos empreendimentos de infraestrutura que integram o portfólio da INFRA S.A., sob a responsabilidade regimental da Superintendência de Gestão Ambiental e Territorial (SUGAT), apresenta o relatório do “**Produto 1.2 - Relatório de análise de impacto e transposição da faixa de domínio - DESP-2**” para o imóvel em análise, que é afetado pela faixa de domínio da Ferrovia Transnordestina – FTN, Trecho **SPS-04,  **por meio do processo administrativo **INFRA S.A. CTD-006A (SEI/MT n.º 50050.004743/2026-89), **onde a vistoria ocorreu em** 16 de julho de 2026**.\nA Análise de Transposição de Faixa (DESP-2) é um resultado apresentado por meio deste Relatório Técnico situacional, que contém informações técnicas destinadas a indicar as medidas mitigadoras necessárias para preservar a função social e o arranjo produtivo do imóvel após a construção da ferrovia. As transposições de faixa são demonstradas com base no Anexo 1 - ETP - Detalhamento do escopo (SEI nº 8236157), apontando as necessidades de implementação das transposições e/ou melhorias que atendam à realidade local, como:\n• Passagem de Gado – PG;\n• Passagem de Nível – PN;\n• Passagem de Energia – PE;\n• Passagem de tubulações envelopadas (adutora);\n• Transposições elétricas, gás, fibra óptica e outras;\n• Poço de abastecimento de água;\n• Corredores de acesso;\n• Passagem Superior – PS;\n• Outras medidas mitigadoras pertinentes.\nAlém de listar as medidas de transposição ou outras necessárias para a funcionalidade dos imóveis afetados pelas obras, o relatório deve incluir toda a caracterização física e social da propriedade, incluindo:\n• Área total dos remanescentes do imóvel;\n• A dimensão da gleba desapropriada e a posição que ficará em relação ao todo;\n• O tipo de exploração agrícola praticada no imóvel;\n• A quantidade de fontes de água e sua disposição pelo imóvel;\n• Os locais de captação de água e/ou de dessedentação de animais;\n• Os caminhos de movimentação de máquinas, animais e pessoas já existentes no imóvel;\n• As características das máquinas e implementas utilizados que possam demandar transposições especiais;\n• A localização de áreas de Reserva Legal e Proteção Permanente;\n• A situação de como restarão as áreas remanescentes após a desapropriação;\n• Caso a(s) área(s) remanescente(s) se mostre(m) inviável(is), apresentar o valor indenizatório para sua desapropriação quando não contemplado no laudo de avaliação inicial do imóvel (vide serviços de desapropriação)."}, {"id": "metodologia", "level": 1, "num": "2.", "head": "METODOLOGIA", "figs": [], "tpl": "O desenvolvimento das atividades que resultam no Relatório Técnico de Análise de Impacto/Interferência e Transposição da Faixa de Domínio (DESP-2) leva em conta as informações previamente mencionadas sobre a caracterização da função social e o arranjo produtivo do imóvel após a construção da ferrovia, “com o objetivo de levantar os prováveis impactos negativos causados pelo empreendimento às atividades desenvolvidas na propriedade” (ANEXO 1 – ETP, SEI nº 8236157, p. 4, item 3.3.1). Os trabalhos são divididos em duas fases: campo e escritório.\nO **trabalho de campo** é realizado por meio de visitas à propriedade para inspeção direta dos imóveis e, quando necessário, dos imóveis indiretamente afetados pelo projeto, na presença do proprietário ou de quem ele designar.  Com a devida autorização dos proprietários, serão obtidas informações principalmente acerca da funcionalidade do imóvel e sua aptidão agrícola, acompanhadas de registro fotográfico.\nO **trabalho de escritório** inclui a organização das informações obtidas em campo e de outras fontes externas, bem como a análise dos dados do projeto ferroviário disponíveis para a elaboração do relatório. Esse relatório incluirá o parecer final para apoiar a criação do Laudo de Avaliação (DESP-3) e o detalhamento das medidas mitigadoras necessárias para preservar a função social e a situação econômica do imóvel após a implementação do projeto.\nSe o proprietário se recusar a conceder autorização, o serviço será executado utilizando imagens aéreas (satélite e/ou drone), registros fotográficos já incluídos no Laudo de avaliação de bens e/ou benfeitorias (DESP-3) e no Relatório de cadastro documental e socioeconômico (DESP-1) do imóvel, quando isso for viável para aprimorar a caracterização da análise.\nA análise da documentação fornecida é essencial para este trabalho, especialmente a análise da certidão do imóvel quando houver. Isso servirá como base para a criação de mapas de situação sobrepostos às imagens aéreas de satélite e/ou drone, permitindo uma demonstração detalhada das circunstâncias, com indicação da propriedade e suas respectivas benfeitorias.  Nesse procedimento, é fundamental consultar os bancos de dados oficiais para obter informações sobre a propriedade, com destaque para o Cadastro Ambiental Rural (CAR) e o Sistema de Gestão Fundiária (SIGEF).\nApós a conclusão de todas essas etapas, realiza-se a análise, apresentando as medidas mitigadoras necessárias para o imóvel em questão. É fundamental que essa análise seja conclusiva e indique a quantidade de dispositivos de transposição necessários, além de apontar as melhores alternativas entre as disponíveis. Também deve ser indicada a opção de desapropriação de áreas remanescentes, caso existam.  Conforme descrito no Anexo 1 – ETP (SEI nº 8236157) para áreas rurais, como se aplica ao imóvel objeto de estudo:\n3.3.2. O Relatório Técnico deverá conter a descrição, de forma clara e inequívoca, da tipologia e a quantidade de transposições da faixa de domínio ferroviária necessárias e, havendo informações de projeto disponíveis, a viabilidade técnica, econômica e operacional de construção e detalhamento das demais medidas necessárias em acordo com estudo realizado.\n3.3.3. Para imóveis rurais, o relatório de análise de impacto e de necessidade de transposição da faixa de domínio será realizado por Engenheiro Agrônomo e deverá conter, no mínimo, as seguintes informações e elementos estruturais, os quais fundamentarão a conclusão e a análise feita pelo profissional:\na) Planta da área total do imóvel;\nb) Planta contendo a dimensão da gleba desapropriada e a posição em relação ao todo do imóvel analisado;\nc) Descrição do tipo de atividade ou exploração agrícola com a indicação da extensão das áreas exploradas, por atividades;\nd) Planta com indicação das fontes hídricas e de sua disposição no imóvel;\ne) Indicação dos locais de captação de água e/ou de dessedentação de animais;\nf) Planta contendo a disposição dos acessos e caminhos de movimentação de máquinas, animais e pessoas já existentes no imóvel, internos e externos;\ng) As características das máquinas e implementos uti lizados que possam demandar a necessidade de transposições especiais;\nh) Planta de localização das áreas de Reserva Legal e Preservação Permanente;\ni) Descrição dos prováveis impactos negativos nas atividades e na produção econômica do imóvel, advindos da implantação do empreendimento;\nj) Descritivo de como ficarão as áreas remanescentes do imóvel após a desapropriação.\nCom base nos fatos apresentados, a conclusão será determinada conforme a necessidade da propriedade, considerando a economia para o erário público, a busca pela mitigação dos impactos gerados pela ferrovia e os acessos principais, conforme indicado no Anexo 1 - ETP:\n• Dispositivos de transposição necessários: tipo e quantidade;\n• Indicação das melhores alternativas disponíveis;\n• Medidas mitigadoras e/ou compensatórias cabíveis;\n• Indenização: pela desvalorização e/ou, atendendo às situações de exceção, a desapropriação de áreas remanescentes do imóvel.\nO relatório deve detalhar todos os **custos associados à implementação das medidas mitigadoras escolhidas**, de acordo com a seguinte ordem de prioridades:\n• **Implantação de medidas mitigadoras**: implantação e/ou mobilização de poço de abastecimento de água, curral, entre outras benfeitorias necessárias;\n• **Indenização de depreciação do remanescente prejudicado**: para compensar a inviabilidade técnica de implantação de dispositivos de transposição que assegurem a manutenção das atividades no imóvel, ou a “indenização de benfeitorias mitigadoras não se mostrar pertinente ou suficiente”;\n• **Indenização da(s) área(s) “remanescente(s)**: áreas que se “mostrarem inviabilizadas em razão da desapropriação parcial, quando não contemplado no laudo de avaliação inicial do imóvel”.\nAs sugestões de medidas mitigadoras e/ou compensatórias dos impactos negativos são levantadas em comum acordo com o referido expropriado.\nEm caso de dúvidas relacionadas ao projeto, serão realizadas consultas ao departamento de obras sob a responsabilidade da INFRA S.A., conforme estipulado no Anexo 1 - ETP:\n3.6.7.\nSempre que necessário, a fim de subsidiar a conclusão do relatório, a unidade de projeto e/ou de construção do empreendimento deverá ser consultada para se manifestar a respeito da viabilidade técnica, econômica e operacional de implantação de dispositivos de transposição da faixa de domínio ou de outras medidas pertinentes, para atendimento ao imóvel objeto do estudo."}, {"id": "caracteriza_o_do_im_vel", "level": 1, "num": "3.", "head": "CARACTERIZAÇÃO DO IMÓVEL", "figs": [], "tpl": "O presente estudo tem como objeto a **área inserida entre as parcelas** do imóvel rural integrante do **Assentamento Riacho Seco**, denominadas **Parcela 01A e 01B**, localizada no município de **Sertânia/PE**, vinculada ao **Instituto Nacional de Colonização e Reforma Agrária – INCRA, **matricula sob o **nº 4.646, Livro 2**, junto ao Cartório de Registro de Imóveis da Comarca de **Sertânia/PE**, que abrange toda área do assentamento.\nO imóvel tem como beneficiária titular a Sra. **Greciane Freire**, conforme **Título de Domínio – TD nº PE038300000065**, emitido pelo **INCRA**.\nPara fins do presente procedimento desapropriatório, promovido pela **INFRA S.A**., em decorrência da implantação da **Ferrovia Transnordestina – EF-232**, será **afetada** uma área de **2,3842 ha**, correspondente ao trecho compreendido entre o **Km 227+574,68 e o Km 227+886,43**, e que está entre as referidas parcelas, conforme os dados constantes do Processo Administrativo **CTD 006A – SPS04 – PE**, SEI nº **50050.004743/2026-89**.\nConsidera-se a área total do Lote 01 o somatório das áreas de **15,2797 ha** (**Parcela 01A e 01B**) e a de **2,3842 ha** destinada à faixa de domínio da ferrovia, corresponde a um total de:\n**Área destinada à desapropriação:** **2,3842 ha**\n**Área remanescente:** **15,2797 ha** - Títulos de domínios emitido pelo INCRA.\n**Área total do imóvel:** **17,6639 ha**"}, {"id": "situa_o_fundi_ria_da_gleba_d", "level": 3, "num": "", "head": "Situação fundiária da gleba desapropriada", "figs": [], "tpl": "A área objeto da desapropriação integra a propriedade rural foi delimitada com base no levantamento planimétrico georreferenciado certificado pelo SIGEF/INCRA e na poligonal de projeto da nova Faixa de Domínio da Ferrovia Transnordestina (EF-232).\nO imóvel possui certificação aprovada pelo **SIGEF** e cadastro ativo perante o **INCRA**, sob o **CCIR nº 951.137.779.130-7**.\nQuanto à documentação fundiária e fiscal, conforme análise constante do **Parecer Jurídico de Regularização Fundiária e Documental (DESP-1)**, não foram identificadas pendências relacionadas à apresentação das certidões de regularidade fiscal federal incidentes sobre o imóvel, do **Certificado de Cadastro de Imóvel Rural – CCIR** e da **Declaração do Imposto sobre a Propriedade Territorial Rural – DITR/ITR**, documentos necessários à comprovação da regularidade do imóvel rural perante os órgãos competentes.\nEventuais ausências ou pendências documentais que venham a ser identificadas poderão impedir ou retardar a liberação dos valores indenizatórios em juízo, até que sejam devidamente regularizadas.\nEsses elementos constituem a base para a **vetorização, delimitação e caracterização da propriedade e da área objeto da desapropriação**, conforme apresentado nos documentos e plantas que integram o presente estudo."}, {"id": "roteiro_de_acesso", "level": 3, "num": "", "head": "Roteiro de acesso", "figs": ["f1"], "tpl": "Partindo do centro do município de Cruzeiro do Nordeste, segue-se pela Avenida José Ciriaco Neves Bezerra, em direção à Rua Francisco Antônio, por 40 m. Vire à direita na Rua Francisco Antônio e siga por 550 m. Em seguida, vire à esquerda na BR-110 e percorra 290 m, até o Assentamento Riacho Seco, situado à esquerda da via de acesso, conforme ilustrado na **Figura 1**."}, {"id": "diagn_stico_produtivo_e_ambi", "level": 2, "num": "3.1", "head": "DIAGNÓSTICO PRODUTIVO E AMBIENTAL (Atendimento ao ETP 3.3.3)", "figs": [], "tpl": "Visando o pleno atendimento às diretrizes do Estudo Técnico Preliminar e a fundamentação das readequações e obras propostas, detalha-se abaixo a dinâmica do referido imóvel conforme planta seguir:"}, {"id": "planta_da_rea_total_do_im_ve", "level": 3, "num": "", "head": "PLANTA DA ÁREA TOTAL DO IMÓVEL", "figs": ["f2"], "tpl": "O imóvel possui área total aferida de **17,6639 ha, onde destes, 15,2797 ha foram certificadas no SIGEF (publico) INCRA no processo desapropriação da ferrovia.**\nRegistrado sob a matrícula nº **1580**"}, {"id": "planta_contendo_a_dimens_o_d", "level": 3, "num": "", "head": "PLANTA CONTENDO A DIMENSÃO DA GLEBA DESAPROPRIADA E A POSIÇÃO EM RELAÇÃO AO TODO DO IMÓVEL ANALISADO", "figs": ["f3"], "tpl": "A área a ser desapropriada, de acordo com o projeto executivo, corresponde a **7,4927** **ha.**"}, {"id": "descri_o_do_tipo_de_atividad", "level": 3, "num": "", "head": "DESCRIÇÃO DO TIPO DE ATIVIDADE OU EXPLORAÇÃO AGRÍCOLA COM A INDICAÇÃO DA EXTENSÃO DAS ÁREAS EXPLORADAS, POR ATIVIDADES", "figs": [], "tpl": "• A propriedade rural é utilizada primordialmente para **exploração pecuária**, com foco na **criação de gado** em regime de **pecuária extensiva**, distribuído da seguinte forma:\n• Área de pastagem atingida: 0,0000 ha;\n• Área formação savânica (Caatinga) atingida: 7,3428 ha;\n• Área de Preservação Permanente - APP) atingida: 0,0000 ha;\n• Área de Reserva Legal - RL) atingida: 0,0000 ha;"}, {"id": "planta_com_indica_o_das_font", "level": 3, "num": "", "head": "PLANTA COM INDICAÇÃO DAS FONTES HÍDRICAS E DE SUA DISPOSIÇÃO NO IMÓVEL", "figs": ["f4"], "tpl": "A partir de informações coletadas in loco durante a vistoria técnica e do uso de ferramentas de geoprocessamento (GIS e CAD) — cruzando imagens de satélite atualizadas da Divisão de Satélites e Sistemas Ambientais (DSA/INPE) com a base de dados do Sistema de Cadastro Ambiental Rural (SICAR) —, identificou-se a presença de um corpo hídrico no imóvel. Esse curso d'água, conhecido localmente como Riacho do Mel ou Rio Xilili, intercepta a propriedade no sentido leste-oeste."}, {"id": "indica_o_dos_locais_de_capta", "level": 3, "num": "", "head": "INDICAÇÃO DOS LOCAIS DE CAPTAÇÃO DE ÁGUA E/OU DE DESSEDENTAÇÃO DE ANIMAIS", "figs": [], "tpl": "O imóvel rural não dispõe de recursos hídricos na propriedade."}, {"id": "planta_contendo_a_disposi_o", "level": 3, "num": "", "head": "PLANTA CONTENDO A DISPOSIÇÃO DOS ACESSOS E CAMINHOS DE MOVIMENTAÇÃO DE MÁQUINAS, ANIMAIS E PESSOAS JÁ EXISTENTES NO IMÓVEL, INTERNOS E EXTERNOS", "figs": ["f5"], "tpl": "O acesso principal ao imóvel dá-se diretamente por via pavimentada, através da Rodovia Luiz Gonzaga (BR-232), com a circulação e o fluxo interno realizados por meio de estrada vicinal. Devido à intersecção do traçado ferroviário, a área remanescente sul perderá esse acesso vicinal e a consequente ligação com a rodovia, conforme representado na Figura 5. Ressalta-se que o acesso logístico adequado à propriedade e a manutenção do seu fluxo interno dependem intrinsecamente da continuidade territorial."}, {"id": "as_caracter_sticas_das_m_qui", "level": 3, "num": "", "head": "AS CARACTERÍSTICAS DAS MÁQUINAS E IMPLEMENTOS UTILIZADOS QUE POSSAM DEMANDAR A NECESSIDADE DE TRANSPOSIÇÕES ESPECIAIS", "figs": [], "tpl": "O expropriado não possui máquinas e implementos agrícolas na propriedade."}, {"id": "planta_de_localiza_o_das_rea", "level": 3, "num": "", "head": "PLANTA DE LOCALIZAÇÃO DAS ÁREAS DE RESERVA LEGAL E PRESERVAÇÃO PERMANENTE", "figs": ["f6"], "tpl": "Em análise ao cadastro da propriedade no Sistema de Cadastro Ambiental Rural (SICAR), verifica-se que não constam informações declaradas referentes à Área de Reserva Legal (RL) ou à Área de Preservação Permanente (APP). Apesar da ausência desses dados no sistema oficial, é notoriamente visível a existência de uma APP que acompanha o corpo hídrico inserido no imóvel. Todavia, ressalta-se que essa Área de Preservação Permanente específica não interfere e não sofre impactos da poligonal do traçado da faixa a ser desapropriada, conforme representado na Figura 6.\nConforme já exposto, verifica-se de forma clara e evidente a incidência da Área de Preservação Permanente (APP) no interior da propriedade. Nesse sentido, foi elaborado um mapa contendo a estimativa de seu dimensionamento, visando facilitar a compreensão de sua extensão e localização no imóvel."}, {"id": "descri_o_dos_prov_veis_impac", "level": 3, "num": "", "head": "DESCRIÇÃO DOS PROVÁVEIS IMPACTOS NEGATIVOS NAS ATIVIDADES E NA PRODUÇÃO ECONÔMICA DO IMÓVEL, ADVINDOS DA IMPLANTAÇÃO DO EMPREENDIMENTO.", "figs": [], "tpl": "No imóvel objeto da desapropriação, como representado na Figura 3, é possível visualizar o traçado projetado da ferrovia e identificar os principais impactos decorrentes de sua implantação sobre a dinâmica funcional da propriedade.\nVerifica-se então, que a implantação do novo traçado ferroviário promoverá o seccionamento da propriedade rural. A consolidação da faixa de domínio resultará no isolamento de uma parcela do imóvel que confronta diretamente com a BR-232, correspondente a uma área remanescente de 3,5977 ha e da sede principal, com área de 440,1912 ha. Tal configuração comprometerá significativamente a integração territorial do imóvel, prejudicando o acesso à sede da propriedade e impactando a continuidade das atividades de pecuária extensiva desenvolvidas no local.\nNesse contexto, a fim de evitar o encravamento do Remanescente Sul, onde se encontra a sede da propriedade, e assegurar a manutenção da viabilidade produtiva, operacional e logística do imóvel, torna-se indispensável a adoção de medidas mitigadoras. Tais medidas consistem na implantação de obras de arte de transposição ou, alternativamente, na indenização da área afetada pelos impactos decorrentes do encravamento.\nConforme indicado na análise técnica preliminar de transposição, caberá à SUPRO avaliar a viabilidade de implantação de uma **Passagem em Nível (PN)**, destinada a garantir o tráfego de veículos, maquinários agrícolas e demais equipamentos necessários à operação da propriedade, e/ou de uma **Passagem de Gado (PG)**, destinada à movimentação segura do rebanho entre as áreas seccionadas.\nA implementação dessas estruturas permitirá o restabelecimento da comunicação entre as glebas segregadas pela faixa de domínio ferroviária, assegurando a continuidade territorial do imóvel, a manutenção dos fluxos operacionais e logísticos internos e a preservação da funcionalidade econômica da atividade rural exercida na propriedade."}, {"id": "descritivo_de_como_ficar_o_a", "level": 3, "num": "", "head": "DESCRITIVO DE COMO FICARÃO AS ÁREAS REMANESCENTES DO IMÓVEL APÓS A DESAPROPRIAÇÃO.", "figs": [], "tpl": "A intervenção atual do projeto da Ferrovia Transnordestina (EF-232) cruza a propriedade abrangendo o trecho compreendido entre o KM 233+589,84 e o KM 234+366,24. Com a implantação da faixa de domínio, a propriedade passará a ter uma área remanescente ao norte (confrontante com a rodovia BR-232) de aproximadamente **3,5977 ha** e uma área remanescente principal (sede) ao sul da ferrovia de **440,1912** **ha**. A distribuição da interferência no imóvel consolida-se da seguinte maneira:\n• Área da nova faixa de domínio da FTN (desapropriação): **7,4927 ha;**\n• Área remanescente sul (sede) (desvalorização): **440,1912 ha.**\nOs impactos mitigáveis resumem-se em:\n**Remanescente Sul:** A geometria da faixa de domínio ferroviária promoverá o isolamento completo da sede com área de 440,1912 ha em relação ao remanescente norte (frente do imóvel), comprometendo o acesso logístico da propriedade. Nesse contexto, como alternativa à indenização da área afetada e com o objetivo de restabelecer a continuidade territorial do imóvel, recomenda-se a avaliação da viabilidade de implantação de dispositivos de transposição, notadamente uma Passagem em Nível (PN) e/ou uma Passagem de Gado (PG). A implementação dessas obras mitigadoras permitirá a integração entre as áreas seccionadas pela ferrovia, assegurando a manutenção dos fluxos logísticos internos e a continuidade da atividade pecuária desenvolvida na propriedade."}, {"id": "ressalvas_t_cnicas_e_observa", "level": 2, "num": "3.2", "head": "RESSALVAS TÉCNICAS E OBSERVAÇÕES ADICIONAIS", "figs": [], "tpl": "**Ressalva 01**\nDurante a análise de interferências e o cruzamento de dados cartográficos e documentais, identificou-se uma divergência técnico-registral relevante quanto à localização da infraestrutura de saneamento (adutora) existente na região. A certidão de inteiro teor da **Matrícula nº 749** — correspondente ao imóvel lindeiro identificado no projeto como CTD 004 —, descreve expressamente em seu registro **R-07-749, datado de 17/10/2017**, a constituição de uma Servidão Administrativa em favor da Companhia Pernambucana de Saneamento (COMPESA), abrangendo uma área exata de **4.673,14 m²**.\nNo entanto, ao proceder com a reconstituição geoespacial das coordenadas rigorosamente descritas no referido registro (R-07-749), constatou-se um evidente deslocamento locacional da poligonal. A projeção cartográfica demonstra que a estrutura física da adutora e sua respectiva faixa de servidão encontram-se, na realidade, inseridas dentro dos limites da propriedade **CTD 005** (Fazenda Arueira, Matrícula nº 1580).\nEssa inconsistência técnica entre o que consta formalizado no registro do CTD 004 e a realidade física e geométrica constatada pelo levantamento (inserção no CTD 005) está evidenciada na Figura 8.\nSendo assim, formaliza-se a presente ressalva para consignar que, independentemente do passivo registral e da titularidade da servidão erroneamente atrelada à Matrícula nº 749 (CTD 004), do ponto de vista físico e executivo, a referida infraestrutura hídrica intercepta a área do CTD 005. Este fato deve ser mandatoriamente considerado para o correto dimensionamento dos impactos, para as análises de transposição e para a garantia da segurança e integridade da adutora durante a liberação e execução das obras na frente de serviços deste lote.\n**Ressalva 02**\nDurante a vistoria e avaliação da propriedade, que possui uma área total aferida de 451,2816 ha, constatou-se que uma parcela significativa do imóvel encontra-se sobreposta a uma área de conservação ambiental (Parque Nacional do Catimbau). Em estrito cumprimento às diretrizes metodológicas do Relatório Genérico de Valores (RGV) do traçado, essa porção territorial com restrição ambiental severa foi enquadrada na Classe VIII de capacidade de uso do solo, para fins de cálculo e obtenção da nota agronômica.\nContudo, a aplicação direta e proporcional dessa classificação (Classe VIII) na extensão correspondente resultou em um valor real calculado de CCU para a propriedade de **0,2690**. Observa-se que este índice matemático extrapola, para baixo, o limite inferior de **0,3360** estipulado pelas balizas estatísticas do RGV vigente.\nDiante do exposto, e visando manter a integridade, a padronização e a conformidade com as normativas de avaliação do projeto, aplicou-se o ajuste ao limite inferior validado pelo modelo estatístico do RGV. Dessa forma, o valor unitário efetivamente adotado para a avaliação desta propriedade foi ajustado e fixado em **0,3360**. A adoção deste índice mínimo afasta o deságio excessivo provocado pelo cálculo isolado da área de conservação, garantindo a adequação do laudo aos critérios definidos e aprovados no RGV."}, {"id": "estudo_das_medidas_mitigador", "level": 1, "num": "4.", "head": "ESTUDO DAS MEDIDAS MITIGADORAS", "figs": [], "tpl": "A análise técnica da área de interferência do Processo nº 50050.003155/2026-28 revela impactos significativos na geometria do imóvel, tornando a área remanescente ao norte, correspondente a 3,5977 ha, isolada do corpo principal da propriedade. O avanço da nova faixa de domínio da ferrovia atua como uma barreira física, gerando o seccionamento da Fazenda Arueira e interrompendo os seus fluxos produtivos e naturais. Para mitigar o passivo gerado, evitar o encravamento da propriedade e viabilizar a liberação célere e amigável da frente de serviços, estabelece-se as seguintes opções de plano de ação:\n• **Indenização (Desvalorização) da Área Remanescente Sul (Sede):** A intervenção ferroviária resultará no isolamento da sede da propriedade, localizada em um remanescente com área de 440,1912 ha, comprometendo o acesso logístico e a comunicação com o Remanescente Norte, situado na porção frontal do imóvel. Tal configuração impactará diretamente a funcionalidade operacional da propriedade, dificultando a circulação interna, o deslocamento de pessoas, veículos e equipamentos (se houver), bem como a integração entre as áreas produtivas. Diante desse cenário, considera-se necessária a indenização pela desvalorização do remanescente, em razão dos prejuízos decorrentes da perda de integração territorial, da limitação de acessibilidade interna e da consequente redução da eficiência operacional e produtiva do imóvel.\n• **Implantação de Obras de Transposição:** A intervenção logística isola um polígono de 3,5977 ha. Sendo assim, como alternativa à desapropriação conjunta desta sobra e visando restabelecer a viabilidade do imóvel, torna-se técnica e administrativamente obrigatória a construção de dispositivos de interligação. Indica-se a execução de uma **passagem em nível** (**PN, para máquinas e veículos**) e/ou uma **passagem de gado **(**PG**), garantindo a continuidade territorial e a operação plena da atividade pecuária."}, {"id": "custos_das_medidas_mitigador", "level": 2, "num": "4.1", "head": "CUSTOS DAS MEDIDAS MITIGADORAS", "figs": ["f10"], "tpl": "Com o objetivo de analisar a viabilidade técnica e financeira das alternativas propostas, os custos estimados foram devidamente segregados. Cumpre destacar que os valores referentes às eventuais benfeitorias atingidas pela intervenção na faixa de domínio (tais como cercas e demais estruturas) foram integralmente dimensionados e precificados no Produto DESP-3 (Laudo de Avaliação), não integrando o escopo financeiro da presente análise comparativa.\nAbaixo, apresenta-se o balanço financeiro consolidado contemplando a indenização da desvalorização da área remanescente norte e a desapropriação da faixa (Remanescente + Faixa).\nNas desapropriações para implantação de obras de infraestrutura de grande porte, deve ser observado se a faixa de domínio inviabilizara a utilização da remanescente do imóvel impactado.\nSegundo a NBR 14653-1:2019,\nItem 11.1.2.2 Devem ser apreciadas circunstâncias especiais, quando cabíveis, como alterações de vocação, forma, uso, acessibilidade, ocupação e aproveitamento.\nItem 11.1.2.3 Nas desapropriações parciais, o profissional da engenharia de avaliações deve utilizar critério que permita mensurar prejuízos, visando à recomposição do patrimônio do expropriado, considerando, inclusive, eventual desvalorização do remanescente. Podem ser utilizados, entre outros, os seguintes critérios básicos:\n• estimara diferença entre os valores do bem na sua condição original e na condição resultante do ato expropriatório, considerada a mesma data de referência (critério “antes e depois”);\n• utilizar o valor unitário médio do imóvel primitivo à área desapropriada. Este critério é aplicável apenas para estimar o valor do terreno ou da terra nua, devendo as benfeitorias ser consideradas à parte;\n• estimar o valor da parte do bem atingida pela desapropriação e eventuais reflexos na parte remanescente, com as seguintes considerações:\n• — quando ocorrer desvalorização do remanescente em decorrência da desapropriação, o valor desta alteração deve ser apresentado e justificado;\n• — se for considerado inviável o remanescente do imóvel em função do esvaziamento do seu conteúdo econômico, esta condição e o valor do remanescente devem ser explicitados. Neste caso, o profissional da engenharia de avaliações pode sugerir que a desapropriação parcial se torne total.\n**Situação \"Antes\" (Condição Original):** O modelo é processado com a área remanescente sede da propriedade (440,1912 ha) e Situação/Viabilidade de Circulação \"Ótima\" (fator 1,00), resultando em uma Nota Agronômica (N.A.) de **0,3360**. O Valor Unitário (V.U.) apurado é de **R$ 477,53/ha;**\n**Valor Total \"Antes\" do Remanescente Sul:** 440,1912 ha × R$ 477,53 = **R$ 210,204,50**;\n**Situação \"Depois\" (Condição Encravada):** O modelo é reprocessado considerando o isolamento da gleba (Sede - 451,2816 ha) e a queda drástica da Situação/Viabilidade de Circulação para \"Má\" (fator 0,75), resultando em uma N.A. de 0,2520. O Valor Unitário despenca para **R$ 318,83/ha**;\n**Valor Total \"Depois\" do Remanescente Sul:** 440,1912 ha × R$ 318,83 = **R$ 140.346,16;**\n**Cálculo da Desvalorização:** R$ 210,204,50 - R$ 140.346,16 = **R$ 69.858,34.**"}, {"id": "conclus_o", "level": 1, "num": "5.", "head": "CONCLUSÃO", "figs": [], "tpl": "A partir da vistoria técnica e da análise geométrica do projeto, constatou-se que a implantação do traçado da Ferrovia Transnordestina (EF-232) na Fazenda Arueira resulta na necessidade de desapropriação principal de uma área de 7,4927 ha para a constituição da nova faixa de domínio (cujo custo indenizatório é tratado exclusivamente no Produto DESP-3).\nDo ponto de vista geométrico e logístico, a implantação da nova faixa de domínio provocará o seccionamento da propriedade, isolando a área remanescente principal (situada ao sul e com extensão de 440,1912 ha) da sua principal via de acesso. Esse cenário compromete severamente o acesso ao imóvel. Desse modo, como alternativa à indenização por desvalorização decorrente do encravamento desse remanescente sul, torna-se tecnicamente imperativa a implantação de obras de transposição — especificamente uma **passagem em nível (PN)** (para veículos e maquinários) e/ou uma **passagem de gado (PG)**. Tais estruturas mitigadoras são essenciais para restabelecer a continuidade territorial, garantir o acesso adequado à sede da gleba principal e assegurar a viabilidade operacional e produtiva da fazenda.\n• A **Alternativa 01** propõe aplicando a modelagem estatística baseada no critério \"Antes e Depois\" (conforme item 11.1.2.3 da NBR 14653-1) para indenizar a desvalorização da gleba por encravamento logístico.\n• **A Alternativa 02** garante o manejo preservando a gleba por meio da indicação de **1 (uma) Passagem de Gado (PG).** Embora tecnicamente eficaz, a complexidade construtiva das passagens de gado em concreto costuma gerar custos de infraestrutura elevados (a serem dimensionados pela SUPRO).\n• A **Alternativa 03 **restabelece a trafegabilidade a sede principal através da indicação de **1 (uma) Passagem em Nível (PN)** para pessoas, veículos e maquinários (se houver), todavia, é uma alternativa que também precisará ser dimensionada pela SUPRO.\nBrasília - DF, 19 de agosto de 2026.\nAtenciosamente,\n**Contrato nº 037/2024** - Cujo objeto é a prestação de serviços técnicos de engenharia consultiva para a realização de desapropriações, ocupações temporárias ou servidões administrativas de imóveis e gestão fundiária como um todo, nos empreendimentos sob responsabilidade da INFRA S.A.\nProduto: DESP-2 (Relatório de análise de impacto e transposição da faixa de domínio)\nProcesso: 50050.00315/2026-28"}, {"id": "anexos", "level": 1, "num": "6.", "head": "ANEXOS", "figs": [], "tpl": ""}, {"id": "anexo_2_relat_rio_fotogr_fic", "level": 2, "num": "6.2", "head": "ANEXO 2 - RELATÓRIO FOTOGRÁFICO", "figs": [], "tpl": ""}];
+
+  /* ---------- leitura ---------- */
+  function gid(id){ const e=document.getElementById(id); if(!e) return ""; if(e.tagName==="SELECT"){const o=e.options[e.selectedIndex];return (o&&o.value)?o.text.trim():"";} return (e.value||"").trim(); }
+  function C(id){ return gid("d2_"+id); }
+  function setC(id,v){ const e=document.getElementById("d2_"+id); if(e && e.value!==v) e.value=v; }
+  function TX(id){ const e=document.getElementById("d2_tx_"+id); return e?e.value:""; }
+  function num(v){ if(v==null) return NaN; return parseFloat(String(v).replace(/\./g,'').replace(',','.')); }
+  function ha(n){ return isNaN(n)?'':n.toLocaleString('pt-BR',{minimumFractionDigits:4,maximumFractionDigits:4}); }
+
+  const figs={};
+  const FIG_META={
+    f1:["Figura 1 – Vias e meio de acesso ao imóvel","Google Earth, 2026"],
+    f2:["Figura 2 – Área total do imóvel","QGIS, 2026"],
+    f3:["Figura 3 – Área a ser desapropriada","QGIS, 2026"],
+    f4:["Figura 4 – Fontes hídricas","QGIS, 2026"],
+    f5:["Figura 5 – Vias de acesso do imóvel","QGIS, 2026"],
+    f6:["Figura 6 – Área de Reserva Legal e APP (conforme CAR)","QGIS, 2026"],
+    f7:["Figura 7 – Área de APP estimada","QGIS, 2026"],
+    f8:["Figura 8 – Adutora em nome da COMPESA","Autor, 2026"],
+    f9:["Figura 9 – Sobreposição com o Parque Nacional Catimbau","Autor, 2026"],
+    f10:["Figura 10 – Cenários de desvalorização da Área Remanescente","Autor, 2026"]
+  };
+
+  /* ---------- auto-preenchimento (vínculos DESP 1) ---------- */
+  function parseFerrovia(){
+    const raw=gid("rel_ferrovia")||gid("fb_proc_ferrovia")||"";
+    const cod=(raw.match(/EF-?\s*\d+/i)||[""])[0].replace(/\s+/g,"").toUpperCase();
+    let nome=raw.replace(/^FERROVIA\s+/i,"").replace(/EF-?\s*\d+/i,"").replace(/[–-]\s*$/,"").replace(/\s{2,}/g," ").trim();
+    if(nome){ nome=nome.split(/\s+/).map(function(w){return w.length<=3?w.toUpperCase():(w.charAt(0).toUpperCase()+w.slice(1).toLowerCase());}).join(" "); }
+    return {nome:nome,cod:cod};
+  }
+  function seeds(){
+    const fer=parseFerrovia(); const mun=gid("fb_prop_mun"),uf=gid("fb_prop_uf");
+    const lote=gid("rel_lote")||(gid("fb_proc_lote")?("SPS-"+gid("fb_proc_lote")):"");
+    return {
+      cadastro:gid("fb_proc_ctd"), trecho:lote, ferrovia:fer.nome, codFerrovia:fer.cod,
+      sei:(gid("fb_proc_sei")||gid("rel_sei")), contrato:gid("rel_contrato"), dataVistoria:gid("fb_data"),
+      imovel:gid("fb_prop_id"), municipio:(mun&&uf)?(mun+"/"+uf):(mun||uf),
+      proprietario:gid("fb_nome"), matricula:gid("fb_matricula"), cartorio:gid("fb_cartorio"),
+      areaTotal:gid("fb_area_total"), areaDesap:gid("fb_area_desap"), cib:gid("fb_cib"),
+      responsavel:gid("fb_ass_nome"), crea:gid("fb_ass_reg")
+    };
+  }
+  window.D2_puxar=function(force){
+    const s=seeds();
+    Object.keys(s).forEach(function(k){ if(s[k] && (force || !C(k))) setC(k,s[k]); });
+    // anuente nome default = proprietário
+    if(C("proprietario") && (force || !C("anuente_nome"))) setC("anuente_nome", C("proprietario"));
+    const rem=num(C("areaTotal"))-num(C("areaDesap")); setC("areaRem", isNaN(rem)?"":ha(rem));
+  };
+
+  /* aplica os vínculos no texto verbatim (só nos tópicos marcados) */
+  function vinc(txt){
+    function rep(t,find,val){ return (val&&(''+val).trim())? t.split(find).join(val) : t; }
+    let t=txt;
+    t=rep(t,"SPS-04",C("trecho"));
+    t=rep(t,"CTD-006A","CTD-"+C("cadastro"));
+    t=rep(t,"CTD 006A","CTD "+C("cadastro"));
+    t=rep(t,"50050.004743/2026-89",C("sei"));
+    t=rep(t,"50050.00315/2026-28",C("sei"));
+    t=rep(t,"16 de julho de 2026",C("dataVistoria"));
+    t=rep(t,"Contrato nº 037/2024","Contrato nº "+C("contrato"));
+    t=rep(t,"Nº 037/2024","Nº "+C("contrato"));
+    t=rep(t,"nº 037/2024","nº "+C("contrato"));
+    t=rep(t,"Ferrovia Transnordestina – FTN","Ferrovia "+C("ferrovia"));
+    t=rep(t,"Ferrovia Transnordestina","Ferrovia "+C("ferrovia"));
+    t=rep(t,"EF-232",C("codFerrovia"));
+    t=rep(t,"Sertânia/PE",C("municipio"));
+    t=rep(t,"Greciane Freire",C("proprietario"));
+    t=rep(t,"Fazenda Arueira",C("imovel"));
+    t=rep(t,"nº 4.646","nº "+C("matricula"));
+    t=rep(t,"nº 1580","nº "+C("matricula"));
+    t=rep(t,"17,6639 ha",(C("areaTotal")?C("areaTotal")+" ha":""));
+    t=rep(t,"2,3842 ha",(C("areaDesap")?C("areaDesap")+" ha":""));
+    t=rep(t,"7,4927 ha",(C("areaDesap")?C("areaDesap")+" ha":""));
+    t=rep(t,"15,2797 ha",(C("areaRem")?C("areaRem")+" ha":""));
+    t=rep(t,"Brasília - DF, 19 de agosto de 2026",C("localData"));
+    return t;
+  }
+  const VINC_IDS=["apresenta_o","caracteriza_o_do_im_vel","situa_o_fundi_ria_da_gleba_d","roteiro_de_acesso","planta_da_rea_total_do_im_ve","planta_contendo_a_dimens_o_d","descritivo_de_como_ficar_o_a","estudo_das_medidas_mitigador","conclus_o"];
+
+  /* ---------- montagem dos cartões de tópicos ---------- */
+  function rows(txt){ return Math.min(20, Math.max(3, Math.round((txt||"").length/70)+1)); }
+  function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  /* markdown simples (**negrito**, "• " bullets, quebras) -> HTML de visualização */
+  function mdToHtml(md){
+    return String(md||'').split('\n').map(function(ln){
+      if(ln.trim()===''){ return '<div><br></div>'; }
+      var bullet=/^•\s+/.test(ln);
+      var h=esc(bullet?ln.replace(/^•\s+/,''):ln).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');
+      return bullet ? ('<div class="d2-li">• '+h+'</div>') : ('<div>'+h+'</div>');
+    }).join('');
+  }
+  /* HTML da visualização (contenteditable) -> markdown (**negrito**) */
+  function serialLine(node){
+    var s='';
+    node.childNodes.forEach(function(n){
+      if(n.nodeType===3){ s+=n.nodeValue; }
+      else if(n.nodeType===1){
+        if(n.tagName==='BR'){ return; }
+        var st=(n.getAttribute&&n.getAttribute('style'))||'';
+        var bold=(n.tagName==='B'||n.tagName==='STRONG'||/font-weight\s*:\s*(bold|[6-9]00)/i.test(st));
+        var inner=serialLine(n);
+        if(bold && inner.replace(/\s/g,'')!==''){ s+='**'+inner.trim()+'**'+(/\s$/.test(inner)?' ':''); }
+        else { s+=inner; }
+      }
+    });
+    return s;
+  }
+  function htmlToMd(view){
+    var hasBlock=false;
+    view.childNodes.forEach(function(n){ if(n.nodeType===1 && (n.tagName==='DIV'||n.tagName==='P')) hasBlock=true; });
+    var lines=[];
+    if(!hasBlock){ lines.push(serialLine(view)); }
+    else {
+      view.childNodes.forEach(function(n){
+        if(n.nodeType===3){ if(n.nodeValue.trim()!=='') lines.push(n.nodeValue); }
+        else if(n.nodeType===1){
+          var line=serialLine(n);
+          if((n.className||'').indexOf('d2-li')>=0){ line='• '+line.replace(/^•\s*/,''); }
+          lines.push(line);
+        }
+      });
+    }
+    return lines.join('\n').replace(/ /g,' ').replace(/\*\*\s*\*\*/g,'').replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
+  }
+  window.D2_renderView=function(id){ var v=document.getElementById('d2_view_'+id), t=document.getElementById('d2_tx_'+id); if(v&&t && v.getAttribute('contenteditable')!=='true') v.innerHTML=mdToHtml(t.value); };
+  window.D2_syncFromView=function(id){ var v=document.getElementById('d2_view_'+id), t=document.getElementById('d2_tx_'+id); if(v&&t) t.value=htmlToMd(v); };
+  function renderAll(){ DESP2_TOPICOS.forEach(function(tp){ window.D2_renderView(tp.id); }); }
+  window.D2_toggleEdit=function(id,btn){
+    var v=document.getElementById('d2_view_'+id); if(!v) return;
+    var editing=v.getAttribute('contenteditable')==='true';
+    if(!btn){ var fld=v.closest('.d2-field'); btn=fld?fld.querySelector('.d2b-edit'):null; }
+    if(editing){
+      window.D2_syncFromView(id); v.setAttribute('contenteditable','false'); v.classList.remove('editing');
+      v.innerHTML=mdToHtml(document.getElementById('d2_tx_'+id).value);
+      if(btn){ btn.classList.remove('on'); btn.innerHTML='✏️ Ativar edição'; }
+    } else {
+      try{ document.execCommand('styleWithCSS',false,false); }catch(e){}
+      v.setAttribute('contenteditable','true'); v.classList.add('editing'); v.focus();
+      if(btn){ btn.classList.add('on'); btn.innerHTML='✔️ Concluir edição'; }
+    }
+  };
+  window.D2_bold=function(id){
+    var v=document.getElementById('d2_view_'+id); if(!v) return;
+    if(v.getAttribute('contenteditable')!=='true'){ window.D2_toggleEdit(id); }
+    v.focus(); try{ document.execCommand('bold'); }catch(e){} window.D2_syncFromView(id);
+  };
+  window.D2_keydown=function(ev,id){ if((ev.ctrlKey||ev.metaKey) && (ev.key==='b'||ev.key==='B')){ ev.preventDefault(); window.D2_bold(id); } };
+
+  /* ---- 4.1 Custos: texto fixo protegido ---- */
+  const CUSTOS_FIXO="Com o objetivo de analisar a viabilidade técnica e financeira das alternativas propostas, os custos estimados foram devidamente segregados. Cumpre destacar que os valores referentes às eventuais benfeitorias atingidas pela intervenção na faixa de domínio (tais como cercas e demais estruturas) foram integralmente dimensionados e precificados no Produto DESP-3 (Laudo de Avaliação), não integrando o escopo financeiro da presente análise comparativa.\nAbaixo, apresenta-se o balanço financeiro consolidado contemplando a indenização da desvalorização da área remanescente norte e a desapropriação da faixa (Remanescente + Faixa).\nNas desapropriações para implantação de obras de infraestrutura de grande porte, deve ser observado se a faixa de domínio inviabilizará a utilização da remanescente do imóvel impactado.\nSegundo a NBR 14653-1:2019,\nItem 11.1.2.2 Devem ser apreciadas circunstâncias especiais, quando cabíveis, como alterações de vocação, forma, uso, acessibilidade, ocupação e aproveitamento.\nItem 11.1.2.3 Nas desapropriações parciais, o profissional da engenharia de avaliações deve utilizar critério que permita mensurar prejuízos, visando à recomposição do patrimônio do expropriado, considerando, inclusive, eventual desvalorização do remanescente. Podem ser utilizados, entre outros, os seguintes critérios básicos:\n• estimar a diferença entre os valores do bem na sua condição original e na condição resultante do ato expropriatório, considerada a mesma data de referência (critério “antes e depois”);\n• utilizar o valor unitário médio do imóvel primitivo à área desapropriada. Este critério é aplicável apenas para estimar o valor do terreno ou da terra nua, devendo as benfeitorias ser consideradas à parte;\n• estimar o valor da parte do bem atingida pela desapropriação e eventuais reflexos na parte remanescente, com as seguintes considerações:\n• quando ocorrer desvalorização do remanescente em decorrência da desapropriação, o valor desta alteração deve ser apresentado e justificado;\n• se for considerado inviável o remanescente do imóvel em função do esvaziamento do seu conteúdo econômico, esta condição e o valor do remanescente devem ser explicitados. Neste caso, o profissional da engenharia de avaliações pode sugerir que a desapropriação parcial se torne total.";
+
+  /* ---- 3.2 Ressalvas dinâmicas (auto-numeradas) ---- */
+  var D2_ressalvas=[];
+  function pad2(n){ return (n<10?"0":"")+n; }
+  window.D2_getRessalvas=function(){ return D2_ressalvas; };
+  window.D2_setRessalvas=function(a){ D2_ressalvas=(a||[]).map(function(x){return {texto:(x&&x.texto)||"",img:(x&&x.img)||""};}); if(window.D2_renderRessalvas) window.D2_renderRessalvas(); };
+  window.D2_addRessalva=function(){ D2_ressalvas.push({texto:"",img:""}); D2_renderRessalvas(); };
+  window.D2_remRessalva=function(i){ D2_ressalvas.splice(i,1); D2_renderRessalvas(); };
+  window.D2_setRessalvaTexto=function(i,v){ if(D2_ressalvas[i]) D2_ressalvas[i].texto=v; };
+  window.D2_ressalvaImg=function(i,input){ var f=input.files[0]; if(!f)return; var r=new FileReader(); r.onload=function(e){ if(D2_ressalvas[i]){ D2_ressalvas[i].img=e.target.result; D2_renderRessalvas(); } }; r.readAsDataURL(f); };
+  function D2_renderRessalvas(){
+    var host=document.getElementById("d2_ressalvas"); if(!host) return;
+    host.innerHTML = D2_ressalvas.length ? D2_ressalvas.map(function(rr,i){
+      return '<div class="d2-ress"><div class="d2-ress-h"><b>Ressalva '+pad2(i+1)+'</b>'
+        +'<button type="button" class="d2-rm" title="Remover" onclick="D2_remRessalva('+i+')">✕</button></div>'
+        +'<textarea rows="4" placeholder="Descrição da ressalva..." oninput="D2_setRessalvaTexto('+i+',this.value)">'+String(rr.texto||"").replace(/</g,"&lt;")+'</textarea>'
+        +'<label class="img-drop" style="min-height:70px;margin-top:8px;">'+(rr.img?'<span class="t">Imagem inserida ✓ — clique para trocar</span>':'<span class="ic">🖼️</span><span class="t">Inserir imagem (opcional)</span>')+'<input type="file" accept="image/*" onchange="D2_ressalvaImg('+i+',this)"></label>'
+        +'</div>';
+    }).join('') : '<p class="hint-auto" style="margin:4px 0;">Nenhuma ressalva adicionada.</p>';
+  }
+  window.D2_renderRessalvas=D2_renderRessalvas;
+
+  /* ---- 3.1 Atividades exploradas (área em ha, numérico) ---- */
+  var D2_atividades=[];
+  window.D2_getAtividades=function(){ return D2_atividades; };
+  window.D2_setAtividades=function(a){ D2_atividades=(a||[]).map(function(x){return {nome:(x&&x.nome)||"",area:(x&&x.area)||""};}); if(window.D2_renderAtividades) window.D2_renderAtividades(); };
+  window.D2_addAtividade=function(){ D2_atividades.push({nome:"",area:""}); D2_renderAtividades(); };
+  window.D2_remAtividade=function(i){ D2_atividades.splice(i,1); D2_renderAtividades(); };
+  window.D2_setAtiv=function(i,campo,v){ if(D2_atividades[i]){ if(campo==='area') v=(''+v).replace(/[^0-9.,]/g,''); D2_atividades[i][campo]=v; } };
+  function D2_renderAtividades(){
+    var host=document.getElementById("d2_atividades"); if(!host) return;
+    host.innerHTML = D2_atividades.length ? D2_atividades.map(function(a,i){
+      return '<div class="d2-row">'
+        +'<input class="a-nome" placeholder="Atividade (ex.: pastagem, Caatinga, APP...)" value="'+String(a.nome||"").replace(/"/g,"&quot;")+'" oninput="D2_setAtiv('+i+',\'nome\',this.value)">'
+        +'<input class="a-area" inputmode="decimal" placeholder="Área" value="'+String(a.area||"").replace(/"/g,"&quot;")+'" oninput="D2_setAtiv('+i+',\'area\',this.value)">'
+        +'<span style="align-self:center;color:#6b7887;font-size:13px;">ha</span>'
+        +'<button type="button" class="d2-rm" title="Remover" onclick="D2_remAtividade('+i+')">✕</button>'
+        +'</div>';
+    }).join('') : '<p class="hint-auto" style="margin:4px 0;">Nenhuma atividade adicionada.</p>';
+  }
+  window.D2_renderAtividades=D2_renderAtividades;
+
+  function montarTopicos(){
+    const box=document.getElementById("d2_topicos"); if(!box) return;
+    let html="";
+    DESP2_TOPICOS.forEach(function(tp){
+      const titulo=(tp.num?(tp.num+" "):"")+tp.head;
+      html+='<h2 class="vsec acc" onclick="FV_toggleSec(this)"><span>'+titulo.replace(/&/g,"&amp;").replace(/</g,"&lt;")+'</span><span class="acc-chevron">▾</span></h2>';
+      html+='<div class="vcard">';
+      // 3.2 RESSALVAS — lista dinâmica auto-numerada, com imagens
+      if(tp.id==="ressalvas_t_cnicas_e_observa"){
+        html+='<p class="hint-auto" style="margin:0 0 8px;">Adicione as ressalvas necessárias — a numeração (Ressalva 01, 02, ...) é automática. Cada ressalva permite texto livre e imagem.</p>'
+            + '<div id="d2_ressalvas"></div>'
+            + '<div class="vactions" style="margin-top:8px;"><button class="vbtn vbtn-ghost" type="button" onclick="D2_addRessalva()">+ Adicionar ressalva</button></div>'
+            + '</div>';
+        return;
+      }
+      const readOnly=(tp.id==="custos_das_medidas_mitigador");
+      html+='<div class="d2-field">'
+          + '<div class="d2-fhead"><span class="auto-tag">'+(readOnly?'texto fixo (protegido)':'texto padrão editável')+'</span>'
+          +   '<span class="d2-tools">'
+          + (readOnly?'' : '<button type="button" class="d2b d2b-bold" title="Negrito — selecione o texto e clique (Ctrl+B)" onclick="D2_bold(\''+tp.id+'\')">N</button><button type="button" class="d2b d2b-edit" onclick="D2_toggleEdit(\''+tp.id+'\',this)">✏️ Ativar edição</button>')
+          +   '</span>'
+          + '</div>'
+          + '<div class="d2-view'+(readOnly?' d2-locked':'')+'" id="d2_view_'+tp.id+'" contenteditable="false"'+(readOnly?'':' oninput="D2_syncFromView(\''+tp.id+'\')" onkeydown="D2_keydown(event,\''+tp.id+'\')"')+'></div>'
+          + '<textarea id="d2_tx_'+tp.id+'" class="d2-src" style="display:none"></textarea>'
+          + '</div>';
+      // 3.1 atividades — áreas exploradas (numérico)
+      if(tp.id==="descri_o_do_tipo_de_atividad"){
+        html+='<div class="vsub" style="margin-top:12px;">Áreas exploradas por atividade (ha)</div>'
+            + '<p class="hint-auto" style="margin:0 0 6px;">Somente valores numéricos (hectares). É possível adicionar quantas atividades forem necessárias.</p>'
+            + '<div id="d2_atividades"></div>'
+            + '<div class="vactions" style="margin-top:6px;"><button class="vbtn vbtn-ghost" type="button" onclick="D2_addAtividade()">+ Adicionar atividade</button></div>';
+      }
+      if(tp.figs && tp.figs.length){
+        html+='<div class="d2-figgrid">';
+        tp.figs.forEach(function(fid){
+          const meta=FIG_META[fid]||[fid,""];
+          html+='<label class="img-drop" style="min-height:88px" id="d2_drop_'+fid+'"><span class="ic">🖼️</span>'
+              + '<span class="t">'+meta[0]+'</span><span class="h">Clique para inserir imagem</span>'
+              + '<input type="file" accept="image/*" onchange="D2_carregarFig(\''+fid+'\',this)"></label>';
+        });
+        html+='</div>';
+      }
+      html+='</div>';
+    });
+    box.innerHTML=html;
+    D2_renderRessalvas(); D2_renderAtividades();
+  }
+  window.D2_carregarFig=function(fid,input){
+    const f=input.files[0]; if(!f) return; const r=new FileReader();
+    r.onload=function(e){ figs[fid]=e.target.result; const d=document.getElementById("d2_drop_"+fid); if(d){ d.style.borderColor="#159a3c"; const t=d.querySelector(".t"); if(t) t.textContent=(FIG_META[fid]?FIG_META[fid][0]:fid)+"  ✓"; } };
+    r.readAsDataURL(f);
+  };
+
+  /* gera/atualiza os textos padrão (verbatim do Word + vínculos) */
+  window.D2_gerarTextos=function(force){
+    DESP2_TOPICOS.forEach(function(tp){
+      const el=document.getElementById("d2_tx_"+tp.id); if(!el) return;
+      if(tp.id==="custos_das_medidas_mitigador"){ el.value=CUSTOS_FIXO; return; }
+      if(force || !el.value.trim()){
+        let t=tp.tpl;
+        if(VINC_IDS.indexOf(tp.id)>=0) t=vinc(t);
+        el.value=t;
+      }
+    });
+    renderAll();
+  };
+
+  /* ---------- PDF ---------- */
+  window.D2_gerarPDF=async function(opts){
+    opts=opts||{}; window.D2_puxar(false);
+    DESP2_TOPICOS.forEach(function(tp){ var v=document.getElementById('d2_view_'+tp.id); if(v && v.getAttribute('contenteditable')==='true') window.D2_syncFromView(tp.id); });
+    if(!(window.jspdf||window.jsPDF)){ alert("Biblioteca de PDF ainda carregando. Tente novamente."); return; }
+    const J=(window.jspdf&&window.jspdf.jsPDF)?window.jspdf.jsPDF:window.jsPDF;
+    const pdf=new J({orientation:"portrait",unit:"mm",format:"a4"});
+    let FONT="helvetica";
+    try{ const CF=window.__CARLITO__; if(CF){
+      pdf.addFileToVFS("Carlito-n.ttf",CF.normal); pdf.addFont("Carlito-n.ttf","Carlito","normal");
+      pdf.addFileToVFS("Carlito-b.ttf",CF.bold); pdf.addFont("Carlito-b.ttf","Carlito","bold");
+      pdf.addFileToVFS("Carlito-i.ttf",CF.italic); pdf.addFont("Carlito-i.ttf","Carlito","italic");
+      pdf.addFileToVFS("Carlito-bi.ttf",CF.bolditalic); pdf.addFont("Carlito-bi.ttf","Carlito","bolditalic");
+      FONT="Carlito";
+    } }catch(e){}
+    const W=210,H=297,mL=30,mR=20,mB=10,cw=W-mL-mR;
+    const LI=window.__LOGO_INFRA__, LE=window.__LOGO_ENPROL__;
+    function carregar(s){ return new Promise(function(r){ if(!s){r(null);return;} const im=new Image(); im.onload=function(){r(im);}; im.onerror=function(){r(null);}; im.src=s; }); }
+    const imgI=await carregar(LI), imgE=await carregar(LE);
+    const END=["Av. Des. Moreira, n° 1300, T. Norte, Conj. 1016/1021, Aldeota, 60.170-002, Fortaleza-CE","Rua Irmã Ambrosina, nº 249, Conj 03 e 04, Centro, 61.760-405, Eusébio-CE","Rua Araguari, nº 358, Conj.1903/1904, Barro Preto, 30.190-110, Belo Horizonte-MG","Rua Des. Mário da Silva Nunes, nº 120, Sala 201, Enseada do Suá, 29.050-240, Vitória-ES","Rua Avertano Rocha, n°192, Campina, 66.023-120, Belém-PA"];
+    const TEL=["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 31) 3253-5500","(+55 27) 3029-5540","(+55 94) 3346-8994"];
+    const spaceW=(function(){ pdf.setFont(FONT,"normal"); pdf.setFontSize(11); return pdf.getTextWidth(" "); })();
+
+    /* CAPA */
+    const faixaW=45, cxL=faixaW+8, cxC=cxL+(W-cxL-mR)/2, mT=14;
+    pdf.setFillColor(60,90,130); pdf.rect(0,0,faixaW,H,"F");
+    if(imgE){ let w=15*(imgE.width/imgE.height); pdf.addImage(imgE,"JPEG",cxL,mT,w,15); }
+    if(imgI){ let w=15*(imgI.width/imgI.height); pdf.addImage(imgI,"JPEG",W-mR-w,mT,w,15); }
+    let y=48;
+    pdf.setFont("helvetica","bold"); pdf.setFontSize(15); pdf.setTextColor(20,40,70);
+    pdf.text("INFRA S.A.", cxC, y, {align:"center"}); y+=7;
+    pdf.setFontSize(9);
+    pdf.text("DIREM - DIRETORIA DE EMPREENDIMENTOS", cxC, y, {align:"center"}); y+=4.5;
+    pdf.text("SUGAT – SUPERINTENDÊNCIA DE GESTÃO AMBIENTAL E TERRITORIAL", cxC, y, {align:"center"}); y+=4.5;
+    pdf.text("GEDAF – GERÊNCIA DE DESAPROPRIAÇÃO E ASSUNTOS FUNDIÁRIOS", cxC, y, {align:"center"});
+    pdf.setDrawColor(20,40,70); pdf.setLineWidth(0.4); pdf.line(cxL, y+3, W-mR, y+3); y+=24;
+    pdf.setFontSize(16.5); pdf.setTextColor(20,40,70);
+    pdf.text("RELATÓRIO DE ANÁLISE DE IMPACTO E", cxC, y, {align:"center"}); y+=8;
+    pdf.text("TRANSPOSIÇÃO DA FAIXA DE DOMÍNIO", cxC, y, {align:"center"}); y+=13;
+    pdf.setFontSize(13); pdf.setTextColor(40,40,40); pdf.text("DESP-2", cxC, y, {align:"center"}); y+=16;
+    pdf.setFontSize(12); pdf.setFont("helvetica","normal");
+    const ferroTxt=("FERROVIA "+(C("ferrovia")||"TRANSNORDESTINA – FTN")).toUpperCase();
+    pdf.splitTextToSize(ferroTxt, W-cxL-mR-6).forEach(function(l){ pdf.text(l, cxC, y, {align:"center"}); y+=6.5; });
+    y+=6; pdf.setFont("helvetica","bold");
+    if(C("trecho")){ pdf.text("FTN (Lote: "+C("trecho")+")", cxC, y, {align:"center"}); y+=14; }
+    pdf.setFont("helvetica","normal"); pdf.setFontSize(11);
+    const procCapa="INFRA S.A. CTD-"+C("cadastro")+(C("sei")?("  (SEI nº "+C("sei")+")"):"");
+    pdf.text(pdf.splitTextToSize("Processo administrativo:  "+procCapa, W-cxL-mR-6), cxC, y, {align:"center"}); y+=12;
+    pdf.setFontSize(10);
+    if(C("proprietario")){ pdf.text("EXPROPRIADO: "+C("proprietario"), cxC, y, {align:"center"}); y+=6; }
+    if(C("imovel")){ pdf.setFont("helvetica","bold"); pdf.text(pdf.splitTextToSize("IMÓVEL: "+C("imovel")+"  —  "+C("municipio"), W-cxL-mR-6), cxC, y, {align:"center"}); }
+    if(C("contrato")){
+      const ct="Contrato nº "+C("contrato")+" – Cujo objeto é a prestação de serviços especializados de engenharia consultiva para a execução das atividades de desapropriação, ocupação temporária ou constituição de servidão administrativa de imóveis, gestão fundiária e regularização de passivos de desapropriação.";
+      pdf.setFont("helvetica","normal"); pdf.setFontSize(7.5); pdf.setTextColor(40,40,40);
+      let cy=250; pdf.splitTextToSize(ct,78).forEach(function(l){ pdf.text(l, W-mR-78, cy); cy+=3.2; });
+    }
+    pdf.setFont("helvetica","bold"); pdf.setFontSize(14); pdf.setTextColor(255,255,255);
+    pdf.text("DESP-2", faixaW/2, 250, {align:"center"});
+    let dataCapa=C("execucao")||(new Date()).toLocaleDateString("pt-BR",{month:"long",year:"numeric"});
+    pdf.setFontSize(12); let dy=258; pdf.splitTextToSize(dataCapa.toUpperCase(), faixaW-6).forEach(function(l){ pdf.text(l, faixaW/2, dy, {align:"center"}); dy+=6; });
+
+    /* cabeçalho / rodapé */
+    let PG=0;
+    function cab(){ PG++;
+      if(imgE){let w=8*(imgE.width/imgE.height); pdf.addImage(imgE,"JPEG",mL,13,w,8);}
+      if(imgI){let w=8*(imgI.width/imgI.height); pdf.addImage(imgI,"JPEG",W-mR-w,13,w,8);}
+      pdf.setFont(FONT,"normal"); pdf.setFontSize(7); pdf.setTextColor(90,90,90);
+      const docId="DESP-2 (Análise de Impacto e Transposição): INFRA S.A. CTD-"+C("cadastro")+(C("sei")?(" (SEI nº "+C("sei")+")"):"");
+      pdf.text(pdf.splitTextToSize(docId, cw-24)[0], mL, 23);
+      pdf.text("Página | "+PG, W-mR, 23, {align:"right"});
+      pdf.setDrawColor(31,111,192); pdf.setLineWidth(0.5); pdf.line(mL,25,W-mR,25);
+    }
+    function rod(){ const yl=H-mB-16; pdf.setDrawColor(31,111,192); pdf.setLineWidth(0.4); pdf.line(mL,yl,W-mR,yl); pdf.setFont("times","normal"); pdf.setFontSize(6); pdf.setTextColor(90,100,115); let yy=yl+3.2; for(let i=0;i<END.length;i++){ pdf.text(END[i],mL,yy); pdf.text(TEL[i],W-mR-33,yy,{align:"right"}); pdf.text("comercial@enprol.com.br",W-mR,yy,{align:"right"}); yy+=2.8; } }
+    const topY=30, botY=H-mB-16-3; let yc=0;
+    function nova(){ pdf.addPage(); cab(); yc=topY; }
+    function ensure(h){ if(yc+h>botY){ rod(); nova(); } }
+    function titulo(t){ ensure(16); pdf.setFont(FONT,"bold"); pdf.setFontSize(13.5); pdf.setTextColor(0,0,0);
+      const m=String(t).match(/^(\d+)\.\s*(.*)$/);
+      if(m){ pdf.text(m[1]+".", mL, yc); pdf.text(m[2].toUpperCase(), mL+11, yc); } else { pdf.text(String(t).toUpperCase(), mL, yc); }
+      yc+=2.6; pdf.setDrawColor(70,70,70); pdf.setLineWidth(0.3); pdf.line(mL,yc,W-mR,yc); yc+=7;
+    }
+    function subt(t){ pdf.setFont(FONT,"bold"); pdf.setFontSize(11.5); pdf.setTextColor(0,0,0);
+      const m=String(t).match(/^(\d+\.\d+)\.?\s*(.*)$/);
+      const nm=m?(m[1]+"."):""; const tit=(m?m[2]:String(t)).toUpperCase();
+      const x0=mL+(nm?12:0); const ls=pdf.splitTextToSize(tit, W-mR-x0);
+      ensure(ls.length*5.6+4); yc+=1; if(nm) pdf.text(nm, mL, yc);
+      ls.forEach(function(l){ pdf.text(l, x0, yc); yc+=5.6; }); yc+=1.5;
+    }
+    function h4b(t){ pdf.setFont(FONT,"bold"); pdf.setFontSize(10.5); pdf.setTextColor(20,41,74);
+      const ls=pdf.splitTextToSize(String(t), cw); ensure(ls.length*5+2.5);
+      ls.forEach(function(l){ pdf.text(l, mL, yc); yc+=5; }); yc+=1.2; pdf.setTextColor(0,0,0);
+    }
+    function parseBold(s){ const parts=String(s).split("**"); const runs=[]; for(let i=0;i<parts.length;i++){ if(parts[i]==="") continue; runs.push({t:parts[i], b:(i%2===1)}); } return runs.length?runs:[{t:String(s),b:false}]; }
+    function tokenize(s){ const runs=parseBold(s); const words=[]; runs.forEach(function(r){ r.t.split(/\s+/).forEach(function(w){ if(w!=="") words.push({w:w,b:r.b}); }); }); return words; }
+    function parRich(text,o){ o=o||{};
+      const fs=o.fontSize||11, LH=o.lh||5.8, flI=(o.flIndent!==undefined)?o.flIndent:9, li=o.indent||0, justif=(o.justif!==false), cor=o.cor||[0,0,0];
+      const x0=mL+li, wFull=cw-li;
+      function base(b){ pdf.setFont(FONT,b?"bold":"normal"); pdf.setFontSize(fs); pdf.setTextColor(cor[0],cor[1],cor[2]); }
+      const words=tokenize(text); if(!words.length) return;
+      const lines=[]; let cur=[],curLen=0,curW=wFull-flI;
+      words.forEach(function(tk){ base(tk.b); const ww=pdf.getTextWidth(tk.w); const add=cur.length?(spaceW+ww):ww;
+        if(cur.length && curLen+add>curW){ lines.push({w:cur,tw:curW}); cur=[tk]; curLen=ww; curW=wFull; } else { cur.push(tk); curLen+=add; } });
+      if(cur.length) lines.push({w:cur,tw:curW});
+      lines.forEach(function(ln,idx){ if(yc+LH>botY){ rod(); nova(); }
+        const first=(idx===0),last=(idx===lines.length-1); let x=first?(x0+flI):x0;
+        if(!last && justif && ln.w.length>1){
+          let nat=0; ln.w.forEach(function(tk){ base(tk.b); nat+=pdf.getTextWidth(tk.w); }); nat+=spaceW*(ln.w.length-1);
+          let extra=(ln.tw-nat)/(ln.w.length-1); if(extra<0)extra=0; if(extra>spaceW*3)extra=spaceW*3;
+          let cx=x; ln.w.forEach(function(tk,i){ base(tk.b); pdf.text(tk.w,cx,yc); cx+=pdf.getTextWidth(tk.w)+spaceW+(i<ln.w.length-1?extra:0); });
+        } else { let cx=x; ln.w.forEach(function(tk){ base(tk.b); pdf.text(tk.w,cx,yc); cx+=pdf.getTextWidth(tk.w)+spaceW; }); }
+        yc+=LH;
+      });
+      yc+=LH*0.55;
+    }
+    function bulletRich(text){
+      const fs=11,LH=5.4; const x0=mL+6;
+      const words=tokenize(text); if(!words.length) return;
+      function base(b){ pdf.setFont(FONT,b?"bold":"normal"); pdf.setFontSize(fs); pdf.setTextColor(0,0,0); }
+      const lines=[]; let cur=[],curLen=0; const wLine=cw-6-3;
+      words.forEach(function(tk){ base(tk.b); const ww=pdf.getTextWidth(tk.w); const add=cur.length?(spaceW+ww):ww;
+        if(cur.length && curLen+add>wLine){ lines.push(cur); cur=[tk]; curLen=ww; } else { cur.push(tk); curLen+=add; } });
+      if(cur.length) lines.push(cur);
+      lines.forEach(function(ln,idx){ if(yc+LH>botY){ rod(); nova(); }
+        if(idx===0){ base(false); pdf.text("•", mL+1.5, yc); }
+        let cx=x0+2.5; ln.forEach(function(tk){ base(tk.b); pdf.text(tk.w,cx,yc); cx+=pdf.getTextWidth(tk.w)+spaceW; });
+        yc+=LH;
+      });
+      yc+=1.4;
+    }
+    function figura(fid){
+      const meta=FIG_META[fid]||[fid,""];
+      if(figs[fid]){
+        let iw=cw*0.86, ih=iw*0.6;
+        try{ const p=pdf.getImageProperties(figs[fid]); if(p&&p.width&&p.height){ ih=iw*(p.height/p.width); if(ih>120){ih=120; iw=ih*(p.width/p.height);} } }catch(e){}
+        ensure(ih+12); const fmt=/^data:image\/png/i.test(figs[fid])?"PNG":"JPEG";
+        try{ pdf.addImage(figs[fid],fmt,mL+(cw-iw)/2,yc,iw,ih); }catch(e){}
+        yc+=ih+3.5;
+      } else {
+        ensure(50); pdf.setDrawColor(150,160,172); pdf.setLineWidth(0.3); pdf.setLineDashPattern([1,1],0);
+        pdf.rect(mL+(cw-cw*0.7)/2,yc,cw*0.7,38); pdf.setLineDashPattern([],0);
+        pdf.setFont(FONT,"italic"); pdf.setFontSize(9); pdf.setTextColor(150,160,172);
+        pdf.text("INSERIR IMAGEM",W/2,yc+20,{align:"center"}); yc+=41;
+      }
+      pdf.setFont(FONT,"bolditalic"); pdf.setFontSize(9.5); pdf.setTextColor(0,0,0);
+      pdf.splitTextToSize(meta[0],cw-8).forEach(function(l){ pdf.text(l,W/2,yc,{align:"center"}); yc+=4.4; });
+      pdf.setFont(FONT,"italic"); pdf.setFontSize(8.5); pdf.setTextColor(90,100,115);
+      pdf.text("Fonte: "+(meta[1]||""),W/2,yc,{align:"center"}); yc+=6.5; pdf.setTextColor(0,0,0);
+    }
+    function tabela1(){
+      const linhas=[
+        ["Alternativa 01 (Antes e Depois – Depreciação)","Indenização por depreciação de isolamento/encravamento do remanescente.", "R$ 69.858,34"],
+        ["Alternativa 02 (Transposição com PG)","Indicação de 1 Passagem de Gado (PG).","Obras SUPRO"],
+        ["Alternativa 03 (Transposição com PN)","Indicação de 1 Passagem em Nível (PN).","Obras SUPRO"]
+      ];
+      const wA=44,wC=34,wD=cw-wA-wC;
+      function head(){ const hh=7; pdf.setFillColor(218,232,246); pdf.rect(mL,yc,cw,hh,'F');
+        pdf.setFont(FONT,"bold"); pdf.setFontSize(9); pdf.setTextColor(20,41,74);
+        pdf.text("Alternativa",mL+2.5,yc+4.6); pdf.text("Descrição das medidas",mL+wA+2.5,yc+4.6); pdf.text("Custo estimado",mL+wA+wD+2.5,yc+4.6);
+        pdf.setDrawColor(31,111,192); pdf.setLineWidth(0.6); pdf.line(mL,yc+hh,mL+cw,yc+hh); yc+=hh;
+      }
+      ensure(24); head(); let ri=0;
+      linhas.forEach(function(l){ pdf.setFont(FONT,"normal"); pdf.setFontSize(8.5); pdf.setTextColor(40,51,63);
+        const aLs=pdf.splitTextToSize(l[0],wA-3),dLs=pdf.splitTextToSize(l[1],wD-3),cLs=pdf.splitTextToSize(l[2],wC-3);
+        const rowH=Math.max(aLs.length,dLs.length,cLs.length,1)*3.9+3;
+        if(yc+rowH>botY){ rod(); nova(); head(); }
+        if(ri%2===1){ pdf.setFillColor(250,252,254); pdf.rect(mL,yc,cw,rowH,'F'); }
+        pdf.text(aLs,mL+2.5,yc+3.9); pdf.text(dLs,mL+wA+2.5,yc+3.9); pdf.text(cLs,mL+wA+wD+2.5,yc+3.9);
+        pdf.setDrawColor(237,241,245); pdf.setLineWidth(0.2); pdf.line(mL,yc+rowH,mL+cw,yc+rowH); yc+=rowH; ri++;
+      }); yc+=3;
+    }
+    function bloco(text){
+      String(text||"").split("\n").forEach(function(ln){
+        const t=ln.trim();
+        if(!t){ yc+=2.4; return; }
+        if(/^Tabela\s*1\b/i.test(t.replace(/\*/g,""))){
+          pdf.setFont(FONT,"bolditalic"); pdf.setFontSize(9.5); pdf.setTextColor(0,0,0);
+          ensure(8); pdf.text(t.replace(/\*/g,""),W/2,yc,{align:"center"}); yc+=5.5; tabela1(); return;
+        }
+        if(t.indexOf("• ")===0){ bulletRich(t.slice(2)); return; }
+        parRich(t);
+      });
+    }
+
+    /* ---- corpo: percorre os tópicos na ordem do Word ---- */
+    rod(); nova();
+    function figImg(src){ if(!src) return; var iw=cw*0.86, ih=iw*0.6; try{var pr=pdf.getImageProperties(src); if(pr&&pr.width){ih=iw*(pr.height/pr.width); if(ih>120){ih=120; iw=ih*(pr.width/pr.height);}}}catch(e){} ensure(ih+6); try{ pdf.addImage(src,/^data:image\/png/i.test(src)?"PNG":"JPEG",mL+(cw-iw)/2,yc,iw,ih); }catch(e){} yc+=ih+5; }
+    DESP2_TOPICOS.forEach(function(tp){
+      const label=(tp.num?(tp.num+" "):"")+tp.head;
+      if(tp.level===1) titulo(label);
+      else if(tp.level===2) subt(label);
+      else h4b(tp.head);
+      // 3.2 RESSALVAS — lista dinâmica numerada
+      if(tp.id==="ressalvas_t_cnicas_e_observa"){
+        var rrs=(window.D2_getRessalvas?window.D2_getRessalvas():[]);
+        if(!rrs.length){ paragrafo("[Sem ressalvas registradas.]"); }
+        rrs.forEach(function(rr,i){ h4b("Ressalva "+((i+1)<10?"0":"")+(i+1)); if(rr.texto) bloco(rr.texto); if(rr.img) figImg(rr.img); });
+        return;
+      }
+      bloco(TX(tp.id));
+      (tp.figs||[]).forEach(figura);
+      // 3.1 atividades exploradas (área ha)
+      if(tp.id==="descri_o_do_tipo_de_atividad"){
+        var ats=(window.D2_getAtividades?window.D2_getAtividades():[]).filter(function(a){ return (a.nome||"").trim()||(a.area||"").trim(); });
+        ats.forEach(function(a){ bulletRich("Área de "+(a.nome||"—")+" atingida: "+(a.area||"—")+" ha"); });
+      }
+      // assinatura do responsável após a CONCLUSÃO
+      if(tp.id==="conclus_o"){
+        yc+=6; ensure(30);
+        pdf.setDrawColor(60,60,60); pdf.setLineWidth(0.3); pdf.line(W/2-40,yc,W/2+40,yc); yc+=4.5;
+        pdf.setFont(FONT,"bold"); pdf.setFontSize(11); pdf.setTextColor(0,0,0);
+        if(C("responsavel")){ pdf.text(C("responsavel"),W/2,yc,{align:"center"}); yc+=5; }
+        pdf.setFont(FONT,"normal");
+        if(C("crea")){ pdf.text(C("crea"),W/2,yc,{align:"center"}); yc+=5; }
+        pdf.setFontSize(9.5); pdf.setTextColor(70,80,95); pdf.text("Responsável Técnico",W/2,yc,{align:"center"}); pdf.setTextColor(0,0,0); yc+=8;
+      }
+    });
+    rod();
+    const _blob=pdf.output("blob"); const _nome="DESP2_"+(window.__CTDsuf?window.__CTDsuf():"CTD 000")+".pdf";
+    if(opts&&opts.retornar) return {blob:_blob,nome:_nome};
+    if(window.FS_salvar){ await window.FS_salvar(_blob,_nome); } else { pdf.save(_nome); }
+  };
+
+  window.D2_limpar=function(){
+    if(!confirm("Isto limpa os textos dos tópicos e volta ao padrão do Word (mantém a identificação). Continuar?")) return;
+    DESP2_TOPICOS.forEach(function(tp){ const el=document.getElementById("d2_tx_"+tp.id); if(el) el.value=""; });
+    window.D2_gerarTextos(true);
+  };
+
+  function init(){
+    montarTopicos();
+    window.D2_puxar(false);
+    window.D2_gerarTextos(false);
+    renderAll();
+    const linkBtn=document.querySelector('.sb-link[data-alvo="panel-desp2-relatorio"]');
+    if(linkBtn){ linkBtn.addEventListener("click", function(){ setTimeout(function(){ window.D2_puxar(false); renderAll(); }, 60); }); }
+    // recalcula remanescente ao editar áreas
+    ["areaTotal","areaDesap"].forEach(function(k){ const e=document.getElementById("d2_"+k); if(e) e.addEventListener("input", function(){ const rem=num(C("areaTotal"))-num(C("areaDesap")); setC("areaRem", isNaN(rem)?"":ha(rem)); }); });
+  }
+  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", init);
+  else init();
+})();
+</script>
+
 </body>
 
 
