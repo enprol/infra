@@ -10699,41 +10699,60 @@ window.DRL_gerarPDF=async function(opts){
   await window.FS_salvar(blob, _nomeD);
 };
 window.DRL_gerarWord=async function(opts){
-  if(!window.WORD_htmlDoc){ alert('Módulo Word ainda carregando. Tente novamente em instantes.'); return; }
-  var E=window.WORD_esc, d=window.DRL_dados();
-  function b(x){ return (x&&(''+x).trim())?'<b>'+E((''+x).trim())+'</b>':'____________'; }
-  var par='Eu, '+b(d.nome)+', inscrito(a) no Cadastro de Pessoa Física – CPF nº '+b(d.cpf)+
-    ', proprietário(a) e/ou possuidor(a) do imóvel denominado '+b(d.denom)+', matrícula(s) nº(s) '+b(d.matricula)+
-    ' da comarca de '+b(d.municipio)+'- '+b(d.uf)+' cadastrado no INCRA sob o código nº '+b(d.incra)+
-    ', declaro, sob as penas da lei, que foram respeitados os limites das divisas in loco com os confrontantes abaixo relacionados durante a execução dos trabalhos técnicos na citada propriedade, não havendo qualquer litígio entre as partes.';
-  var nome=(d.nome&&d.nome.trim())?E(d.nome.trim()):'____________';
-  var cpf=(d.cpf&&d.cpf.trim())?E(d.cpf.trim()):'____________';
-  var mun=(d.municipio&&d.municipio.trim())?E(d.municipio.trim()):'____________';
-  var uf=(d.uf&&d.uf.trim())?E(d.uf.trim()):'____';
-  var c=''+
-    '<div style="text-align:center;font-weight:bold;font-size:13pt;margin-bottom:20pt;">DECLARAÇÃO DE RESPEITO DE LIMITES</div>'+
-    '<p style="text-align:justify;line-height:1.5;">'+par+'</p>'+
-    '<p style="margin-top:16pt;"><b>Confrontantes da Área Abrangida:</b></p>'+
-    '<p style="margin-top:14pt;"><b>Confrontantes da Área Remanescente:</b></p>'+
-    '<p style="text-align:center;margin-top:48pt;">_________________________________________________</p>'+
-    '<p style="text-align:center;margin:0;"><b>'+nome+'</b></p>'+
-    '<p style="text-align:center;margin:0;">CPF nº: '+cpf+'</p>'+
-    '<p style="margin-top:28pt;">De acordo:</p>'+
-    '<p style="text-align:center;margin-top:26pt;">__________________________________________________</p>'+
-    '<p style="text-align:center;margin-top:24pt;">__________________________________________________</p>'+
-    '<p style="text-align:center;margin-top:24pt;">__________________________________________________</p>'+
-    '<p style="margin-top:28pt;"><b>Anexos:</b></p>'+
-    '<p style="margin:0;">Planta planimétrica</p>'+
-    '<p style="margin:0;">Memorial descritivo</p>'+
-    '<p style="margin-top:32pt;">'+mun+' – '+uf+', ________ de __________________ de '+(d.ano?E(d.ano):'________')+'</p>';
-  var _LE=window.__LOGO_ENPROL__||'', _LI=window.__LOGO_INFRA__||'';
-  var _cab='<table style="width:100%;border:none;margin-bottom:4pt;"><tr><td style="border:none;text-align:left;">'+(_LE?'<img src="'+_LE+'" style="height:34px;">':'')+'</td><td style="border:none;text-align:right;">'+(_LI?'<img src="'+_LI+'" style="height:34px;">':'')+'</td></tr></table><div style="border-bottom:1.5pt solid #1F6FC0;margin-bottom:16pt;"></div>';
-  var _rod='<div style="border-top:1pt solid #1F6FC0;margin-top:26pt;padding-top:4pt;font-size:7.5pt;color:#5A6B7C;line-height:1.4;">Av. Des. Moreira, nº 1300, T. Norte, Conj. 1016/1021, Aldeota, 60.170-002, Fortaleza-CE &nbsp; (+55 85) 3289-6363<br>Rua Idelfonso Freire, nº 106, Sala 202, Centro, 56.506-520, Arcoverde-PE &nbsp; (+55 85) 3289-6363<br>Rua Pedro Batista Ferreira, nº 278, Centro, 76.500-000, Santa Terezinha de Goiás-GO &nbsp; (+55 85) 3289-6363<br>Rua Nilo Peçanha, nº 25, 1º Andar, Sala 07, Centro, 47.640-000, Santa Maria da Vitória-BA &nbsp; (+55 85) 3289-6363<br>Rua Irmã Ambrosina, nº 249, Conj 03 e 04, Centro, 61.760-405, Eusébio-CE &nbsp; (+55 85) 3289-6363<br>Rua dos Timbiras, nº 2213, Conj.1206/1209, Lourdes, 30.140-069, Belo Horizonte-MG &nbsp; (+55 31) 3253-5500 &nbsp; comercial@enprol.com.br</div>';
-  c=_cab+c+_rod;
-  var _html=window.WORD_htmlDoc('Declaração de Respeito de Limites', c, true);
-  var _nomeDW="DRL_"+(window.__CTDsuf?window.__CTDsuf():"CTD 000");
-  if(opts&&opts.retornar) return {blob:window.WORD_blob(_html), nome:_nomeDW+'.doc'};
-  await window.WORD_baixar(_nomeDW, _html);
+  var D=window.docx;
+  if(!D){ alert('Biblioteca Word ainda carregando. Tente novamente em instantes.'); return; }
+  var Document=D.Document,Packer=D.Packer,Paragraph=D.Paragraph,TextRun=D.TextRun,BorderStyle=D.BorderStyle,AlignmentType=D.AlignmentType,ImageRun=D.ImageRun,Header=D.Header,Footer=D.Footer,TabStopType=D.TabStopType;
+  var d=window.DRL_dados();
+  var FONT="Calibri", BLK="000000", BLUE="1F6FC0", CINZA="5A6B7C";
+  function b64u8(x){ if(!x) return null; try{var a=atob(x.split(",")[1]);var u=new Uint8Array(a.length);for(var k=0;k<a.length;k++)u[k]=a.charCodeAt(k);return u;}catch(e){return null;} }
+  var uE=b64u8(window.__LOGO_ENPROL__), uI=b64u8(window.__LOGO_INFRA__);
+  var R=function(t, o){ o=o||{}; return new TextRun({text:(t==null?"":String(t)),font:FONT,size:o.size||22,bold:!!o.bold,italics:!!o.italics,color:o.color||BLK}); };
+  function val(x,ph){ return (x&&(''+x).trim())?(''+x).trim():(ph||'____________'); }
+  var TAB=9070, linha="_________________________________________________";
+  var K=[];
+  K.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{before:120,after:280},children:[R("DECLARAÇÃO DE RESPEITO DE LIMITES",{bold:true,size:26})]}));
+  K.push(new Paragraph({alignment:AlignmentType.JUSTIFIED,spacing:{after:220,line:288},children:[
+    R("Eu, "),R(val(d.nome),{bold:true}),R(", inscrito(a) no Cadastro de Pessoa Física – CPF nº "),R(val(d.cpf),{bold:true}),
+    R(", proprietário(a) e/ou possuidor(a) do imóvel denominado "),R(val(d.denom),{bold:true}),R(", matrícula(s) nº(s) "),R(val(d.matricula),{bold:true}),
+    R(" da comarca de "),R(val(d.municipio),{bold:true}),R("- "),R(val(d.uf,"____"),{bold:true}),R(" cadastrado no INCRA sob o código nº "),R(val(d.incra,"____________"),{bold:true}),
+    R(", declaro, sob as penas da lei, que foram respeitados os limites das divisas in loco com os confrontantes abaixo relacionados durante a execução dos trabalhos técnicos na citada propriedade, não havendo qualquer litígio entre as partes.")]}));
+  K.push(new Paragraph({spacing:{before:180,after:0},children:[R("Confrontantes da Área Abrangida:",{bold:true})]}));
+  K.push(new Paragraph({spacing:{before:220,after:0},children:[R("Confrontantes da Área Remanescente:",{bold:true})]}));
+  K.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{before:760,after:0},children:[R(linha)]}));
+  K.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:0},children:[R(val(d.nome),{bold:true})]}));
+  K.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:0},children:[R("CPF nº: "+val(d.cpf))]}));
+  K.push(new Paragraph({spacing:{before:380,after:0},children:[R("De acordo:")]}));
+  K.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{before:380,after:0},children:[R(linha)]}));
+  K.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{before:360,after:0},children:[R(linha)]}));
+  K.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{before:360,after:0},children:[R(linha)]}));
+  K.push(new Paragraph({spacing:{before:400,after:0},children:[R("Anexos:",{bold:true})]}));
+  K.push(new Paragraph({spacing:{after:0},children:[R("Planta planimétrica")]}));
+  K.push(new Paragraph({spacing:{after:0},children:[R("Memorial descritivo")]}));
+  K.push(new Paragraph({spacing:{before:440,after:0},children:[R(val(d.municipio)+" – "+val(d.uf,"____")+", ________ de __________________ de "+(d.ano?String(d.ano):"________"))]}));
+
+  var headKids=[
+    new Paragraph({tabStops:[{type:TabStopType.RIGHT,position:TAB}],spacing:{after:60},children:[ uE?new ImageRun({data:uE,transformation:{width:140,height:40}}):R(""), new TextRun({text:"\t"}), uI?new ImageRun({data:uI,transformation:{width:140,height:40}}):R("") ]}),
+    new Paragraph({border:{bottom:{style:BorderStyle.SINGLE,size:12,color:BLUE,space:2}},spacing:{after:160},children:[R("")]})
+  ];
+  var END=[["Av. Des. Moreira, nº 1300, T. Norte, Conj. 1016/1021, Aldeota, 60.170-002, Fortaleza-CE","(+55 85) 3289-6363   comercial@enprol.com.br"],
+    ["Rua Idelfonso Freire, nº 106, Sala 202, Centro, 56.506-520, Arcoverde-PE","(+55 85) 3289-6363   comercial@enprol.com.br"],
+    ["Rua Pedro Batista Ferreira, nº 278, Centro, 76.500-000, Santa Terezinha de Goiás-GO","(+55 85) 3289-6363   comercial@enprol.com.br"],
+    ["Rua Nilo Peçanha, nº 25, 1º Andar, Sala 07, Centro, 47.640-000, Santa Maria da Vitória-BA","(+55 85) 3289-6363   comercial@enprol.com.br"],
+    ["Rua Irmã Ambrosina, nº 249, Conj 03 e 04, Centro, 61.760-405, Eusébio-CE","(+55 85) 3289-6363   comercial@enprol.com.br"],
+    ["Rua dos Timbiras, nº 2213, Conj.1206/1209, Lourdes, 30.140-069, Belo Horizonte-MG","(+55 31) 3253-5500   comercial@enprol.com.br"]];
+  var footKids=[ new Paragraph({border:{top:{style:BorderStyle.SINGLE,size:8,color:BLUE,space:2}},spacing:{after:0},children:[R("")]}) ];
+  END.forEach(function(e){ footKids.push(new Paragraph({tabStops:[{type:TabStopType.RIGHT,position:TAB}],spacing:{after:0,line:180},children:[ R(e[0],{size:12,color:CINZA}), new TextRun({text:"\t"}), R(e[1],{size:12,color:CINZA}) ]})); });
+
+  var doc=new Document({ styles:{default:{document:{run:{font:FONT,size:22}}}}, sections:[{
+    properties:{ page:{ margin:{ top:1134, right:1134, bottom:1134, left:1134 } } },
+    headers:{ default:new Header({children:headKids}) },
+    footers:{ default:new Footer({children:footKids}) },
+    children:K
+  }]});
+  var blob=await Packer.toBlob(doc);
+  var _nomeDW="DRL_"+(window.__CTDsuf?window.__CTDsuf():"CTD 000")+".docx";
+  if(opts&&opts.retornar) return {blob:blob, nome:_nomeDW};
+  if(window.FS_salvar){ await window.FS_salvar(blob,_nomeDW); } else { var a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=_nomeDW; document.body.appendChild(a); a.click(); document.body.removeChild(a); }
 };
 
 /* ===== Baixar .zip com TODOS os documentos numa única pasta (Ficha PDF+Word, Relatório PDF+Word, DRL PDF+Word e .json) ===== */
