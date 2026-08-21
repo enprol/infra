@@ -11507,6 +11507,17 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     if(linkBtn){ linkBtn.addEventListener("click", function(){ setTimeout(function(){ window.D2_puxar(false); D2_atualizarAuto(); }, 60); }); }
     // recalcula remanescente ao editar áreas
     ["areaTotal","areaDesap"].forEach(function(k){ const e=document.getElementById("d2_"+k); if(e) e.addEventListener("input", function(){ const rem=num(C("areaTotal"))-num(C("areaDesap")); setC("areaRem", isNaN(rem)?"":ha(rem)); D2_rebuild("planta_contendo_a_dimens_o_d"); D2_rebuild("descri_o_dos_prov_veis_impac"); }); });
+    // espelha o "Trecho km (de → a)" da Identificação (vínculo com a DESP 1) no tópico "Descritivo das áreas remanescentes"
+    (function(){
+      function syncKm(){
+        const km=document.getElementById("d2_km"), alvo=document.getElementById("d2_kf_remkm");
+        if(km && alvo){ alvo.value=km.value; D2_rebuild("descritivo_de_como_ficar_o_a"); }
+      }
+      window.D2_syncKm=syncKm;
+      const kmEl=document.getElementById("d2_km");
+      if(kmEl) kmEl.addEventListener("input", syncKm);
+      syncKm(); // aplica valor já existente, se houver
+    })();
   }
   if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", init);
   else init();
