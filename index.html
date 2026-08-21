@@ -2694,7 +2694,7 @@ igual DESP 3) */
         <div class="vrow">
           <div class="vfield grow"><label>Data da vistoria</label><input type="text" id="d2_dataVistoria" class="bloqueado" readonly placeholder="16 de julho de 2026"></div>
           <div class="vfield grow" style="display:none"><label>Mês/ano de execução (capa)</label><input type="text" id="d2_execucao" placeholder="julho de 2026"></div>
-          <div class="vfield grow"><label>Trecho km (de → a)</label><input type="text" id="d2_km" placeholder="KM ... ao KM ..."></div>
+          <div class="vfield grow"><label>Trecho km (de → a)</label><input type="text" id="d2_km" class="bloqueado" readonly placeholder="Km inicial 000+000,00 ao Km final 000+000,00"></div>
         </div>
         <div class="vfield grow"><label>Nome do imóvel</label><input type="text" id="d2_imovel" class="bloqueado" readonly placeholder="Denominação do imóvel"></div>
         <div class="vrow">
@@ -10855,6 +10855,18 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     if(nome){ nome=nome.split(/\s+/).map(function(w){return w.length<=3?w.toUpperCase():(w.charAt(0).toUpperCase()+w.slice(1).toLowerCase());}).join(" "); }
     return {nome:nome,cod:cod};
   }
+  // Trecho Km (de → a) — vem das "Áreas de Locação" da aba 1.10 (Relatório Técnico de
+  // Caracterização Socioeconômica), usando o km inicial/final da área tipo "Faixa de Domínio".
+  function kmFaixaDominio(){
+    const areas=(window.REL_getAreas && window.REL_getAreas())||[];
+    let alvo=null;
+    for(let i=0;i<areas.length;i++){ const a=areas[i]; if(a && typeof a==="object" && (a.tipo||"Faixa de Domínio")==="Faixa de Domínio" && ((a.ini||"").trim()||(a.fim||"").trim())){ alvo=a; break; } }
+    if(!alvo){ for(let j=0;j<areas.length;j++){ const a=areas[j]; if(a && typeof a==="object" && ((a.ini||"").trim()||(a.fim||"").trim())){ alvo=a; break; } } }
+    if(!alvo) return "";
+    const ini=(alvo.ini||"").trim(), fim=(alvo.fim||"").trim();
+    if(!ini && !fim) return "";
+    return "Km inicial "+(ini||"___")+" ao Km final "+(fim||"___");
+  }
   function seeds(){
     const fer=parseFerrovia(); const mun=gid("fb_prop_mun"),uf=gid("fb_prop_uf");
     const lote=gid("rel_lote")||(gid("fb_proc_lote")?("SPS-"+gid("fb_proc_lote")):"");
@@ -10864,7 +10876,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       imovel:gid("fb_prop_id"), municipio:(mun&&uf)?(mun+"/"+uf):(mun||uf),
       proprietario:gid("fb_nome"), matricula:gid("fb_matricula"), cartorio:gid("fb_cartorio"),
       areaTotal:gid("fb_area_total"), areaDesap:gid("fb_area_desap"), cib:gid("fb_cib"),
-      ccir:gid("fb_ccir"), localData:gid("fb_ass_local")
+      ccir:gid("fb_ccir"), localData:gid("fb_ass_local"), km:kmFaixaDominio()
       /* responsavel/crea da DESP-2 são definidos pela lista de responsável técnico (independente da DESP-1) */
     };
   }
@@ -10874,6 +10886,8 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     // anuente nome default = proprietário
     if(C("proprietario") && (force || !C("anuente_nome"))) setC("anuente_nome", C("proprietario"));
     const rem=num(C("areaTotal"))-num(C("areaDesap")); setC("areaRem", isNaN(rem)?"":ha(rem));
+    // espelha o Trecho Km no tópico "Descritivo das áreas remanescentes"
+    if(window.D2_syncKm) window.D2_syncKm();
   };
 
   /* aplica os vínculos no texto verbatim (só nos tópicos marcados) */
