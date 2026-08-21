@@ -8277,6 +8277,7 @@ function AV_gerarDescSituacao(){
         familia: (window.FB_getFamilia?window.FB_getFamilia():[]),
         d2ressalvas: (window.D2_getRessalvas?window.D2_getRessalvas():[]),
         d2atividades: (window.D2_getAtividades?window.D2_getAtividades():[]),
+        d2impacto: (window.D2_getImpacto?window.D2_getImpacto():null),
         relAreas: (window.REL_getAreas?window.REL_getAreas():[]),
         relTabelas: { "1":(window.REL_getTabela?window.REL_getTabela(1):[]), "2":(window.REL_getTabela?window.REL_getTabela(2):[]) },
         assinaturas: (window.__ASSIN__ || {fb:null, rel:null})
@@ -8365,6 +8366,7 @@ function AV_gerarDescSituacao(){
         if(pacote.familia && window.FB_setFamilia) window.FB_setFamilia(pacote.familia);
         if(pacote.d2ressalvas && window.D2_setRessalvas) window.D2_setRessalvas(pacote.d2ressalvas);
         if(pacote.d2atividades && window.D2_setAtividades) window.D2_setAtividades(pacote.d2atividades);
+        if(pacote.d2impacto && window.D2_setImpacto){ window.D2_setImpacto(pacote.d2impacto); var _sc=document.getElementById("d2_imp_secc"); if(_sc) _sc.value=(pacote.d2impacto.secc||"Sim"); var _mw=document.getElementById("d2_melh_wrap"); if(_mw) _mw.style.display=((pacote.d2impacto.secc||"Sim")==="Sim"?"":"none"); }
         if(pacote.relAreas && window.REL_setAreas) window.REL_setAreas(pacote.relAreas);
         if(pacote.relTabelas && window.REL_setTabela){ window.REL_setTabela(1, pacote.relTabelas["1"]||pacote.relTabelas[1]||[]); window.REL_setTabela(2, pacote.relTabelas["2"]||pacote.relTabelas[2]||[]); }
         if(pacote.assinaturas){ window.__ASSIN__=window.__ASSIN__||{}; window.__ASSIN__.fb=pacote.assinaturas.fb||null; window.__ASSIN__.rel=pacote.assinaturas.rel||null; [["fb","fb_ass_img_prev"],["rel","rel_ass_img_prev"]].forEach(function(p){ var im=window.__ASSIN__[p[0]], pv=document.getElementById(p[1]); if(pv){ pv.innerHTML= im?('<img src="'+im+'" style="max-height:64px;border:1px solid #cfd9e4;border-radius:6px;padding:3px;background:#fff;"> <button type="button" class="vbtn vbtn-ghost" style="padding:4px 10px;" onclick="window.__ASSIN__.'+p[0]+'=null;document.getElementById(\''+p[1]+'\').innerHTML=\'\';">remover</button>'):''; } }); }
@@ -11038,11 +11040,74 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     diagn_stico_produtivo_e_ambi:'hidden',
     custos_das_medidas_mitigador:'hidden',
     planta_da_rea_total_do_im_ve:'planta',
+    planta_contendo_a_dimens_o_d:'plantadim',
     descri_o_do_tipo_de_atividad:'atividade',
     planta_com_indica_o_das_font:'hidrica',
+    descri_o_dos_prov_veis_impac:'impactos',
     descritivo_de_como_ficar_o_a:'reman',
     estudo_das_medidas_mitigador:'freetext'
   };
+  /* ---- Melhorias / medidas mitigadoras (tópico "impactos negativos") ---- */
+  var MELHORIAS_OPTS=[
+    {key:"PG",   label:"Passagem de Gado – PG",                          nome:"Passagem de Gado (PG)",                         desc:"destinada à movimentação segura do rebanho entre as áreas seccionadas"},
+    {key:"PN",   label:"Passagem de Nível – PN",                         nome:"Passagem em Nível (PN)",                        desc:"destinada a garantir o tráfego de veículos, maquinários agrícolas e demais equipamentos necessários à operação da propriedade"},
+    {key:"PE",   label:"Passagem de Energia – PE",                       nome:"Passagem de Energia (PE)",                      desc:"destinada a garantir a transmissão de energia existente"},
+    {key:"TUB",  label:"Passagem de tubulações envelopadas (adutora)",   nome:"Passagem de tubulações envelopadas (adutora)",  desc:"destinada a garantir o fluxo existente"},
+    {key:"TRANS",label:"Transposições elétricas, gás, fibra óptica e outras", nome:"Transposições elétricas, gás, fibra óptica e outras", desc:"destinada a garantir o fluxo existente"},
+    {key:"POCO", label:"Poço de abastecimento de água",                  nome:"Poço de abastecimento de água",                 desc:"destinada a garantir o abastecimento existente"},
+    {key:"CORR", label:"Corredores de acesso",                           nome:"Corredores de acesso",                          desc:"destinada a garantir o acesso existente"},
+    {key:"PS",   label:"Passagem Superior – PS",                         nome:"Passagem Superior (PS)",                        desc:"destinada a garantir o fluxo existente"},
+    {key:"OUTRAS",label:"Outras medidas mitigadoras pertinentes",        nome:"",                                              desc:""}
+  ];
+  function melhOpt(k){ for(var i=0;i<MELHORIAS_OPTS.length;i++){ if(MELHORIAS_OPTS[i].key===k) return MELHORIAS_OPTS[i]; } return null; }
+  var D2_impacto={ secc:"Sim", melhorias:[] };  // melhorias: [{key, outras}]
+  window.D2_getImpacto=function(){ return D2_impacto; };
+  window.D2_setImpacto=function(o){ D2_impacto={ secc:(o&&o.secc)||"Sim", melhorias:(o&&o.melhorias||[]).map(function(m){return {key:(m&&m.key)||"",outras:(m&&m.outras)||""};}) }; if(window.D2_renderMelhorias) window.D2_renderMelhorias(); D2_rebuild("descri_o_dos_prov_veis_impac"); };
+  window.D2_impSetSecc=function(v){ D2_impacto.secc=v; var w=document.getElementById("d2_melh_wrap"); if(w) w.style.display=(v==="Sim"?"":"none"); D2_rebuild("descri_o_dos_prov_veis_impac"); };
+  window.D2_impAdd=function(){ D2_impacto.melhorias.push({key:"PN",outras:""}); D2_renderMelhorias(); D2_rebuild("descri_o_dos_prov_veis_impac"); };
+  window.D2_impRem=function(i){ D2_impacto.melhorias.splice(i,1); D2_renderMelhorias(); D2_rebuild("descri_o_dos_prov_veis_impac"); };
+  window.D2_impSet=function(i,v){ if(D2_impacto.melhorias[i]){ D2_impacto.melhorias[i].key=v; D2_renderMelhorias(); D2_rebuild("descri_o_dos_prov_veis_impac"); } };
+  window.D2_impOutras=function(i,v){ if(D2_impacto.melhorias[i]){ D2_impacto.melhorias[i].outras=v; D2_rebuild("descri_o_dos_prov_veis_impac"); } };
+  function D2_renderMelhorias(){
+    var host=document.getElementById("d2_melhorias"); if(!host) return;
+    host.innerHTML = D2_impacto.melhorias.length ? D2_impacto.melhorias.map(function(m,i){
+      var opts=MELHORIAS_OPTS.map(function(o){ return '<option value="'+o.key+'"'+(o.key===m.key?' selected':'')+'>'+o.label+'</option>'; }).join('');
+      var outras=(m.key==="OUTRAS")?('<input type="text" class="a-nome" style="margin-top:6px" placeholder="Descreva a(s) outra(s) medida(s) mitigadora(s)..." value="'+String(m.outras||"").replace(/"/g,"&quot;")+'" oninput="D2_impOutras('+i+',this.value)">'):'';
+      return '<div class="d2-row" style="flex-wrap:wrap">'
+        +'<select class="a-nome" style="flex:1;min-width:240px" onchange="D2_impSet('+i+',this.value)">'+opts+'</select>'
+        +'<button type="button" class="d2-rm" title="Remover" onclick="D2_impRem('+i+')">✕</button>'
+        + outras
+        +'</div>';
+    }).join('') : '<p class="hint-auto" style="margin:4px 0;">Nenhuma melhoria adicionada. Clique em “+ Adicionar melhoria”.</p>';
+  }
+  window.D2_renderMelhorias=D2_renderMelhorias;
+  function buildImpactos(){
+    var intro="No imóvel objeto da desapropriação, como representado na Figura 3, é possível visualizar o traçado projetado da ferrovia e identificar os principais impactos decorrentes de sua implantação sobre a dinâmica funcional da propriedade.";
+    if(D2_impacto.secc==="Não"){
+      return intro+"\n"
+        +"Verifica-se então, que a implantação do novo traçado ferroviário **não promoverá** o seccionamento da propriedade rural.\n"
+        +"Desta forma, a consolidação da faixa de domínio não resultará no isolamento de parcelas do imóvel, de modo que prejudique o acesso ao terreno.";
+    }
+    var rem=(C("areaRem")||"").trim();
+    var remTxt=rem?("**"+rem+" ha**"):"**[área remanescente]**";
+    var t=intro+"\n"
+      +"Verifica-se então, que a implantação do novo traçado ferroviário **promoverá** o seccionamento da propriedade rural.\n"
+      +"A consolidação da faixa de domínio resultará no isolamento de uma parcela do imóvel (área remanescente de "+remTxt+") que confronta diretamente com as principais vias de acesso, da parcela de sede principal.\n"
+      +"Tal configuração comprometerá significativamente a integração territorial do imóvel, prejudicando o acesso à sede da propriedade e impactando a continuidade das atividades de uso desenvolvidas no local.\n"
+      +"Nesse contexto, a fim de evitar o encravamento do Remanescente, onde se encontra a sede da propriedade, e assegurar a manutenção da viabilidade produtiva, operacional e logística do imóvel, torna-se indispensável a adoção de medidas mitigadoras. Tais medidas consistem na implantação de obras de arte de transposição ou, alternativamente, na indenização da área afetada pelos impactos decorrentes do encravamento.";
+    var partes=(D2_impacto.melhorias||[]).map(function(m){
+      var o=melhOpt(m.key); if(!o) return "";
+      if(m.key==="OUTRAS"){ var c=(m.outras||"").trim(); return c?("uma **"+c+"**"):""; }
+      return "uma **"+o.nome+"**, "+o.desc;
+    }).filter(function(x){return x;});
+    if(partes.length){
+      t+="\nConforme indicado na análise técnica preliminar de transposição, caberá à SUPRO avaliar a viabilidade de implantação de "+partes.join(", e/ou de ")+".";
+    } else {
+      t+="\nConforme indicado na análise técnica preliminar de transposição, caberá à SUPRO avaliar a viabilidade de implantação das medidas mitigadoras cabíveis.";
+    }
+    t+="\nA implementação dessas estruturas permitirá o restabelecimento da comunicação entre as glebas segregadas pela faixa de domínio ferroviária, assegurando a continuidade territorial do imóvel, a manutenção dos fluxos operacionais e logísticos internos e a preservação da funcionalidade econômica da atividade rural exercida na propriedade.";
+    return t;
+  }
   var HIDRICA_PREFIX="A partir de informações coletadas in loco durante a vistoria técnica e do uso de ferramentas de geoprocessamento (GIS e CAD) — cruzando imagens de satélite atualizadas da Divisão de Satélites e Sistemas Ambientais (DSA/INPE) com a base de dados do Sistema de Cadastro Ambiental Rural (SICAR),";
   function D2_topic(id){ for(var i=0;i<DESP2_TOPICOS.length;i++){ if(DESP2_TOPICOS[i].id===id) return DESP2_TOPICOS[i]; } return {tpl:""}; }
   function kf(n){ var e=document.getElementById("d2_kf_"+n); return e?(e.value||"").trim():""; }
@@ -11074,6 +11139,8 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     else if(mode==="hidrica"){ el.value=buildHidrica(); }
     else if(mode==="reman"){ el.value=buildReman(); }
     else if(mode==="planta"){ var c=kf("planta_com"); el.value=vinc(D2_topic(id).tpl)+(c?("\n\n"+c):""); }
+    else if(mode==="plantadim"){ var aD=(C("areaDesap")||"").trim(); var cc=kf("plantadim_com"); el.value="A área a ser desapropriada, de acordo com o projeto executivo, corresponde a **"+(aD||"[área a desapropriar]")+"** **ha.**"+(cc?("\n\n"+cc):""); }
+    else if(mode==="impactos"){ el.value=buildImpactos(); }
     else if(mode==="hidden"){ el.value=(VINC_IDS.indexOf(id)>=0)?vinc(D2_topic(id).tpl):D2_topic(id).tpl; }
     if(window.D2_renderView) window.D2_renderView(id);
   }
@@ -11127,6 +11194,23 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
           +'<div class="vfield grow" id="d2_kf_planta_com_wrap" style="display:none;margin-top:8px;"><label>Comentário / descrição</label><textarea id="d2_kf_planta_com" data-d2topic="'+tp.id+'" rows="2" placeholder="Descrição adicional (opcional)"></textarea></div>'
           +hiddenTA+'</div>'; return;
       }
+      if(mode==='plantadim'){
+        html+='<p class="hint-auto" style="margin:0 0 8px;">📄 Texto automático — a <b>área a ser desapropriada</b> é preenchida com o dado do cadastro (área a desapropriar). Insira a imagem e, se desejar, um comentário.</p>'
+          +figsHtml(tp)
+          +'<div class="vfield grow" style="margin-top:8px;"><label>Comentário / descrição (opcional)</label><textarea id="d2_kf_plantadim_com" data-d2topic="'+tp.id+'" rows="2" placeholder="Descrição adicional (opcional)"></textarea></div>'
+          +hiddenTA+'</div>'; return;
+      }
+      if(mode==='impactos'){
+        html+='<p class="hint-auto" style="margin:0 0 8px;">📄 Texto automático conforme as opções abaixo. A área remanescente é puxada do cadastro.</p>'
+          +'<div class="vrow"><div class="vfield grow"><label>O novo traçado promoverá o seccionamento da propriedade?</label>'
+          +'<select id="d2_imp_secc" onchange="D2_impSetSecc(this.value)"><option value="Sim">Sim — haverá seccionamento</option><option value="Não">Não — não haverá seccionamento</option></select></div></div>'
+          +'<div id="d2_melh_wrap">'
+          +'<div class="vsub" style="margin-top:6px;">Melhorias / medidas mitigadoras</div>'
+          +'<div id="d2_melhorias"></div>'
+          +'<div class="vactions" style="margin-top:8px;"><button class="vbtn vbtn-ghost" type="button" onclick="D2_impAdd()">+ Adicionar melhoria</button></div>'
+          +'</div>'
+          +hiddenTA+figsHtml(tp)+'</div>'; return;
+      }
       // editable / freetext
       html+='<div class="d2-field">'
         +'<div class="d2-fhead"><span class="auto-tag">'+(mode==='freetext'?'texto livre':'texto padrão editável')+'</span>'
@@ -11136,6 +11220,8 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     });
     box.innerHTML=html;
     D2_renderRessalvas();
+    D2_renderMelhorias();
+    var _sc=document.getElementById("d2_imp_secc"); if(_sc){ _sc.value=D2_impacto.secc; } var _mw=document.getElementById("d2_melh_wrap"); if(_mw){ _mw.style.display=(D2_impacto.secc==="Sim"?"":"none"); }
     box.querySelectorAll("[data-d2topic]").forEach(function(el){ el.addEventListener("input", function(){ D2_rebuild(el.dataset.d2topic); }); });
   }
   window.D2_carregarFig=function(fid,input){
@@ -11355,7 +11441,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     const linkBtn=document.querySelector('.sb-link[data-alvo="panel-desp2-relatorio"]');
     if(linkBtn){ linkBtn.addEventListener("click", function(){ setTimeout(function(){ window.D2_puxar(false); D2_atualizarAuto(); }, 60); }); }
     // recalcula remanescente ao editar áreas
-    ["areaTotal","areaDesap"].forEach(function(k){ const e=document.getElementById("d2_"+k); if(e) e.addEventListener("input", function(){ const rem=num(C("areaTotal"))-num(C("areaDesap")); setC("areaRem", isNaN(rem)?"":ha(rem)); }); });
+    ["areaTotal","areaDesap"].forEach(function(k){ const e=document.getElementById("d2_"+k); if(e) e.addEventListener("input", function(){ const rem=num(C("areaTotal"))-num(C("areaDesap")); setC("areaRem", isNaN(rem)?"":ha(rem)); D2_rebuild("planta_contendo_a_dimens_o_d"); D2_rebuild("descri_o_dos_prov_veis_impac"); }); });
   }
   if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", init);
   else init();
