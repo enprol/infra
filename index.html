@@ -2693,7 +2693,7 @@ igual DESP 3) */
         </div>
         <div class="vrow">
           <div class="vfield grow"><label>Data da vistoria</label><input type="text" id="d2_dataVistoria" class="bloqueado" readonly placeholder="16 de julho de 2026"></div>
-          <div class="vfield grow"><label>Mês/ano de execução (capa)</label><input type="text" id="d2_execucao" placeholder="julho de 2026"></div>
+          <div class="vfield grow" style="display:none"><label>Mês/ano de execução (capa)</label><input type="text" id="d2_execucao" placeholder="julho de 2026"></div>
           <div class="vfield grow"><label>Trecho km (de → a)</label><input type="text" id="d2_km" placeholder="KM ... ao KM ..."></div>
         </div>
         <div class="vfield grow"><label>Nome do imóvel</label><input type="text" id="d2_imovel" class="bloqueado" readonly placeholder="Denominação do imóvel"></div>
@@ -11032,6 +11032,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
 
   /* ===== Modos de exibição por tópico (web) — texto vai ao PDF via textarea oculta ===== */
   var D2_UI = {
+    apresenta_o:'hidden',
     metodologia:'hidden',
     caracteriza_o_do_im_vel:'hidden',
     diagn_stico_produtivo_e_ambi:'hidden',
@@ -11178,44 +11179,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     const TEL=["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 31) 3253-5500","(+55 27) 3029-5540","(+55 94) 3346-8994"];
     const spaceW=(function(){ pdf.setFont(FONT,"normal"); pdf.setFontSize(11); return pdf.getTextWidth(" "); })();
 
-    /* CAPA */
-    const faixaW=45, cxL=faixaW+8, cxC=cxL+(W-cxL-mR)/2, mT=14;
-    pdf.setFillColor(60,90,130); pdf.rect(0,0,faixaW,H,"F");
-    if(imgE){ let w=15*(imgE.width/imgE.height); pdf.addImage(imgE,"JPEG",cxL,mT,w,15); }
-    if(imgI){ let w=15*(imgI.width/imgI.height); pdf.addImage(imgI,"JPEG",W-mR-w,mT,w,15); }
-    let y=48;
-    pdf.setFont("helvetica","bold"); pdf.setFontSize(15); pdf.setTextColor(20,40,70);
-    pdf.text("INFRA S.A.", cxC, y, {align:"center"}); y+=7;
-    pdf.setFontSize(9);
-    pdf.text("DIREM - DIRETORIA DE EMPREENDIMENTOS", cxC, y, {align:"center"}); y+=4.5;
-    pdf.text("SUGAT – SUPERINTENDÊNCIA DE GESTÃO AMBIENTAL E TERRITORIAL", cxC, y, {align:"center"}); y+=4.5;
-    pdf.text("GEDAF – GERÊNCIA DE DESAPROPRIAÇÃO E ASSUNTOS FUNDIÁRIOS", cxC, y, {align:"center"});
-    pdf.setDrawColor(20,40,70); pdf.setLineWidth(0.4); pdf.line(cxL, y+3, W-mR, y+3); y+=24;
-    pdf.setFontSize(16.5); pdf.setTextColor(20,40,70);
-    pdf.text("RELATÓRIO DE ANÁLISE DE IMPACTO E", cxC, y, {align:"center"}); y+=8;
-    pdf.text("TRANSPOSIÇÃO DA FAIXA DE DOMÍNIO", cxC, y, {align:"center"}); y+=13;
-    pdf.setFontSize(13); pdf.setTextColor(40,40,40); pdf.text("DESP-2", cxC, y, {align:"center"}); y+=16;
-    pdf.setFontSize(12); pdf.setFont("helvetica","normal");
-    const ferroTxt=("FERROVIA "+(C("ferrovia")||"TRANSNORDESTINA – FTN")).toUpperCase();
-    pdf.splitTextToSize(ferroTxt, W-cxL-mR-6).forEach(function(l){ pdf.text(l, cxC, y, {align:"center"}); y+=6.5; });
-    y+=6; pdf.setFont("helvetica","bold");
-    if(C("trecho")){ pdf.text("FTN (Lote: "+C("trecho")+")", cxC, y, {align:"center"}); y+=14; }
-    pdf.setFont("helvetica","normal"); pdf.setFontSize(11);
-    const procCapa="INFRA S.A. CTD-"+C("cadastro")+(C("sei")?("  (SEI nº "+C("sei")+")"):"");
-    pdf.text(pdf.splitTextToSize("Processo administrativo:  "+procCapa, W-cxL-mR-6), cxC, y, {align:"center"}); y+=12;
-    pdf.setFontSize(10);
-    if(C("proprietario")){ pdf.text("EXPROPRIADO: "+C("proprietario"), cxC, y, {align:"center"}); y+=6; }
-    if(C("imovel")){ pdf.setFont("helvetica","bold"); pdf.text(pdf.splitTextToSize("IMÓVEL: "+C("imovel")+"  —  "+C("municipio"), W-cxL-mR-6), cxC, y, {align:"center"}); }
-    if(C("contrato")){
-      const ct="Contrato nº "+C("contrato")+" – Cujo objeto é a prestação de serviços especializados de engenharia consultiva para a execução das atividades de desapropriação, ocupação temporária ou constituição de servidão administrativa de imóveis, gestão fundiária e regularização de passivos de desapropriação.";
-      pdf.setFont("helvetica","normal"); pdf.setFontSize(7.5); pdf.setTextColor(40,40,40);
-      let cy=250; pdf.splitTextToSize(ct,78).forEach(function(l){ pdf.text(l, W-mR-78, cy); cy+=3.2; });
-    }
-    pdf.setFont("helvetica","bold"); pdf.setFontSize(14); pdf.setTextColor(255,255,255);
-    pdf.text("DESP-2", faixaW/2, 250, {align:"center"});
-    let dataCapa=C("execucao")||(new Date()).toLocaleDateString("pt-BR",{month:"long",year:"numeric"});
-    pdf.setFontSize(12); let dy=258; pdf.splitTextToSize(dataCapa.toUpperCase(), faixaW-6).forEach(function(l){ pdf.text(l, faixaW/2, dy, {align:"center"}); dy+=6; });
-
+    /* (capa removida a pedido — documento inicia direto no conteúdo) */
     /* cabeçalho / rodapé */
     let PG=0;
     function cab(){ PG++;
@@ -11339,7 +11303,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     }
 
     /* ---- corpo: percorre os tópicos na ordem do Word ---- */
-    rod(); nova();
+    cab(); yc=topY;
     function figImg(src){ if(!src) return; var iw=cw*0.86, ih=iw*0.6; try{var pr=pdf.getImageProperties(src); if(pr&&pr.width){ih=iw*(pr.height/pr.width); if(ih>120){ih=120; iw=ih*(pr.width/pr.height);}}}catch(e){} ensure(ih+6); try{ pdf.addImage(src,/^data:image\/png/i.test(src)?"PNG":"JPEG",mL+(cw-iw)/2,yc,iw,ih); }catch(e){} yc+=ih+5; }
     DESP2_TOPICOS.forEach(function(tp){
       const label=(tp.num?(tp.num+" "):"")+tp.head;
