@@ -8274,6 +8274,8 @@ function AV_gerarDescSituacao(){
         estacas: coletarEstacas(),
         na: coletarNA(),
         imagens: (window.__AV_IMAGENS__ || {}),
+        fotos: (window.FB_getFotos?window.FB_getFotos():[]),
+        d2figs: (window.D2_getFigs?window.D2_getFigs():{}),
         familia: (window.FB_getFamilia?window.FB_getFamilia():[]),
         d2ressalvas: (window.D2_getRessalvas?window.D2_getRessalvas():[]),
         d2atividades: (window.D2_getAtividades?window.D2_getAtividades():[]),
@@ -8377,6 +8379,8 @@ function AV_gerarDescSituacao(){
         restaurarCampos(pacote.campos);   // depois das estacas/NA/família para recalcular com tudo
         if(window.D2_marcarTopicosManual) window.D2_marcarTopicosManual();
         restaurarImagens(pacote.imagens);
+        if(pacote.fotos && window.FB_setFotos) window.FB_setFotos(pacote.fotos);
+        if(pacote.d2figs && window.D2_setFigs) window.D2_setFigs(pacote.d2figs);
         if(typeof window.AV_recalcular==="function") window.AV_recalcular();
         alert("Cadastro carregado com sucesso.");
       }catch(err){ alert("Erro ao carregar o cadastro: "+err.message); }
@@ -8626,6 +8630,8 @@ function AV_gerarDescSituacao(){
   }
   window.FB_remFoto=function(i){ fotos.splice(i,1); renderFotos(); };
   window.FB_getFotos=function(){ return fotos; };
+  // usado pelo Salvar/Abrir (.json) para reinserir as fotografias (5.3) ao carregar o cadastro
+  window.FB_setFotos=function(arr){ fotos.length=0; (Array.isArray(arr)?arr:[]).forEach(function(src){ if(src) fotos.push(src); }); renderFotos(); };
 
   // ---- Word do Anexo B (fiel ao MODELO) ----
   window.WORD_anexoB = async function(opts){
@@ -11292,10 +11298,21 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     if(window.D2_syncFundUI) window.D2_syncFundUI();
     box.querySelectorAll("[data-d2topic]").forEach(function(el){ el.addEventListener("input", function(){ D2_rebuild(el.dataset.d2topic); }); });
   }
+  function aplicarFig(fid,dataUrl){
+    figs[fid]=dataUrl;
+    const d=document.getElementById("d2_drop_"+fid);
+    if(d){ d.style.borderColor="#159a3c"; const t=d.querySelector(".t"); if(t) t.textContent=(FIG_META[fid]?FIG_META[fid][0]:fid)+"  ✓"; }
+  }
   window.D2_carregarFig=function(fid,input){
     const f=input.files[0]; if(!f) return; const r=new FileReader();
-    r.onload=function(e){ figs[fid]=e.target.result; const d=document.getElementById("d2_drop_"+fid); if(d){ d.style.borderColor="#159a3c"; const t=d.querySelector(".t"); if(t) t.textContent=(FIG_META[fid]?FIG_META[fid][0]:fid)+"  ✓"; } };
+    r.onload=function(e){ aplicarFig(fid,e.target.result); };
     r.readAsDataURL(f);
+  };
+  // usados pelo Salvar/Abrir (.json) para persistir e reinserir as imagens das figuras da DESP-2
+  window.D2_getFigs=function(){ return figs; };
+  window.D2_setFigs=function(o){
+    if(!o || typeof o!=="object") return;
+    Object.keys(o).forEach(function(fid){ if(o[fid]) aplicarFig(fid,o[fid]); });
   };
 
   /* gera/atualiza os textos padrão (verbatim do Word + vínculos) */
