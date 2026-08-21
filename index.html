@@ -2711,7 +2711,7 @@ igual DESP 3) */
           <div class="vfield grow"><label>Área remanescente (auto)</label><input type="text" id="d2_areaRem" class="bloqueado" readonly></div>
         </div>
         <div class="vrow">
-          <div class="vfield grow"><label>CCIR (INCRA)</label><input type="text" id="d2_ccir" class="bloqueado" readonly placeholder="000.000.000.000-0"></div>
+          <div class="vfield grow"><label>INCRA/SNCR</label><input type="text" id="d2_ccir" class="bloqueado" readonly placeholder="000.000.000.000-0"></div>
           <div class="vfield grow"><label>NIRF / CIB</label><input type="text" id="d2_cib" class="bloqueado" readonly placeholder="0.000.000-0"></div>
         </div>
         <div class="vrow">
@@ -8278,6 +8278,7 @@ function AV_gerarDescSituacao(){
         d2ressalvas: (window.D2_getRessalvas?window.D2_getRessalvas():[]),
         d2atividades: (window.D2_getAtividades?window.D2_getAtividades():[]),
         d2impacto: (window.D2_getImpacto?window.D2_getImpacto():null),
+        d2fund: (window.D2_getFund?window.D2_getFund():null),
         relAreas: (window.REL_getAreas?window.REL_getAreas():[]),
         relTabelas: { "1":(window.REL_getTabela?window.REL_getTabela(1):[]), "2":(window.REL_getTabela?window.REL_getTabela(2):[]) },
         assinaturas: (window.__ASSIN__ || {fb:null, rel:null})
@@ -8367,6 +8368,7 @@ function AV_gerarDescSituacao(){
         if(pacote.d2ressalvas && window.D2_setRessalvas) window.D2_setRessalvas(pacote.d2ressalvas);
         if(pacote.d2atividades && window.D2_setAtividades) window.D2_setAtividades(pacote.d2atividades);
         if(pacote.d2impacto && window.D2_setImpacto){ window.D2_setImpacto(pacote.d2impacto); var _sc=document.getElementById("d2_imp_secc"); if(_sc) _sc.value=(pacote.d2impacto.secc||"Sim"); var _mw=document.getElementById("d2_melh_wrap"); if(_mw) _mw.style.display=((pacote.d2impacto.secc||"Sim")==="Sim"?"":"none"); }
+        if(pacote.d2fund && window.D2_setFund){ window.D2_setFund(pacote.d2fund); }
         if(pacote.relAreas && window.REL_setAreas) window.REL_setAreas(pacote.relAreas);
         if(pacote.relTabelas && window.REL_setTabela){ window.REL_setTabela(1, pacote.relTabelas["1"]||pacote.relTabelas[1]||[]); window.REL_setTabela(2, pacote.relTabelas["2"]||pacote.relTabelas[2]||[]); }
         if(pacote.assinaturas){ window.__ASSIN__=window.__ASSIN__||{}; window.__ASSIN__.fb=pacote.assinaturas.fb||null; window.__ASSIN__.rel=pacote.assinaturas.rel||null; [["fb","fb_ass_img_prev"],["rel","rel_ass_img_prev"]].forEach(function(p){ var im=window.__ASSIN__[p[0]], pv=document.getElementById(p[1]); if(pv){ pv.innerHTML= im?('<img src="'+im+'" style="max-height:64px;border:1px solid #cfd9e4;border-radius:6px;padding:3px;background:#fff;"> <button type="button" class="vbtn vbtn-ghost" style="padding:4px 10px;" onclick="window.__ASSIN__.'+p[0]+'=null;document.getElementById(\''+p[1]+'\').innerHTML=\'\';">remover</button>'):''; } }); }
@@ -11039,6 +11041,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     caracteriza_o_do_im_vel:'hidden',
     diagn_stico_produtivo_e_ambi:'hidden',
     custos_das_medidas_mitigador:'hidden',
+    situa_o_fundi_ria_da_gleba_d:'fundiaria',
     planta_da_rea_total_do_im_ve:'planta',
     planta_contendo_a_dimens_o_d:'plantadim',
     descri_o_do_tipo_de_atividad:'atividade',
@@ -11047,6 +11050,34 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     descritivo_de_como_ficar_o_a:'reman',
     estudo_das_medidas_mitigador:'freetext'
   };
+  /* ---- Situação fundiária da gleba (SIGEF + pendências) ---- */
+  var D2_fund={ sigef:"Sim", pend:"Não", pendDesc:"" };
+  window.D2_getFund=function(){ return D2_fund; };
+  window.D2_setFund=function(o){ D2_fund={ sigef:(o&&o.sigef)||"Sim", pend:(o&&o.pend)||"Não", pendDesc:(o&&o.pendDesc)||"" }; if(window.D2_syncFundUI) window.D2_syncFundUI(); D2_rebuild("situa_o_fundi_ria_da_gleba_d"); };
+  window.D2_fundSigef=function(v){ D2_fund.sigef=v; D2_rebuild("situa_o_fundi_ria_da_gleba_d"); };
+  window.D2_fundPend=function(v){ D2_fund.pend=v; var w=document.getElementById("d2_fund_penddesc_wrap"); if(w) w.style.display=(v==="Sim"?"":"none"); D2_rebuild("situa_o_fundi_ria_da_gleba_d"); };
+  window.D2_fundPendDesc=function(v){ D2_fund.pendDesc=v; D2_rebuild("situa_o_fundi_ria_da_gleba_d"); };
+  window.D2_syncFundUI=function(){ var a=document.getElementById("d2_fund_sigef"); if(a) a.value=D2_fund.sigef; var b=document.getElementById("d2_fund_pend"); if(b) b.value=D2_fund.pend; var w=document.getElementById("d2_fund_penddesc_wrap"); if(w) w.style.display=(D2_fund.pend==="Sim"?"":"none"); var d=document.getElementById("d2_fund_penddesc"); if(d) d.value=D2_fund.pendDesc; };
+  function buildFundiaria(){
+    var intro="A área objeto da desapropriação integra a propriedade rural foi delimitada com base no levantamento planimétrico georreferenciado certificado pelo SIGEF/INCRA e na poligonal de projeto da nova Faixa de Domínio da Ferrovia Transnordestina (EF-232).";
+    var t=intro;
+    if(D2_fund.sigef==="Sim"){
+      var cc=(C("ccir")||"").trim();
+      t+="\nO imóvel possui certificação aprovada pelo SIGEF e cadastro ativo sob código INCRA/SNCR nº "+(cc||"[INCRA/SNCR]")+".";
+    }
+    var abre="Quanto à documentação fundiária e fiscal, conforme análise constante do Parecer Jurídico de Regularização Fundiária e Documental (DESP-1),";
+    var fecho="Esses elementos constituem a base para a vetorização, delimitação e caracterização da propriedade e da área objeto da desapropriação, conforme apresentado nos documentos e plantas que integram o presente estudo.";
+    if(D2_fund.pend==="Não"){
+      t+="\n"+abre+" não foram identificadas pendências relacionadas à apresentação das certidões de regularidade fiscal federal incidentes sobre o imóvel, do Certificado de Cadastro de Imóvel Rural – CCIR e da Declaração do Imposto sobre a Propriedade Territorial Rural – DITR/ITR, documentos necessários à comprovação da regularidade do imóvel rural perante os órgãos competentes."
+        +"\nEventuais ausências ou pendências documentais que venham a ser identificadas poderão impedir ou retardar a liberação dos valores indenizatórios em juízo, até que sejam devidamente regularizadas."
+        +"\n"+fecho;
+    } else {
+      var d=(D2_fund.pendDesc||"").trim();
+      t+="\n"+abre+" "+(d||"[descrever as pendências identificadas]")+(/[.;]$/.test(d)?"":".")
+        +"\n"+fecho;
+    }
+    return t;
+  }
   /* ---- Melhorias / medidas mitigadoras (tópico "impactos negativos") ---- */
   var MELHORIAS_OPTS=[
     {key:"PG",   label:"Passagem de Gado – PG",                          nome:"Passagem de Gado (PG)",                         desc:"destinada à movimentação segura do rebanho entre as áreas seccionadas"},
@@ -11136,6 +11167,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     var mode=D2_UI[id];
     if(id==="custos_das_medidas_mitigador"){ el.value=CUSTOS_FIXO; if(window.D2_renderView) window.D2_renderView(id); return; }
     if(mode==="atividade"){ el.value=buildAtividade(); }
+    else if(mode==="fundiaria"){ el.value=buildFundiaria(); }
     else if(mode==="hidrica"){ el.value=buildHidrica(); }
     else if(mode==="reman"){ el.value=buildReman(); }
     else if(mode==="planta"){ var c=kf("planta_com"); el.value=vinc(D2_topic(id).tpl)+(c?("\n\n"+c):""); }
@@ -11200,6 +11232,15 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
           +'<div class="vfield grow" style="margin-top:8px;"><label>Comentário / descrição (opcional)</label><textarea id="d2_kf_plantadim_com" data-d2topic="'+tp.id+'" rows="2" placeholder="Descrição adicional (opcional)"></textarea></div>'
           +hiddenTA+'</div>'; return;
       }
+      if(mode==='fundiaria'){
+        html+='<p class="hint-auto" style="margin:0 0 8px;">📄 Texto automático conforme as opções abaixo. O código INCRA/SNCR é puxado da identificação (vínculo DESP-1).</p>'
+          +'<div class="vrow"><div class="vfield grow"><label>Possui SIGEF?</label>'
+          +'<select id="d2_fund_sigef" onchange="D2_fundSigef(this.value)"><option value="Sim">Sim</option><option value="Não">Não</option></select></div>'
+          +'<div class="vfield grow"><label>Identificada pendência?</label>'
+          +'<select id="d2_fund_pend" onchange="D2_fundPend(this.value)"><option value="Não">Não</option><option value="Sim">Sim</option></select></div></div>'
+          +'<div class="vfield grow" id="d2_fund_penddesc_wrap" style="display:none;margin-top:6px;"><label>Descrição das pendências</label><textarea id="d2_fund_penddesc" rows="3" placeholder="Descreva as pendências identificadas..." oninput="D2_fundPendDesc(this.value)"></textarea></div>'
+          +hiddenTA+figsHtml(tp)+'</div>'; return;
+      }
       if(mode==='impactos'){
         html+='<p class="hint-auto" style="margin:0 0 8px;">📄 Texto automático conforme as opções abaixo. A área remanescente é puxada do cadastro.</p>'
           +'<div class="vrow"><div class="vfield grow"><label>O novo traçado promoverá o seccionamento da propriedade?</label>'
@@ -11222,6 +11263,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     D2_renderRessalvas();
     D2_renderMelhorias();
     var _sc=document.getElementById("d2_imp_secc"); if(_sc){ _sc.value=D2_impacto.secc; } var _mw=document.getElementById("d2_melh_wrap"); if(_mw){ _mw.style.display=(D2_impacto.secc==="Sim"?"":"none"); }
+    if(window.D2_syncFundUI) window.D2_syncFundUI();
     box.querySelectorAll("[data-d2topic]").forEach(function(el){ el.addEventListener("input", function(){ D2_rebuild(el.dataset.d2topic); }); });
   }
   window.D2_carregarFig=function(fid,input){
