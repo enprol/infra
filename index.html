@@ -4205,6 +4205,25 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
       PESQ_carregado = false;
     }
   }
+  /* Enquanto a aba Pesquisa de Mercado estiver ativa, oculta os botões globais
+     "Salvar"/"Abrir" do topo (que salvam/abrem o cadastro geral da INFRA S.A.),
+     já que a ferramenta tem seus próprios botões Salvar/Abrir com escopo e
+     comportamento diferentes — evita confusão entre as duas funções. */
+  (function(){
+    function PESQ_syncBotoesTopo(){
+      var painel = document.getElementById('panel-util-pesquisa');
+      var emPesquisa = !!(painel && painel.classList.contains('ativa'));
+      var btnS = document.getElementById('btnSalvarCad');
+      var btnA = document.getElementById('btnAbrirCad');
+      if (btnS) btnS.style.display = emPesquisa ? 'none' : '';
+      if (btnA) btnA.style.display = emPesquisa ? 'none' : '';
+    }
+    var painelEl = document.getElementById('panel-util-pesquisa');
+    if (painelEl && window.MutationObserver){
+      new MutationObserver(PESQ_syncBotoesTopo).observe(painelEl, {attributes:true, attributeFilter:['class']});
+    }
+    PESQ_syncBotoesTopo();
+  })();
   </script>
 </main>
 </div><!-- .app-main -->
