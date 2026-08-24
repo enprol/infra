@@ -2731,6 +2731,10 @@ igual DESP 3) */
       #panel-desp2-relatorio .d2-ress-img-row{ display:flex; align-items:flex-start; gap:10px; flex-wrap:wrap; margin-top:8px; }
       #panel-desp2-relatorio .d2-ress-img-row .img-drop{ flex:1; min-width:180px; }
       #panel-desp2-relatorio .d2-ress-thumb{ width:56px; height:56px; object-fit:cover; border-radius:8px; border:1px solid #bfe3c9; flex-shrink:0; }
+      /* checkboxes — tópico 3 (Caracterização do imóvel) */
+      #panel-desp2-relatorio .d2-checks{ display:flex; flex-wrap:wrap; gap:10px 20px; padding:6px 0 2px; }
+      #panel-desp2-relatorio .d2-chk{ display:flex; align-items:center; gap:6px; font-weight:400 !important; text-transform:none !important; letter-spacing:0 !important; font-size:13.5px !important; color:#243447 !important; cursor:pointer; }
+      #panel-desp2-relatorio .d2-chk input{ width:16px; height:16px; cursor:pointer; accent-color:#1F6FC0; }
       /* fonte proporcional (corrige aparência monoespaçada) */
       #panel-desp2-relatorio textarea, #panel-desp2-relatorio input, #panel-desp2-relatorio .d2-view{ font-family:"Segoe UI", Arial, Helvetica, sans-serif; }
       #panel-desp2-relatorio textarea{ line-height:1.5; }
@@ -11076,7 +11080,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     t=rep(t,"950.270.403.369-7",C("ccir")||gid("fb_ccir"));
     return t;
   }
-  const VINC_IDS=["apresenta_o","caracteriza_o_do_im_vel","situa_o_fundi_ria_da_gleba_d","planta_da_rea_total_do_im_ve","planta_contendo_a_dimens_o_d","descritivo_de_como_ficar_o_a","estudo_das_medidas_mitigador","conclus_o"];
+  const VINC_IDS=["apresenta_o","situa_o_fundi_ria_da_gleba_d","planta_da_rea_total_do_im_ve","planta_contendo_a_dimens_o_d","descritivo_de_como_ficar_o_a","estudo_das_medidas_mitigador","conclus_o"];
 
   /* ---------- montagem dos cartões de tópicos ---------- */
   function rows(txt){ return Math.min(20, Math.max(3, Math.round((txt||"").length/70)+1)); }
@@ -11237,7 +11241,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
   var D2_UI = {
     apresenta_o:'hidden',
     metodologia:'hidden',
-    caracteriza_o_do_im_vel:'hidden',
+    caracteriza_o_do_im_vel:'caracterizacao',
     diagn_stico_produtivo_e_ambi:'hidden',
     custos_das_medidas_mitigador:'hidden',
     situa_o_fundi_ria_da_gleba_d:'fundiaria',
@@ -11349,6 +11353,46 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
   function D2_topic(id){ for(var i=0;i<DESP2_TOPICOS.length;i++){ if(DESP2_TOPICOS[i].id===id) return DESP2_TOPICOS[i]; } return {tpl:""}; }
   function kf(n){ var e=document.getElementById("d2_kf_"+n); return e?(e.value||"").trim():""; }
   function nOrZero(v){ return v?v:"0,0000"; }
+  /* ---- 3. Caracterização do imóvel — objeto da desapropriação + dados vinculados da DESP-1 ---- */
+  function buildCaracterizacao(){
+    var elReprod=document.getElementById("d2_car_benfrep"), elNaoReprod=document.getElementById("d2_car_benfnrep"), elTerraNua=document.getElementById("d2_car_terranua");
+    var reprod=!!(elReprod&&elReprod.checked), naoreprod=!!(elNaoReprod&&elNaoReprod.checked), terranua=!!(elTerraNua&&elTerraNua.checked);
+    var opts=[];
+    if(reprod) opts.push("Benfeitoria Reprodutiva");
+    if(naoreprod) opts.push("Benfeitoria Não Reprodutiva");
+    if(terranua) opts.push("Terra Nua");
+    var artigo = opts.length>1 ? "das" : "da";
+    var listaOpts;
+    if(!opts.length){ listaOpts="**[selecione a(s) opção(ões) — Benfeitoria Reprodutiva, Não Reprodutiva e/ou Terra Nua]**"; }
+    else if(opts.length===1){ listaOpts="**"+opts[0]+"**"; }
+    else { listaOpts=opts.slice(0,-1).map(function(o){return "**"+o+"**";}).join(", ")+" e **"+opts[opts.length-1]+"**"; }
+
+    var imovel=C("imovel")||"[denominação do imóvel rural]";
+    var proprietario=C("proprietario")||"[proprietário]";
+    var matricula=C("matricula")||"[matrícula]";
+    var municipio=C("municipio")||"[município/UF]";
+    var areaTotal=C("areaTotal")?(C("areaTotal")+" ha"):"[área total]";
+    var areaDesap=C("areaDesap")?(C("areaDesap")+" ha"):"[área desapropriada]";
+    var areaRem=C("areaRem")?(C("areaRem")+" ha"):"[área remanescente]";
+    var km=C("km")||"[trecho km inicial e final]";
+    var processo="CTD "+(C("cadastro")||"XXX")+" – "+(C("trecho")||"SPSXX")+" – PE, SEI nº "+(C("sei")||"XXXXX.XXXXXX/2026-XX");
+    var codIncra=kf("codincra");
+
+    var t="O presente estudo tem como objeto a desapropriação "+artigo+" "+listaOpts
+      +" existentes na área do imóvel rural denominado **"+imovel+"**, de propriedade de **"+proprietario
+      +"**, registrado sob a **"+matricula+"** junto ao Cartório de Registro de Imóveis da Comarca de **"+municipio
+      +"** localizado no município de **"+municipio+"**.";
+
+    if(codIncra){
+      t+="\nO imóvel possui Título de Domínio – **"+codIncra+"**, emitido pelo **INCRA**.";
+    }
+
+    t+="\nPara fins do presente procedimento desapropriatório, promovido pela **INFRA S.A.**, em decorrência da implantação da **Ferrovia Transnordestina – FTN – "+(C("codFerrovia")||"EF-232")+"**, será afetada uma área de **"+areaDesap+"**, correspondente ao trecho compreendido entre os **"+km+"**, localizado entre as referidas parcelas, conforme os dados constantes do Processo Administrativo **"+processo+"**.";
+
+    t+="\nConsiderando a área total de **"+areaTotal+"** correspondente ao imóvel antes da implantação da faixa de domínio, a área destinada à desapropriação corresponde a **"+areaDesap+"**, permanecendo como área remanescente o total de **"+areaRem+"**, conforme os títulos de domínio disponibilizados.";
+
+    return t;
+  }
   function buildAtividade(){
     var uso=kf("uso")||"exploração pecuária, com foco na criação de gado em regime de pecuária extensiva";
     var foco=kf("foco");
@@ -11372,7 +11416,8 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     var el=document.getElementById("d2_tx_"+id); if(!el) return;
     var mode=D2_UI[id];
     if(id==="custos_das_medidas_mitigador"){ el.value=CUSTOS_FIXO; if(window.D2_renderView) window.D2_renderView(id); return; }
-    if(mode==="atividade"){ el.value=buildAtividade(); }
+    if(mode==="caracterizacao"){ el.value=buildCaracterizacao(); }
+    else if(mode==="atividade"){ el.value=buildAtividade(); }
     else if(mode==="fundiaria"){ el.value=buildFundiaria(); }
     else if(mode==="hidrica"){ el.value=buildHidrica(); }
     else if(mode==="reman"){ el.value=buildReman(); }
@@ -11430,6 +11475,18 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       var hiddenTA='<textarea id="d2_tx_'+tp.id+'" class="d2-src" style="display:none"></textarea>';
       if(mode==='hidden'){
         html+='<p class="hint-auto" style="margin:0;">📄 Texto padrão — gerado automaticamente e inserido no laudo (não editável aqui).</p>'+hiddenTA+figsHtml(tp)+'</div>'; return;
+      }
+      if(mode==='caracterizacao'){
+        html+='<p class="hint-auto" style="margin:0 0 8px;">📄 Texto automático. Denominação do imóvel, proprietário, matrícula, município/UF, área total/desapropriada/remanescente e processo administrativo são puxados da identificação (vínculo DESP-1) — use o botão "Puxar dados" se estiverem em branco.</p>'
+          +'<div class="vrow"><div class="vfield grow"><label>Objeto da desapropriação (marque uma ou mais opções)</label>'
+          +'<div class="d2-checks">'
+            +'<label class="d2-chk"><input type="checkbox" id="d2_car_benfrep" data-d2topic="'+tp.id+'"> Benfeitoria reprodutiva</label>'
+            +'<label class="d2-chk"><input type="checkbox" id="d2_car_benfnrep" data-d2topic="'+tp.id+'"> Benfeitoria não reprodutiva</label>'
+            +'<label class="d2-chk"><input type="checkbox" id="d2_car_terranua" data-d2topic="'+tp.id+'"> Terra nua</label>'
+          +'</div></div></div>'
+          +'<div class="vrow">'+kfIn("codincra","Código INCRA — Título de Domínio (opcional)","Ex.: TD nº PE038300000065",tp.id)+'</div>'
+          +'<p class="hint-auto" style="margin:0 0 8px;">Se o imóvel não possuir código INCRA, deixe o campo em branco — o trecho sobre o Título de Domínio é omitido automaticamente no texto.</p>'
+          +hiddenTA+figsHtml(tp)+'</div>'; return;
       }
       if(mode==='atividade'){
         html+='<p class="hint-auto" style="margin:0 0 8px;">Informe os dados; o texto é montado automaticamente no laudo.</p>'
