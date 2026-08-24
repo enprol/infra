@@ -2703,6 +2703,34 @@ igual DESP 3) */
 
       #panel-desp2-relatorio .d2-figgrid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:12px; margin-top:10px; }
       #panel-desp2-relatorio .hint-desp1{ color:#1F6FC0; }
+      /* ===== Indicação de imagem anexada (figuras da DESP-2) — UX/acessibilidade ===== */
+      #panel-desp2-relatorio .d2-figwrap{ display:flex; flex-direction:column; gap:6px; }
+      #panel-desp2-relatorio .d2-figwrap .img-drop{ position:relative; min-height:88px; }
+      #panel-desp2-relatorio .d2-figwrap.tem-imagem .img-drop{
+        border-style:solid; border-color:#159a3c; background:#f0faf3; padding:10px; overflow:hidden;
+      }
+      #panel-desp2-relatorio .d2-figwrap.tem-imagem .img-drop:hover{ border-color:#0e7a2c; background:#e6f7ea; }
+      #panel-desp2-relatorio .d2-fig-thumb{ width:100%; max-height:84px; object-fit:cover; border-radius:8px; border:1px solid #bfe3c9; display:block; }
+      #panel-desp2-relatorio .d2-fig-badge{
+        display:inline-flex; align-items:center; gap:4px; align-self:center; font-size:11px; font-weight:800;
+        color:#0e7a2c; background:#dff5e4; border:1px solid #b6e6c2; border-radius:20px; padding:2px 10px; letter-spacing:.2px;
+      }
+      #panel-desp2-relatorio .d2-figwrap.tem-imagem .t{ color:#0e7a2c; }
+      #panel-desp2-relatorio .d2-fig-fname{ word-break:break-all; }
+      #panel-desp2-relatorio .d2-fig-rm{
+        align-self:center; border:1px solid var(--borda-forte); background:#fff; color:#c0392b;
+        font-size:11.5px; font-weight:700; padding:4px 12px; border-radius:8px; cursor:pointer;
+      }
+      #panel-desp2-relatorio .d2-fig-rm:hover{ background:#fdecec; border-color:#e6b3b3; }
+      #panel-desp2-relatorio .sr-only{
+        position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden;
+        clip:rect(0,0,0,0); white-space:nowrap; border:0;
+      }
+      #panel-desp2-relatorio .d2-ress .img-drop.tem-imagem{ border-style:solid; border-color:#159a3c; background:#f0faf3; }
+      #panel-desp2-relatorio .d2-ress .img-drop.tem-imagem .t{ color:#0e7a2c; }
+      #panel-desp2-relatorio .d2-ress-img-row{ display:flex; align-items:flex-start; gap:10px; flex-wrap:wrap; margin-top:8px; }
+      #panel-desp2-relatorio .d2-ress-img-row .img-drop{ flex:1; min-width:180px; }
+      #panel-desp2-relatorio .d2-ress-thumb{ width:56px; height:56px; object-fit:cover; border-radius:8px; border:1px solid #bfe3c9; flex-shrink:0; }
       /* fonte proporcional (corrige aparência monoespaçada) */
       #panel-desp2-relatorio textarea, #panel-desp2-relatorio input, #panel-desp2-relatorio .d2-view{ font-family:"Segoe UI", Arial, Helvetica, sans-serif; }
       #panel-desp2-relatorio textarea{ line-height:1.5; }
@@ -10958,6 +10986,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
   function ha(n){ return isNaN(n)?'':n.toLocaleString('pt-BR',{minimumFractionDigits:4,maximumFractionDigits:4}); }
 
   const figs={};
+  const figNames={};
   const FIG_META={
     f1:["Figura 1 – Vias e meio de acesso ao imóvel","Google Earth, 2026"],
     f2:["Figura 2 – Área total do imóvel","QGIS, 2026"],
@@ -11144,14 +11173,41 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
   window.D2_addRessalva=function(){ D2_ressalvas.push({texto:"",img:""}); D2_renderRessalvas(); };
   window.D2_remRessalva=function(i){ D2_ressalvas.splice(i,1); D2_renderRessalvas(); };
   window.D2_setRessalvaTexto=function(i,v){ if(D2_ressalvas[i]) D2_ressalvas[i].texto=v; };
-  window.D2_ressalvaImg=function(i,input){ var f=input.files[0]; if(!f)return; var r=new FileReader(); r.onload=function(e){ if(D2_ressalvas[i]){ D2_ressalvas[i].img=e.target.result; D2_renderRessalvas(); } }; r.readAsDataURL(f); };
+  window.D2_ressalvaNome=[];
+  window.D2_ressalvaImg=function(i,input){
+    var f=input.files[0]; if(!f)return;
+    var ehImagem=(f.type&&f.type.indexOf("image/")===0)||/\.(jpe?g|png|gif|webp|bmp|tif?f|heic|heif|svg)$/i.test(f.name||"");
+    if(!ehImagem){ var st=document.getElementById("d2_ress_status_"+i); if(st) st.textContent="Arquivo selecionado não é uma imagem válida."; input.value=""; return; }
+    var r=new FileReader();
+    r.onload=function(e){ if(D2_ressalvas[i]){ D2_ressalvas[i].img=e.target.result; window.D2_ressalvaNome[i]=f.name; D2_renderRessalvas(); } };
+    r.onerror=function(){ var st=document.getElementById("d2_ress_status_"+i); if(st) st.textContent="Não foi possível ler o arquivo de imagem."; };
+    r.readAsDataURL(f);
+  };
+  window.D2_remRessalvaImg=function(i){ if(D2_ressalvas[i]){ D2_ressalvas[i].img=""; window.D2_ressalvaNome[i]=""; D2_renderRessalvas(); } };
   function D2_renderRessalvas(){
     var host=document.getElementById("d2_ressalvas"); if(!host) return;
     host.innerHTML = D2_ressalvas.length ? D2_ressalvas.map(function(rr,i){
+      var has=!!rr.img, fname=(window.D2_ressalvaNome&&window.D2_ressalvaNome[i])||"";
+      var imgField;
+      if(has){
+        imgField='<div class="d2-ress-img-row"><img class="d2-ress-thumb" src="'+rr.img+'" alt="Prévia da imagem anexada — Ressalva '+pad2(i+1)+'">'
+          +'<label class="img-drop tem-imagem" style="min-height:70px;">'
+            +'<span class="d2-fig-badge">✓ Imagem anexada</span>'
+            +'<span class="t">'+(fname?esc(fname)+' · ':'')+'clique para trocar</span>'
+            +'<input type="file" accept="image/*" aria-label="Trocar imagem — Ressalva '+pad2(i+1)+'" onchange="D2_ressalvaImg('+i+',this)"></label>'
+          +'<button type="button" class="d2-fig-rm" onclick="D2_remRessalvaImg('+i+')" aria-label="Remover imagem — Ressalva '+pad2(i+1)+'">🗑️ Remover</button>'
+          +'</div>';
+      } else {
+        imgField='<label class="img-drop" style="min-height:70px;margin-top:8px;">'
+          +'<span class="ic" aria-hidden="true">🖼️</span><span class="t">Inserir imagem (opcional)</span>'
+          +'<input type="file" accept="image/*" aria-label="Anexar imagem — Ressalva '+pad2(i+1)+'" onchange="D2_ressalvaImg('+i+',this)"></label>';
+      }
+      var status=has?('Imagem anexada'+(fname?(': '+fname):'')+' — campo preenchido.'):'';
       return '<div class="d2-ress"><div class="d2-ress-h"><b>Ressalva '+pad2(i+1)+'</b>'
         +'<button type="button" class="d2-rm" title="Remover" onclick="D2_remRessalva('+i+')">✕</button></div>'
         +'<textarea rows="4" placeholder="Descrição da ressalva..." oninput="D2_setRessalvaTexto('+i+',this.value)">'+String(rr.texto||"").replace(/</g,"&lt;")+'</textarea>'
-        +'<label class="img-drop" style="min-height:70px;margin-top:8px;">'+(rr.img?'<span class="t">Imagem inserida ✓ — clique para trocar</span>':'<span class="ic">🖼️</span><span class="t">Inserir imagem (opcional)</span>')+'<input type="file" accept="image/*" onchange="D2_ressalvaImg('+i+',this)"></label>'
+        +imgField
+        +'<p class="sr-only" id="d2_ress_status_'+i+'" role="status" aria-live="polite">'+esc(status)+'</p>'
         +'</div>';
     }).join('') : '<p class="hint-auto" style="margin:4px 0;">Nenhuma ressalva adicionada.</p>';
   }
@@ -11329,10 +11385,34 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
   window.D2_rebuild=D2_rebuild;
   window.D2_togglePlantaCom=function(){ var w=document.getElementById("d2_kf_planta_com_wrap"); if(w) w.style.display=(w.style.display==="none"?"":"none"); };
 
+  /* imagens de figura (Fig.1, Fig.2...) — marcação visual + textual + status para leitor de tela */
+  function figSlotHtml(fid){
+    var meta=FIG_META[fid]||[fid,""], label=meta[0], has=!!figs[fid], fname=figNames[fid]||"";
+    var body;
+    if(has){
+      body='<label class="img-drop" id="d2_drop_'+fid+'">'
+        +'<img class="d2-fig-thumb" src="'+figs[fid]+'" alt="Prévia da imagem anexada — '+esc(label)+'">'
+        +'<span class="d2-fig-badge">✓ Imagem anexada</span>'
+        +'<span class="t">'+esc(label)+'</span>'
+        +'<span class="h d2-fig-fname">'+(fname?esc(fname)+' · ':'')+'clique para trocar</span>'
+        +'<input type="file" accept="image/*" aria-label="Trocar imagem — '+esc(label)+'" onchange="D2_carregarFig(\''+fid+'\',this)"></label>'
+        +'<button type="button" class="d2-fig-rm" onclick="D2_removerFig(\''+fid+'\')" aria-label="Remover imagem — '+esc(label)+'">🗑️ Remover imagem</button>';
+    } else {
+      body='<label class="img-drop" id="d2_drop_'+fid+'">'
+        +'<span class="ic" aria-hidden="true">🖼️</span>'
+        +'<span class="t">'+esc(label)+'</span>'
+        +'<span class="h">Clique para inserir imagem</span>'
+        +'<input type="file" accept="image/*" aria-label="Anexar imagem — '+esc(label)+'" onchange="D2_carregarFig(\''+fid+'\',this)"></label>';
+    }
+    var status=has?('Imagem anexada'+(fname?(': '+fname):'')+' — campo preenchido.'):'';
+    return '<div class="d2-figwrap'+(has?' tem-imagem':'')+'" id="d2_figwrap_'+fid+'">'+body
+      +'<p class="sr-only" id="d2_figstatus_'+fid+'" role="status" aria-live="polite">'+esc(status)+'</p></div>';
+  }
+
   function montarTopicos(){
     const box=document.getElementById("d2_topicos"); if(!box) return;
     let html="";
-    function figsHtml(tp){ if(!(tp.figs&&tp.figs.length)) return ""; var h='<div class="d2-figgrid">'; tp.figs.forEach(function(fid){ var meta=FIG_META[fid]||[fid,""]; h+='<label class="img-drop" style="min-height:88px" id="d2_drop_'+fid+'"><span class="ic">🖼️</span><span class="t">'+meta[0]+'</span><span class="h">Clique para inserir imagem</span><input type="file" accept="image/*" onchange="D2_carregarFig(\''+fid+'\',this)"></label>'; }); return h+'</div>'; }
+    function figsHtml(tp){ if(!(tp.figs&&tp.figs.length)) return ""; var h='<div class="d2-figgrid">'; tp.figs.forEach(function(fid){ h+=figSlotHtml(fid); }); return h+'</div>'; }
     function kfIn(name,label,ph,topic,extra){ return '<div class="vfield grow"><label>'+label+'</label><input type="text" id="d2_kf_'+name+'" data-d2topic="'+topic+'" '+(extra||'')+' placeholder="'+(ph||'')+'"></div>'; }
     DESP2_TOPICOS.forEach(function(tp){
       const titulo=(tp.num?(tp.num+" "):"")+tp.head;
@@ -11416,15 +11496,29 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     if(window.D2_syncFundUI) window.D2_syncFundUI();
     box.querySelectorAll("[data-d2topic]").forEach(function(el){ el.addEventListener("input", function(){ D2_rebuild(el.dataset.d2topic); }); });
   }
-  function aplicarFig(fid,dataUrl){
+  function aplicarFig(fid,dataUrl,fileName){
     figs[fid]=dataUrl;
-    const d=document.getElementById("d2_drop_"+fid);
-    if(d){ d.style.borderColor="#159a3c"; const t=d.querySelector(".t"); if(t) t.textContent=(FIG_META[fid]?FIG_META[fid][0]:fid)+"  ✓"; }
+    if(fileName) figNames[fid]=fileName;
+    const wrap=document.getElementById("d2_figwrap_"+fid);
+    if(wrap) wrap.outerHTML=figSlotHtml(fid);
   }
   window.D2_carregarFig=function(fid,input){
-    const f=input.files[0]; if(!f) return; const r=new FileReader();
-    r.onload=function(e){ aplicarFig(fid,e.target.result); };
+    const f=input.files[0]; if(!f) return;
+    const ehImagem=(f.type&&f.type.indexOf("image/")===0)||/\.(jpe?g|png|gif|webp|bmp|tif?f|heic|heif|svg)$/i.test(f.name||"");
+    if(!ehImagem){
+      const st=document.getElementById("d2_figstatus_"+fid);
+      if(st) st.textContent="Arquivo selecionado não é uma imagem válida. Escolha um arquivo de imagem (JPG, PNG, etc.).";
+      input.value=""; return;
+    }
+    const r=new FileReader();
+    r.onload=function(e){ aplicarFig(fid,e.target.result,f.name); };
+    r.onerror=function(){ const st=document.getElementById("d2_figstatus_"+fid); if(st) st.textContent="Não foi possível ler o arquivo de imagem. Tente novamente."; };
     r.readAsDataURL(f);
+  };
+  window.D2_removerFig=function(fid){
+    delete figs[fid]; delete figNames[fid];
+    const wrap=document.getElementById("d2_figwrap_"+fid);
+    if(wrap) wrap.outerHTML=figSlotHtml(fid);
   };
   // usados pelo Salvar/Abrir (.json) para persistir e reinserir as imagens das figuras da DESP-2
   window.D2_getFigs=function(){ return figs; };
