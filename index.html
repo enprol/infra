@@ -4288,10 +4288,12 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
       <div class="vfield grow"><label>Texto do relatório<span class="hint-auto"> (gerado automaticamente a partir dos campos acima — editável)</span></label><textarea id="par_relatorio" rows="14" placeholder="Clique em 'Gerar texto automático'..."></textarea></div>
     </div>
 
+    <div style="display:none;">
     <h2 class="vsec"><span>II – Fundamentação Legal</span></h2>
     <div class="vcard">
       <div class="vactions" style="margin-bottom:8px;"><button class="vbtn vbtn-ghost vbtn-sm" type="button" onclick="PAR_gerarTexto('fundamentacao')">↻ Restaurar texto padrão</button></div>
       <div class="vfield grow"><label>Fundamentação legal<span class="hint-auto"> (texto padrão — mantenha a formatação e os negritos ao editar)</span></label><textarea id="par_fundamentacao" rows="14" placeholder=""></textarea></div>
+    </div>
     </div>
 
     <h2 class="vsec"><span>III – Análise Técnica e Jurídica</span></h2>
@@ -4300,17 +4302,21 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
       <div class="par-toolbar"><button type="button" class="par-bold-btn" onclick="PAR_toggleBold('par_titularidade')"><b>N</b> Negrito</button><span class="hint-inline">Selecione o texto e clique em Negrito para marcar (**texto**) — sai em negrito no PDF.</span></div>
       <div class="vfield grow"><textarea id="par_titularidade" rows="7" placeholder="Descreva a titularidade e a situação registral do imóvel..."></textarea></div>
 
+      <div style="display:none;">
       <div class="vsub">Objetivo da desapropriação</div>
       <div class="vactions" style="margin-bottom:6px;"><button class="vbtn vbtn-ghost vbtn-sm" type="button" onclick="PAR_gerarTexto('objetivo')">↻ Restaurar texto padrão</button></div>
       <div class="vfield grow"><textarea id="par_objetivo" rows="8" placeholder=""></textarea></div>
+      </div>
 
       <div class="vsub">Levantamento de Campo e Contato com o Representante</div>
       <div class="par-toolbar"><button type="button" class="par-bold-btn" onclick="PAR_toggleBold('par_levantamento')"><b>N</b> Negrito</button><span class="hint-inline">Selecione o texto e clique em Negrito para marcar (**texto**) — sai em negrito no PDF.</span></div>
       <div class="vfield grow"><textarea id="par_levantamento" rows="7" placeholder="Descreva o levantamento de campo e o contato com o(a) representante..."></textarea></div>
 
+      <div style="display:none;">
       <div class="vsub">Regularidade e Viabilidade da Desapropriação</div>
       <div class="vactions" style="margin-bottom:6px;"><button class="vbtn vbtn-ghost vbtn-sm" type="button" onclick="PAR_gerarTexto('regularidade')">↻ Restaurar texto padrão</button></div>
       <div class="vfield grow"><textarea id="par_regularidade" rows="8" placeholder=""></textarea></div>
+      </div>
 
       <div class="vsub">Check List Documental do Expropriado</div>
       <div id="par_checklist"></div>
@@ -11492,6 +11498,8 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     var ld=document.getElementById("par_local_data");
     if(ld && !ld.value) ld.value=parLocalDataAuto();
     syncParData();
+    window.PAR_gerarTexto("relatorio"); // reflete os dados recém-puxados sem precisar clicar em "Gerar texto automático"
+    window.PAR_gerarTexto("conclusao");
     alert("Dados da Ficha de Vistoria e do Relatório Técnico aplicados ao Parecer.");
   };
   // painel reduzido (menos poluído): os demais dados de identificação ficam ocultos
@@ -11619,6 +11627,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     tabelasPAR[n][i].resp = (tabelasPAR[n][i].resp===c) ? "" : c;
     renderChecklist();
     atualizarPendencias();
+    if(window.PAR_gerarTexto) window.PAR_gerarTexto("conclusao"); // mantém a cláusula de pendências em dia, sem precisar clicar no botão
   };
   window.PAR_setObs=function(n,i,v){ if(tabelasPAR[n]&&tabelasPAR[n][i]) tabelasPAR[n][i].obs=v; };
   // usados pelo Salvar/Abrir (.json) para persistir as marcações do check list
@@ -11711,18 +11720,25 @@ window.UFOTO_rodapeHTML=rodapeHTML;
 
   window.PAR_gerarTexto=function(qual){
     if(qual==="relatorio"){
-      var prop=pf("par_prop")||"[PROPRIETÁRIO]";
-      var mun=fv("fb_prop_mun")||fv("fb_municipio")||"[MUNICÍPIO]";
+      // valores "crus" (para compor frases internamente, sem negrito aninhado)
+      var propRaw=pf("par_prop")||"[PROPRIETÁRIO]";
+      var munRaw=fv("fb_prop_mun")||fv("fb_municipio")||"[MUNICÍPIO]";
       var ufSigla=fv("fb_prop_uf")||fv("fb_uf")||"";
-      var uf=UF_NOMES[ufSigla]||ufSigla||"[UF]";
-      var matr=pf("par_matricula")||"[MATRÍCULA]";
-      var cart=fv("fb_cartorio")||("Cartório de Registro de Imóveis da Comarca de "+(mun||"[MUNICÍPIO]")+(ufSigla?("/"+ufSigla):""));
-      var imovel=pf("par_imovel")||"[IMÓVEL]";
-      var areaTotal=pf("par_area_total")||"[ÁREA TOTAL]";
-      var areaDesap=pf("par_area_desap")||"[ÁREA DESAPROPRIADA]";
-      var proc=pf("par_processo")||"[PROCESSO ADMINISTRATIVO]";
-      var sei=pf("par_sei");
-      var areaKm=pf("par_area_km")||"[Km inicial ao Km final]";
+      var ufRaw=UF_NOMES[ufSigla]||ufSigla||"[UF]";
+      var matrRaw=pf("par_matricula")||"[MATRÍCULA]";
+      var cartRaw=fv("fb_cartorio")||("Cartório de Registro de Imóveis da Comarca de "+(munRaw||"[MUNICÍPIO]")+(ufSigla?("/"+ufSigla):""));
+      var imovelRaw=pf("par_imovel")||"[IMÓVEL]";
+      var areaTotalRaw=pf("par_area_total")||"[ÁREA TOTAL]";
+      var areaDesapRaw=pf("par_area_desap")||"[ÁREA DESAPROPRIADA]";
+      var procRaw=pf("par_processo")||"[PROCESSO ADMINISTRATIVO]";
+      var seiRaw=pf("par_sei");
+      var areaKmRaw=pf("par_area_km")||"[Km inicial ao Km final]";
+      // dados puxados (identificação) em negrito no texto do relatório
+      var prop="**"+propRaw+"**", mun="**"+munRaw+"**", uf="**"+ufRaw+"**", matr="**"+matrRaw+"**";
+      var cart="**"+cartRaw+"**", imovel="**"+imovelRaw+"**";
+      var areaTotal="**"+areaTotalRaw+"**", areaDesap="**"+areaDesapRaw+"**";
+      var proc="**"+procRaw+"**", sei=seiRaw?("**"+seiRaw+"**"):"";
+      var areaKm="**"+areaKmRaw+"**";
       var t="O presente Parecer tem por finalidade estabelecer as diretrizes jurídicas necessárias à regularização fundiária e documental da parcela de imóvel rural atingida pelo empreendimento Ferrovia Transnordestina, de titularidade de "+prop+", integrante do "+imovel+", situado no Município de "+mun+", Estado de "+uf+", e matriculado no "+cart+" sob o nº "+matr+".\n\n";
       t+="A área objeto da presente análise corresponde à parcela do imóvel rural denominada "+imovel+", com área total de "+areaTotal+" hectares, vinculada à Matrícula nº "+matr+", tendo como titular "+prop+".\n\n";
       t+="A análise jurídica tem por objeto verificar a situação dominial e documental da referida parcela, bem como definir os procedimentos necessários à sua regularização perante o registro imobiliário e aos demais órgãos competentes, considerando sua inserção na faixa de domínio destinada à implantação da Ferrovia Transnordestina e as particularidades decorrentes de sua origem.\n\n";
@@ -12017,6 +12033,9 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     if(!pf("par_fundamentacao")) setPF("par_fundamentacao", TXT_FUNDAMENTACAO);
     if(!pf("par_objetivo")) setPF("par_objetivo", TXT_OBJETIVO);
     if(!pf("par_regularidade")) setPF("par_regularidade", TXT_REGULARIDADE);
+    // textos automáticos: gerados desde já, sem precisar clicar no botão
+    if(!pf("par_relatorio")) window.PAR_gerarTexto("relatorio");
+    if(!pf("par_conclusao")) window.PAR_gerarTexto("conclusao");
     var ld=document.getElementById("par_local_data");
     if(ld) ld.addEventListener("input", syncParData);
     syncParData();
