@@ -4367,7 +4367,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
     </div>
 
     <div class="vactions bottom">
-      <button class="vbtn vbtn-primary" type="button" onclick="PAR_gerarPDF()">📄 Gerar PDF</button>
+      <button class="vbtn vbtn-primary" type="button" onclick="PAR_baixarZip()" title="Gera um arquivo .zip contendo o PDF do parecer e o JSON com os dados das abas de DESP 1">📄 Gerar PDF (.zip)</button>
       <button class="vbtn vbtn-ghost" type="button" onclick="PAR_gerarTodos()">↻ Gerar todos os textos automáticos</button>
     </div>
   </div>
@@ -11917,7 +11917,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
   };
 
   // ================= PDF (sem capa) =================
-  window.PAR_gerarPDF=async function(){
+  window.PAR_gerarPDF=async function(opts){
     if(!(window.jspdf||window.jsPDF)){ alert("Biblioteca de PDF ainda carregando. Tente novamente."); return; }
     var J=(window.jspdf&&window.jspdf.jsPDF)?window.jspdf.jsPDF:window.jsPDF;
     var pdf=new J({orientation:"portrait",unit:"mm",format:"a4"});
@@ -11956,6 +11956,10 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     }
     function nova(){ pdf.addPage(); cab(); yc=topY; }
     function ensure(h){ if(yc+h>botY){ rod(); nova(); } }
+    // força início de página nova (usado antes de capítulos que devem sempre
+    // abrir em página própria); evita página em branco caso já estejamos no
+    // topo de uma página recém-criada.
+    function novaPaginaForcada(){ if(yc>topY){ rod(); nova(); } }
 
     function campo(label,val){
       if(!val) return;
@@ -12139,6 +12143,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     tituloRom("I – Relatório");
     parRica(pf("par_relatorio"));
 
+    novaPaginaForcada();
     tituloRom("II – Fundamentação Legal");
     parRica(pf("par_fundamentacao"));
 
@@ -12152,6 +12157,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     subt("Impeditivos para Levantamento da Indenização em Processos Judiciais");
     parRica(pf("par_impeditivos"));
 
+    novaPaginaForcada();
     tituloRom("IV – Conclusão");
     parRica(pf("par_conclusao"));
     desenharPendencias(listaPendenciasAtual());
@@ -12171,8 +12177,62 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     rod();
     var blob=pdf.output("blob");
     var nome="Parecer_Regularizacao_Fundiaria_"+(window.__CTDsuf?window.__CTDsuf():"CTD 000")+".pdf";
+    if(opts&&opts.retornar) return {blob:blob, nome:nome};
     if(window.FS_salvar){ await window.FS_salvar(blob, nome); }
     else { var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=nome; document.body.appendChild(a); a.click(); setTimeout(function(){URL.revokeObjectURL(a.href); a.remove();},1500); }
+  };
+
+  // ================= JSON (dados das abas de DESP 1) + ZIP (JSON + PDF do Parecer) =================
+  // Escopo: só os 3 painéis do grupo DESP 1 (Anexo B / Relatório / Parecer) — não inclui
+  // dados de outras ferramentas do site (Avaliação, DESP 2, etc.).
+  function PAR_coletarEstacasVist(){
+    var out=[];
+    document.querySelectorAll("#fv_estacas .estaca-linha").forEach(function(l){
+      var ini=l.querySelector(".e-ini"), fim=l.querySelector(".e-fim"), tipo=l.querySelector(".e-tipo");
+      out.push({ ini: ini?ini.value:"", fim: fim?fim.value:"", tipo: tipo?tipo.value:"" });
+    });
+    return out;
+  }
+  function PAR_coletarDadosDESP1(){
+    var campos={};
+    document.querySelectorAll('#panel-desp1-vist [id], #panel-desp1-rel [id], #panel-desp1-parecer [id]').forEach(function(el){
+      var tag=el.tagName;
+      if(tag!=="INPUT" && tag!=="TEXTAREA" && tag!=="SELECT") return;
+      if(el.type==="file") return;
+      if(el.type==="checkbox" || el.type==="radio"){ campos[el.id]={__chk:el.checked}; }
+      else { campos[el.id]=el.value; }
+    });
+    return {
+      _app: "ENPROL-DESP1-Parecer-Regularizacao",
+      _data: new Date().toISOString(),
+      campos: campos,
+      estacas: PAR_coletarEstacasVist(),
+      fotos: (window.FB_getFotos?window.FB_getFotos():[]),
+      familia: (window.FB_getFamilia?window.FB_getFamilia():[]),
+      relAreas: (window.REL_getAreas?window.REL_getAreas():[]),
+      relTabelas: { "1":(window.REL_getTabela?window.REL_getTabela(1):[]), "2":(window.REL_getTabela?window.REL_getTabela(2):[]) },
+      assinaturas: (window.__ASSIN__||{fb:null, rel:null}),
+      parChecklist: tabelasPAR,
+      parPendencias: pendState
+    };
+  }
+  window.PAR_baixarZip=async function(){
+    var btn=document.querySelector('.vbtn-primary[onclick^="PAR_baixarZip"]');
+    var textoOriginal=btn?btn.textContent:null;
+    if(btn){ btn.disabled=true; btn.textContent="Gerando PDF…"; }
+    try{
+      var p=await window.PAR_gerarPDF({retornar:true});
+      if(!p||!p.blob){ alert("Não foi possível gerar o PDF do parecer."); return; }
+      if(btn) btn.textContent="Compactando arquivo (PDF + JSON)…";
+      var dados=PAR_coletarDadosDESP1();
+      var jsonBlob=new Blob([JSON.stringify(dados, null, 2)], {type:"application/json"});
+      var base="Parecer_Regularizacao_Fundiaria_"+(window.__CTDsuf?window.__CTDsuf():"CTD 000");
+      var entries=[{path:base+".pdf", blob:p.blob}, {path:base+".json", blob:jsonBlob}];
+      var zip=await window.ZIP_build(entries);
+      if(window.FS_salvar){ await window.FS_salvar(zip, base+".zip"); }
+      else { var a=document.createElement('a'); a.href=URL.createObjectURL(zip); a.download=base+".zip"; document.body.appendChild(a); a.click(); setTimeout(function(){URL.revokeObjectURL(a.href); a.remove();},1500); }
+    }catch(e){ console.error(e); alert("Erro ao gerar o arquivo .zip: "+(e&&e.message||e)); }
+    finally{ if(btn){ btn.disabled=false; btn.textContent=textoOriginal; } }
   };
 
   // ---- Inicialização ----
