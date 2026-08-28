@@ -2306,7 +2306,7 @@ button .e-ico{margin-right:7px;}
       <button type="button" onclick="CAD_fecharModal()" style="border:none;background:none;font-size:20px;line-height:1;cursor:pointer;color:#6b7887;">×</button>
     </div>
     <div style="padding:14px 20px;border-bottom:1px solid #eef2f6;">
-      <input type="text" id="cadNuvemBusca" placeholder="Buscar por CTD..." style="width:100%;padding:9px 12px;border:1px solid #cfd9e4;border-radius:8px;font-size:14px;" oninput="CAD_pesquisarNaTela()">
+      <input type="text" id="cadNuvemBusca" placeholder="Buscar por Processo SEI..." style="width:100%;padding:9px 12px;border:1px solid #cfd9e4;border-radius:8px;font-size:14px;" oninput="CAD_pesquisarNaTela()">
     </div>
     <div id="cadNuvemLista" style="overflow-y:auto;padding:8px 10px;flex:1;min-height:120px;">
       <div style="padding:20px;text-align:center;color:#8a97a6;font-size:13px;">Digite para buscar ou aguarde a lista carregar…</div>
@@ -9450,8 +9450,9 @@ function AV_gerarDescSituacao(){
     try{
       const pacote = montarPacote();
       const ctd = (window.__CTDsuf ? window.__CTDsuf() : "CTD 000");
+      const processoSei = ((document.getElementById("fv_processo")||{}).value || "").trim();
       const { error } = await sb.from("cadastros").upsert(
-        { ctd: ctd, versao: VERSAO, pacote: pacote, atualizado_em: new Date().toISOString() },
+        { ctd: ctd, versao: VERSAO, pacote: pacote, processo_sei: processoSei || null, atualizado_em: new Date().toISOString() },
         { onConflict: "ctd" }
       );
       if(error){ alert("Não foi possível salvar na nuvem: "+error.message); return; }
@@ -9466,8 +9467,8 @@ function AV_gerarDescSituacao(){
   window.CAD_pesquisar = async function(termo){
     const sb = getSupabase();
     if(!sb) return [];
-    let q = sb.from("cadastros").select("ctd, atualizado_em").order("atualizado_em", {ascending:false}).limit(30);
-    if(termo && termo.trim()) q = q.ilike("ctd", "%"+termo.trim()+"%");
+    let q = sb.from("cadastros").select("ctd, processo_sei, atualizado_em").order("atualizado_em", {ascending:false}).limit(30);
+    if(termo && termo.trim()) q = q.ilike("processo_sei", "%"+termo.trim()+"%");
     const { data, error } = await q;
     if(error){ console.warn("Erro ao pesquisar cadastros:", error); return []; }
     return data || [];
@@ -9524,7 +9525,8 @@ function AV_gerarDescSituacao(){
         row.onmouseenter = function(){ row.style.background = "#f5f8fb"; };
         row.onmouseleave = function(){ row.style.background = "transparent"; };
         var dt = it.atualizado_em ? new Date(it.atualizado_em).toLocaleString("pt-BR") : "";
-        row.innerHTML = '<span style="font-weight:600;color:#243447;">'+it.ctd+'</span><span style="font-size:11.5px;color:#8a97a6;">'+dt+'</span>';
+        var rotulo = it.processo_sei ? it.processo_sei : "(sem processo SEI)";
+        row.innerHTML = '<span><span style="font-weight:600;color:#243447;">'+rotulo+'</span><span style="font-size:11px;color:#8a97a6;margin-left:8px;">'+it.ctd+'</span></span><span style="font-size:11.5px;color:#8a97a6;">'+dt+'</span>';
         row.onclick = function(){ CAD_abrirNuvem(it.ctd); };
         lista.appendChild(row);
       });
