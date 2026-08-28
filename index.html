@@ -4849,23 +4849,56 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
           descBox.replaceWith(divTxt);
         }
 
-        var A4W = 794;
+        // ---- página fixa em formato A4 (210 x 297 mm @ 96dpi) — a seção do
+        // mapa "cresce" para preencher o espaço restante entre o cabeçalho/
+        // descrição e o rodapé, mantendo o rodapé sempre colado na base da
+        // página, independentemente do tamanho do texto gerado. ----
+        var A4W = 794, A4H = Math.round(A4W * 297 / 210);
         holder = document.createElement('div');
         holder.id = 'panel-util-roteiro';
-        holder.style.cssText = 'position:fixed; left:-10000px; top:0; background:#fff; width:'+A4W+'px;';
+        holder.style.cssText = 'position:fixed; left:-10000px; top:0; background:#fff; width:'+A4W+'px; height:'+A4H+'px;';
         clone.style.width = A4W + 'px';
+        clone.style.height = A4H + 'px';
+        clone.style.minHeight = '';
+        clone.style.display = 'flex';
+        clone.style.flexDirection = 'column';
+        clone.style.overflow = 'hidden';
         clone.style.boxShadow = 'none';
         clone.style.border = 'none';
+
+        var rodapeClone = clone.querySelector('.rta-rodape');
+        if(rodapeClone){ rodapeClone.style.flexShrink = '0'; rodapeClone.style.marginTop = 'auto'; }
+
+        var mapaWrapClone = clone.querySelector('.rta-mapa-wrap');
+        var mapaSecClone = mapaWrapClone ? mapaWrapClone.closest('.rta-sec') : null;
+        if(mapaSecClone){
+          mapaSecClone.style.flex = '1 1 auto';
+          mapaSecClone.style.minHeight = '0';
+          mapaSecClone.style.display = 'flex';
+          mapaSecClone.style.flexDirection = 'column';
+        }
+        if(mapaWrapClone){
+          mapaWrapClone.style.flex = '1 1 auto';
+          mapaWrapClone.style.minHeight = '0';
+        }
+        var mapaImgClone = clone.querySelector('.rta-mapa-img');
+        if(mapaImgClone){
+          mapaImgClone.style.width = '100%';
+          mapaImgClone.style.height = '100%';
+          mapaImgClone.style.objectFit = 'cover';
+          mapaImgClone.style.display = 'block';
+        }
+
         holder.appendChild(clone);
         document.body.appendChild(holder);
 
-        var canvas = await html2canvas(clone, {scale:2.5, backgroundColor:'#ffffff', windowWidth: clone.scrollWidth, windowHeight: clone.scrollHeight});
+        var canvas = await html2canvas(clone, {scale:2.5, backgroundColor:'#ffffff', width:A4W, height:A4H, windowWidth:A4W, windowHeight:A4H});
         document.body.removeChild(holder); holder = null;
 
         var imgData = canvas.toDataURL('image/png');
-        var pageH = Math.round(canvas.height * (A4W / canvas.width));
-        var pdf = new jsPDFCtor({unit:'px', format:[A4W, pageH]});
-        pdf.addImage(imgData, 'PNG', 0, 0, A4W, pageH);
+        var pdf = new jsPDFCtor({unit:'mm', format:'a4'});
+        var pdfW = pdf.internal.pageSize.getWidth(), pdfH = pdf.internal.pageSize.getHeight();
+        pdf.addImage(imgData, 'PNG', 0, 0, pdfW, pdfH);
         pdf.save('Roteiro_de_Acesso.pdf');
       }catch(e){
         console.error(e);
