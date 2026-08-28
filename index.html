@@ -4619,9 +4619,11 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
         }
       }
       if(RTA_pt.A && RTA_pt.B && !RTA_descEditadoManual){
-        RTA_gerarTexto(true);
+        clearTimeout(RTA_debounceTimer);
+        RTA_debounceTimer = setTimeout(function(){ RTA_gerarTexto(true); }, 700);
       }
     };
+    var RTA_debounceTimer = null;
 
     function toRad(d){ return d * Math.PI / 180; }
     function toDeg(r){ return r * 180 / Math.PI; }
@@ -4652,19 +4654,125 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
       return p.lat.toFixed(6) + ', ' + p.lon.toFixed(6);
     }
 
+    function textoRetaSimples(a, b){
+      var distKm = haversineKm(a, b);
+      var rumo = bearingParaRumo(bearing(a, b));
+      var distTxt = distKm < 1 ? (Math.round(distKm*1000) + ' metros') : (distKm.toFixed(1).replace('.', ',') + ' km');
+      return 'Partindo do Ponto A (' + fmtCoord(a) + '), segue-se em direção ' + rumo + ' por aproximadamente ' + distTxt + ' até o Ponto B (' + fmtCoord(b) + '), local de acesso ao imóvel/área de interesse.';
+    }
+
+    /* -------------------------------------------------------------------------
+       ROTEIRO POR TROCHOS (turn-by-turn) — usa o serviço público de roteamento
+       OSRM (router.project-osrm.org, perfil "driving") para obter o trajeto de
+       carro entre os Pontos A e B e monta um texto descritivo em português a
+       partir das instruções (vire à direita/esquerda, siga em frente, nome da
+       via e distância de cada trecho), no mesmo espírito do que o Google Maps
+       mostra ao traçar uma rota. Se o serviço não responder (sem internet,
+       indisponível etc.), cai automaticamente na descrição simples por
+       distância/rumo em linha reta.
+       ------------------------------------------------------------------------- */
+    var RTA_MOD_PT = {
+      'uturn': 'de retorno (conversão completa)',
+      'sharp right': 'fechado à direita',
+      'right': 'à direita',
+      'slight right': 'levemente à direita',
+      'straight': 'em frente',
+      'slight left': 'levemente à esquerda',
+      'left': 'à esquerda',
+      'sharp left': 'fechado à esquerda'
+    };
+
+    function rtaDistPt(m){
+      if(m < 1000) return Math.max(1, Math.round(m)) + ' m';
+      return (m/1000).toFixed(1).replace('.', ',') + ' km';
+    }
+
+    function rtaFraseStep(step, idx){
+      var type = step.maneuver && step.maneuver.type;
+      var modifier = step.maneuver && step.maneuver.modifier;
+      var nome = (step.name || '').trim();
+      var dist = step.distance || 0;
+      var distTxt = rtaDistPt(dist);
+      if(type === 'depart'){
+        return (idx === 0 ? 'siga' : 'Siga') + (nome ? ' pela ' + nome : '') + ' por ' + distTxt + '.';
+      }
+      if(type === 'roundabout' || type === 'rotary' || type === 'roundabout turn' || type === 'exit roundabout' || type === 'exit rotary'){
+        var saida = (step.maneuver && step.maneuver.exit) ? (' e saia na ' + step.maneuver.exit + 'ª saída') : '';
+        return 'Entre na rotatória' + saida + (nome ? ', seguindo pela ' + nome : '') + ' por ' + distTxt + '.';
+      }
+      if(type === 'new name' || type === 'continue'){
+        return 'Continue' + (nome ? ' pela ' + nome : '') + ' por ' + distTxt + '.';
+      }
+      if(type === 'merge' || type === 'on ramp' || type === 'off ramp' || type === 'fork' || type === 'end of road'){
+        var modTxt1 = RTA_MOD_PT[modifier] || 'em frente';
+        return 'Mantenha-se ' + modTxt1 + (nome ? ' em direção a ' + nome : '') + ' por ' + distTxt + '.';
+      }
+      // "turn" e demais casos
+      var modTxt = RTA_MOD_PT[modifier] || 'em frente';
+      return 'Vire ' + modTxt + (nome ? ' na ' + nome : '') + ' e siga por ' + distTxt + '.';
+    }
+
+    function rtaTextoDaRota(a, b, steps){
+      var frases = [];
+      for(var i=0; i<steps.length; i++){
+        var step = steps[i];
+        var type = step.maneuver && step.maneuver.type;
+        if(type === 'arrive') continue;
+        if((step.distance||0) < 3 && type !== 'depart') continue;
+        frases.push(rtaFraseStep(step, i));
+      }
+      var abertura = 'Partindo do Ponto A (' + fmtCoord(a) + '), ';
+      var corpo = frases.length ? frases.join(' ') : 'siga em direção ao Ponto B.';
+      var fechamento = ' Você chegará ao Ponto B (' + fmtCoord(b) + '), local de acesso ao imóvel/área de interesse.';
+      return abertura + corpo + fechamento;
+    }
+
+    function rtaFetchComTimeout(url, ms){
+      var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+      var timer = controller ? setTimeout(function(){ controller.abort(); }, ms) : null;
+      return fetch(url, controller ? {signal: controller.signal} : {}).finally(function(){
+        if(timer) clearTimeout(timer);
+      });
+    }
+
+    var RTA_buscando = false;
+
     window.RTA_gerarTexto = function(silencioso){
       var a = RTA_pt.A, b = RTA_pt.B;
       if(!a || !b){
         if(!silencioso) alert('Informe os Pontos A e B (coordenadas válidas) antes de gerar o texto.');
         return;
       }
-      var distKm = haversineKm(a, b);
-      var rumo = bearingParaRumo(bearing(a, b));
-      var distTxt = distKm < 1 ? (Math.round(distKm*1000) + ' metros') : (distKm.toFixed(1).replace('.', ',') + ' km');
-      var texto = 'Partindo do Ponto A (' + fmtCoord(a) + '), segue-se em direção ' + rumo + ' por aproximadamente ' + distTxt + ' até o Ponto B (' + fmtCoord(b) + '), local de acesso ao imóvel/área de interesse.';
+      if(RTA_buscando) return;
+      RTA_buscando = true;
       var el = document.getElementById('rta_desc');
-      if(el) el.value = texto;
-      RTA_descEditadoManual = false;
+      var btnMini = document.querySelector('#panel-util-roteiro .rta-btn-mini');
+      var txtBtnAntigo = btnMini ? btnMini.textContent : '';
+      if(btnMini){ btnMini.disabled = true; btnMini.textContent = 'Buscando rota...'; }
+      if(el && !el.value) el.value = 'Buscando o trajeto de carro entre os pontos informados...';
+
+      var url = 'https://router.project-osrm.org/route/v1/driving/' +
+        a.lon + ',' + a.lat + ';' + b.lon + ',' + b.lat +
+        '?steps=true&overview=false&geometries=geojson&annotations=false';
+
+      rtaFetchComTimeout(url, 9000).then(function(resp){
+        if(!resp.ok) throw new Error('HTTP ' + resp.status);
+        return resp.json();
+      }).then(function(data){
+        if(!data || data.code !== 'Ok' || !data.routes || !data.routes[0] || !data.routes[0].legs || !data.routes[0].legs[0]){
+          throw new Error('Sem rota retornada');
+        }
+        var steps = data.routes[0].legs[0].steps || [];
+        var texto = rtaTextoDaRota(a, b, steps);
+        if(el) el.value = texto;
+      }).catch(function(err){
+        console.warn('Roteiro de Acesso: não foi possível obter a rota detalhada (OSRM). Usando distância em linha reta.', err);
+        if(el) el.value = textoRetaSimples(a, b) + ' (rota de carro detalhada indisponível no momento — distância em linha reta.)';
+      }).finally(function(){
+        RTA_buscando = false;
+        RTA_descEditadoManual = false;
+        if(btnMini){ btnMini.disabled = false; btnMini.textContent = txtBtnAntigo; }
+      });
     };
 
     window.RTA_uploadMapa = function(ev){
