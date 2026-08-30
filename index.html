@@ -930,7 +930,7 @@ window.REL_baixarConjunto = async function(){
   #panel-relest table.rel-tab tr.rel-h td{background:#1F6FC0; color:#fff; font-weight:700; text-align:center;}
 
   /* ===== Modal de unificação ===== */
-  .unir-modal-overlay{position:fixed; inset:0; background:rgba(20,30,45,.55); z-index:9999; display:flex; align-items:center; justify-content:center; padding:20px;}
+  .unir-modal-overlay{position:fixed; inset:0; background:rgba(20,30,45,.55); z-index:999999; display:flex; align-items:center; justify-content:center; padding:20px;}
   .unir-modal{background:#fff; border-radius:14px; max-width:520px; width:100%; padding:26px 26px 20px; box-shadow:0 20px 60px rgba(0,0,0,.3); font-family:inherit;}
   .unir-modal h3{margin:0 0 6px; font-size:18px; color:#1a2a3d;}
   .unir-modal .unir-modal-sub{margin:0 0 16px; font-size:13px; color:#68757f;}
@@ -2248,6 +2248,9 @@ button .e-ico{margin-right:7px;}
 /* --- Caixas de selecao (checkbox/radio) em todas as telas: cor da marca --- */
 input[type=checkbox], input[type=radio]{ accent-color:#1F6FC0; }
 
+/* --- Enquanto um modal (nuvem / unificar) estiver aberto, o cabecalho fica travado e visualmente esmaecido, para nao competir com o modal --- */
+body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !important; filter:saturate(.7); transition:opacity .15s; }
+
 /* --- Alca para recolher/expandir o menu lateral (telas de computador) --- */
 @media(min-width:721px){
   .sb-collapse-btn{
@@ -2340,7 +2343,7 @@ input[type=checkbox], input[type=radio]{ accent-color:#1F6FC0; }
 </header>
 
 <!-- ===== Modal: Abrir cadastro da nuvem (Supabase) ===== -->
-<div id="cadNuvemModal" style="display:none;position:fixed;inset:0;background:rgba(20,30,45,.55);z-index:9999;align-items:center;justify-content:center;">
+<div id="cadNuvemModal" style="display:none;position:fixed;inset:0;background:rgba(20,30,45,.55);z-index:999999;align-items:center;justify-content:center;">
   <div style="background:#fff;border-radius:12px;width:min(560px,92vw);max-height:80vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3);">
     <div style="padding:16px 20px;border-bottom:1px solid #e7ecf2;display:flex;align-items:center;justify-content:space-between;">
       <strong style="color:#0a4d7c;font-size:15px;">📂 Abrir cadastro (nuvem)</strong>
@@ -4171,7 +4174,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 <div class="wrap">
 <h1>Ficha de Vistoria e Cadastro Socioeconômico (Anexo B)</h1>
 <p class="sub">Preencha os campos abaixo. Você pode puxar os dados já preenchidos na DESP 3 ou optar por digitar manualmente.</p>
-<div class="vcard"><div class="vfield grow"><label>Puxar dados da DESP 3?</label><select id="fb_puxar" onchange="FB_togglePuxar(this.value)"><option value="nao" selected>NÃO — digitar manualmente</option><option value="sim">SIM — preencher automaticamente</option></select></div><input type="hidden" id="fb_processo" data-fb-from="processo"><div class="vsub">Montar Processo Nº automaticamente</div><div class="vrow"><div class="vfield grow"><label>Nº CTD</label><input type="text" id="fb_proc_ctd" oninput="FB_montarProcesso()" placeholder="Ex.: 001"></div><div class="vfield grow"><label>Nº Lote (SPS-__)</label><input type="text" id="fb_proc_lote" oninput="FB_montarProcesso()" placeholder="Ex.: 04"></div><div class="vfield grow"><label>Ferrovia</label><select id="fb_proc_ferrovia" onchange="FB_montarProcesso()"><option value="FTN" selected>FTN</option><option value="FICO">FICO</option><option value="FIOL">FIOL</option></select></div></div><div class="vfield grow"><label>Processo (SEI)</label><input type="text" id="fb_proc_sei" inputmode="numeric" maxlength="20" oninput="FB_maskSEI(this);FB_montarProcesso();" placeholder="99999.999999/9999-99"></div><div class="vfield grow"><label>Resultado (Processo administrativo)</label><input type="text" id="fb_proc_preview" readonly class="bloqueado" placeholder="INFRA S.A. CTD ___ - SPS-__ – FTN"></div><div class="vrow"><div class="vfield grow"><label>Nome do Aplicador(a)</label><input type="text" id="fb_aplicador" placeholder="Nome do aplicador(a)"></div><div class="vfield grow"><label>Data</label><input type="text" id="fb_data" inputmode="numeric" maxlength="10" class="data-br" placeholder="dd/mm/aaaa"></div></div></div>
+<div class="vcard"><div class="vfield grow"><label>Puxar dados da DESP 3?</label><select id="fb_puxar" onchange="FB_togglePuxar(this.value)"><option value="nao" selected>NÃO — digitar manualmente</option><option value="sim">SIM — preencher automaticamente</option></select></div><input type="hidden" id="fb_processo" data-fb-from="processo"><div class="vsub">Montar Processo Nº automaticamente</div><div class="vrow"><div class="vfield grow"><label>Nº CTD</label><input type="text" id="fb_proc_ctd" oninput="FB_montarProcesso()" placeholder="Ex.: 001"></div><div class="vfield grow"><label>Nº Lote (SPS-__)</label><input type="text" id="fb_proc_lote" oninput="FB_montarProcesso()" placeholder="Ex.: 04"></div><div class="vfield grow"><label>Ferrovia</label><select id="fb_proc_ferrovia" onchange="FB_montarProcesso()"><option value="FTN" selected>FTN</option><option value="FICO">FICO</option><option value="FIOL">FIOL</option></select></div></div><div class="vfield grow"><label>Processo (SEI)</label><input type="text" id="fb_proc_sei" inputmode="numeric" maxlength="20" oninput="FB_maskSEI(this);FB_montarProcesso();" placeholder="99999.999999/9999-99"></div><div class="vfield grow"><label>Resultado (Processo administrativo)</label><input type="text" id="fb_proc_preview" readonly class="bloqueado" placeholder="INFRA S.A. CTD ___ - SPS-__ – FTN"></div><div class="vrow"><div class="vfield grow"><label>Nome do Aplicador(a)</label><select id="fb_aplicador"><option value="" selected>Selecione…</option><option value="JAYLLA SAMYLLA PEREIRA DOS SANTOS MONTEIRO">JAYLLA SAMYLLA PEREIRA DOS SANTOS MONTEIRO</option><option value="Zaira Raquel Cordeiro Gonçalves">Zaira Raquel Cordeiro Gonçalves</option></select></div><div class="vfield grow"><label>Data</label><input type="text" id="fb_data" inputmode="numeric" maxlength="10" class="data-br" placeholder="dd/mm/aaaa"></div></div></div>
 <h2 class="vsec acc" onclick="FV_toggleSec(this)"><span>1 — IDENTIFICAÇÃO</span><span class="acc-chevron">▾</span></h2>
   <div class="vcard">
     <div class="vrow">
@@ -6611,6 +6614,14 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 /* ---- Navegação por abas ---- */
 // alterna entre os grupos do sidebar (Laudo / Utilitários)
 // alterna entre as seções principais do topo (INFRA / SANEAGO / UTILITÁRIOS)
+// "Unificar todo o material" só faz sentido dentro da DESP 3 (laudo de avaliação) — some nas outras seções/grupos
+function UNIR_atualizarVisibilidade(grupo){
+  var mostrar = (grupo === 'laudo');
+  var b1 = document.getElementById('btnUnirTudo');
+  var b2 = document.getElementById('fabUnir');
+  if(b1) b1.style.display = mostrar ? '' : 'none';
+  if(b2) b2.style.display = mostrar ? '' : 'none';
+}
 function TOP_abrir(btn){
   const secao = btn.dataset.secao;
   document.querySelectorAll('#topTabs .top-tab').forEach(t=>t.classList.remove('ativa'));
@@ -6626,6 +6637,7 @@ function TOP_abrir(btn){
   else {
     // seção sem grupos: esconde todos os sub-grupos
     document.querySelectorAll('.app-sidebar .sb-sub-grupo').forEach(g=> g.style.display='none');
+    UNIR_atualizarVisibilidade(null);
   }
 }
 function SB_abrirGrupo(btn){
@@ -6635,7 +6647,13 @@ function SB_abrirGrupo(btn){
   document.querySelectorAll('.app-sidebar .sb-sub-grupo').forEach(g=>{
     g.style.display = (g.dataset.grupo===grupo) ? '' : 'none';
   });
+  UNIR_atualizarVisibilidade(grupo);
 }
+// estado inicial (a página abre com a DESP 3 ativa por padrão)
+(function(){
+  var ativo = document.querySelector('.app-sidebar .sb-grp-btn.ativa');
+  UNIR_atualizarVisibilidade(ativo ? ativo.dataset.grupo : null);
+})();
 function trocarAba(btn){
   document.querySelectorAll('.tab, .drop-item, .sb-link').forEach(t=>t.classList.remove('ativa'));
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('ativa'));
@@ -7660,10 +7678,12 @@ window.FOTO_rodapeHTML=rodapeHTML;
   window.unirTudo = function(){
     const m=document.getElementById("unirModal");
     if(m) m.style.display="flex";
+    document.body.classList.add("modal-aberto");
   };
   window.UNIR_fecharModal = function(){
     const m=document.getElementById("unirModal");
     if(m) m.style.display="none";
+    document.body.classList.remove("modal-aberto");
   };
 
   // desenha uma capa de anexo renumerada (ANEXO NN: título) num PDFDocument pdf-lib
@@ -10674,6 +10694,71 @@ function AV_gerarDescSituacao(){
   else init();
 })();
 </script>
+<style id="__data_cal_css">
+.data-br-wrap{ position:relative; display:inline-flex; align-items:center; width:100%; }
+.data-br-wrap input.data-br{ width:100%; padding-right:32px; box-sizing:border-box; }
+.data-br-cal-btn{
+  position:absolute; right:3px; top:50%; transform:translateY(-50%);
+  width:25px; height:25px; border:none; background:transparent; cursor:pointer;
+  font-size:14px; line-height:1; border-radius:6px; display:flex; align-items:center; justify-content:center; padding:0;
+}
+.data-br-cal-btn:hover{ background:rgba(31,111,192,.12); }
+.data-br-hidden{ position:absolute; width:1px; height:1px; opacity:0; pointer-events:none; border:none; padding:0; margin:0; left:0; top:0; }
+</style>
+<script id="__data_cal_js">
+/* ===== Seletor de calendário para todos os campos de data (input.data-br) =====
+   Mantém o campo de texto dd/mm/aaaa (e tudo que já lê esse formato: PDF, Word, nuvem)
+   intacto — só adiciona um botão 📅 que abre o calendário nativo do navegador e
+   escreve a data escolhida de volta no campo, no mesmo formato de sempre. */
+(function(){
+  function paraISO(br){
+    var m = (br||"").match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    return m ? (m[3]+"-"+m[2]+"-"+m[1]) : "";
+  }
+  function paraBR(iso){
+    var m = (iso||"").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    return m ? (m[3]+"/"+m[2]+"/"+m[1]) : "";
+  }
+  function equipar(input){
+    if(input.dataset.calBound) return;
+    input.dataset.calBound = "1";
+    var wrap = document.createElement("span");
+    wrap.className = "data-br-wrap";
+    input.parentNode.insertBefore(wrap, input);
+    wrap.appendChild(input);
+    var hidden = document.createElement("input");
+    hidden.type = "date";
+    hidden.className = "data-br-hidden";
+    hidden.tabIndex = -1;
+    hidden.setAttribute("aria-hidden", "true");
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "data-br-cal-btn";
+    btn.title = "Escolher no calendário";
+    btn.textContent = "📅";
+    wrap.appendChild(hidden);
+    wrap.appendChild(btn);
+    btn.addEventListener("click", function(){
+      var iso = paraISO(input.value);
+      hidden.value = iso;
+      if(hidden.showPicker){ try{ hidden.showPicker(); return; }catch(e){} }
+      hidden.focus();
+      hidden.click();
+    });
+    hidden.addEventListener("change", function(){
+      var br = paraBR(hidden.value);
+      if(br){
+        input.value = br;
+        input.dispatchEvent(new Event("input", {bubbles:true}));
+        input.dispatchEvent(new Event("blur", {bubbles:true}));
+      }
+    });
+  }
+  function init(){ document.querySelectorAll("input.data-br").forEach(equipar); }
+  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", init);
+  else init();
+})();
+</script>
 <script>
 /* ===== Exportação para Word (.docx) — Ficha e Avaliação ===== */
 (function(){
@@ -11125,6 +11210,7 @@ function AV_gerarDescSituacao(){
     var modal = document.getElementById("cadNuvemModal");
     if(!modal) return;
     modal.style.display = "flex";
+    document.body.classList.add("modal-aberto");
     document.getElementById("cadNuvemBusca").value = "";
     CAD_pesquisarNaTela();
   };
@@ -11132,6 +11218,7 @@ function AV_gerarDescSituacao(){
   window.CAD_fecharModal = function(){
     var modal = document.getElementById("cadNuvemModal");
     if(modal) modal.style.display = "none";
+    document.body.classList.remove("modal-aberto");
   };
 
   var _cadBuscaTimer = null;
@@ -11150,16 +11237,46 @@ function AV_gerarDescSituacao(){
       lista.innerHTML = "";
       itens.forEach(function(it){
         var row = document.createElement("div");
-        row.style.cssText = "display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:8px;cursor:pointer;";
+        row.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;border-radius:8px;cursor:pointer;";
         row.onmouseenter = function(){ row.style.background = "#f5f8fb"; };
         row.onmouseleave = function(){ row.style.background = "transparent"; };
         var dt = it.atualizado_em ? new Date(it.atualizado_em).toLocaleString("pt-BR") : "";
         var rotulo = it.processo_sei ? it.processo_sei : "(sem processo SEI)";
-        row.innerHTML = '<span><span style="font-weight:600;color:#243447;">'+rotulo+'</span><span style="font-size:11px;color:#8a97a6;margin-left:8px;">'+it.ctd+'</span></span><span style="font-size:11.5px;color:#8a97a6;">'+dt+'</span>';
+        var info = document.createElement("span");
+        info.style.cssText = "flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+        info.innerHTML = '<span style="font-weight:600;color:#243447;">'+rotulo+'</span><span style="font-size:11px;color:#8a97a6;margin-left:8px;">'+it.ctd+'</span>';
+        var dtSpan = document.createElement("span");
+        dtSpan.style.cssText = "font-size:11.5px;color:#8a97a6;white-space:nowrap;";
+        dtSpan.textContent = dt;
+        var delBtn = document.createElement("button");
+        delBtn.type = "button";
+        delBtn.title = "Excluir este cadastro";
+        delBtn.textContent = "🗑️";
+        delBtn.style.cssText = "flex:0 0 auto;background:transparent;border:none;cursor:pointer;font-size:15px;padding:4px 6px;border-radius:6px;";
+        delBtn.onmouseenter = function(){ delBtn.style.background = "#fbe4e1"; };
+        delBtn.onmouseleave = function(){ delBtn.style.background = "transparent"; };
+        delBtn.onclick = function(ev){ ev.stopPropagation(); CAD_excluir(it.ctd, rotulo); };
+        row.appendChild(info);
+        row.appendChild(dtSpan);
+        row.appendChild(delBtn);
         row.onclick = function(){ CAD_abrirNuvem(it.ctd); };
         lista.appendChild(row);
       });
     }, 300);
+  };
+
+  window.CAD_excluir = async function(ctd, rotulo){
+    var ok = confirm('Tem certeza que deseja excluir o cadastro "'+(rotulo||ctd)+'" (CTD '+ctd+')?\n\nEssa ação não pode ser desfeita.');
+    if(!ok) return;
+    var sb = getSupabase();
+    if(!sb){ alert("Não foi possível conectar à nuvem."); return; }
+    try{
+      var res = await sb.from("cadastros").delete().eq("ctd", ctd);
+      if(res.error){ alert("Não foi possível excluir: "+res.error.message); return; }
+      CAD_pesquisarNaTela();
+    }catch(e){
+      alert("Não foi possível excluir: "+(e&&e.message||e));
+    }
   };
 })();
 </script>
