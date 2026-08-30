@@ -1694,7 +1694,7 @@ window.REL_baixarConjunto = async function(){
   #panel-util-foto .foto-bloco{
     flex:1; display:flex; flex-direction:column; align-items:center; gap:8px;
     border:1px solid var(--borda); border-radius:8px; padding:10px; background:#fbfcfe;
-    min-height:0;
+    min-height:0; position:relative;
   }
   #panel-util-foto .foto-num{
     align-self:flex-start; background:var(--azul); color:#fff; font-size:12px; font-weight:700;
@@ -1719,6 +1719,17 @@ window.REL_baixarConjunto = async function(){
   #panel-util-foto .vazio-msg{
     max-width:900px; margin:0 auto; text-align:center; color:var(--cinza);
     background:#fff; border-radius:12px; padding:40px; box-shadow:0 6px 18px rgba(30,50,80,.08);
+  }
+  #panel-util-foto .uf-loading{
+    max-width:900px; margin:0 auto 18px; background:#fff; border-radius:12px;
+    box-shadow:0 6px 18px rgba(30,50,80,.08); padding:16px 18px; display:none;
+  }
+  #panel-util-foto .uf-loading.on{display:block;}
+  #panel-util-foto .uf-loading .uf-msg{font-size:13px; font-weight:600; color:var(--cinza); margin-bottom:8px;}
+  #panel-util-foto .uf-bar{height:10px; border-radius:6px; background:#e6edf4; overflow:hidden;}
+  #panel-util-foto .uf-bar > i{
+    display:block; height:100%; width:0%; border-radius:6px;
+    background:var(--azul); transition:width .2s ease;
   }
   #panel-util-foto input[type=file]{display:none;}
   #panel-util-foto, #panel-anexo, #panel-drl,
@@ -2342,6 +2353,17 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
   <!-- nav movida para o sidebar -->
 </header>
 
+<style>
+  /* Campo "Título da capa (editável)" — abas de anexos do DESP 3 */
+  .campo-titulo-anexo{display:flex; flex-direction:column; gap:4px; margin:10px 0 4px;}
+  .campo-titulo-anexo label{font-size:12px; font-weight:600; color:#5a6b7c;}
+  .campo-titulo-anexo input{
+    width:100%; border:1px solid #b3bfcc; border-radius:7px; padding:8px 10px;
+    font-family:inherit; font-size:13px; color:#243447; outline:none; background:#fff;
+  }
+  .campo-titulo-anexo input:focus{border-color:#1F6FC0;}
+</style>
+
 <!-- ===== Modal: Abrir cadastro da nuvem (Supabase) ===== -->
 <div id="cadNuvemModal" style="display:none;position:fixed;inset:0;background:rgba(20,30,45,.55);z-index:999999;align-items:center;justify-content:center;">
   <div style="background:#fff;border-radius:12px;width:min(560px,92vw);max-height:80vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3);">
@@ -2394,16 +2416,16 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
       <button class="sb-link ativa" data-alvo="panel-vistoria" onclick="trocarAba(this)">Ficha de Vistoria</button>
       <button class="sb-link" data-alvo="panel-avaliacao" onclick="trocarAba(this)">Avaliação</button>
       <div class="sb-grp">Anexos</div>
-      <button class="sb-link" data-alvo="panel-ccu" onclick="trocarAba(this)">Anexo 01 - Tabela CCU</button>
-      <button class="sb-link" data-alvo="panel-anexo" onclick="trocarAba(this)">Anexos 02 e 03 - Unificar</button>
-      <button class="sb-link" data-alvo="panel-foto" onclick="trocarAba(this)">Anexo 04 - Relatório Fotográfico</button>
-      <button class="sb-link" data-alvo="panel-drl" onclick="trocarAba(this)">Anexo 05 - DRL</button>
-      <button class="sb-link" data-alvo="panel-docs" onclick="trocarAba(this)">Anexo 06 - Documentos</button>
-      <button class="sb-link" data-alvo="panel-anx7" onclick="trocarAba(this)">Anexo 07 - Pesquisa de Mercado</button>
-      <button class="sb-link" data-alvo="panel-anx8" onclick="trocarAba(this)">Anexo 08 - Mapa e Fichas da Amostra</button>
-      <button class="sb-link" data-alvo="panel-relest" onclick="trocarAba(this)">Anexo 09 - Relatório Estatístico</button>
-      <button class="sb-link" data-alvo="panel-anx10" onclick="trocarAba(this)">Anexo 10 - Fundamentação e Precisão</button>
-      <button class="sb-link" data-alvo="panel-anx11" onclick="trocarAba(this)">Anexo 11 - ART</button>
+      <button class="sb-link" data-alvo="panel-ccu" onclick="trocarAba(this)">Tabela CCU</button>
+      <button class="sb-link" data-alvo="panel-anexo" onclick="trocarAba(this)">Plantas e Memoriais</button>
+      <button class="sb-link" data-alvo="panel-foto" onclick="trocarAba(this)">Relatório Fotográfico</button>
+      <button class="sb-link" data-alvo="panel-drl" onclick="trocarAba(this)">DRL</button>
+      <button class="sb-link" data-alvo="panel-docs" onclick="trocarAba(this)">Documentos</button>
+      <button class="sb-link" data-alvo="panel-anx7" onclick="trocarAba(this)">Pesquisa de Mercado</button>
+      <button class="sb-link" data-alvo="panel-anx8" onclick="trocarAba(this)">Mapa e Fichas da Amostra</button>
+      <button class="sb-link" data-alvo="panel-relest" onclick="trocarAba(this)">Relatório Estatístico</button>
+      <button class="sb-link" data-alvo="panel-anx10" onclick="trocarAba(this)">Fundamentação e Precisão</button>
+      <button class="sb-link" data-alvo="panel-anx11" onclick="trocarAba(this)">ART</button>
     </div>
     <div class="sb-sub-grupo" data-grupo="utilitarios" style="display:none;">
       <div class="sb-grp">Utilitários</div>
@@ -2942,7 +2964,7 @@ igual DESP 3) */
 <div class="config">
   <div class="campo">
     <label>Título da capa</label>
-    <input id="cfgTituloCCU" type="text" value="ANEXO 1: TABELA(S) DA DETERMINAÇÃO DA CCU DA(S) GLEBA(S) DO IMÓVEL">
+    <input id="cfgTituloCCU" type="text" value="TABELA(S) DA DETERMINAÇÃO DA CCU DA(S) GLEBA(S) DO IMÓVEL">
   </div>
   <div class="campo">
     <label>Preenchimento automático</label>
@@ -2984,7 +3006,11 @@ igual DESP 3) */
   <div class="grid">
     <!-- ANEXO 2 -->
     <div class="card">
-      <h2>Anexo 2 — Plantas Planimétricas</h2>
+      <h2>Plantas Planimétricas</h2>
+      <div class="campo-titulo-anexo">
+        <label for="titulo-2">Título da capa (editável)</label>
+        <input id="titulo-2" type="text" value="PLANTA(S) PLANIMÉTRICA(S) DA(S) ÁREA(S) ABRANGIDA(S) E PLANTA GERAL">
+      </div>
       <p class="desc">Plantas planimétricas das áreas abrangidas e planta geral. Arraste os PDFs na ordem desejada.</p>
       <label class="drop" id="drop-2">
         <span class="ic">📐</span>
@@ -2993,7 +3019,7 @@ igual DESP 3) */
         <input type="file" accept="application/pdf" multiple id="file-2">
       </label>
       <ul class="lista" id="lista-2"></ul>
-      <div class="opts"><input type="checkbox" id="capa-2" checked><label for="capa-2">Incluir capa do Anexo 2</label></div>
+      <div class="opts"><input type="checkbox" id="capa-2" checked><label for="capa-2">Incluir capa</label></div>
       <div class="acoes">
         <button class="btn btn-primary" id="ger-2" disabled onclick="ANX_gerar(2)">📎 Unir e baixar</button>
         <button class="btn btn-ghost" onclick="ANX_limpar(2)">Limpar</button>
@@ -3003,8 +3029,12 @@ igual DESP 3) */
 
     <!-- ANEXO 3 -->
     <div class="card">
-      <h2>Anexo 3 — Memoriais Descritivos</h2>
-      <p class="desc">Memoriais descritivos das áreas abrangidas. Mantenha a mesma ordem das plantas do Anexo 2.</p>
+      <h2>Memoriais Descritivos</h2>
+      <div class="campo-titulo-anexo">
+        <label for="titulo-3">Título da capa (editável)</label>
+        <input id="titulo-3" type="text" value="MEMORIAL DESCRITIVO DA(S) ÁREA(S) ABRANGIDA(S)">
+      </div>
+      <p class="desc">Memoriais descritivos das áreas abrangidas. Mantenha a mesma ordem das plantas.</p>
       <label class="drop" id="drop-3">
         <span class="ic">📄</span>
         <span class="t">Clique ou arraste os PDFs dos memoriais</span>
@@ -3012,7 +3042,7 @@ igual DESP 3) */
         <input type="file" accept="application/pdf" multiple id="file-3">
       </label>
       <ul class="lista" id="lista-3"></ul>
-      <div class="opts"><input type="checkbox" id="capa-3" checked><label for="capa-3">Incluir capa do Anexo 3</label></div>
+      <div class="opts"><input type="checkbox" id="capa-3" checked><label for="capa-3">Incluir capa</label></div>
       <div class="acoes">
         <button class="btn btn-primary" id="ger-3" disabled onclick="ANX_gerar(3)">📎 Unir e baixar</button>
         <button class="btn btn-ghost" onclick="ANX_limpar(3)">Limpar</button>
@@ -3037,7 +3067,7 @@ igual DESP 3) */
 <div class="config">
   <div class="campo full">
     <label>Título do relatório</label>
-    <input id="cfgTitulo" type="text" value="ANEXO 4: RELATÓRIO FOTOGRÁFICO">
+    <input id="cfgTitulo" type="text" value="RELATÓRIO FOTOGRÁFICO">
   </div>
 </div>
 
@@ -3047,12 +3077,16 @@ igual DESP 3) */
   <section class="tab-panel" id="panel-drl">
 <div class="wrap">
   <h1>Declaração de Respeito de Limites (DRL)</h1>
-  <p class="sub">Carregue os PDFs da declaração de respeito de limites. O sistema une os arquivos e insere automaticamente a capa do Anexo 5 no início do documento final.</p>
+  <p class="sub">Carregue os PDFs da declaração de respeito de limites. O sistema une os arquivos e insere automaticamente a capa no início do documento final.</p>
 
   <div class="grid grid-1">
     <!-- ANEXO 5 -->
     <div class="card">
-      <h2>Anexo 5 — Declaração de Respeito de Limites</h2>
+      <h2>Declaração de Respeito de Limites</h2>
+      <div class="campo-titulo-anexo">
+        <label for="titulo-5">Título da capa (editável)</label>
+        <input id="titulo-5" type="text" value="DECLARAÇÃO DE RESPEITO DE LIMITES">
+      </div>
       <p class="desc">Anexe uma ou mais declarações de respeito de limites. Arraste os PDFs na ordem desejada.</p>
       <label class="drop" id="drop-5">
         <span class="ic">📜</span>
@@ -3061,7 +3095,7 @@ igual DESP 3) */
         <input type="file" accept="application/pdf" multiple id="file-5">
       </label>
       <ul class="lista" id="lista-5"></ul>
-      <div class="opts"><input type="checkbox" id="capa-5" checked><label for="capa-5">Incluir capa do Anexo 5</label></div>
+      <div class="opts"><input type="checkbox" id="capa-5" checked><label for="capa-5">Incluir capa</label></div>
       <div class="acoes">
         <button class="btn btn-primary" id="ger-5" disabled onclick="DOC_gerar(5)">📎 Unir e baixar</button>
         <button class="btn btn-ghost" onclick="DOC_limpar(5)">Limpar</button>
@@ -3075,12 +3109,16 @@ igual DESP 3) */
   <section class="tab-panel" id="panel-docs">
 <div class="wrap">
   <h1>Cópias de Documentos de Propriedade</h1>
-  <p class="sub">Carregue os PDFs dos documentos da propriedade. O sistema une os arquivos e insere automaticamente a capa do Anexo 6 no início do documento final.</p>
+  <p class="sub">Carregue os PDFs dos documentos da propriedade. O sistema une os arquivos e insere automaticamente a capa no início do documento final.</p>
 
   <div class="grid grid-1">
     <!-- ANEXO 6 -->
     <div class="card">
-      <h2>Anexo 6 — Cópias de Documentos de Propriedade</h2>
+      <h2>Cópias de Documentos de Propriedade</h2>
+      <div class="campo-titulo-anexo">
+        <label for="titulo-6">Título da capa (editável)</label>
+        <input id="titulo-6" type="text" value="CÓPIA(S) DE DOCUMENTOS DE PROPRIEDADE">
+      </div>
       <p class="desc">Anexe todos os documentos da propriedade (matrículas, certidões, escrituras etc.). Arraste os PDFs na ordem desejada.</p>
       <label class="drop" id="drop-6">
         <span class="ic">🗂️</span>
@@ -3089,7 +3127,7 @@ igual DESP 3) */
         <input type="file" accept="application/pdf" multiple id="file-6">
       </label>
       <ul class="lista" id="lista-6"></ul>
-      <div class="opts"><input type="checkbox" id="capa-6" checked><label for="capa-6">Incluir capa do Anexo 6</label></div>
+      <div class="opts"><input type="checkbox" id="capa-6" checked><label for="capa-6">Incluir capa</label></div>
       <div class="acoes">
         <button class="btn btn-primary" id="ger-6" disabled onclick="DOC_gerar(6)">📎 Unir e baixar</button>
         <button class="btn btn-ghost" onclick="DOC_limpar(6)">Limpar</button>
@@ -3103,10 +3141,14 @@ igual DESP 3) */
   <section class="tab-panel" id="panel-anx7">
 <div class="wrap">
   <h1>Planilha de Pesquisa de Mercado</h1>
-  <p class="sub">Carregue os PDFs da planilha de pesquisa de mercado. O sistema une os arquivos e insere automaticamente a capa do Anexo 7 no início do documento final.</p>
+  <p class="sub">Carregue os PDFs da planilha de pesquisa de mercado. O sistema une os arquivos e insere automaticamente a capa no início do documento final.</p>
   <div class="grid grid-1">
     <div class="card">
-      <h2>Anexo 7 — Planilha de Pesquisa de Mercado</h2>
+      <h2>Planilha de Pesquisa de Mercado</h2>
+      <div class="campo-titulo-anexo">
+        <label for="titulo-7">Título da capa (editável)</label>
+        <input id="titulo-7" type="text" value="PLANILHA DE PESQUISA DE MERCADO">
+      </div>
       <p class="desc">Anexe os PDFs da pesquisa de mercado. Arraste os arquivos na ordem desejada.</p>
       <label class="drop" id="drop-7">
         <span class="ic">📊</span>
@@ -3115,7 +3157,7 @@ igual DESP 3) */
         <input type="file" accept="application/pdf" multiple id="file-7">
       </label>
       <ul class="lista" id="lista-7"></ul>
-      <div class="opts"><input type="checkbox" id="capa-7" checked><label for="capa-7">Incluir capa do Anexo 7</label></div>
+      <div class="opts"><input type="checkbox" id="capa-7" checked><label for="capa-7">Incluir capa</label></div>
       <div class="acoes">
         <button class="btn btn-primary" id="ger-7" disabled onclick="DOC_gerar(7)">📎 Unir e baixar</button>
         <button class="btn btn-ghost" onclick="DOC_limpar(7)">Limpar</button>
@@ -3129,10 +3171,14 @@ igual DESP 3) */
   <section class="tab-panel" id="panel-anx8">
 <div class="wrap">
   <h1>Mapa de Localização e Fichas dos Elementos da Amostra</h1>
-  <p class="sub">Carregue os PDFs do mapa de localização e das fichas dos elementos amostrais. O sistema une os arquivos e insere automaticamente a capa do Anexo 8 no início.</p>
+  <p class="sub">Carregue os PDFs do mapa de localização e das fichas dos elementos amostrais. O sistema une os arquivos e insere automaticamente a capa no início.</p>
   <div class="grid grid-1">
     <div class="card">
-      <h2>Anexo 8 — Mapa de Localização e Fichas dos Elementos da Amostra</h2>
+      <h2>Mapa de Localização e Fichas dos Elementos da Amostra</h2>
+      <div class="campo-titulo-anexo">
+        <label for="titulo-8">Título da capa (editável)</label>
+        <input id="titulo-8" type="text" value="MAPA DE LOCALIZAÇÃO E FICHAS DOS ELEMENTOS DA AMOSTRA">
+      </div>
       <p class="desc">Anexe os PDFs do mapa e das fichas. Arraste os arquivos na ordem desejada.</p>
       <label class="drop" id="drop-8">
         <span class="ic">🗺️</span>
@@ -3141,7 +3187,7 @@ igual DESP 3) */
         <input type="file" accept="application/pdf" multiple id="file-8">
       </label>
       <ul class="lista" id="lista-8"></ul>
-      <div class="opts"><input type="checkbox" id="capa-8" checked><label for="capa-8">Incluir capa do Anexo 8</label></div>
+      <div class="opts"><input type="checkbox" id="capa-8" checked><label for="capa-8">Incluir capa</label></div>
       <div class="acoes">
         <button class="btn btn-primary" id="ger-8" disabled onclick="DOC_gerar(8)">📎 Unir e baixar</button>
         <button class="btn btn-ghost" onclick="DOC_limpar(8)">Limpar</button>
@@ -3155,10 +3201,14 @@ igual DESP 3) */
   <section class="tab-panel" id="panel-anx10">
 <div class="wrap">
   <h1>Especificação Quanto à Fundamentação e Precisão</h1>
-  <p class="sub">Carregue o PDF da especificação quanto à fundamentação e precisão. O sistema une os arquivos e insere automaticamente a capa do Anexo 10 no início do documento final.</p>
+  <p class="sub">Carregue o PDF da especificação quanto à fundamentação e precisão. O sistema une os arquivos e insere automaticamente a capa no início do documento final.</p>
   <div class="grid grid-1">
     <div class="card">
-      <h2>Anexo 10 — Especificação Quanto à Fundamentação e Precisão</h2>
+      <h2>Especificação Quanto à Fundamentação e Precisão</h2>
+      <div class="campo-titulo-anexo">
+        <label for="titulo-10">Título da capa (editável)</label>
+        <input id="titulo-10" type="text" value="ESPECIFICAÇÃO QUANTO À FUNDAMENTAÇÃO E PRECISÃO">
+      </div>
       <p class="desc">Anexe o(s) PDF(s) da especificação. Arraste os arquivos na ordem desejada.</p>
       <label class="drop" id="drop-10">
         <span class="ic">📐</span>
@@ -3167,7 +3217,7 @@ igual DESP 3) */
         <input type="file" accept="application/pdf" multiple id="file-10">
       </label>
       <ul class="lista" id="lista-10"></ul>
-      <div class="opts"><input type="checkbox" id="capa-10" checked><label for="capa-10">Incluir capa do Anexo 10</label></div>
+      <div class="opts"><input type="checkbox" id="capa-10" checked><label for="capa-10">Incluir capa</label></div>
       <div class="acoes">
         <button class="btn btn-primary" id="ger-10" disabled onclick="DOC_gerar(10)">📎 Unir e baixar</button>
         <button class="btn btn-ghost" onclick="DOC_limpar(10)">Limpar</button>
@@ -3181,10 +3231,14 @@ igual DESP 3) */
   <section class="tab-panel" id="panel-anx11">
 <div class="wrap">
   <h1>Anotação de Responsabilidade Técnica (ART)</h1>
-  <p class="sub">Carregue o PDF da ART. O sistema insere automaticamente a capa do Anexo 11 no início do documento final.</p>
+  <p class="sub">Carregue o PDF da ART. O sistema insere automaticamente a capa no início do documento final.</p>
   <div class="grid grid-1">
     <div class="card">
-      <h2>Anexo 11 — Anotação de Responsabilidade Técnica (ART)</h2>
+      <h2>Anotação de Responsabilidade Técnica (ART)</h2>
+      <div class="campo-titulo-anexo">
+        <label for="titulo-11">Título da capa (editável)</label>
+        <input id="titulo-11" type="text" value="ANOTAÇÃO DE RESPONSABILIDADE TÉCNICA (ART)">
+      </div>
       <p class="desc">Anexe o(s) PDF(s) da ART (documento do CREA e comprovante, se houver).</p>
       <label class="drop" id="drop-11">
         <span class="ic">📝</span>
@@ -3193,7 +3247,7 @@ igual DESP 3) */
         <input type="file" accept="application/pdf" multiple id="file-11">
       </label>
       <ul class="lista" id="lista-11"></ul>
-      <div class="opts"><input type="checkbox" id="capa-11" checked><label for="capa-11">Incluir capa do Anexo 11</label></div>
+      <div class="opts"><input type="checkbox" id="capa-11" checked><label for="capa-11">Incluir capa</label></div>
       <div class="acoes">
         <button class="btn btn-primary" id="ger-11" disabled onclick="DOC_gerar(11)">📎 Unir e baixar</button>
         <button class="btn btn-ghost" onclick="DOC_limpar(11)">Limpar</button>
@@ -3210,7 +3264,11 @@ igual DESP 3) */
   <p class="sub">Carregue o PDF do modelo completo do relatório estatístico. Ao gerar, todas as páginas do modelo são mantidas e apenas a penúltima (amostra) e a última (simulação do Imóvel Avaliando) são substituídas pelos dados importados na aba Avaliação.</p>
   <div class="grid grid-1">
     <div class="card">
-      <h2>Anexo 9 — Relatório Estatístico</h2>
+      <h2>Relatório Estatístico</h2>
+      <div class="campo-titulo-anexo">
+        <label for="titulo-9">Título da capa (editável)</label>
+        <input id="titulo-9" type="text" value="RELATÓRIO ESTATÍSTICO">
+      </div>
       <p class="desc">Anexe o PDF do modelo completo. Suas duas últimas páginas serão trocadas automaticamente pelas páginas de dados (amostra + simulação).</p>
       <label class="drop" id="drop-9">
         <span class="ic">📊</span>
@@ -3219,7 +3277,7 @@ igual DESP 3) */
         <input type="file" accept="application/pdf" id="file-9">
       </label>
       <ul class="lista" id="lista-9"></ul>
-      <div class="opts"><input type="checkbox" id="capa-9" checked><label for="capa-9">Incluir capa do Anexo 9 (quando não houver modelo anexado)</label></div>
+      <div class="opts"><input type="checkbox" id="capa-9" checked><label for="capa-9">Incluir capa (quando não houver modelo anexado)</label></div>
       <div class="acoes">
         <button class="btn btn-primary" id="ger-9" onclick="REL_gerar()">📎 Unir e baixar</button>
         <button class="btn btn-ghost" onclick="REL_removerModelo()">Limpar</button>
@@ -4503,6 +4561,11 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
     <label>Título do relatório</label>
     <input id="cfgTituloUtil" type="text" value="RELATÓRIO FOTOGRÁFICO">
   </div>
+</div>
+
+<div class="uf-loading" id="ufLoading">
+  <div class="uf-msg" id="ufLoadingMsg">Gerando PDF…</div>
+  <div class="uf-bar"><i id="ufLoadingBar"></i></div>
 </div>
 
 <div class="paginas" id="paginasUtil"></div>
@@ -6792,7 +6855,7 @@ const fatores = [
 ];
 
 const MAX_GLEBAS = 7;
-const TITULO_PADRAO = "ANEXO 1: TABELA(S) DA DETERMINAÇÃO DA CCU DA(S) GLEBA(S) DO IMÓVEL";
+const TITULO_PADRAO = "TABELA(S) DA DETERMINAÇÃO DA CCU DA(S) GLEBA(S) DO IMÓVEL";
 
 // Estado: cada gleba tem titulo (capa), nome (imóvel) e marcacoes {fatorIdx: coluna}
 let glebas = [ novaGleba() ];
@@ -7180,8 +7243,8 @@ const LOGO_ENPROL = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAgAAAQABAAD/wAARCABU
 try{ window.__LOGO_INFRA__ = LOGO_INFRA; window.__LOGO_ENPROL__ = LOGO_ENPROL; }catch(e){}
 
 const CAPAS = {
-  2: "ANEXO 2: PLANTA(S) PLANIMÉTRICA(S) DA(S) ÁREA(S) ABRANGIDA(S) E PLANTA GERAL",
-  3: "ANEXO 3: MEMORIAL DESCRITIVO DA(S) ÁREA(S) ABRANGIDA(S)"
+  2: "PLANTA(S) PLANIMÉTRICA(S) DA(S) ÁREA(S) ABRANGIDA(S) E PLANTA GERAL",
+  3: "MEMORIAL DESCRITIVO DA(S) ÁREA(S) ABRANGIDA(S)"
 };
 const RODAPE = [
   "Av. Des. Moreira, n° 1300, T. Norte, Conj. 1016/1021, Aldeota, 60.170-002, Fortaleza-CE   (+55 85) 3289-6363   comercial@enprol.com.br",
@@ -7272,8 +7335,9 @@ async function desenharCapa(pdfDoc, anexo){
   page.drawImage(infra,  {x:56, y:topo, width:wi, height:hLogo});
   page.drawImage(enprol, {x:A4W-56-we, y:topo, width:we, height:hLogo});
 
-  // título centralizado
-  const titulo = CAPAS[anexo];
+  // título centralizado (campo editável da aba tem prioridade)
+  const inpTit = document.getElementById("titulo-"+anexo);
+  const titulo = (inpTit && inpTit.value.trim()) ? inpTit.value.trim().toUpperCase() : CAPAS[anexo];
   const size=15, maxW=A4W-130;
   const palavras = titulo.split(" ");
   let linhas=[], atual="";
@@ -7656,7 +7720,7 @@ window.FOTO_rodapeHTML=rodapeHTML;
   "(+55 85) 3289-6363   comercial@enprol.com.br",
   "(+55 31) 3253-5500   comercial@enprol.com.br",
 ];
-  const TITULO_CCU = "ANEXO 1: TABELA(S) DA DETERMINAÇÃO DA CCU DA(S) GLEBA(S) DO IMÓVEL";
+  const TITULO_CCU = "TABELA(S) DA DETERMINAÇÃO DA CCU DA(S) GLEBA(S) DO IMÓVEL";
 
   function carregarImg(src){
     return new Promise(res=>{ const i=new Image(); i.onload=()=>res(i); i.crossOrigin="anonymous"; i.src=src; });
@@ -7787,12 +7851,12 @@ window.FOTO_rodapeHTML=rodapeHTML;
 /* ===== JS DRL (Anexo 5) e DOCUMENTOS (Anexo 6) ===== */
 (function(){
   const CAPAS = {
-    5: "ANEXO 5: DECLARAÇÃO DE RESPEITO DE LIMITES",
-    6: "ANEXO 6: CÓPIA(S) DE DOCUMENTOS DE PROPRIEDADE",
-    7: "ANEXO 7: PLANILHA DE PESQUISA DE MERCADO",
-    8: "ANEXO 8: MAPA DE LOCALIZAÇÃO E FICHAS DOS ELEMENTOS DA AMOSTRA",
-    10: "ANEXO 10: ESPECIFICAÇÃO QUANTO À FUNDAMENTAÇÃO E PRECISÃO",
-    11: "ANEXO 11: ANOTAÇÃO DE RESPONSABILIDADE TÉCNICA (ART)"
+    5: "DECLARAÇÃO DE RESPEITO DE LIMITES",
+    6: "CÓPIA(S) DE DOCUMENTOS DE PROPRIEDADE",
+    7: "PLANILHA DE PESQUISA DE MERCADO",
+    8: "MAPA DE LOCALIZAÇÃO E FICHAS DOS ELEMENTOS DA AMOSTRA",
+    10: "ESPECIFICAÇÃO QUANTO À FUNDAMENTAÇÃO E PRECISÃO",
+    11: "ANOTAÇÃO DE RESPONSABILIDADE TÉCNICA (ART)"
   };
   const NOMES = {
     5: "Anexo_5_Declaracao_Respeito_Limites.pdf",
@@ -10606,7 +10670,7 @@ function AV_gerarDescSituacao(){
       if(window.__LOGO_ENPROL__){ const en=await pdfDoc.embedJpg(window.__LOGO_ENPROL__); const h=34,w=en.width*(h/en.height); page.drawImage(en,{x:A4W-56-w,y:A4H-60,width:w,height:h}); }
     }catch(e){}
     const inpTit=document.getElementById("titulo-9");
-    const titulo=(inpTit && inpTit.value.trim()) ? inpTit.value.trim().toUpperCase() : "ANEXO 9: RELATÓRIO ESTATÍSTICO";
+    const titulo=(inpTit && inpTit.value.trim()) ? inpTit.value.trim().toUpperCase() : "RELATÓRIO ESTATÍSTICO";
     const w=fontB.widthOfTextAtSize(titulo,15);
     page.drawText(titulo,{x:(A4W-w)/2,y:A4H/2,size:15,font:fontB,color:rgb(0.14,0.20,0.28)});
     page.drawLine({start:{x:56,y:70},end:{x:A4W-56,y:70},thickness:1,color:rgb(0.12,0.44,0.75)});
@@ -12445,41 +12509,81 @@ async function carregarImg(src){
 
 async function gerarPDF(){
   if(!fotos.length){ alert("Nenhuma foto inserida no Relatório Fotográfico."); return; }
-  const pdf = await construirPDFfoto();
-  pdf.save("Relatorio_Fotografico_Utilitarios.pdf");
+  const box = document.getElementById("ufLoading");
+  const bar = document.getElementById("ufLoadingBar");
+  const msg = document.getElementById("ufLoadingMsg");
+  const botoes = document.querySelectorAll('#panel-util-foto .toolbar .btn');
+  function prog(p, texto){
+    if(bar) bar.style.width = Math.max(0, Math.min(100, Math.round(p*100))) + "%";
+    if(msg && texto) msg.textContent = texto;
+  }
+  if(box) box.classList.add("on");
+  botoes.forEach(b=>{ b.style.pointerEvents="none"; b.style.opacity=".6"; });
+  prog(0.02, "Preparando…");
+  try{
+    // deixa o navegador pintar a barra antes do trabalho pesado
+    await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+    const pdf = await construirPDFfoto(true, prog);
+    prog(1, "Concluído");
+    pdf.save("Relatorio_Fotografico_Utilitarios.pdf");
+  }catch(err){
+    console.error(err);
+    alert("Erro ao gerar o PDF: " + (err && err.message || err));
+  }finally{
+    botoes.forEach(b=>{ b.style.pointerEvents=""; b.style.opacity=""; });
+    setTimeout(()=>{ if(box) box.classList.remove("on"); if(bar) bar.style.width="0%"; }, 500);
+  }
 }
 
-async function construirPDFfoto(incluirCapa){
+// Reduz a imagem para o tamanho realmente usado no PDF (~150 dpi) e recomprime
+// em JPEG. Arquivo final bem menor, sem perda visível na visualização em tela.
+async function comprimirFoto(im, larguraMm, alturaMm){
+  const DPI = 150, MM_POL = 25.4, Q = 0.72;
+  let alvoW = Math.round((larguraMm / MM_POL) * DPI);
+  let alvoH = Math.round((alturaMm  / MM_POL) * DPI);
+  // nunca ampliar além do original
+  const escala = Math.min(1, im.naturalWidth/alvoW, im.naturalHeight/alvoH);
+  alvoW = Math.max(1, Math.round(alvoW*escala));
+  alvoH = Math.max(1, Math.round(alvoH*escala));
+  const cv = document.createElement("canvas");
+  cv.width = alvoW; cv.height = alvoH;
+  const ctx = cv.getContext("2d");
+  ctx.fillStyle = "#fff"; ctx.fillRect(0,0,alvoW,alvoH);
+  ctx.drawImage(im, 0, 0, alvoW, alvoH);
+  return cv.toDataURL("image/jpeg", Q);
+}
+
+async function construirPDFfoto(incluirCapa, prog){
   if(incluirCapa===undefined) incluirCapa=true;
+  if(typeof prog!=="function") prog=function(){};
   const { jsPDF } = window.jspdf;
-  const pdf = new jsPDF({unit:"mm", format:"a4"});
+  const pdf = new jsPDF({unit:"mm", format:"a4", compress:true});
   const W = 210, H = 297;
-  const mL = 15, mR = 15, mT = 12, mB = 12;
+  const mL = 18, mR = 18, mT = 14, mB = 14;   // margens de formatação da folha
   const contentW = W - mL - mR;
 
-  // INFRA removido nesta versão (Utilitários)
   const imgEnprol = await carregarImg(LOGO_ENPROL);
+  const hLogo = 10;
+  const cabLinhaY = mT + hLogo + 3;   // linha sob o cabeçalho
+  const rodLinhaY = H - mB - 20;      // linha sobre o rodapé
+  const topFotos  = cabLinhaY + 5;
+  const botFotos  = rodLinhaY - 4;
 
   function desenharCabecalho(){
-    const hLogo = 10;
-    // Apenas ENPROL à esquerda
-    let wE = hLogo * (imgEnprol.width/imgEnprol.height);
+    const wE = hLogo * (imgEnprol.width/imgEnprol.height);
     pdf.addImage(imgEnprol, "JPEG", mL, mT, wE, hLogo);
-    // linha
     pdf.setDrawColor(31,111,192); pdf.setLineWidth(0.6);
-    pdf.line(mL, mT+hLogo+3, W-mR, mT+hLogo+3);
+    pdf.line(mL, cabLinhaY, W-mR, cabLinhaY);
   }
-
   function desenharRodape(){
-    const yLinha = H - mB - 22;
     pdf.setDrawColor(31,111,192); pdf.setLineWidth(0.6);
-    pdf.line(mL, yLinha, W-mR, yLinha);
+    pdf.line(mL, rodLinhaY, W-mR, rodLinhaY);
     pdf.setFontSize(6); pdf.setTextColor(90,107,124);
-    let y = yLinha + 3.5;
-    for(let i=0;i<RODAPE_END.length;i++){
+    let y = rodLinhaY + 3.4;
+    for(let i=0;i<RODAPE_END.length && y <= H-mB; i++){
       pdf.text(RODAPE_END[i], mL, y);
       pdf.text(RODAPE_TEL[i], W-mR, y, {align:"right"});
-      y += 3.4;
+      y += 3.0;
     }
   }
 
@@ -12487,8 +12591,7 @@ async function construirPDFfoto(incluirCapa){
   let fotoPrimeira = true;
   if(incluirCapa){
     desenharCabecalho();
-    const titulo = document.getElementById("cfgTituloUtil").value || "RELATÓRIO FOTOGRÁFICO";
-
+    const titulo = (document.getElementById("cfgTituloUtil").value || "RELATÓRIO FOTOGRÁFICO").toUpperCase();
     pdf.setTextColor(36,52,71);
     pdf.setFont("helvetica","bold"); pdf.setFontSize(20);
     pdf.text(titulo, W/2, H/2, {align:"center", maxWidth:contentW});
@@ -12496,70 +12599,64 @@ async function construirPDFfoto(incluirCapa){
     fotoPrimeira = false;
   }
 
-  // ---- PÁGINAS DE FOTOS ----
-  const topFotos = mT + 10 + 6;         // abaixo do cabeçalho
-  const botFotos = H - mB - 22 - 4;     // acima do rodapé
+  // ---- PÁGINAS DE FOTOS (2 por página, dentro das margens) ----
+  const gap = 8;
   const areaH = botFotos - topFotos;
-  const gap = 6;
-  const blocoH = (areaH - gap) / 2;     // altura para cada bloco (foto+legenda)
-  const legendaH = 14;                  // altura reservada p/ legenda
+  const blocoH = (areaH - gap) / 2;
+  const tagH = 6;
+  const legendaH = 16;
+  const molduraGap = 3;
+  const total = fotos.length || 1;
 
   for(let i=0; i<fotos.length; i+=2){
     if(fotoPrimeira){ fotoPrimeira=false; } else { pdf.addPage(); }
     desenharCabecalho();
     for(let j=i; j<Math.min(i+2, fotos.length); j++){
-      const idx = j - i; // 0 ou 1
-      const blocoTop = topFotos + idx*(blocoH+gap);
+      const blocoTop = topFotos + (j-i)*(blocoH+gap);
       const f = fotos[j];
 
-      // Numeração
+      // tag "Foto N"
       pdf.setFont("helvetica","bold"); pdf.setFontSize(10);
-      pdf.setTextColor(255,255,255);
-      pdf.setFillColor(31,111,192);
+      pdf.setTextColor(255,255,255); pdf.setFillColor(31,111,192);
       const tag = "Foto "+(j+1);
-      const tagW = pdf.getTextWidth(tag)+8;
-      pdf.roundedRect(mL, blocoTop, tagW, 6, 3, 3, "F");
-      pdf.text(tag, mL+4, blocoTop+4.2);
+      const tagW = Math.min(contentW, pdf.getTextWidth(tag)+8);
+      pdf.roundedRect(mL, blocoTop, tagW, tagH, 3, 3, "F");
+      pdf.text(tag, mL+4, blocoTop+tagH-1.8);
 
-      // Área da imagem — proporção 4x3
-      const imgAreaTop = blocoTop + 8;
-      const imgAreaH = blocoH - 8 - legendaH;
-      // caixa 4:3 centralizada dentro da área disponível
-      let boxW = contentW;
-      let boxH = boxW * 3/4;
-      if(boxH > imgAreaH){ boxH = imgAreaH; boxW = boxH * 4/3; }
-      const boxX = mL + (contentW - boxW)/2;
-      const boxY = imgAreaTop + (imgAreaH - boxH)/2;
+      // caixa da imagem — sempre dentro de [mL, W-mR] e entre a tag e a legenda
+      const imgTop = blocoTop + tagH + molduraGap;
+      const imgBot = blocoTop + blocoH - legendaH - molduraGap;
+      const boxW = contentW;
+      const boxH = Math.max(10, imgBot - imgTop);
+      const boxX = mL, boxY = imgTop;
+
+      pdf.setDrawColor(195,204,214); pdf.setLineWidth(0.3);
+      pdf.setFillColor(238,242,246);
+      pdf.rect(boxX, boxY, boxW, boxH, f.src ? "FD" : "D");
 
       if(f.src){
+        prog(0.05 + 0.9*(j/total), "Processando foto "+(j+1)+" de "+fotos.length+"…");
         const im = await carregarImg(f.src);
-        // encaixar imagem dentro da caixa 4:3 mantendo proporção (contain)
+        // encaixe "contain": mantém proporção e nunca ultrapassa a caixa
         let iw = boxW, ih = boxW * (im.height/im.width);
         if(ih > boxH){ ih = boxH; iw = boxH * (im.width/im.height); }
+        const dataUrl = await comprimirFoto(im, iw, ih);
         const ix = boxX + (boxW - iw)/2;
         const iy = boxY + (boxH - ih)/2;
-        // moldura da caixa 4:3
-        pdf.setDrawColor(195,204,214); pdf.setLineWidth(0.3);
-        pdf.setFillColor(238,242,246);
-        pdf.rect(boxX, boxY, boxW, boxH, "FD");
-        let fmt = f.src.includes("image/png") ? "PNG" : "JPEG";
-        pdf.addImage(f.src, fmt, ix, iy, iw, ih);
-      } else {
-        pdf.setDrawColor(195,204,214);
-        pdf.rect(boxX, boxY, boxW, boxH);
+        pdf.addImage(dataUrl, "JPEG", ix, iy, iw, ih, undefined, "FAST");
       }
 
-      // Legenda
-      const legY = blocoTop + blocoH - legendaH + 2;
+      // legenda — caixa dentro das margens
+      const legY = blocoTop + blocoH - legendaH;
       pdf.setDrawColor(154,167,181); pdf.setLineWidth(0.3);
-      pdf.rect(mL, legY, contentW, legendaH-3);
+      pdf.rect(mL, legY, contentW, legendaH-2, "D");
       pdf.setFont("helvetica","normal"); pdf.setFontSize(9);
       pdf.setTextColor(36,52,71);
-      const texto = f.legenda || "";
-      const linhas = pdf.splitTextToSize(texto, contentW-6);
-      pdf.text(linhas.slice(0,3), mL+3, legY+4);
+      const linhas = pdf.splitTextToSize(f.legenda || "", contentW-6);
+      pdf.text(linhas.slice(0,4), mL+3, legY+4.5);
     }
     desenharRodape();
+    prog(0.05 + 0.9*Math.min(1,(i+2)/total), null);
   }
 
   return pdf;
