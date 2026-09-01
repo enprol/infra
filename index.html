@@ -12985,12 +12985,40 @@ window.UFOTO_rodapeHTML=rodapeHTML;
       const num=m?(m[1]+".  "):""; const tit=(m?m[2]:String(t)).toUpperCase();
       K.push(new Paragraph({children:[R(num,{bold:true,size:23}),R(tit,{bold:true,size:23})],keepNext:true,keepLines:true,spacing:{before:170,after:60,line:264},indent:{left:mm(12),hanging:mm(12)}}));
     }
+    // realce automático: siglas/códigos em MAIÚSCULAS e nºs de processo saem em negrito (espelha o PDF)
+    function ehDestaqueW(tok){
+      var c=String(tok).replace(/^[^0-9A-Za-zÀ-ÿ]+|[^0-9A-Za-zÀ-ÿ]+$/g,"");
+      if(c.length<2) return false;
+      var temMin=/[a-zà-ÿ]/.test(c), temMai=/[A-ZÀ-Þ]/.test(c), temNum=/[0-9]/.test(c);
+      if(!temMin && temMai && (temNum || /[A-ZÀ-Þ]/.test(c.slice(1)))) return true;
+      if(!/[A-Za-zÀ-ÿ]/.test(c) && /^\d[\d.\/-]{5,}\d$/.test(c) && !/^\d{2}\/\d{2}\/\d{4}$/.test(c)) return true;
+      return false;
+    }
+    // divide uma linha em TextRun's, aplicando **negrito** explícito + realce automático
+    function runsLinha(line,o){
+      o=o||{};
+      var realce=(o.realce!==false);
+      var words=[];
+      String(line).split(/\*\*/).forEach(function(seg,si){
+        var bForce=(si%2===1);
+        seg.split(/(\s+)/).forEach(function(tok){
+          if(tok==="") return;
+          if(/^\s+$/.test(tok)){ words.push({t:tok,b:false,sp:true}); return; }
+          words.push({t:tok,b: bForce || (realce && ehDestaqueW(tok)), sp:false});
+        });
+      });
+      for(var i=1;i<words.length-1;i++){
+        if(!words[i].b && !words[i].sp && /^[\-–—\/]+$/.test(words[i].t) && words[i-1].b && words[i+1].b) words[i].b=true;
+      }
+      if(!words.length) return [R(String(line),{italics:!!o.italics,size:o.size||22})];
+      return words.map(function(w){ return R(w.t,{bold:w.b,italics:!!o.italics,size:o.size||22}); });
+    }
     // parágrafo: justificado, recuo de 1ª linha, entrelinha 1,5
     function par(t,o){ o=o||{}; if(t==null||!String(t).trim()) return;
       // Espelha o PDF: linhas separadas por \n ficam empilhadas SEM espaço entre si; só há espaço após o bloco.
       var lns=String(t).split("\n").filter(function(l){return l.trim();});
       lns.forEach(function(line,li){ var last=(li===lns.length-1);
-        K.push(new Paragraph({children:[R(line.trim(),{italics:!!o.italics,size:o.size||22})],alignment:AlignmentType.JUSTIFIED,spacing:{after:(last?170:0),line:330,lineRule:"exact"},indent:Object.assign({firstLine:o.noIndent?0:mm(9)},o.indentLeft?{left:o.indentLeft}:{})})); });
+        K.push(new Paragraph({children:runsLinha(line.trim(),o),alignment:AlignmentType.JUSTIFIED,spacing:{after:(last?170:0),line:330,lineRule:"exact"},indent:Object.assign({firstLine:o.noIndent?0:mm(9)},o.indentLeft?{left:o.indentLeft}:{})})); });
     }
     function hcell(t,o){o=o||{};return new TableCell({shading:{type:ShadingType.CLEAR,fill:"DAE8F6",color:"auto"},borders:cellBorder,margins:cellM,children:[new Paragraph({children:[R(t,{bold:true,size:18,color:"1A3A5C"})],alignment:o.align||AlignmentType.CENTER})]});}
     function dcell(t,o){o=o||{};return new TableCell({shading:o.fill?{type:ShadingType.CLEAR,fill:o.fill,color:"auto"}:undefined,borders:cellBorder,margins:cellM,children:[new Paragraph({children:[R(t,{size:18,bold:!!o.bold})],alignment:o.align||AlignmentType.LEFT})]});}
@@ -13013,7 +13041,10 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     rightKids.push(cc([R("DESP-1",{bold:true,color:"282828",size:26})],{spacing:{after:820}}));
     rightKids.push(cc([R((g("rel_ferrovia")||"FERROVIA").toUpperCase(),{size:24})],{spacing:{after:760}}));
     if(g("rel_lote")) rightKids.push(cc([R("FTN (Lote: "+g("rel_lote")+")",{bold:true,size:24})],{spacing:{after:760}}));
-    if(g("rel_processo")) rightKids.push(cc([R("Processo administrativo:  "+g("rel_processo"),{size:22})],{spacing:{after:600}}));
+    if(g("rel_processo")){
+      rightKids.push(cc([R("Processo administrativo:",{bold:true,size:22})],{spacing:{after:60}}));
+      rightKids.push(cc([R(g("rel_processo"),{size:22})],{spacing:{after:600}}));
+    }
     if(g("rel_expropriado")) rightKids.push(cc([R("EXPROPRIADO: "+g("rel_expropriado"),{size:20})],{spacing:{after:220}}));
     areasArr.forEach((a,i)=>rightKids.push(cc([R((i===0?"LOCAÇÃO: ":"")+"ÁREA "+(i+1)+": "+a,{bold:true,size:20})],{spacing:{after:120}})));
     if(g("rel_contrato")) rightKids.push(new Paragraph({alignment:AlignmentType.RIGHT,spacing:{before:1500},children:[R("Contrato nº "+g("rel_contrato")+" – Cujo objeto é a prestação de serviços especializados de engenharia consultiva para a execução das atividades de desapropriação, ocupação temporária ou constituição de servidão administrativa de imóveis, gestão fundiária e regularização de passivos de desapropriação.",{size:15})]}));
@@ -13206,8 +13237,15 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     y+=6;
     pdf.setFont("helvetica","bold");
     if(g("rel_lote")){ pdf.text("FTN (Lote: "+g("rel_lote")+")", cxC, y, {align:"center"}); y+=16; }
-    pdf.setFont("helvetica","normal"); pdf.setFontSize(11);
-    if(g("rel_processo")){ pdf.text("Processo administrativo:  "+g("rel_processo"), cxC, y, {align:"center"}); y+=13; }
+    pdf.setFontSize(11);
+    if(g("rel_processo")){
+      pdf.setFont("helvetica","bold");
+      pdf.text("Processo administrativo:", cxC, y, {align:"center"}); y+=6;
+      pdf.setFont("helvetica","normal");
+      const _procLs=pdf.splitTextToSize(g("rel_processo"), W-cxL-mR-6);
+      _procLs.forEach(l=>{ pdf.text(l, cxC, y, {align:"center"}); y+=5.4; });
+      y+=8;
+    }
     pdf.setFontSize(10);
     if(g("rel_expropriado")){ pdf.text("EXPROPRIADO: "+g("rel_expropriado"), cxC, y, {align:"center"}); y+=8; }
     pdf.setFont("helvetica","bold");
@@ -13273,43 +13311,69 @@ window.UFOTO_rodapeHTML=rodapeHTML;
       if(num) pdf.text(num, mL, yc);
       ls.forEach(l=>{ pdf.text(l, x0, yc); yc+=5.6; }); yc+=1.5;
     }
+    // realce automático: siglas/códigos em MAIÚSCULAS e nºs de processo saem em negrito
+    function _ehDestaque(tok){
+      const c=String(tok).replace(/^[^0-9A-Za-zÀ-ÿ]+|[^0-9A-Za-zÀ-ÿ]+$/g,"");
+      if(c.length<2) return false;
+      const temMin=/[a-zà-ÿ]/.test(c);
+      const temMai=/[A-ZÀ-Þ]/.test(c);
+      const temNum=/[0-9]/.test(c);
+      // termo/sigla em maiúsculas ou código alfanumérico: "INFRA", "S.A.", "EF-232", "006N", "R-1", "PE0383..."
+      if(!temMin && temMai && (temNum || /[A-ZÀ-Þ]/.test(c.slice(1)))) return true;
+      // nº de processo/SEI: só dígitos e separadores . / - (min. 7 chars), exceto datas dd/mm/aaaa
+      if(!/[A-Za-zÀ-ÿ]/.test(c) && /^\d[\d.\/-]{5,}\d$/.test(c) && !/^\d{2}\/\d{2}\/\d{4}$/.test(c)) return true;
+      return false;
+    }
     // parágrafo: Calibri, justificado às margens (justificação manual real), recuo de 1ª linha, entrelinha 1,5
+    // suporta **negrito** explícito e realce automático dos campos em destaque (opts.realce:false desliga)
     function paragrafo(t, opts){
       if(!t) return; opts=opts||{};
-      const estilo = opts.italico ? "italic" : "normal";
+      const estilo  = opts.italico ? "italic" : "normal";
+      const estiloB = opts.italico ? "bolditalic" : "bold";
       const fs = opts.fontSize || 11;
       const LHp = opts.lh || 5.8;                                  // entrelinha 1,5
       const flI = (opts.flIndent!==undefined)?opts.flIndent:9;     // recuo da 1ª linha
       const li  = opts.indent || 0;
       const cor = opts.cor || [0,0,0];
       const justif = (opts.justif!==false);
-      const setar=()=>{ pdf.setFont(FONT,estilo); pdf.setFontSize(fs); pdf.setTextColor(cor[0],cor[1],cor[2]); };
+      const realce = (opts.realce!==false);
+      const setW=(bold)=>{ pdf.setFont(FONT, bold?estiloB:estilo); pdf.setFontSize(fs); pdf.setTextColor(cor[0],cor[1],cor[2]); };
+      const wW=(o)=>{ setW(o.bold); return pdf.getTextWidth(o.text); };
       const x0=mL+li, wFull=cw-li;
-      setar();
+      setW(false); const sw=pdf.getTextWidth(" ");
       String(t).split("\n").forEach(par=>{
         if(!par.trim()){ yc+=LHp*0.5; return; }
+        // segmenta em palavras {text,bold}: **explícito** + realce automático
+        const words=[];
+        par.trim().split(/\*\*/).forEach((seg,si)=>{
+          const bForce=(si%2===1);
+          seg.split(/\s+/).forEach(tok=>{ if(!tok) return;
+            words.push({text:tok, bold: bForce || (realce && _ehDestaque(tok))});
+          });
+        });
+        if(!words.length) return;
+        // une separadores ( - – — / ) entre dois termos em negrito
+        for(let i=1;i<words.length-1;i++){
+          if(!words[i].bold && /^[\-–—\/]+$/.test(words[i].text) && words[i-1].bold && words[i+1].bold) words[i].bold=true;
+        }
         const wFirst=wFull-flI;
-        const words=par.trim().split(/\s+/);
         // quebra em linhas guardando as palavras e a largura-alvo de cada linha
         const lines=[]; let cur=[], curLen=0, curW=wFirst;
-        for(const wd of words){ const ww=pdf.getTextWidth(wd); const add=cur.length?(pdf.getTextWidth(" ")+ww):ww;
-          if(cur.length && curLen+add>curW){ lines.push({w:cur, tw:curW}); cur=[wd]; curLen=ww; curW=wFull; }
-          else { cur.push(wd); curLen+=add; } }
+        for(const o of words){ const ww=wW(o); const add=cur.length?(sw+ww):ww;
+          if(cur.length && curLen+add>curW){ lines.push({w:cur, tw:curW}); cur=[o]; curLen=ww; curW=wFull; }
+          else { cur.push(o); curLen+=add; } }
         if(cur.length) lines.push({w:cur, tw:curW});
         lines.forEach((ln,idx)=>{
           if(yc+LHp>botY){ rod(); nova(); }
-          setar();
           const first=(idx===0), last=(idx===lines.length-1);
           const x=first?(x0+flI):x0;
+          let extra=0;
           if(!last && justif && ln.w.length>1){
-            const sw=pdf.getTextWidth(" ");
-            let nat=0; ln.w.forEach(w=>nat+=pdf.getTextWidth(w)); nat+=sw*(ln.w.length-1);
-            let extra=(ln.tw-nat)/(ln.w.length-1); if(extra<0) extra=0; if(extra>sw*3) extra=sw*3;
-            let cx=x;
-            ln.w.forEach((w,i)=>{ pdf.text(w, cx, yc); if(i<ln.w.length-1) cx+=pdf.getTextWidth(w)+sw+extra; });
-          } else {
-            pdf.text(ln.w.join(" "), x, yc);
+            let nat=0; ln.w.forEach(o=>nat+=wW(o)); nat+=sw*(ln.w.length-1);
+            extra=(ln.tw-nat)/(ln.w.length-1); if(extra<0) extra=0; if(extra>sw*3) extra=sw*3;
           }
+          let cx=x;
+          ln.w.forEach((o,i)=>{ setW(o.bold); pdf.text(o.text, cx, yc); cx+=pdf.getTextWidth(o.text); if(i<ln.w.length-1) cx+=sw+extra; });
           yc+=LHp;
         });
       });
