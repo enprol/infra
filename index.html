@@ -12039,41 +12039,91 @@ function AV_gerarDescSituacao(){
     // subtópico N.N com nome em itálico sublinhado (2.4 / 2.5)
     function h2iu(num,name){ y+=1.2; garantir(6); pdf.setFontSize(FS); C(NAVY); F("bold"); pdf.text(num+" ", mL, y); const wx=pdf.getTextWidth(num+" "); F("bolditalic"); pdf.text(name, mL+wx, y); const uw=pdf.getTextWidth(name); pdf.setDrawColor(NAVY[0],NAVY[1],NAVY[2]); pdf.setLineWidth(0.35); pdf.line(mL+wx, y+1, mL+wx+uw, y+1); y+=5.6; }
 
+    // ---- justificação universal (todos os campos do documento) ----
+    // desenha UMA linha justificada (distribui o espaço entre as palavras).
+    // isLast=true (última linha do parágrafo) ou linha curta => alinha à esquerda.
+    function _lineJust(ln, x, yy, w, isLast){
+      ln = String(ln==null?"":ln).replace(/\s+$/,"");
+      const words = ln.split(/ +/).filter(Boolean);
+      if(isLast || words.length<2){ if(ln) pdf.text(ln, x, yy); return; }
+      let wsum=0; for(let i=0;i<words.length;i++) wsum+=pdf.getTextWidth(words[i]);
+      const gap=(w-wsum)/(words.length-1);
+      // não estica demais: linhas curtas ficam alinhadas à esquerda (evita "rios" de espaço)
+      if(gap<=0 || gap>pdf.getTextWidth(" ")*6){ pdf.text(ln, x, yy); return; }
+      let cx=x;
+      for(let i=0;i<words.length;i++){ pdf.text(words[i], cx, yy); cx+=pdf.getTextWidth(words[i])+gap; }
+    }
+    // bloco de texto justificado com quebra de página por linha (respeita \n como parágrafo)
+    function bloco(txt, x, w, o){ o=o||{};
+      txt=(txt==null?"":String(txt));
+      if(o.skipEmpty!==false && !txt.trim()) return;
+      w=Math.max(w,20);
+      const paras=txt.split(/\n/);
+      for(let p=0;p<paras.length;p++){
+        const src=(paras[p]==="")?" ":paras[p];
+        const lines=pdf.splitTextToSize(src, w);
+        for(let i=0;i<lines.length;i++){
+          garantir(LH);
+          _lineJust(lines[i], x, y, w, o.noJust || i===lines.length-1);
+          y+=LH;
+        }
+      }
+    }
+
     // rótulo (preto normal, ou azul via o.navy) + valor em negrito; valTab = coluna do valor (mm a partir da margem)
+    // rótulo e valor SEMPRE quebram dentro da folha; valor longo desce p/ a linha seguinte; valor justificado.
     function rv(label, val, o){ o=o||{}; const x=mL+(o.ind||0);
       if(o.gapTop) y+=o.gapTop;
+      val=(val==null?"":String(val));
       F(o.navy?"bold":"normal"); pdf.setFontSize(FS); C(o.navy?NAVY:BLK);
-      const lw=pdf.getTextWidth(label);
-      let vx = (o.valTab!==undefined) ? Math.max(mL+o.valTab, x+lw+3) : x+lw+3;
-      const availV=Math.max(RX-vx, 20);
-      const lines = val ? pdf.splitTextToSize(String(val), availV) : [];
-      const alt=Math.max(1, lines.length);
+      const labLines=pdf.splitTextToSize(label, Math.max(RX-x,20));
+      const lastLabW=pdf.getTextWidth(labLines[labLines.length-1]);
+      let vx=(o.valTab!==undefined)?Math.max(mL+o.valTab, x+lastLabW+3):(x+lastLabW+3);
+      let availV=RX-vx, sameLine=true;
+      if(!val){ availV=20; }
+      else if(availV<35){ sameLine=false; vx=x+2; availV=RX-vx; }
+      const vLines=val?pdf.splitTextToSize(val, Math.max(availV,20)):[];
+      const nLab=labLines.length, nVal=vLines.length;
+      const alt=sameLine ? Math.max(nLab,(nLab-1)+Math.max(1,nVal)) : (nLab+nVal);
       garantir(alt*LH+1);
-      C(o.navy?NAVY:BLK); F(o.navy?"bold":"normal"); pdf.text(label, x, y);
-      if(val){ F("bold"); C(BLK); pdf.text(lines, vx, y); }
-      y += alt*LH + (o.gap||0);
+      const y0=y;
+      C(o.navy?NAVY:BLK); F(o.navy?"bold":"normal");
+      for(let i=0;i<nLab;i++) pdf.text(labLines[i], x, y0+i*LH);
+      if(val){
+        F("bold"); C(BLK);
+        const vy0=sameLine ? (y0+(nLab-1)*LH) : (y0+nLab*LH);
+        for(let i=0;i<nVal;i++) _lineJust(vLines[i], vx, vy0+i*LH, availV, i===nVal-1);
+      }
+      C(BLK); F("normal");
+      y=y0+alt*LH+(o.gap||0);
     }
-    // dois pares rótulo:valor na mesma linha (col esquerda / col direita)
-    function rv2(l1,v1,l2,v2){ const xL=mL, xR=mL+contentW/2; garantir(LH+1);
+    // dois pares rótulo:valor lado a lado (col esquerda / col direita) — cada valor quebra dentro da sua coluna
+    function rv2(l1,v1,l2,v2){ const xL=mL, xR=mL+contentW/2;
+      v1=(v1==null?"":String(v1)); v2=(v2==null?"":String(v2));
       F("normal"); pdf.setFontSize(FS); C(BLK);
-      pdf.text(l1, xL, y); let w1=pdf.getTextWidth(l1+" "); if(v1){ F("bold"); pdf.text(String(v1), xL+w1, y); F("normal"); }
-      pdf.text(l2, xR, y); let w2=pdf.getTextWidth(l2+" "); if(v2){ F("bold"); pdf.text(String(v2), xR+w2, y); }
-      y+=LH+0.4;
+      const w1=pdf.getTextWidth(l1+" "), w2=pdf.getTextWidth(l2+" ");
+      const availL=Math.max((xR-3)-(xL+w1),15), availR=Math.max(RX-(xR+w2),15);
+      const t1=v1?pdf.splitTextToSize(v1,availL):[];
+      const t2=v2?pdf.splitTextToSize(v2,availR):[];
+      const alt=Math.max(1,t1.length,t2.length);
+      garantir(alt*LH+1); const y0=y;
+      F("normal"); C(BLK);
+      pdf.text(l1,xL,y0); if(v1){ F("bold"); for(let i=0;i<t1.length;i++) pdf.text(t1[i],xL+w1,y0+i*LH); F("normal"); }
+      pdf.text(l2,xR,y0); if(v2){ F("bold"); for(let i=0;i<t2.length;i++) pdf.text(t2[i],xR+w2,y0+i*LH); F("normal"); }
+      y=y0+alt*LH+0.4;
     }
     // parágrafo com valor em negrito, justificado (para respostas longas)
     function para(val, ind, naoBold){ if(val===undefined||val===null) val=""; if(!String(val).trim()) return; const x=mL+(ind||0); const w=RX-x;
       F(naoBold?"normal":"bold"); pdf.setFontSize(FS); C(BLK);
-      const lines=pdf.splitTextToSize(String(val), w);
-      lines.forEach((ln,idx)=>{ garantir(LH); const last=(idx===lines.length-1); const lw=pdf.getTextWidth(ln);
-        if(last || lw<w*0.55){ pdf.text(ln, x, y); } else { pdf.text(ln, x, y, {maxWidth:w, align:"justify"}); }
-        y+=LH; });
+      bloco(val, x, w);
+      C(BLK); F("normal");
     }
     // texto instrucional / regular (não-negrito), justificado
     function paraReg(txt, o){ o=o||{}; const x=mL+(o.ind||0); const w=RX-x;
       if(o.gapTop!==undefined) y+=o.gapTop; else if(/^\d/.test(String(txt||"").trim())) y+=3.2;  // separa sub-subtópicos numerados
       F(o.i?"italic":"normal"); pdf.setFontSize(FS); C(o.navy?NAVY:BLK);
-      const lines=pdf.splitTextToSize(String(txt||""), w);
-      lines.forEach((ln,idx)=>{ garantir(LH); pdf.text(ln, x, y); y+=LH; });
+      bloco(txt, x, w, {skipEmpty:false});
+      C(BLK); F("normal");
     }
     // linha de opções tipo checkbox: "OPÇÃO ( X )" — selecionada em negrito
     function checks(opts, ids, o){ o=o||{}; const x=mL+(o.ind||0); pdf.setFontSize(FS); C(BLK);
@@ -12124,10 +12174,13 @@ function AV_gerarDescSituacao(){
     const apl=gv("fb_aplicador");
     const dtv=gv("fb_data");
     pdf.setFontSize(FS);
-    F("normal"); C(BLK); pdf.text("PROCESSO Nº: ", mL, y); let wp=pdf.getTextWidth("PROCESSO Nº: "); F("bold"); pdf.text(proc||"", mL+wp, y); y+=LH+0.6;
-    F("normal"); C(BLK); pdf.text("NOME DO APLICADOR (A): ", mL, y); let wa=pdf.getTextWidth("NOME DO APLICADOR (A): "); F("bold"); pdf.text((apl||"").toUpperCase(), mL+wa, y);
+    F("normal"); C(BLK); pdf.text("PROCESSO Nº: ", mL, y); let wp=pdf.getTextWidth("PROCESSO Nº: "); F("bold");
+    { const _pl=pdf.splitTextToSize(String(proc||""), Math.max(RX-(mL+wp),20)); for(let i=0;i<_pl.length;i++) pdf.text(_pl[i], mL+wp, y+i*LH); y+=Math.max(1,_pl.length)*LH+0.6; }
+    F("normal"); C(BLK); pdf.text("NOME DO APLICADOR (A): ", mL, y); let wa=pdf.getTextWidth("NOME DO APLICADOR (A): "); F("bold");
+    let _aln=1;
+    { const _al=pdf.splitTextToSize(String(apl||"").toUpperCase(), Math.max(RX-(mL+wa)-pdf.getTextWidth("  Data: 00/00/0000"),20)); _aln=Math.max(1,_al.length); for(let i=0;i<_al.length;i++) pdf.text(_al[i], mL+wa, y+i*LH); }
     if(dtv){ F("normal"); C(BLK); const dl="Data: "; const dw=pdf.getTextWidth(dl); pdf.text(dl, RX-dw-pdf.getTextWidth(dtv), y); F("bold"); pdf.text(dtv, RX-pdf.getTextWidth(dtv), y); }
-    y+=LH+1.5;
+    y+=_aln*LH+1.5;
 
     // ===================== 1 - IDENTIFICAÇÃO =====================
     banda("1 - IDENTIFICAÇÃO");
@@ -12141,13 +12194,11 @@ function AV_gerarDescSituacao(){
     // 1.3 Proprietário(a)
     (function(){ garantir(LH+1); F("bold"); pdf.setFontSize(FS); C(NAVY); const l="1.3 Proprietário(a) (SIM/NÃO):"; pdf.text(l, mL, y); let x=mL+pdf.getTextWidth(l)+3; C(BLK); F("bold"); const s=(/sim/i.test(gv("fb_11_dom"))||gv("fb_nome"))?"SIM":""; pdf.text(s, x, y); x+=pdf.getTextWidth(s||"")+6; F("italic"); C(BLK); pdf.text("(Se sim, preencher item 1.3.1; se não, item 1.3.2)", x, y); y+=LH; })();
     rv("1.3.1 Nome:", gv("fb_nome"), {valTab:34});
-    (function(){ garantir(LH+1); F("normal"); pdf.setFontSize(FS); C(BLK); pdf.text("RG:", mL, y); F("bold"); pdf.text(gv("fb_rg"), mL+34, y);
-      F("normal"); const cl="CPF: "; const cx=mL+contentW*0.62; pdf.text("CPF:", cx, y); F("bold"); pdf.text(gv("fb_cpf"), cx+pdf.getTextWidth("CPF: "), y); y+=LH; })();
+    rv2("RG:", gv("fb_rg"), "CPF:", gv("fb_cpf"));
     rv("Estado Civil (Casado, solteiro, viúvo, divorciado ou união estável):", gv("fb_estcivil"), {valTab:0});
     rv("Cônjuge:", gv("fb_conjuge"), {valTab:34});
     rv("Endereço:", gv("fb_endereco"), {valTab:34});
-    (function(){ garantir(LH+1); F("normal"); pdf.setFontSize(FS); C(BLK); pdf.text("Município:", mL, y); F("bold"); pdf.text(gv("fb_municipio"), mL+34, y);
-      const tx=mL+contentW*0.62; F("normal"); pdf.text("Telefone:", tx, y); F("bold"); pdf.text(gv("fb_telefone"), tx+pdf.getTextWidth("Telefone: "), y); y+=LH; })();
+    rv2("Município:", gv("fb_municipio"), "Telefone:", gv("fb_telefone"));
     rv("1.3.2 Informante (nome):", gv("fb_inf_nome"), {valTab:44});
     rv("Grau de parentesco:", gv("fb_411_par"), {valTab:44});
     rv("Dados comprobatório:", gv("fb_inf_dados"), {valTab:44});
@@ -12157,12 +12208,8 @@ function AV_gerarDescSituacao(){
     rv("Identificação:", gv("fb_prop_id"), {valTab:30});
     rv("Endereço:", gv("fb_prop_end"), {valTab:30});
     rv("Município:", gv("fb_prop_mun"), {valTab:30});
-    (function(){ garantir(LH+1); F("normal"); pdf.setFontSize(FS); C(BLK);
-      const l1="Área Total (ha): "; pdf.text(l1, mL, y); F("bold"); pdf.text(gv("fb_area_total"), mL+pdf.getTextWidth(l1), y);
-      const tx=mL+contentW*0.52; F("normal"); const l2="Matrícula: "; pdf.text(l2, tx, y); F("bold"); pdf.text(gv("fb_matricula"), tx+pdf.getTextWidth(l2), y); y+=LH; })();
-    (function(){ garantir(LH+1); F("normal"); pdf.setFontSize(FS); C(BLK);
-      const l1="Área de desapropriação (ha): "; pdf.text(l1, mL, y); F("bold"); pdf.text(gv("fb_area_desap"), mL+pdf.getTextWidth(l1), y);
-      const tx=mL+contentW*0.52; F("normal"); const l2="Cartório: "; pdf.text(l2, tx, y); F("bold"); pdf.text(gv("fb_cartorio"), tx+pdf.getTextWidth(l2), y); y+=LH; })();
+    rv2("Área Total (ha):", gv("fb_area_total"), "Matrícula:", gv("fb_matricula"));
+    rv2("Área de desapropriação (ha):", gv("fb_area_desap"), "Cartório:", gv("fb_cartorio"));
     y+=2;
     // 1.5 Observações
     h2("1.5 Observações:");
@@ -12250,8 +12297,8 @@ function AV_gerarDescSituacao(){
     h2("4.9 APROVEITAMENTO DA TERRA:", 4);
     paraReg("4.9.1  Uso das terras:");
     checks(["Seca","Chuva"], ["fb_491_uso_0","fb_491_uso_1"]);
-    (function(){ garantir(LH+1); const on=chk("fb_491_uso_2"); F(on?"bold":"normal"); pdf.setFontSize(FS); C(BLK); const l="Plantio ( "+(on?"X":"  ")+" ) caracterizar: "; pdf.text(l, mL, y); F("bold"); pdf.text(gv("fb_491_plantio"), mL+pdf.getTextWidth(l), y); y+=LH; })();
-    (function(){ garantir(LH+1); const on=chk("fb_491_uso_3"); F(on?"bold":"normal"); pdf.setFontSize(FS); C(BLK); const l="Criação de animais ( "+(on?"X":"  ")+" ) caracterizar: "; pdf.text(l, mL, y); F("bold"); pdf.text(gv("fb_491_criacao"), mL+pdf.getTextWidth(l), y); y+=LH; })(); (function(){ const v=gv("fb_491_desc"); if(v){ paraReg("Descrição do uso das terras:"); para(v); } })();
+    (function(){ garantir(LH+1); const on=chk("fb_491_uso_2"); F(on?"bold":"normal"); pdf.setFontSize(FS); C(BLK); const l="Plantio ( "+(on?"X":"  ")+" ) caracterizar: "; pdf.text(l, mL, y); F("bold"); const lw=pdf.getTextWidth(l), w=Math.max(RX-(mL+lw),25); const vl=pdf.splitTextToSize(gv("fb_491_plantio"), w); for(let i=0;i<vl.length;i++){ if(i>0) garantir(LH); _lineJust(vl[i], mL+lw, y+i*LH, w, i===vl.length-1); } y+=Math.max(1,vl.length)*LH; })();
+    (function(){ garantir(LH+1); const on=chk("fb_491_uso_3"); F(on?"bold":"normal"); pdf.setFontSize(FS); C(BLK); const l="Criação de animais ( "+(on?"X":"  ")+" ) caracterizar: "; pdf.text(l, mL, y); F("bold"); const lw=pdf.getTextWidth(l), w=Math.max(RX-(mL+lw),25); const vl=pdf.splitTextToSize(gv("fb_491_criacao"), w); for(let i=0;i<vl.length;i++){ if(i>0) garantir(LH); _lineJust(vl[i], mL+lw, y+i*LH, w, i===vl.length-1); } y+=Math.max(1,vl.length)*LH; })(); (function(){ const v=gv("fb_491_desc"); if(v){ paraReg("Descrição do uso das terras:"); para(v); } })();
     paraReg("4.9.2  O que é produzido na propriedade:");
     checks(["Extrativismo","Agricultura","Pecuária"], ["fb_492_prod_0","fb_492_prod_1","fb_492_prod_2"], {vert:true});
     paraReg("4.9.3 Quais impactos concebidos pela comunidade sobre a construção da ferrovia, e qual a sua opinião?");
@@ -12260,7 +12307,7 @@ function AV_gerarDescSituacao(){
     h2("4.10  OUTRAS INFORMAÇÕES");
     paraReg("4.10.1 Quais as expectativas futuras da família em relação à moradia atual e pós desapropriação:");
     checks(["Continuar morando nas redondezas da localidade","Construir em outro local fora da localidade"], ["fb_4101_0","fb_4101_1"], {vert:true});
-    (function(){ garantir(LH+1); const on=chk("fb_4101_2"); F(on?"bold":"normal"); pdf.setFontSize(FS); C(BLK); const l="Outra ( "+(on?"X":"  ")+" ): "; pdf.text(l, mL, y); F("bold"); pdf.text(gv("fb_4101_outra"), mL+pdf.getTextWidth(l), y); y+=LH; })();
+    (function(){ garantir(LH+1); const on=chk("fb_4101_2"); F(on?"bold":"normal"); pdf.setFontSize(FS); C(BLK); const l="Outra ( "+(on?"X":"  ")+" ): "; pdf.text(l, mL, y); F("bold"); const lw=pdf.getTextWidth(l), w=Math.max(RX-(mL+lw),25); const vl=pdf.splitTextToSize(gv("fb_4101_outra"), w); for(let i=0;i<vl.length;i++){ if(i>0) garantir(LH); _lineJust(vl[i], mL+lw, y+i*LH, w, i===vl.length-1); } y+=Math.max(1,vl.length)*LH; })();
     (function(){ y+=1; garantir(LH+1); F("normal"); pdf.setFontSize(FS); C(BLK); const box=simnaoBox("fb_4102"); const l="4.10.2 A família recebe algum benefício do Governo Federal: "; const lines=pdf.splitTextToSize(l, contentW-40); pdf.text(lines, mL, y); const lastw=pdf.getTextWidth(lines[lines.length-1]); let x=mL+lastw+2; const yy=y+(lines.length-1)*LH; F(box.s?"bold":"normal"); pdf.text(box.t1, x, yy); F(box.n?"bold":"normal"); pdf.text(box.t2, x+pdf.getTextWidth(box.t1), yy); y+=lines.length*LH; })();
     rv("Qual:", gv("fb_4102_qual"), {valTab:16});
     (function(){ y+=1; garantir(LH+1); F("normal"); pdf.setFontSize(FS); C(BLK); const box=simnaoBox("fb_4103"); const l="4.10.3 A família participa de algum programa do município: "; const lines=pdf.splitTextToSize(l, contentW-40); pdf.text(lines, mL, y); const lastw=pdf.getTextWidth(lines[lines.length-1]); let x=mL+lastw+2; const yy=y+(lines.length-1)*LH; F(box.s?"bold":"normal"); pdf.text(box.t1, x, yy); F(box.n?"bold":"normal"); pdf.text(box.t2, x+pdf.getTextWidth(box.t1), yy); y+=lines.length*LH; })();
