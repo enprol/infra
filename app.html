@@ -17,6 +17,57 @@
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 <script>
+/* ===== Normalização de imagem: reduz p/ no máx. 1600px no lado maior e recomprime
+   em JPEG. Uma foto de celular (3–8 MB) cai p/ ~150–400 KB — sem isso o cadastro.json
+   inteiro estoura o limite do servidor e o Salvar falha ("Failed to fetch"). ===== */
+window.AV_normalizarImagem = function(dataUrl, opts){
+  opts = opts || {};
+  var maxLado = opts.maxLado || 1600;
+  var q = (opts.q != null) ? opts.q : 0.82;
+  return new Promise(function(resolve){
+    try{
+      if(typeof dataUrl !== "string" || dataUrl.indexOf("data:image/") !== 0){ resolve(dataUrl); return; }
+      var img = new Image();
+      img.onload = function(){
+        try{
+          var w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+          if(!w || !h){ resolve(dataUrl); return; }
+          var esc = Math.min(1, maxLado / Math.max(w, h));
+          var nw = Math.max(1, Math.round(w * esc)), nh = Math.max(1, Math.round(h * esc));
+          var c = document.createElement("canvas"); c.width = nw; c.height = nh;
+          var ctx = c.getContext("2d");
+          ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, nw, nh);   // achata transparência de PNG
+          ctx.drawImage(img, 0, 0, nw, nh);
+          var out = c.toDataURL("image/jpeg", q);
+          resolve((out && out.length && out.length < dataUrl.length) ? out : dataUrl);
+        }catch(e){ resolve(dataUrl); }
+      };
+      img.onerror = function(){ resolve(dataUrl); };
+      img.src = dataUrl;
+    }catch(e){ resolve(dataUrl); }
+  });
+};
+/* comprime, no lugar, todas as imagens de um pacote antes de salvar (rede de segurança
+   p/ imagens grandes que já estavam carregadas). */
+window.__comprimirImagensPacote = async function(p){
+  if(!p || typeof p !== "object") return p;
+  var norm = window.AV_normalizarImagem || function(x){ return Promise.resolve(x); };
+  async function fix(v){ return (typeof v === "string" && v.indexOf("data:image/") === 0) ? await norm(v) : v; }
+  try{
+    if(p.imagens) for(var k in p.imagens) p.imagens[k] = await fix(p.imagens[k]);
+    if(Array.isArray(p.fotos)) for(var i=0;i<p.fotos.length;i++){
+      if(p.fotos[i] && typeof p.fotos[i] === "object") p.fotos[i].src = await fix(p.fotos[i].src);
+      else p.fotos[i] = await fix(p.fotos[i]);
+    }
+    if(p.d2figs) for(var f in p.d2figs) p.d2figs[f] = await fix(p.d2figs[f]);
+    if(Array.isArray(p.d2fotos)) for(var j=0;j<p.d2fotos.length;j++) if(p.d2fotos[j]) p.d2fotos[j].src = await fix(p.d2fotos[j].src);
+    if(Array.isArray(p.d2ressalvas)) for(var r=0;r<p.d2ressalvas.length;r++) if(p.d2ressalvas[r]) p.d2ressalvas[r].img = await fix(p.d2ressalvas[r].img);
+    if(p.assinaturas){ p.assinaturas.fb = await fix(p.assinaturas.fb); p.assinaturas.rel = await fix(p.assinaturas.rel); }
+  }catch(e){ console.warn("compressão de imagens do pacote:", e); }
+  return p;
+};
+</script>
+<script>
 window.FB_baixarConjunto = async function(){
   try{
     const p = await window.FB_gerarPDF({retornar:true});
@@ -11043,7 +11094,8 @@ function AV_gerarDescSituacao(){
 
   window.CAD_salvar = async function(opts){
     try{
-      const pacote = montarPacote();
+      let pacote = montarPacote();
+      if(!(opts&&opts.semCompressao) && window.__comprimirImagensPacote){ pacote = await window.__comprimirImagensPacote(pacote); }
       const nomeArq = (window.__CTDsuf?window.__CTDsuf():"CTD 000") + ".json";
       const blob = new Blob([JSON.stringify(pacote, null, 2)], {type:"application/json"});
       if(opts&&opts.retornar) return {blob:blob, nome:nomeArq};
@@ -11382,6 +11434,8 @@ function AV_gerarDescSituacao(){
       var secao = _secaoAtual();
       var ctd = _ctdAtual();
       var pacote = _preservarOrfaos(montarPacote());
+      if (window.__comprimirImagensPacote){ if (btn) btn.textContent = "💾 Otimizando imagens…"; pacote = await window.__comprimirImagensPacote(pacote); }
+      if (btn) btn.textContent = "💾 Salvando…";
       var processoSei = _rotuloProc();
       await _api("PUT", "/api/cadastros/" + encodeURIComponent(secao) + "/" + encodeURIComponent(ctd), {
         versao: VERSAO, processo_sei: processoSei || null, pacote: pacote
@@ -15257,7 +15311,10 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     var ehImagem=(f.type&&f.type.indexOf("image/")===0)||/\.(jpe?g|png|gif|webp|bmp|tif?f|heic|heif|svg)$/i.test(f.name||"");
     if(!ehImagem){ var st=document.getElementById("d2_ress_status_"+i); if(st) st.textContent="Arquivo selecionado não é uma imagem válida."; input.value=""; return; }
     var r=new FileReader();
-    r.onload=function(e){ if(D2_ressalvas[i]){ D2_ressalvas[i].img=e.target.result; window.D2_ressalvaNome[i]=f.name; D2_renderRessalvas(); } };
+    r.onload=function(e){
+      var norm=(window.AV_normalizarImagem)?window.AV_normalizarImagem(e.target.result):Promise.resolve(e.target.result);
+      norm.then(function(src){ if(D2_ressalvas[i]){ D2_ressalvas[i].img=src; window.D2_ressalvaNome[i]=f.name; D2_renderRessalvas(); } });
+    };
     r.onerror=function(){ var st=document.getElementById("d2_ress_status_"+i); if(st) st.textContent="Não foi possível ler o arquivo de imagem."; };
     r.readAsDataURL(f);
   };
@@ -15307,7 +15364,10 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     var ehImagem=(f.type&&f.type.indexOf("image/")===0)||/\.(jpe?g|png|gif|webp|bmp|tif?f|heic|heif|svg)$/i.test(f.name||"");
     if(!ehImagem){ var st=document.getElementById("d2_foto_status_"+i); if(st) st.textContent="Arquivo selecionado não é uma imagem válida."; input.value=""; return; }
     var r=new FileReader();
-    r.onload=function(e){ if(!D2_fotos[i]) D2_fotos[i]={src:"",legenda:""}; D2_fotos[i].src=e.target.result; window.D2_fotoNome[i]=f.name; D2_renderFotos(); };
+    r.onload=function(e){
+      var norm=(window.AV_normalizarImagem)?window.AV_normalizarImagem(e.target.result):Promise.resolve(e.target.result);
+      norm.then(function(src){ if(!D2_fotos[i]) D2_fotos[i]={src:"",legenda:""}; D2_fotos[i].src=src; window.D2_fotoNome[i]=f.name; D2_renderFotos(); });
+    };
     r.onerror=function(){ var st=document.getElementById("d2_foto_status_"+i); if(st) st.textContent="Não foi possível ler o arquivo de imagem."; };
     r.readAsDataURL(f);
   };
@@ -15737,7 +15797,10 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       input.value=""; return;
     }
     const r=new FileReader();
-    r.onload=function(e){ aplicarFig(fid,e.target.result,f.name); };
+    r.onload=function(e){
+      var norm=(window.AV_normalizarImagem)?window.AV_normalizarImagem(e.target.result):Promise.resolve(e.target.result);
+      norm.then(function(src){ aplicarFig(fid,src,f.name); });
+    };
     r.onerror=function(){ const st=document.getElementById("d2_figstatus_"+fid); if(st) st.textContent="Não foi possível ler o arquivo de imagem. Tente novamente."; };
     r.readAsDataURL(f);
   };
