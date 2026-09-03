@@ -68,6 +68,128 @@ window.__comprimirImagensPacote = async function(p){
 };
 </script>
 <script>
+/* ===== RTF - campo de texto rico (negrito WYSIWYG) para as abas da DESP 1 =====
+   O <textarea> original fica ESCONDIDO e continua sendo a fonte da verdade:
+   guarda **markdown** e dispara "input". Assim PDF/Word/salvar/restaurar
+   seguem funcionando sem alteracao. */
+window.RTF = (function(){
+  function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function mdToHtml(md){
+    var s=String(md||'');
+    if(s.replace(/\s/g,'')==='') return '';
+    return s.split('\n').map(function(ln){
+      if(ln.trim()===''){ return '<div><br></div>'; }
+      var bullet=/^[\u2022\u2023\u25E6\-\*]\s+/.test(ln);
+      var body=bullet?ln.replace(/^[\u2022\u2023\u25E6\-\*]\s+/,''):ln;
+      var htm=esc(body).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');
+      return bullet ? ('<div class="rtf-li">\u2022 '+htm+'</div>') : ('<div>'+htm+'</div>');
+    }).join('');
+  }
+  function serialLine(node){
+    var s='';
+    node.childNodes.forEach(function(n){
+      if(n.nodeType===3){ s+=n.nodeValue; }
+      else if(n.nodeType===1){
+        if(n.tagName==='BR'){ return; }
+        var st=(n.getAttribute&&n.getAttribute('style'))||'';
+        var bold=(n.tagName==='B'||n.tagName==='STRONG'||/font-weight\s*:\s*(bold|[6-9]00)/i.test(st));
+        var inner=serialLine(n);
+        if(bold && inner.replace(/\s/g,'')!==''){ s+='**'+inner.trim()+'**'+(/\s$/.test(inner)?' ':''); }
+        else { s+=inner; }
+      }
+    });
+    return s;
+  }
+  function htmlToMd(view){
+    var hasBlock=false;
+    view.childNodes.forEach(function(n){ if(n.nodeType===1 && (n.tagName==='DIV'||n.tagName==='P')) hasBlock=true; });
+    var lines=[];
+    if(!hasBlock){ lines.push(serialLine(view)); }
+    else {
+      view.childNodes.forEach(function(n){
+        if(n.nodeType===3){ if(n.nodeValue.trim()!=='') lines.push(n.nodeValue); }
+        else if(n.nodeType===1){
+          var line=serialLine(n);
+          if((n.className||'').indexOf('rtf-li')>=0){ line='\u2022 '+line.replace(/^[\u2022\u2023\u25E6]\s*/,''); }
+          lines.push(line);
+        }
+      });
+    }
+    return lines.join('\n').replace(/\u00a0/g,' ').replace(/\*\*\s*\*\*/g,'').replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').replace(/\s+$/,'');
+  }
+  function ta(id){ return document.getElementById(id); }
+  function box(id){ return document.getElementById('rtf_'+id); }
+  function markEmpty(v){ v.setAttribute('data-empty', (v.textContent.replace(/\s/g,'')==='' ? '1':'0')); }
+  function render(id){
+    var v=box(id), t=ta(id);
+    if(!v||!t) return;
+    if(document.activeElement===v){ markEmpty(v); return; }
+    v.innerHTML = mdToHtml(t.value);
+    markEmpty(v);
+  }
+  function sync(id){
+    var v=box(id), t=ta(id);
+    if(!v||!t) return;
+    var md=htmlToMd(v);
+    if(t.value!==md){ t.value=md; t.dispatchEvent(new Event('input',{bubbles:true})); }
+    markEmpty(v);
+  }
+  function bold(id){
+    var v=box(id); if(!v) return;
+    v.focus();
+    try{ document.execCommand('styleWithCSS',false,false); }catch(e){}
+    try{ document.execCommand('bold'); }catch(e){}
+    sync(id);
+  }
+  function upgrade(t){
+    if(!t || t.dataset.rtfDone || !t.id) return;
+    var id=t.id;
+    t.dataset.rtfDone='1';
+    t.style.display='none';
+    t.setAttribute('aria-hidden','true'); t.tabIndex=-1;
+    var wrap=document.createElement('div'); wrap.className='rtf-wrap';
+    var bar=document.createElement('div'); bar.className='rtf-bar';
+    var b=document.createElement('button');
+    b.type='button'; b.className='rtf-b'; b.textContent='N';
+    b.title='Negrito - selecione o texto e clique (Ctrl+B)';
+    b.setAttribute('aria-label','Marcar em negrito');
+    b.addEventListener('mousedown', function(e){ e.preventDefault(); });
+    b.addEventListener('click', function(){ bold(id); });
+    var hint=document.createElement('span'); hint.className='rtf-hint';
+    hint.textContent='negrito: selecione o trecho e clique em N (ou Ctrl+B)';
+    bar.appendChild(b); bar.appendChild(hint);
+    var v=document.createElement('div');
+    v.className='rtf-box'; v.id='rtf_'+id; v.setAttribute('contenteditable','true');
+    v.setAttribute('role','textbox'); v.setAttribute('aria-multiline','true');
+    var ph=t.getAttribute('placeholder')||t.getAttribute('data-ph')||'';
+    if(ph) v.setAttribute('data-ph', ph);
+    if(t.getAttribute('aria-label')) v.setAttribute('aria-label', t.getAttribute('aria-label'));
+    if(t.getAttribute('aria-labelledby')) v.setAttribute('aria-labelledby', t.getAttribute('aria-labelledby'));
+    v.addEventListener('input', function(){ sync(id); });
+    v.addEventListener('keydown', function(ev){
+      if((ev.ctrlKey||ev.metaKey) && (ev.key==='b'||ev.key==='B')){ ev.preventDefault(); bold(id); }
+    });
+    v.addEventListener('blur', function(){ sync(id); render(id); });
+    v.addEventListener('paste', function(ev){
+      ev.preventDefault();
+      var txt=((ev.clipboardData||window.clipboardData).getData('text/plain')||'');
+      try{ document.execCommand('insertText',false,txt); }
+      catch(e){ document.execCommand('insertHTML',false, esc(txt).replace(/\n/g,'<br>')); }
+    });
+    wrap.appendChild(bar); wrap.appendChild(v);
+    if(t.nextSibling) t.parentNode.insertBefore(wrap, t.nextSibling);
+    else t.parentNode.appendChild(wrap);
+    t.addEventListener('change', function(){ render(id); });   // valor vindo de fora
+    render(id);
+  }
+  function scan(root){ (root||document).querySelectorAll('textarea[data-rtf]').forEach(upgrade); }
+  function refreshAll(){ document.querySelectorAll('textarea[data-rtf]').forEach(function(t){ if(t.id) render(t.id); }); }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', function(){ scan(); });
+  else scan();
+  return { scan:scan, upgrade:upgrade, render:render, refresh:render, refreshAll:refreshAll, sync:sync, bold:bold, mdToHtml:mdToHtml, htmlToMd:htmlToMd };
+})();
+</script>
+<script>
 window.FB_baixarConjunto = async function(){
   try{
     const p = await window.FB_gerarPDF({retornar:true});
@@ -2230,6 +2352,27 @@ window.REL_baixarConjunto = async function(){
     box-shadow:0 1px 4px rgba(31,111,192,.18) !important;
   }
 </style>
+<style id="rtf-css">
+/* ===== RTF - caixa de texto com negrito WYSIWYG (DESP 1) ===== */
+.rtf-wrap{ margin:3px 0 8px; }
+.rtf-bar{ display:flex; align-items:center; gap:8px; margin-bottom:5px; }
+.rtf-b{ border:1px solid var(--borda-forte,#9aa7b5); background:#fff; color:var(--texto,#243447);
+  border-radius:6px; min-width:30px; padding:3px 10px; font-size:13px; cursor:pointer;
+  font-family:Georgia,"Times New Roman",serif; font-weight:800; line-height:1.25; }
+.rtf-b:hover{ background:#eef4fb; border-color:var(--azul,#1F6FC0); }
+.rtf-b:active{ background:var(--azul,#1F6FC0); color:#fff; }
+.rtf-hint{ font-size:10.5px; color:#9aa7b5; }
+.rtf-box{ border:1px solid var(--borda-forte,#9aa7b5); border-radius:8px; background:#fff;
+  padding:10px 13px; font-size:13.5px; line-height:1.6; color:var(--texto,#243447);
+  text-align:justify; min-height:66px; max-height:340px; overflow-y:auto; outline:none;
+  font-family:"Segoe UI",Arial,Helvetica,sans-serif; transition:border-color .15s, box-shadow .15s; }
+.rtf-box:focus{ border-color:var(--azul,#1F6FC0); box-shadow:0 0 0 3px rgba(31,111,192,.14); text-align:left; }
+.rtf-box > div{ margin:0 0 7px; }
+.rtf-box > div:last-child{ margin-bottom:0; }
+.rtf-box .rtf-li{ padding-left:16px; text-indent:-13px; }
+.rtf-box b, .rtf-box strong{ font-weight:800; color:#12203a; }
+.rtf-box[data-empty="1"]::before{ content:attr(data-ph); color:#9aa7b5; font-style:italic; }
+</style>
 <style id="__enprol_enhance">
 :root{--e-azul:#1F6FC0;--e-azul-esc:#175a9f;--e-verde:#178a3a;--e-verde-esc:#12782f;--e-danger:#c23b34;--e-ring:#1F6FC0;--e-shadow-sm:0 1px 2px rgba(30,50,80,.06);--e-shadow-md:0 6px 20px rgba(30,50,80,.10);}
 /* --- Foco visível global (acessibilidade) --- */
@@ -4342,15 +4485,15 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
       <div class="vfield grow" style="flex:1"><label>NIRF</label><input type="text" id="fb_nirf" placeholder="Ex.: 0.000.000-0"></div>
     </div>
     <div class="vsub">1.6 Observações</div>
-    <textarea id="fb_15_obs" rows="3" placeholder="Observações"></textarea>
+    <textarea data-rtf id="fb_15_obs" rows="3" placeholder="Observações"></textarea>
   </div>
-  <h2 class="vsec acc" onclick="FV_toggleSec(this)"><span>2 — CARACTERIZAÇÃO DO IMÓVEL</span><span class="acc-chevron">▾</span></h2><div class="vcard"><div class="vfield grow"><label>2.1 Ambientais</label><textarea id="fb_21_amb" rows="2" placeholder="Restrições ambientais..."></textarea></div><div class="vfield grow"><label>2.2 Localização</label><textarea id="fb_22_loc" rows="3" placeholder="Localização e acesso..."></textarea></div><div class="vfield grow"><label>2.3 Características Físicas</label><textarea id="fb_23_fis" rows="2" placeholder="Características físicas..."></textarea></div><div class="vsub">2.4 Imóvel Rural</div><div class="vfield grow"><label>2.4.1 Infraestrutura</label><textarea id="fb_241_infra" rows="3" placeholder="Energia, acesso, cercamento, benfeitorias..."></textarea></div><div class="vfield grow"><label>2.4.2 Características da terra</label><textarea id="fb_242_terra" rows="2" placeholder="Relevo, tráfego..."></textarea></div><div class="vfield grow"><label>2.4.3 Hidrografia / Vazão (m³ ou L/s)</label><textarea id="fb_243_hidro" rows="2" placeholder="Hidrografia..."></textarea></div><div class="vfield grow"><label>2.4.4 Informações Complementares</label><textarea id="fb_244_comp" rows="2" placeholder="Informações complementares..."></textarea></div><div class="vsub">2.5 Imóvel Urbano</div><div class="vfield grow"><label>2.5.1 Infraestrutura</label><input type="text" id="fb_251_infra" placeholder="NÃO SE APLICA"></div><div class="vfield grow"><label>2.5.2 Topográfica</label><input type="text" id="fb_252_topo" placeholder="NÃO SE APLICA"></div><div class="vfield grow"><label>2.5.3 Distância do centro</label><input type="text" id="fb_253_dist" placeholder="NÃO SE APLICA"></div><div class="vfield grow"><label>2.5.4 Informações Complementares</label><input type="text" id="fb_254_comp" placeholder="NÃO SE APLICA"></div></div>
-<h2 class="vsec acc" onclick="FV_toggleSec(this)"><span>3 — DESCRIÇÃO DAS BENFEITORIAS</span><span class="acc-chevron">▾</span></h2><div class="vcard"><div class="vfield grow"><label>3.1 Não reprodutivas</label><textarea id="fb_31_nrep" rows="2" placeholder="Casa/depósito, poço, cercas, forno..."></textarea></div><div class="vfield grow"><label>3.1.1 Benfeitorias não reprodutivas da faixa não edificante</label><input type="text" id="fb_311" placeholder="AUSENTES"></div><div class="vfield grow"><label>3.1.2 Informações complementares</label><textarea id="fb_312" rows="2" placeholder="O detalhamento das benfeitorias consta no laudo de avaliação – DESP 3"></textarea></div><div class="vfield grow"><label>3.2 Reprodutivas</label><textarea id="fb_32_rep" rows="2" placeholder="Imbuzeiro, acerola, milho, feijão e pastagem..."></textarea></div><div class="vfield grow"><label>3.2.1 Benfeitorias reprodutivas da faixa não edificante</label><input type="text" id="fb_321" placeholder="AUSENTES"></div><div class="vfield grow"><label>3.2.2 Informações complementares</label><textarea id="fb_322" rows="2" placeholder="O detalhamento das benfeitorias consta no laudo de avaliação – DESP 3"></textarea></div></div>
-<h2 class="vsec acc" onclick="FV_toggleSec(this)"><span>4 — CARACTERIZAÇÃO SOCIOECONÔMICA</span><span class="acc-chevron">▾</span></h2><div class="vcard"><div class="vsub">4.1 Identificação</div><div class="vfield grow"><label>Proprietário(a) do imóvel</label><select id="fb_41_prop"><option value="">Selecione</option><option>1 - Sim</option><option>2 - Não</option></select></div><div class="vfield grow"><label>Nome</label><input type="text" id="fb_41_nome" data-fb-from="nome" class="bloqueado" data-lock="1" placeholder="Nome"></div><div class="vfield grow"><label>4.1.1 Grau de parentesco</label><select id="fb_411_par"><option value=""></option><option>Cônjuge</option><option>Filho(a)</option><option>Neto(a)</option><option>Irmão(ã)</option><option>Pai/Mãe</option><option>Sobrinho(a)</option><option>Genro/Nora</option><option>Outro</option><option>Não se aplica</option></select></div><div class="vsub">4.2 Naturalidade</div><div class="vrow"><div class="vfield grow"><label>Origem</label><select id="fb_42_nat"><option value=""></option><option>Do município (1)</option><option>Outro município (2)</option><option>Outro estado (3)</option></select></div><div class="vfield grow"><label>Qual?</label><input type="text" id="fb_42_qual" placeholder="Ex.: SERTÂNIA - PE"></div><div class="vfield grow"><label>Há quanto tempo reside na comunidade?</label><input type="text" id="fb_42_tempo" placeholder="Ex.: NÃO INFORMADO"></div></div><div class="vsub">4.3 Nível de Escolaridade</div><div class="vfield grow"><label>Escolaridade</label><select id="fb_43_esc"><option value=""></option><option>Analfabeto(a)</option><option>Alfabetizado(a)</option><option>Ensino Fundamental Completo</option><option>Ensino Fundamental Incompleto</option><option>Ensino Médio Completo</option><option>Ensino Médio Incompleto</option><option>Ensino Técnico Completo</option><option>Ensino Técnico Incompleto</option><option>Ensino Superior Completo</option><option>Ensino Superior Incompleto</option></select></div><div class="vsub">4.4 Dados Profissionais</div><div class="vrow"><div class="vfield grow"><label>Trabalha</label><select id="fb_44_trab"><option value="">Selecione</option><option>1 - Sim</option><option>2 - Não</option></select></div><div class="vfield grow"><label>Empresa que trabalha</label><input type="text" id="fb_44_empresa" placeholder="NÃO SE APLICA"></div><div class="vfield grow"><label>Tempo de trabalho</label><input type="text" id="fb_44_tempo" placeholder="NÃO SE APLICA"></div></div><div class="vrow"><div class="vfield grow"><label>Profissão</label><input type="text" id="fb_44_prof" placeholder="NÃO SE APLICA"></div><div class="vfield grow"><label>Remuneração (R$)</label><input type="text" id="fb_44_remun" inputmode="numeric" placeholder="R$ 0,00"></div><div class="vfield grow"><label>Renda familiar (R$)</label><input type="text" id="fb_44_renda" inputmode="numeric" placeholder="R$ 0,00"></div></div><div class="vsub">4.5 Composição Familiar</div><div class="fb-familia" id="fb_familia"></div><div class="vactions" style="margin-top:8px;"><button class="vbtn vbtn-ghost" type="button" onclick="FB_addFamilia()">+ Adicionar pessoa</button></div><div class="vrow"><div class="vfield grow"><label>4.5.1 Os filhos ou familiares estudam na escola do bairro</label><select id="fb_451"><option value="">Selecione</option><option>1 - Sim</option><option>2 - Não</option></select></div><div class="vfield grow"><label>Em qual bairro?</label><input type="text" id="fb_451_bairro" placeholder="Bairro"></div></div><div class="vrow"><div class="vfield grow"><label>4.5.2 Reside na moradia alguma pessoa com deficiência</label><select id="fb_452"><option value="">Selecione</option><option>1 - Sim</option><option>2 - Não</option></select></div><div class="vfield grow"><label>Qual?</label><input type="text" id="fb_452_qual" placeholder="Descrição"></div></div><div class="vfield grow"><label>4.5.3 Recebe BPC – Benefício de Prestação Continuada</label><select id="fb_453_bpc"><option value="">Selecione</option><option>1 - Sim</option><option>2 - Não</option></select></div><div class="vfield grow"><label>4.5.4 Das doenças abaixo citadas, quais as que acontecem com mais frequência na família:</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_454_0" value="Alergia"> Alergia</label><label class="fb-chk"><input type="checkbox" id="fb_454_1" value="Desnutrição"> Desnutrição</label><label class="fb-chk"><input type="checkbox" id="fb_454_2" value="Diarreia"> Diarreia</label><label class="fb-chk"><input type="checkbox" id="fb_454_3" value="Doença respiratória"> Doença respiratória</label><label class="fb-chk"><input type="checkbox" id="fb_454_4" value="Verminose"> Verminose</label></div></div><div class="vsub">4.6 Situação da Moradia</div><div class="vfield grow"><label>4.6.1 Tipo do imóvel</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_461_tipo_0" value="Terreno"> Terreno</label><label class="fb-chk"><input type="checkbox" id="fb_461_tipo_1" value="Comércio"> Comércio</label><label class="fb-chk"><input type="checkbox" id="fb_461_tipo_2" value="Casa residencial"> Casa residencial</label><label class="fb-chk"><input type="checkbox" id="fb_461_tipo_3" value="Casa abandonada"> Casa abandonada</label><label class="fb-chk"><input type="checkbox" id="fb_461_tipo_4" value="Outros"> Outros</label></div></div><div class="vfield grow"><label>Outros (especificar)</label><input type="text" id="fb_461_outros" placeholder="Ex.: CASA/ARMAZÉM"></div><div class="vfield grow"><label>4.6.2 Forma de ocupação da moradia</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_462_ocup_0" value="Própria"> Própria</label><label class="fb-chk"><input type="checkbox" id="fb_462_ocup_1" value="Alugada"> Alugada</label><label class="fb-chk"><input type="checkbox" id="fb_462_ocup_2" value="Cedida"> Cedida</label></div></div><div class="vfield grow"><label>4.6.3 Número de famílias na residência</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_463_fam_0" value="Uma família"> Uma família</label><label class="fb-chk"><input type="checkbox" id="fb_463_fam_1" value="Duas famílias"> Duas famílias</label><label class="fb-chk"><input type="checkbox" id="fb_463_fam_2" value="Mais de duas famílias"> Mais de duas famílias</label></div></div><div class="vfield grow"><label>4.6.4 Estado de conservação do imóvel</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_464_cons_0" value="Bom"> Bom</label><label class="fb-chk"><input type="checkbox" id="fb_464_cons_1" value="Regular"> Regular</label><label class="fb-chk"><input type="checkbox" id="fb_464_cons_2" value="Ruim"> Ruim</label></div></div><div class="vfield grow"><label>4.6.5 Característica da construção</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_465_constr_0" value="Alvenaria"> Alvenaria</label><label class="fb-chk"><input type="checkbox" id="fb_465_constr_1" value="Madeira"> Madeira</label><label class="fb-chk"><input type="checkbox" id="fb_465_constr_2" value="Misto"> Misto</label></div></div><div class="vfield grow"><label>4.6.6 Número de cômodos</label><input type="text" id="fb_466_comodos" placeholder="Ex.: 10 cômodos"></div><div class="vfield grow"><label>Obs.</label><textarea id="fb_46_obs" rows="3" placeholder="Observações sobre a moradia..."></textarea></div><div class="vfield grow"><label>4.6.7 Situação do imóvel</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_467_sit_0" value="Com escritura"> Com escritura</label><label class="fb-chk"><input type="checkbox" id="fb_467_sit_1" value="Sem escritura"> Sem escritura</label><label class="fb-chk"><input type="checkbox" id="fb_467_sit_2" value="Comprovante de compra e venda"> Comprovante de compra e venda</label><label class="fb-chk"><input type="checkbox" id="fb_467_sit_3" value="Posseiro"> Posseiro</label><label class="fb-chk"><input type="checkbox" id="fb_467_sit_4" value="Título de posse do INCRA"> Título de posse do INCRA</label></div></div><div class="vfield grow" id="fb_467_incra_wrap" style="display:none;"><label>Título de posse do INCRA — descrição</label><textarea id="fb_467_incra_desc" rows="2" placeholder="Descreva o título de posse do INCRA (nº, data, órgão emissor...)"></textarea></div>
+  <h2 class="vsec acc" onclick="FV_toggleSec(this)"><span>2 — CARACTERIZAÇÃO DO IMÓVEL</span><span class="acc-chevron">▾</span></h2><div class="vcard"><div class="vfield grow"><label>2.1 Ambientais</label><textarea data-rtf id="fb_21_amb" rows="2" placeholder="Restrições ambientais..."></textarea></div><div class="vfield grow"><label>2.2 Localização</label><textarea data-rtf id="fb_22_loc" rows="3" placeholder="Localização e acesso..."></textarea></div><div class="vfield grow"><label>2.3 Características Físicas</label><textarea data-rtf id="fb_23_fis" rows="2" placeholder="Características físicas..."></textarea></div><div class="vsub">2.4 Imóvel Rural</div><div class="vfield grow"><label>2.4.1 Infraestrutura</label><textarea data-rtf id="fb_241_infra" rows="3" placeholder="Energia, acesso, cercamento, benfeitorias..."></textarea></div><div class="vfield grow"><label>2.4.2 Características da terra</label><textarea data-rtf id="fb_242_terra" rows="2" placeholder="Relevo, tráfego..."></textarea></div><div class="vfield grow"><label>2.4.3 Hidrografia / Vazão (m³ ou L/s)</label><textarea data-rtf id="fb_243_hidro" rows="2" placeholder="Hidrografia..."></textarea></div><div class="vfield grow"><label>2.4.4 Informações Complementares</label><textarea data-rtf id="fb_244_comp" rows="2" placeholder="Informações complementares..."></textarea></div><div class="vsub">2.5 Imóvel Urbano</div><div class="vfield grow"><label>2.5.1 Infraestrutura</label><input type="text" id="fb_251_infra" placeholder="NÃO SE APLICA"></div><div class="vfield grow"><label>2.5.2 Topográfica</label><input type="text" id="fb_252_topo" placeholder="NÃO SE APLICA"></div><div class="vfield grow"><label>2.5.3 Distância do centro</label><input type="text" id="fb_253_dist" placeholder="NÃO SE APLICA"></div><div class="vfield grow"><label>2.5.4 Informações Complementares</label><input type="text" id="fb_254_comp" placeholder="NÃO SE APLICA"></div></div>
+<h2 class="vsec acc" onclick="FV_toggleSec(this)"><span>3 — DESCRIÇÃO DAS BENFEITORIAS</span><span class="acc-chevron">▾</span></h2><div class="vcard"><div class="vfield grow"><label>3.1 Não reprodutivas</label><textarea data-rtf id="fb_31_nrep" rows="2" placeholder="Casa/depósito, poço, cercas, forno..."></textarea></div><div class="vfield grow"><label>3.1.1 Benfeitorias não reprodutivas da faixa não edificante</label><input type="text" id="fb_311" placeholder="AUSENTES"></div><div class="vfield grow"><label>3.1.2 Informações complementares</label><textarea data-rtf id="fb_312" rows="2" placeholder="O detalhamento das benfeitorias consta no laudo de avaliação – DESP 3"></textarea></div><div class="vfield grow"><label>3.2 Reprodutivas</label><textarea data-rtf id="fb_32_rep" rows="2" placeholder="Imbuzeiro, acerola, milho, feijão e pastagem..."></textarea></div><div class="vfield grow"><label>3.2.1 Benfeitorias reprodutivas da faixa não edificante</label><input type="text" id="fb_321" placeholder="AUSENTES"></div><div class="vfield grow"><label>3.2.2 Informações complementares</label><textarea data-rtf id="fb_322" rows="2" placeholder="O detalhamento das benfeitorias consta no laudo de avaliação – DESP 3"></textarea></div></div>
+<h2 class="vsec acc" onclick="FV_toggleSec(this)"><span>4 — CARACTERIZAÇÃO SOCIOECONÔMICA</span><span class="acc-chevron">▾</span></h2><div class="vcard"><div class="vsub">4.1 Identificação</div><div class="vfield grow"><label>Proprietário(a) do imóvel</label><select id="fb_41_prop"><option value="">Selecione</option><option>1 - Sim</option><option>2 - Não</option></select></div><div class="vfield grow"><label>Nome</label><input type="text" id="fb_41_nome" data-fb-from="nome" class="bloqueado" data-lock="1" placeholder="Nome"></div><div class="vfield grow"><label>4.1.1 Grau de parentesco</label><select id="fb_411_par"><option value=""></option><option>Cônjuge</option><option>Filho(a)</option><option>Neto(a)</option><option>Irmão(ã)</option><option>Pai/Mãe</option><option>Sobrinho(a)</option><option>Genro/Nora</option><option>Outro</option><option>Não se aplica</option></select></div><div class="vsub">4.2 Naturalidade</div><div class="vrow"><div class="vfield grow"><label>Origem</label><select id="fb_42_nat"><option value=""></option><option>Do município (1)</option><option>Outro município (2)</option><option>Outro estado (3)</option></select></div><div class="vfield grow"><label>Qual?</label><input type="text" id="fb_42_qual" placeholder="Ex.: SERTÂNIA - PE"></div><div class="vfield grow"><label>Há quanto tempo reside na comunidade?</label><input type="text" id="fb_42_tempo" placeholder="Ex.: NÃO INFORMADO"></div></div><div class="vsub">4.3 Nível de Escolaridade</div><div class="vfield grow"><label>Escolaridade</label><select id="fb_43_esc"><option value=""></option><option>Analfabeto(a)</option><option>Alfabetizado(a)</option><option>Ensino Fundamental Completo</option><option>Ensino Fundamental Incompleto</option><option>Ensino Médio Completo</option><option>Ensino Médio Incompleto</option><option>Ensino Técnico Completo</option><option>Ensino Técnico Incompleto</option><option>Ensino Superior Completo</option><option>Ensino Superior Incompleto</option></select></div><div class="vsub">4.4 Dados Profissionais</div><div class="vrow"><div class="vfield grow"><label>Trabalha</label><select id="fb_44_trab"><option value="">Selecione</option><option>1 - Sim</option><option>2 - Não</option></select></div><div class="vfield grow"><label>Empresa que trabalha</label><input type="text" id="fb_44_empresa" placeholder="NÃO SE APLICA"></div><div class="vfield grow"><label>Tempo de trabalho</label><input type="text" id="fb_44_tempo" placeholder="NÃO SE APLICA"></div></div><div class="vrow"><div class="vfield grow"><label>Profissão</label><input type="text" id="fb_44_prof" placeholder="NÃO SE APLICA"></div><div class="vfield grow"><label>Remuneração (R$)</label><input type="text" id="fb_44_remun" inputmode="numeric" placeholder="R$ 0,00"></div><div class="vfield grow"><label>Renda familiar (R$)</label><input type="text" id="fb_44_renda" inputmode="numeric" placeholder="R$ 0,00"></div></div><div class="vsub">4.5 Composição Familiar</div><div class="fb-familia" id="fb_familia"></div><div class="vactions" style="margin-top:8px;"><button class="vbtn vbtn-ghost" type="button" onclick="FB_addFamilia()">+ Adicionar pessoa</button></div><div class="vrow"><div class="vfield grow"><label>4.5.1 Os filhos ou familiares estudam na escola do bairro</label><select id="fb_451"><option value="">Selecione</option><option>1 - Sim</option><option>2 - Não</option></select></div><div class="vfield grow"><label>Em qual bairro?</label><input type="text" id="fb_451_bairro" placeholder="Bairro"></div></div><div class="vrow"><div class="vfield grow"><label>4.5.2 Reside na moradia alguma pessoa com deficiência</label><select id="fb_452"><option value="">Selecione</option><option>1 - Sim</option><option>2 - Não</option></select></div><div class="vfield grow"><label>Qual?</label><input type="text" id="fb_452_qual" placeholder="Descrição"></div></div><div class="vfield grow"><label>4.5.3 Recebe BPC – Benefício de Prestação Continuada</label><select id="fb_453_bpc"><option value="">Selecione</option><option>1 - Sim</option><option>2 - Não</option></select></div><div class="vfield grow"><label>4.5.4 Das doenças abaixo citadas, quais as que acontecem com mais frequência na família:</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_454_0" value="Alergia"> Alergia</label><label class="fb-chk"><input type="checkbox" id="fb_454_1" value="Desnutrição"> Desnutrição</label><label class="fb-chk"><input type="checkbox" id="fb_454_2" value="Diarreia"> Diarreia</label><label class="fb-chk"><input type="checkbox" id="fb_454_3" value="Doença respiratória"> Doença respiratória</label><label class="fb-chk"><input type="checkbox" id="fb_454_4" value="Verminose"> Verminose</label></div></div><div class="vsub">4.6 Situação da Moradia</div><div class="vfield grow"><label>4.6.1 Tipo do imóvel</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_461_tipo_0" value="Terreno"> Terreno</label><label class="fb-chk"><input type="checkbox" id="fb_461_tipo_1" value="Comércio"> Comércio</label><label class="fb-chk"><input type="checkbox" id="fb_461_tipo_2" value="Casa residencial"> Casa residencial</label><label class="fb-chk"><input type="checkbox" id="fb_461_tipo_3" value="Casa abandonada"> Casa abandonada</label><label class="fb-chk"><input type="checkbox" id="fb_461_tipo_4" value="Outros"> Outros</label></div></div><div class="vfield grow"><label>Outros (especificar)</label><input type="text" id="fb_461_outros" placeholder="Ex.: CASA/ARMAZÉM"></div><div class="vfield grow"><label>4.6.2 Forma de ocupação da moradia</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_462_ocup_0" value="Própria"> Própria</label><label class="fb-chk"><input type="checkbox" id="fb_462_ocup_1" value="Alugada"> Alugada</label><label class="fb-chk"><input type="checkbox" id="fb_462_ocup_2" value="Cedida"> Cedida</label></div></div><div class="vfield grow"><label>4.6.3 Número de famílias na residência</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_463_fam_0" value="Uma família"> Uma família</label><label class="fb-chk"><input type="checkbox" id="fb_463_fam_1" value="Duas famílias"> Duas famílias</label><label class="fb-chk"><input type="checkbox" id="fb_463_fam_2" value="Mais de duas famílias"> Mais de duas famílias</label></div></div><div class="vfield grow"><label>4.6.4 Estado de conservação do imóvel</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_464_cons_0" value="Bom"> Bom</label><label class="fb-chk"><input type="checkbox" id="fb_464_cons_1" value="Regular"> Regular</label><label class="fb-chk"><input type="checkbox" id="fb_464_cons_2" value="Ruim"> Ruim</label></div></div><div class="vfield grow"><label>4.6.5 Característica da construção</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_465_constr_0" value="Alvenaria"> Alvenaria</label><label class="fb-chk"><input type="checkbox" id="fb_465_constr_1" value="Madeira"> Madeira</label><label class="fb-chk"><input type="checkbox" id="fb_465_constr_2" value="Misto"> Misto</label></div></div><div class="vfield grow"><label>4.6.6 Número de cômodos</label><input type="text" id="fb_466_comodos" placeholder="Ex.: 10 cômodos"></div><div class="vfield grow"><label>Obs.</label><textarea data-rtf id="fb_46_obs" rows="3" placeholder="Observações sobre a moradia..."></textarea></div><div class="vfield grow"><label>4.6.7 Situação do imóvel</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_467_sit_0" value="Com escritura"> Com escritura</label><label class="fb-chk"><input type="checkbox" id="fb_467_sit_1" value="Sem escritura"> Sem escritura</label><label class="fb-chk"><input type="checkbox" id="fb_467_sit_2" value="Comprovante de compra e venda"> Comprovante de compra e venda</label><label class="fb-chk"><input type="checkbox" id="fb_467_sit_3" value="Posseiro"> Posseiro</label><label class="fb-chk"><input type="checkbox" id="fb_467_sit_4" value="Título de posse do INCRA"> Título de posse do INCRA</label></div></div><div class="vfield grow" id="fb_467_incra_wrap" style="display:none;"><label>Título de posse do INCRA — descrição</label><textarea data-rtf id="fb_467_incra_desc" rows="2" placeholder="Descreva o título de posse do INCRA (nº, data, órgão emissor...)"></textarea></div>
 <div class="vsub">4.7 — Infraestrutura do Imóvel</div><div class="vfield grow"><label>4.7.1 Abastecimento de água</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_471_agua_0" value="Rede pública"> Rede pública</label><label class="fb-chk"><input type="checkbox" id="fb_471_agua_1" value="Poço"> Poço</label><label class="fb-chk"><input type="checkbox" id="fb_471_agua_2" value="Fonte"> Fonte</label><label class="fb-chk"><input type="checkbox" id="fb_471_agua_3" value="Cedido por vizinho"> Cedido por vizinho</label><label class="fb-chk"><input type="checkbox" id="fb_471_agua_4" value="Rio"> Rio</label></div></div><div class="vfield grow"><label>4.7.2 Energia elétrica</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_472_energia_0" value="Com padrão"> Com padrão</label><label class="fb-chk"><input type="checkbox" id="fb_472_energia_1" value="Sem padrão"> Sem padrão</label></div></div><div class="vfield grow"><label>4.7.3 Eliminação de dejetos</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_473_dejetos_0" value="Rede de esgoto"> Rede de esgoto</label><label class="fb-chk"><input type="checkbox" id="fb_473_dejetos_1" value="Fossa séptica"> Fossa séptica</label><label class="fb-chk"><input type="checkbox" id="fb_473_dejetos_2" value="Vala a céu aberto"> Vala a céu aberto</label></div></div><div class="vfield grow"><label>4.7.4 Destino dado ao lixo doméstico</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_474_lixo_0" value="Coleta pública"> Coleta pública</label><label class="fb-chk"><input type="checkbox" id="fb_474_lixo_1" value="Queimado"> Queimado</label><label class="fb-chk"><input type="checkbox" id="fb_474_lixo_2" value="Enterrado"> Enterrado</label><label class="fb-chk"><input type="checkbox" id="fb_474_lixo_3" value="Jogado em terreno baldio"> Jogado em terreno baldio</label></div></div>
-<div class="vsub">4.8 — Sentidos de Identificação (Autorreconhecimento)</div><div class="vfield grow"><label>4.8.1 O Sr. ou a Sra. se autorreconhece como:</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_481_0" value="Quilombola – Liderança"> Quilombola – Liderança</label><label class="fb-chk"><input type="checkbox" id="fb_481_1" value="Indígena – Liderança"> Indígena – Liderança</label><label class="fb-chk"><input type="checkbox" id="fb_481_2" value="Comunidade tradicional – Liderança"> Comunidade tradicional – Liderança</label><label class="fb-chk"><input type="checkbox" id="fb_481_3" value="Outros"> Outros</label></div></div><div class="vfield grow" id="fb_481_esp_wrap" style="display:none;"><label>D) Outros — especificar</label><textarea id="fb_481_esp" rows="2" placeholder="Especificar..."></textarea></div>
-<div class="vsub">4.9 — Aproveitamento da Terra</div><div class="vfield grow"><label>4.9.1 Uso das terras</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_491_uso_0" value="Seca"> Seca</label><label class="fb-chk"><input type="checkbox" id="fb_491_uso_1" value="Chuva"> Chuva</label><label class="fb-chk"><input type="checkbox" id="fb_491_uso_2" value="Plantio"> Plantio</label><label class="fb-chk"><input type="checkbox" id="fb_491_uso_3" value="Criação de animais"> Criação de animais</label></div></div><div class="vfield grow" id="fb_491_plantio_wrap" style="display:none;"><label>Plantio — especificar</label><textarea id="fb_491_plantio" rows="2" placeholder="Ex.: Imbuzeiro, acerola, milho, feijão e pastagem"></textarea></div><div class="vfield grow" id="fb_491_criacao_wrap" style="display:none;"><label>Criação de animais — especificar</label><textarea id="fb_491_criacao" rows="2" placeholder="Descrição da criação de animais"></textarea></div><div class="vfield grow"><label>4.9.1 Uso das terras — descrição</label><textarea id="fb_491_desc" rows="2" placeholder="Descrição geral do uso das terras..."></textarea></div><div class="vfield grow"><label>4.9.2 O que é produzido na propriedade</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_492_prod_0" value="Extrativismo"> Extrativismo</label><label class="fb-chk"><input type="checkbox" id="fb_492_prod_1" value="Agricultura"> Agricultura</label><label class="fb-chk"><input type="checkbox" id="fb_492_prod_2" value="Pecuária"> Pecuária</label></div></div><div class="vfield grow"><label>4.9.3 Quais impactos concebidos pela comunidade sobre a construção da ferrovia, e qual sua opinião?</label><textarea id="fb_493_impactos" rows="4" placeholder="Percepção da comunidade sobre a ferrovia..."></textarea></div>
-<div class="vsub">4.10 — Outras Informações</div><div class="vfield grow"><label>4.10.1 Quais as expectativas futuras da família em relação à moradia atual e pós desapropriação</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_4101_0" value="Continuar morando nas redondezas da localidade"> Continuar morando nas redondezas da localidade</label><label class="fb-chk"><input type="checkbox" id="fb_4101_1" value="Construir em outro local fora da localidade"> Construir em outro local fora da localidade</label><label class="fb-chk"><input type="checkbox" id="fb_4101_2" value="Outra"> Outra</label></div></div><div class="vfield grow"><label>Outra (especificar)</label><input type="text" id="fb_4101_outra" placeholder="Especificar"></div><div class="vrow"><div class="vfield grow"><label>4.10.2 A família recebe algum benefício do Governo Federal</label><select id="fb_4102"><option value="">Selecione</option><option>1 - Sim</option><option>2 - Não</option></select></div><div class="vfield grow"><label>Qual?</label><input type="text" id="fb_4102_qual" placeholder="Qual benefício"></div></div><div class="vrow"><div class="vfield grow"><label>4.10.3 A família participa de algum programa do município</label><select id="fb_4103"><option value="">Selecione</option><option>1 - Sim</option><option>2 - Não</option></select></div><div class="vfield grow"><label>Qual?</label><input type="text" id="fb_4103_qual" placeholder="Qual programa"></div></div><div class="vrow"><div class="vfield grow"><label>4.10.4 A família participa de projetos e organizações da comunidade</label><select id="fb_4104"><option value="">Selecione</option><option>1 - Sim</option><option>2 - Não</option></select></div><div class="vfield grow"><label>Qual?</label><input type="text" id="fb_4104_qual" placeholder="Qual projeto/organização"></div></div><div class="vfield grow"><label>4.10.5 Dados relativos sobre saúde, educação, segurança comunitária e questões sociais, situações de vulnerabilidades relacionadas à família e seus membros</label><textarea id="fb_4105" rows="6" placeholder="Relato da abordagem social..."></textarea></div></div>
+<div class="vsub">4.8 — Sentidos de Identificação (Autorreconhecimento)</div><div class="vfield grow"><label>4.8.1 O Sr. ou a Sra. se autorreconhece como:</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_481_0" value="Quilombola – Liderança"> Quilombola – Liderança</label><label class="fb-chk"><input type="checkbox" id="fb_481_1" value="Indígena – Liderança"> Indígena – Liderança</label><label class="fb-chk"><input type="checkbox" id="fb_481_2" value="Comunidade tradicional – Liderança"> Comunidade tradicional – Liderança</label><label class="fb-chk"><input type="checkbox" id="fb_481_3" value="Outros"> Outros</label></div></div><div class="vfield grow" id="fb_481_esp_wrap" style="display:none;"><label>D) Outros — especificar</label><textarea data-rtf id="fb_481_esp" rows="2" placeholder="Especificar..."></textarea></div>
+<div class="vsub">4.9 — Aproveitamento da Terra</div><div class="vfield grow"><label>4.9.1 Uso das terras</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_491_uso_0" value="Seca"> Seca</label><label class="fb-chk"><input type="checkbox" id="fb_491_uso_1" value="Chuva"> Chuva</label><label class="fb-chk"><input type="checkbox" id="fb_491_uso_2" value="Plantio"> Plantio</label><label class="fb-chk"><input type="checkbox" id="fb_491_uso_3" value="Criação de animais"> Criação de animais</label></div></div><div class="vfield grow" id="fb_491_plantio_wrap" style="display:none;"><label>Plantio — especificar</label><textarea data-rtf id="fb_491_plantio" rows="2" placeholder="Ex.: Imbuzeiro, acerola, milho, feijão e pastagem"></textarea></div><div class="vfield grow" id="fb_491_criacao_wrap" style="display:none;"><label>Criação de animais — especificar</label><textarea data-rtf id="fb_491_criacao" rows="2" placeholder="Descrição da criação de animais"></textarea></div><div class="vfield grow"><label>4.9.1 Uso das terras — descrição</label><textarea data-rtf id="fb_491_desc" rows="2" placeholder="Descrição geral do uso das terras..."></textarea></div><div class="vfield grow"><label>4.9.2 O que é produzido na propriedade</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_492_prod_0" value="Extrativismo"> Extrativismo</label><label class="fb-chk"><input type="checkbox" id="fb_492_prod_1" value="Agricultura"> Agricultura</label><label class="fb-chk"><input type="checkbox" id="fb_492_prod_2" value="Pecuária"> Pecuária</label></div></div><div class="vfield grow"><label>4.9.3 Quais impactos concebidos pela comunidade sobre a construção da ferrovia, e qual sua opinião?</label><textarea data-rtf id="fb_493_impactos" rows="4" placeholder="Percepção da comunidade sobre a ferrovia..."></textarea></div>
+<div class="vsub">4.10 — Outras Informações</div><div class="vfield grow"><label>4.10.1 Quais as expectativas futuras da família em relação à moradia atual e pós desapropriação</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_4101_0" value="Continuar morando nas redondezas da localidade"> Continuar morando nas redondezas da localidade</label><label class="fb-chk"><input type="checkbox" id="fb_4101_1" value="Construir em outro local fora da localidade"> Construir em outro local fora da localidade</label><label class="fb-chk"><input type="checkbox" id="fb_4101_2" value="Outra"> Outra</label></div></div><div class="vfield grow"><label>Outra (especificar)</label><input type="text" id="fb_4101_outra" placeholder="Especificar"></div><div class="vrow"><div class="vfield grow"><label>4.10.2 A família recebe algum benefício do Governo Federal</label><select id="fb_4102"><option value="">Selecione</option><option>1 - Sim</option><option>2 - Não</option></select></div><div class="vfield grow"><label>Qual?</label><input type="text" id="fb_4102_qual" placeholder="Qual benefício"></div></div><div class="vrow"><div class="vfield grow"><label>4.10.3 A família participa de algum programa do município</label><select id="fb_4103"><option value="">Selecione</option><option>1 - Sim</option><option>2 - Não</option></select></div><div class="vfield grow"><label>Qual?</label><input type="text" id="fb_4103_qual" placeholder="Qual programa"></div></div><div class="vrow"><div class="vfield grow"><label>4.10.4 A família participa de projetos e organizações da comunidade</label><select id="fb_4104"><option value="">Selecione</option><option>1 - Sim</option><option>2 - Não</option></select></div><div class="vfield grow"><label>Qual?</label><input type="text" id="fb_4104_qual" placeholder="Qual projeto/organização"></div></div><div class="vfield grow"><label>4.10.5 Dados relativos sobre saúde, educação, segurança comunitária e questões sociais, situações de vulnerabilidades relacionadas à família e seus membros</label><textarea data-rtf id="fb_4105" rows="6" placeholder="Relato da abordagem social..."></textarea></div></div>
 <h2 class="vsec acc" onclick="FV_toggleSec(this)"><span>5 — INFORMAÇÕES COMPLEMENTARES (PROPRIEDADE)</span><span class="acc-chevron">▾</span></h2><div class="vcard"><div class="vfield grow"><label>5.1 Obras e Melhorias das Terras</label><input type="text" id="fb_51_obras" placeholder="Ex.: AUSENTES"></div><div class="vfield grow"><label>5.2 Outras Atividades</label><input type="text" id="fb_52_ativ" placeholder="Ex.: NÃO HÁ"></div><div class="vsub">5.3 Fotografias do imóvel</div><label class="img-drop" id="fb_fotos_drop"><span class="ic">📷</span><span class="t">Clique ou arraste as fotografias do imóvel</span><span class="h">Várias imagens • JPG ou PNG</span><input type="file" accept="image/*" multiple id="fb_fotos_file"></label><div class="fb-fotos-prev" id="fb_fotos_prev"></div><div class="vsub">Assinatura do(a) vistoriador(a)</div><div class="vfield grow"><label>Nome do(a) vistoriador(a)</label><input type="text" id="fb_ass_nome" placeholder="Nome"></div><div class="vrow"><div class="vfield grow"><label>Cargo/Função</label><input type="text" id="fb_ass_cargo" placeholder="Ex.: Assistente Social"></div><div class="vfield grow"><label>Registro (CRESS/CREA)</label><input type="text" id="fb_ass_reg" placeholder="Ex.: CRESS-PE 14780"></div></div><div class="vfield grow"><label>Local e data</label><input type="text" id="fb_ass_local" placeholder="Ex.: Custódia-PE, 16 de agosto de 2026"></div><div class="vsub">Assinatura digitalizada (imagem)</div><label class="img-drop" id="fb_ass_img_drop"><span class="ic">✍️</span><span class="t">Clique para enviar a imagem da assinatura</span><span class="h">Imagem única • JPG ou PNG</span><input type="file" accept="image/*" id="fb_ass_img_file"></label><div id="fb_ass_img_prev" style="margin-top:8px;"></div></div>
 <div class="vactions"><span style="font-size:12.5px;color:#7a8797;">Os downloads são feitos na aba <b>Relatório Técnico</b> (botão “Baixar tudo (.zip)”).</span></div>
 </div>
@@ -4358,7 +4501,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 
 
 
-<section class="tab-panel" id="panel-desp1-rel"><div class="wrap"><h1>Relatório Técnico de Caracterização Socioeconômica</h1><p class="sub">Só os campos específicos deste caso. Os dados da Ficha de Vistoria (1.9) e os textos padrão entram automaticamente no PDF.</p><div class="vcard"><div class="vsub">Áreas de Locação</div><div class="rel-areas" id="rel_areas"></div><div class="vactions" style="margin-top:6px;"><button class="vbtn vbtn-ghost" type="button" onclick="REL_addArea()">+ Adicionar área</button></div></div><div class="vcard"><div class="vsub">3.4 Síntese — Relato de campo</div><div class="vfield grow"><label>Relato de campo<span class="hint-auto"> (complemento; o texto padrão da síntese entra automaticamente antes deste no PDF)</span></label><textarea id="rel_34_relato" rows="8" placeholder="Descreva o relato da visita de campo..."></textarea></div></div><div class="vcard"><div class="vsub">Parecer Social — Critérios de Vulnerabilidade</div><div class="vsub" style="font-size:12px;color:#5a6b7c;">Tabela 1 — Critérios de Avaliação de Vulnerabilidade Socioeconômica (IVS/IPEA)</div><div class="rel-tabela" id="rel_tabela1"></div><div class="vactions" style="margin-top:6px;"><button class="vbtn vbtn-ghost" type="button" onclick="REL_addLinha(1)">+ Adicionar critério (Tabela 1)</button></div><div class="rel-ivs" id="rel_ivs"></div><div class="vsub" style="font-size:12px;color:#5a6b7c;margin-top:14px;">Tabela 2 — Critérios conforme Art. 3º da Resolução Normativa INFRASA nº 7/2023</div><div class="rel-tabela" id="rel_tabela2"></div><div class="vactions" style="margin-top:6px;"><button class="vbtn vbtn-ghost" type="button" onclick="REL_addLinha(2)">+ Adicionar critério (Tabela 2)</button></div></div><div class="vcard"><div class="vsub">Conclusão</div><div class="vrow"><div class="vfield grow"><label>Grau de vulnerabilidade</label><input type="text" id="rel_grau_vuln" placeholder="Ex.: moderada"></div><div class="vfield grow"><label>Local e data</label><input type="text" id="rel_local_data" placeholder="Ex.: Custódia-PE, 16 de agosto de 2026"></div></div></div><div id="rel_ocultos" style="display:none" aria-hidden="true"><input type="text" id="rel_processo" data-rel-from="processo" class="bloqueado" readonly data-lock="1"><input type="text" id="rel_sei" readonly class="bloqueado"><input type="text" id="rel_ferrovia" value="FERROVIA TRANSNORDESTINA EF-232 – FTN"><input type="text" id="rel_lote" class="bloqueado" readonly><input type="text" id="rel_subtrecho" value="Custódia/PE a Arcoverde/PE"><input type="text" id="rel_contrato" value="037/2024"><input type="text" id="rel_os" value="INFRA 33 (10665856), Despacho 275 Solicitação de OS - FTN (10643430), Despacho 04/2026 (10749193,) Despacho 13/2026 (10791872), Plano de Trabalho 4 TRANSNORDESTINA (10614462)"><input type="text" id="rel_mesano"><input type="text" id="rel_expropriado" data-rel-from="rel_nome_prop" class="bloqueado" readonly data-lock="1"><textarea id="rel_apresentacao"></textarea><textarea id="rel_premissas"></textarea><input type="text" id="rel_nome" data-rel-from="fb_nome" class="bloqueado" readonly data-lock="1"><input type="text" id="rel_estcivil" data-rel-from="fb_estcivil" class="bloqueado" readonly data-lock="1"><input type="text" id="rel_rg" data-rel-from="fb_rg" class="bloqueado" readonly data-lock="1"><input type="text" id="rel_cpf" data-rel-from="fb_cpf" class="bloqueado" readonly data-lock="1"><input type="text" id="rel_endereco" data-rel-from="fb_endereco" class="bloqueado" readonly data-lock="1"><input type="text" id="rel_municipio" data-rel-from="fb_municipio" class="bloqueado" readonly data-lock="1"><input type="text" id="rel_cep" data-rel-from="fb_cep" class="bloqueado" readonly data-lock="1"><input type="text" id="rel_prop_id" data-rel-from="fb_prop_id" class="bloqueado" readonly data-lock="1"><input type="text" id="rel_area_total" data-rel-from="fb_area_total" class="bloqueado" readonly data-lock="1"><input type="text" id="rel_area_desap" data-rel-from="fb_area_desap" class="bloqueado" readonly data-lock="1"><input type="text" id="rel_matricula" data-rel-from="fb_matricula" class="bloqueado" readonly data-lock="1"><input type="text" id="rel_cib" data-rel-from="fb_cib" class="bloqueado" readonly data-lock="1"><input type="text" id="rel_cartorio" data-rel-from="fb_cartorio" class="bloqueado" readonly data-lock="1"><textarea id="rel_qualificacao"></textarea><textarea id="rel_31_atividade"></textarea><textarea id="rel_32_objetivo"></textarea><textarea id="rel_33_metodologia"></textarea><textarea id="rel_34_sintese"></textarea><textarea id="rel_parecer_intro"></textarea><textarea id="rel_tab1_coment"></textarea><textarea id="rel_texto_normativo"></textarea><textarea id="rel_tab2_coment"></textarea><textarea id="rel_conclusao"></textarea><input type="text" id="rel_resp_nome" data-rel-from="fb_ass_nome" class="bloqueado" readonly data-lock="1"><input type="text" id="rel_resp_cargo" data-rel-from="fb_ass_cargo" class="bloqueado" readonly data-lock="1"><input type="text" id="rel_resp_reg" data-rel-from="fb_ass_reg" class="bloqueado" readonly data-lock="1"><label class="img-drop" id="rel_ass_img_drop"><input type="file" accept="image/*" id="rel_ass_img_file"></label><div id="rel_ass_img_prev"></div><label class="img-drop" id="rel_fotos_drop"><input type="file" accept="image/*" multiple id="rel_fotos_file"></label><div id="rel_fotos_aviso"></div><div class="fb-fotos-prev" id="rel_fotos_prev"></div></div><div class="vactions"><button class="vbtn vbtn-primary" type="button" onclick="REL_baixarTudoZip()">📦 Baixar tudo (.zip)</button></div></div></section>
+<section class="tab-panel" id="panel-desp1-rel"><div class="wrap"><h1>Relatório Técnico de Caracterização Socioeconômica</h1><p class="sub">Só os campos específicos deste caso. Os dados da Ficha de Vistoria (1.9) e os textos padrão entram automaticamente no PDF.</p><div class="vcard"><div class="vsub">Áreas de Locação</div><div class="rel-areas" id="rel_areas"></div><div class="vactions" style="margin-top:6px;"><button class="vbtn vbtn-ghost" type="button" onclick="REL_addArea()">+ Adicionar área</button></div></div><div class="vcard"><div class="vsub">3.4 Síntese — Relato de campo</div><div class="vfield grow"><label>Relato de campo<span class="hint-auto"> (complemento; o texto padrão da síntese entra automaticamente antes deste no PDF)</span></label><textarea data-rtf id="rel_34_relato" rows="8" placeholder="Descreva o relato da visita de campo..."></textarea></div></div><div class="vcard"><div class="vsub">Parecer Social — Critérios de Vulnerabilidade</div><div class="vsub" style="font-size:12px;color:#5a6b7c;">Tabela 1 — Critérios de Avaliação de Vulnerabilidade Socioeconômica (IVS/IPEA)</div><div class="rel-tabela" id="rel_tabela1"></div><div class="vactions" style="margin-top:6px;"><button class="vbtn vbtn-ghost" type="button" onclick="REL_addLinha(1)">+ Adicionar critério (Tabela 1)</button></div><div class="rel-ivs" id="rel_ivs"></div><div class="vsub" style="font-size:12px;color:#5a6b7c;margin-top:14px;">Tabela 2 — Critérios conforme Art. 3º da Resolução Normativa INFRASA nº 7/2023</div><div class="rel-tabela" id="rel_tabela2"></div><div class="vactions" style="margin-top:6px;"><button class="vbtn vbtn-ghost" type="button" onclick="REL_addLinha(2)">+ Adicionar critério (Tabela 2)</button></div></div><div class="vcard"><div class="vsub">Conclusão</div><div class="vrow"><div class="vfield grow"><label>Grau de vulnerabilidade</label><input type="text" id="rel_grau_vuln" placeholder="Ex.: moderada"></div><div class="vfield grow"><label>Local e data</label><input type="text" id="rel_local_data" placeholder="Ex.: Custódia-PE, 16 de agosto de 2026"></div></div></div><div id="rel_ocultos" style="display:none" aria-hidden="true"><input type="text" id="rel_processo" data-rel-from="processo" class="bloqueado" readonly data-lock="1"><input type="text" id="rel_sei" readonly class="bloqueado"><input type="text" id="rel_ferrovia" value="FERROVIA TRANSNORDESTINA EF-232 – FTN"><input type="text" id="rel_lote" class="bloqueado" readonly><input type="text" id="rel_subtrecho" value="Custódia/PE a Arcoverde/PE"><input type="text" id="rel_contrato" value="037/2024"><input type="text" id="rel_os" value="INFRA 33 (10665856), Despacho 275 Solicitação de OS - FTN (10643430), Despacho 04/2026 (10749193,) Despacho 13/2026 (10791872), Plano de Trabalho 4 TRANSNORDESTINA (10614462)"><input type="text" id="rel_mesano"><input type="text" id="rel_expropriado" data-rel-from="rel_nome_prop" class="bloqueado" readonly data-lock="1"><textarea id="rel_apresentacao"></textarea><textarea id="rel_premissas"></textarea><input type="text" id="rel_nome" data-rel-from="fb_nome" class="bloqueado" readonly data-lock="1"><input type="text" id="rel_estcivil" data-rel-from="fb_estcivil" class="bloqueado" readonly data-lock="1"><input type="text" id="rel_rg" data-rel-from="fb_rg" class="bloqueado" readonly data-lock="1"><input type="text" id="rel_cpf" data-rel-from="fb_cpf" class="bloqueado" readonly data-lock="1"><input type="text" id="rel_endereco" data-rel-from="fb_endereco" class="bloqueado" readonly data-lock="1"><input type="text" id="rel_municipio" data-rel-from="fb_municipio" class="bloqueado" readonly data-lock="1"><input type="text" id="rel_cep" data-rel-from="fb_cep" class="bloqueado" readonly data-lock="1"><input type="text" id="rel_prop_id" data-rel-from="fb_prop_id" class="bloqueado" readonly data-lock="1"><input type="text" id="rel_area_total" data-rel-from="fb_area_total" class="bloqueado" readonly data-lock="1"><input type="text" id="rel_area_desap" data-rel-from="fb_area_desap" class="bloqueado" readonly data-lock="1"><input type="text" id="rel_matricula" data-rel-from="fb_matricula" class="bloqueado" readonly data-lock="1"><input type="text" id="rel_cib" data-rel-from="fb_cib" class="bloqueado" readonly data-lock="1"><input type="text" id="rel_cartorio" data-rel-from="fb_cartorio" class="bloqueado" readonly data-lock="1"><textarea id="rel_qualificacao"></textarea><textarea id="rel_31_atividade"></textarea><textarea id="rel_32_objetivo"></textarea><textarea id="rel_33_metodologia"></textarea><textarea id="rel_34_sintese"></textarea><textarea id="rel_parecer_intro"></textarea><textarea id="rel_tab1_coment"></textarea><textarea id="rel_texto_normativo"></textarea><textarea id="rel_tab2_coment"></textarea><textarea id="rel_conclusao"></textarea><input type="text" id="rel_resp_nome" data-rel-from="fb_ass_nome" class="bloqueado" readonly data-lock="1"><input type="text" id="rel_resp_cargo" data-rel-from="fb_ass_cargo" class="bloqueado" readonly data-lock="1"><input type="text" id="rel_resp_reg" data-rel-from="fb_ass_reg" class="bloqueado" readonly data-lock="1"><label class="img-drop" id="rel_ass_img_drop"><input type="file" accept="image/*" id="rel_ass_img_file"></label><div id="rel_ass_img_prev"></div><label class="img-drop" id="rel_fotos_drop"><input type="file" accept="image/*" multiple id="rel_fotos_file"></label><div id="rel_fotos_aviso"></div><div class="fb-fotos-prev" id="rel_fotos_prev"></div></div><div class="vactions"><button class="vbtn vbtn-primary" type="button" onclick="REL_baixarTudoZip()">📦 Baixar tudo (.zip)</button></div></div></section>
 
 <section class="tab-panel" id="panel-desp1-parecer">
   <style>
@@ -4514,39 +4657,35 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
     <div class="vcard">
       <div class="vactions" style="margin-bottom:8px;"><button class="vbtn vbtn-ghost vbtn-sm" type="button" onclick="PAR_gerarTexto('relatorio')">↻ Restaurar texto automático</button></div>
       <label style="display:block;font-size:11px;font-weight:700;color:var(--label);text-transform:uppercase;letter-spacing:.4px;">Texto do relatório<span class="hint-auto"> (gerado automaticamente — edite direto no campo; o negrito aparece e sai igual no PDF)</span></label>
-      <div class="par-toolbar"><button type="button" class="par-bold-btn" onclick="PAR_richBold('par_relatorio')"><b>N</b> Negrito</button><span class="hint-inline">Selecione o texto e clique em Negrito (ou Ctrl+B).</span></div>
-      <div class="par-rich" id="par_relatorio_rich" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Texto do relatório" data-ph="Preenchido automaticamente assim que os dados da Ficha de Vistoria estiverem disponíveis..." oninput="PAR_syncFromRich('par_relatorio')" onkeydown="PAR_richKey(event,'par_relatorio')"></div>
-      <textarea id="par_relatorio" style="display:none" aria-hidden="true" tabindex="-1"></textarea>
+      <textarea data-rtf id="par_relatorio" style="display:none" aria-hidden="true" tabindex="-1"></textarea>
     </div>
 
     <div style="display:none;">
     <h2 class="vsec"><span>II – Fundamentação Legal</span></h2>
     <div class="vcard">
       <div class="vactions" style="margin-bottom:8px;"><button class="vbtn vbtn-ghost vbtn-sm" type="button" onclick="PAR_gerarTexto('fundamentacao')">↻ Restaurar texto padrão</button></div>
-      <div class="vfield grow"><label for="par_fundamentacao">Fundamentação legal<span class="hint-auto"> (texto padrão — mantenha a formatação e os negritos ao editar)</span></label><textarea id="par_fundamentacao" rows="14" placeholder=""></textarea></div>
+      <div class="vfield grow"><label for="par_fundamentacao">Fundamentação legal<span class="hint-auto"> (texto padrão — mantenha a formatação e os negritos ao editar)</span></label><textarea data-rtf id="par_fundamentacao" rows="14" placeholder=""></textarea></div>
     </div>
     </div>
 
     <h2 class="vsec"><span>III – Análise Técnica e Jurídica</span></h2>
     <div class="vcard">
       <h3 class="vsub" id="par_h_titularidade">Titularidade e Registro do Imóvel</h3>
-      <div class="par-toolbar"><button type="button" class="par-bold-btn" onclick="PAR_toggleBold('par_titularidade')"><b>N</b> Negrito</button><span class="hint-inline">Selecione o texto e clique em Negrito para marcar (**texto**) — sai em negrito no PDF.</span></div>
-      <div class="vfield grow"><textarea id="par_titularidade" rows="7" aria-labelledby="par_h_titularidade" placeholder="Descreva a titularidade e a situação registral do imóvel..."></textarea></div>
+      <div class="vfield grow"><textarea data-rtf id="par_titularidade" rows="7" aria-labelledby="par_h_titularidade" placeholder="Descreva a titularidade e a situação registral do imóvel..."></textarea></div>
 
       <div style="display:none;">
       <h3 class="vsub" id="par_h_objetivo">Objetivo da desapropriação</h3>
       <div class="vactions" style="margin-bottom:6px;"><button class="vbtn vbtn-ghost vbtn-sm" type="button" onclick="PAR_gerarTexto('objetivo')">↻ Restaurar texto padrão</button></div>
-      <div class="vfield grow"><textarea id="par_objetivo" rows="8" aria-labelledby="par_h_objetivo" placeholder=""></textarea></div>
+      <div class="vfield grow"><textarea data-rtf id="par_objetivo" rows="8" aria-labelledby="par_h_objetivo" placeholder=""></textarea></div>
       </div>
 
       <h3 class="vsub" id="par_h_levantamento">Levantamento de Campo e Contato com o Representante</h3>
-      <div class="par-toolbar"><button type="button" class="par-bold-btn" onclick="PAR_toggleBold('par_levantamento')"><b>N</b> Negrito</button><span class="hint-inline">Selecione o texto e clique em Negrito para marcar (**texto**) — sai em negrito no PDF.</span></div>
-      <div class="vfield grow"><textarea id="par_levantamento" rows="7" aria-labelledby="par_h_levantamento" placeholder="Descreva o levantamento de campo e o contato com o(a) representante..."></textarea></div>
+      <div class="vfield grow"><textarea data-rtf id="par_levantamento" rows="7" aria-labelledby="par_h_levantamento" placeholder="Descreva o levantamento de campo e o contato com o(a) representante..."></textarea></div>
 
       <div style="display:none;">
       <h3 class="vsub" id="par_h_regularidade">Regularidade e Viabilidade da Desapropriação</h3>
       <div class="vactions" style="margin-bottom:6px;"><button class="vbtn vbtn-ghost vbtn-sm" type="button" onclick="PAR_gerarTexto('regularidade')">↻ Restaurar texto padrão</button></div>
-      <div class="vfield grow"><textarea id="par_regularidade" rows="8" aria-labelledby="par_h_regularidade" placeholder=""></textarea></div>
+      <div class="vfield grow"><textarea data-rtf id="par_regularidade" rows="8" aria-labelledby="par_h_regularidade" placeholder=""></textarea></div>
       </div>
 
       <h3 class="vsub" id="par_h_checklist">Check List Documental do Expropriado</h3>
@@ -4554,17 +4693,14 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
       <p class="hint-inline">Itens fixos, conforme check list documental do expropriado — não é possível incluir ou excluir linhas.</p>
 
       <h3 class="vsub" id="par_h_impeditivos" style="margin-top:20px;">Impeditivos para levantamento da indenização em processos judiciais</h3>
-      <div class="par-toolbar"><button type="button" class="par-bold-btn" onclick="PAR_toggleBold('par_impeditivos')"><b>N</b> Negrito</button><span class="hint-inline">Selecione o texto e clique em Negrito para marcar (**texto**) — sai em negrito no PDF.</span></div>
-      <div class="vfield grow"><textarea id="par_impeditivos" rows="7" aria-labelledby="par_h_impeditivos" placeholder="Descreva eventuais impeditivos para o levantamento da indenização em processos judiciais..."></textarea></div>
+      <div class="vfield grow"><textarea data-rtf id="par_impeditivos" rows="7" aria-labelledby="par_h_impeditivos" placeholder="Descreva eventuais impeditivos para o levantamento da indenização em processos judiciais..."></textarea></div>
     </div>
 
     <h2 class="vsec"><span>IV – Conclusão</span></h2>
     <div class="vcard">
       <div class="vactions" style="margin-bottom:8px;"><button class="vbtn vbtn-ghost vbtn-sm" type="button" onclick="PAR_gerarTexto('conclusao')">↻ Restaurar texto automático</button></div>
       <label style="display:block;font-size:11px;font-weight:700;color:var(--label);text-transform:uppercase;letter-spacing:.4px;">Conclusão<span class="hint-auto"> (gerado automaticamente — edite direto no campo; o negrito aparece e sai igual no PDF)</span></label>
-      <div class="par-toolbar"><button type="button" class="par-bold-btn" onclick="PAR_richBold('par_conclusao')"><b>N</b> Negrito</button><span class="hint-inline">Selecione o texto e clique em Negrito (ou Ctrl+B).</span></div>
-      <div class="par-rich" id="par_conclusao_rich" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Conclusão" data-ph="Gerado automaticamente a partir dos dados do parecer..." oninput="PAR_syncFromRich('par_conclusao')" onkeydown="PAR_richKey(event,'par_conclusao')"></div>
-      <textarea id="par_conclusao" style="display:none" aria-hidden="true" tabindex="-1"></textarea>
+      <textarea data-rtf id="par_conclusao" style="display:none" aria-hidden="true" tabindex="-1"></textarea>
       <div id="par_pend_aviso" class="par-aviso" style="display:none;" role="status">Há item(ns) marcado(s) como <b>Não</b> no check list documental. A tabela de pendências abaixo (Identificação / Pendência / Solução) foi gerada automaticamente — revise e descreva a solução de cada uma.</div>
       <div id="par_pend_wrap" class="par-pend-wrap" style="display:none;">
         <h3 class="vsub" id="par_h_pendencias" style="color:#8a2c1f;">Pendências identificadas</h3>
@@ -11946,7 +12082,11 @@ function AV_gerarDescSituacao(){
     const h2iu=(num,name)=>K.push(P([R(num+" ",{bold:true,color:NAVY}),R(name,{bold:true,italics:true,underline:{},color:NAVY})],{spacing:{before:120,after:70,line:264}}));
     function rv(label,val,o){o=o||{};const runs=[R(label,{color:o.navy?NAVY:BLK,bold:!!o.navy})];if(o.tab){runs.push(new TextRun({text:"\t"}));}else{runs.push(R(" "));}if(val)runs.push(R(val,{bold:true}));const pp={children:runs,spacing:{after:0,line:264}};if(o.before)pp.spacing.before=o.before;if(o.tab)pp.tabStops=[{type:TabStopType.LEFT,position:o.tab}];if(o.ind)pp.indent={left:o.ind};K.push(new Paragraph(pp));}
     function line2(l1,v1,l2,v2,t1,t2){K.push(new Paragraph({spacing:{after:0,line:264},tabStops:[{type:TabStopType.LEFT,position:t1},{type:TabStopType.LEFT,position:t2}],children:[R(l1),new TextRun({text:"\t"}),R(v1,{bold:true}),new TextRun({text:"\t"}),R(l2),R(" "),R(v2,{bold:true})]}));}
-    const para=(val,ind,naoBold)=>{ if(val==null||!String(val).trim()) return; K.push(new Paragraph({alignment:AlignmentType.JUSTIFIED,spacing:{after:60,line:264},indent:ind?{left:ind}:undefined,children:[R(val,{bold:!naoBold})]})); };
+    const para=(val,ind,naoBold)=>{ if(val==null||!String(val).trim()) return;
+      var _sg=String(val).split(/\*\*/), _rs=[];
+      for(var _i=0;_i<_sg.length;_i++){ if(_sg[_i]==="") continue; _rs.push(R(_sg[_i],{bold:(_i%2===1)||!naoBold})); }
+      if(!_rs.length) _rs=[R(String(val),{bold:!naoBold})];
+      K.push(new Paragraph({alignment:AlignmentType.JUSTIFIED,spacing:{after:60,line:264},indent:ind?{left:ind}:undefined,children:_rs})); };
     const paraReg=(t,o)=>{o=o||{};const bf=(o.gapTop!==undefined)?o.gapTop:(/^\d/.test(String(t||"").trim())?150:0);K.push(new Paragraph({spacing:{before:bf,after:0,line:264},indent:o.ind?{left:o.ind}:undefined,children:[R(t,{italics:!!o.i})]}));};
     function checks(opts,ids,o){o=o||{};if(o.vert){opts.forEach((op,k)=>{const on=chkW(ids[k]);K.push(P([R(op+" ( "+(on?"X":"  ")+" )",{bold:on})]));});return;}const runs=[];opts.forEach((op,k)=>{const on=chkW(ids[k]);runs.push(R(op+" ( "+(on?"X":"  ")+" )   ",{bold:on}));});K.push(P(runs));}
     function simnao(id){const v=gvW(id);const s=/sim/i.test(v),n=/n[aã]o/i.test(v);return [R("SIM ( "+(s?"X":"  ")+" )   ",{bold:s}),R("NÃO ( "+(n?"X":"  ")+" )",{bold:n})];}
@@ -11985,7 +12125,7 @@ function AV_gerarDescSituacao(){
     line2("Área de desapropriação (ha):",gvW("fb_area_desap"),"Cartório:",gvW("fb_cartorio"),TW(52),TW(100));
     K.push(new Paragraph({spacing:{after:40},children:[R("")]}));
     h2("1.5 Observações:");
-    para(gvW("fb_15_obs"));
+    para(gvW("fb_15_obs"),0,true);
 
     // ---------- 2 - CARACTERIZAÇÃO DO IMÓVEL ----------
     banda("2 - CARACTERIZAÇÃO DO IMÓVEL", 140);
@@ -12073,7 +12213,7 @@ function AV_gerarDescSituacao(){
     paraReg("4.9.2  O que é produzido na propriedade:");
     checks(["Extrativismo","Agricultura","Pecuária"],["fb_492_prod_0","fb_492_prod_1","fb_492_prod_2"],{vert:true});
     paraReg("4.9.3 Quais impactos concebidos pela comunidade sobre a construção da ferrovia, e qual a sua opinião?");
-    para(gvW("fb_493_impactos"));
+    para(gvW("fb_493_impactos"),0,true);
 
     h2("4.10  OUTRAS INFORMAÇÕES");
     paraReg("4.10.1 Quais as expectativas futuras da família em relação à moradia atual e pós desapropriação:");
@@ -12086,7 +12226,7 @@ function AV_gerarDescSituacao(){
     K.push(P([R("4.10.4 A família participa de projetos e organizações da comunidade: ")].concat(simnao("fb_4104"))));
     rv("Qual:",gvW("fb_4104_qual"),{tab:TW(16)});
     paraReg("4.10.5 Dados relativos sobre saúde, educação, segurança comunitária e questões sociais, situações de vulnerabilidades relacionadas à família e seus membros:");
-    para(gvW("fb_4105"));
+    para(gvW("fb_4105"),0,true);
 
     // ---------- 5 - INFORMAÇÕES COMPLEMENTARES ----------
     banda("5 - INFORMAÇÕES COMPLEMENTARES (PROPRIEDADE)");
@@ -12391,10 +12531,39 @@ function AV_gerarDescSituacao(){
       for(let i=0;i<words.length;i++){ pdf.text(words[i], cx, yy); cx+=pdf.getTextWidth(words[i])+gap; }
     }
     // bloco de texto justificado com quebra de página por linha (respeita \n como parágrafo)
+    // versao que entende **negrito**: tokeniza, quebra linha e justifica trocando a fonte
+    function _blocoRich(txt, x, w, o){ o=o||{};
+      var baseBold=/bold/i.test((pdf.getFont().fontStyle)||"normal");
+      var spW=pdf.getTextWidth(" ");
+      function setRun(b){ F(b||baseBold?"bold":"normal"); }
+      function wOf(s,b){ setRun(b); return pdf.getTextWidth(s); }
+      var paras=txt.split(/\n/);
+      for(var pi=0;pi<paras.length;pi++){
+        var parts=paras[pi].split("**"), words=[];
+        for(var s=0;s<parts.length;s++){ var bb=(s%2===1);
+          parts[s].split(/ +/).forEach(function(tk){ if(tk!=="") words.push({t:tk,b:bb}); }); }
+        if(!words.length){ garantir(LH); y+=LH; continue; }
+        var lines=[], cur=[], curW=0;
+        words.forEach(function(wd){ var ww=wOf(wd.t,wd.b), add=cur.length?spW+ww:ww;
+          if(cur.length && curW+add>w){ lines.push(cur); cur=[wd]; curW=ww; } else { cur.push(wd); curW+=add; } });
+        if(cur.length) lines.push(cur);
+        lines.forEach(function(ln,li){ garantir(LH);
+          var last=(li===lines.length-1)||o.noJust, nat=0;
+          ln.forEach(function(wd){ nat+=wOf(wd.t,wd.b); }); nat+=spW*(ln.length-1);
+          var extra=(!last && ln.length>1)?(w-nat)/(ln.length-1):0;
+          if(extra<0||extra>spW*6) extra=0;
+          var cx=x;
+          ln.forEach(function(wd,wi){ setRun(wd.b); pdf.text(wd.t,cx,y); cx+=pdf.getTextWidth(wd.t)+spW+(wi<ln.length-1?extra:0); });
+          y+=LH;
+        });
+      }
+      setRun(false);
+    }
     function bloco(txt, x, w, o){ o=o||{};
       txt=(txt==null?"":String(txt));
       if(o.skipEmpty!==false && !txt.trim()) return;
       w=Math.max(w,20);
+      if(txt.indexOf("**")>=0){ _blocoRich(txt,x,w,o); return; }
       const paras=txt.split(/\n/);
       for(let p=0;p<paras.length;p++){
         const src=(paras[p]==="")?" ":paras[p];
@@ -12550,7 +12719,7 @@ function AV_gerarDescSituacao(){
     y+=2;
     // 1.5 Observações
     h2("1.5 Observações:");
-    para(gv("fb_15_obs"));
+    para(gv("fb_15_obs"),0,true);
 
     // ===================== 2 - CARACTERIZAÇÃO DO IMÓVEL =====================
     banda("2 - CARACTERIZAÇÃO DO IMÓVEL", 4);
@@ -12639,7 +12808,7 @@ function AV_gerarDescSituacao(){
     paraReg("4.9.2  O que é produzido na propriedade:");
     checks(["Extrativismo","Agricultura","Pecuária"], ["fb_492_prod_0","fb_492_prod_1","fb_492_prod_2"], {vert:true});
     paraReg("4.9.3 Quais impactos concebidos pela comunidade sobre a construção da ferrovia, e qual a sua opinião?");
-    para(gv("fb_493_impactos"));
+    para(gv("fb_493_impactos"),0,true);
 
     h2("4.10  OUTRAS INFORMAÇÕES");
     paraReg("4.10.1 Quais as expectativas futuras da família em relação à moradia atual e pós desapropriação:");
@@ -12652,7 +12821,7 @@ function AV_gerarDescSituacao(){
     (function(){ y+=1; garantir(LH+1); F("normal"); pdf.setFontSize(FS); C(BLK); const box=simnaoBox("fb_4104"); const l="4.10.4 A família participa de projetos e organizações da comunidade: "; const lines=pdf.splitTextToSize(l, contentW-40); pdf.text(lines, mL, y); const lastw=pdf.getTextWidth(lines[lines.length-1]); let x=mL+lastw+2; const yy=y+(lines.length-1)*LH; F(box.s?"bold":"normal"); pdf.text(box.t1, x, yy); F(box.n?"bold":"normal"); pdf.text(box.t2, x+pdf.getTextWidth(box.t1), yy); y+=lines.length*LH; })();
     rv("Qual:", gv("fb_4104_qual"), {valTab:16});
     paraReg("4.10.5 Dados relativos sobre saúde, educação, segurança comunitária e questões sociais, situações de vulnerabilidades relacionadas à família e seus membros:");
-    para(gv("fb_4105"));
+    para(gv("fb_4105"),0,true);
 
     // ===================== 5 - INFORMAÇÕES COMPLEMENTARES =====================
     banda("5 - INFORMAÇÕES COMPLEMENTARES (PROPRIEDADE)");
@@ -13080,7 +13249,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
   // ou tiver o boilerplate antigo (sem "Plano Básico Ambiental"), força o texto atual.
   function PREM(){ var v=g("rel_premissas"); return (v && v.indexOf("Plano Básico Ambiental")>=0) ? v : TXT_PREMISSAS; }
   function set(id,v){ const e=document.getElementById(id); if(e && !e.value) e.value=v; }
-  function setF(id,v){ const e=document.getElementById(id); if(e) e.value=v; }
+  function setF(id,v){ const e=document.getElementById(id); if(e){ e.value=v; if(e.hasAttribute("data-rtf") && window.RTF) RTF.render(id); } }
   // lê um campo da aba 1.9
   function f19(id){ const e=document.getElementById(id); return e?(e.value||"").trim():""; }
 
@@ -13983,7 +14152,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
 (function(){
   "use strict";
   function pf(id){ var e=document.getElementById(id); return e?(e.value||"").trim():""; }
-  function setPF(id,v){ var e=document.getElementById(id); if(e) e.value=v; }
+  function setPF(id,v){ var e=document.getElementById(id); if(e){ e.value=v; if(e.hasAttribute("data-rtf") && window.RTF) RTF.render(id); } }
   function fv(id){ var e=document.getElementById(id); return e?(e.value||"").trim():""; }
   function esc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
   var UF_NOMES={AC:"Acre",AL:"Alagoas",AP:"Amapá",AM:"Amazonas",BA:"Bahia",CE:"Ceará",DF:"Distrito Federal",ES:"Espírito Santo",GO:"Goiás",MA:"Maranhão",MT:"Mato Grosso",MS:"Mato Grosso do Sul",MG:"Minas Gerais",PA:"Pará",PB:"Paraíba",PR:"Paraná",PE:"Pernambuco",PI:"Piauí",RJ:"Rio de Janeiro",RN:"Rio Grande do Norte",RS:"Rio Grande do Sul",RO:"Rondônia",RR:"Roraima",SC:"Santa Catarina",SP:"São Paulo",SE:"Sergipe",TO:"Tocantins"};
