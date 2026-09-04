@@ -12802,9 +12802,9 @@ function AV_gerarDescSituacao(){
     const apl=gv("fb_aplicador");
     const dtv=gv("fb_data");
     pdf.setFontSize(FS);
-    F("normal"); C(BLK); pdf.text("PROCESSO Nº: ", mL, y); let wp=pdf.getTextWidth("PROCESSO Nº: "); F("bold");
+    F("normal"); C(BLK); pdf.text("Processo n°: ", mL, y); let wp=pdf.getTextWidth("Processo n°: "); F("bold");
     { const _pl=pdf.splitTextToSize(String(proc||""), Math.max(RX-(mL+wp),20)); for(let i=0;i<_pl.length;i++) pdf.text(_pl[i], mL+wp, y+i*LH); y+=Math.max(1,_pl.length)*LH+0.6; }
-    F("normal"); C(BLK); pdf.text("NOME DO APLICADOR (A): ", mL, y); let wa=pdf.getTextWidth("NOME DO APLICADOR (A): "); F("bold");
+    F("normal"); C(BLK); pdf.text("Nome do aplicador(a): ", mL, y); let wa=pdf.getTextWidth("Nome do aplicador(a): "); F("bold");
     let _aln=1;
     { const _al=pdf.splitTextToSize(String(apl||"").toUpperCase(), Math.max(RX-(mL+wa),20)); _aln=Math.max(1,_al.length); for(let i=0;i<_al.length;i++) pdf.text(_al[i], mL+wa, y+i*LH); }
     y+=_aln*LH+0.6;
@@ -12825,14 +12825,14 @@ function AV_gerarDescSituacao(){
     y+=2;
     // 1.3 Proprietário(a)
     (function(){ garantir(LH+1); F("bold"); pdf.setFontSize(FS); C(NAVY); const l="1.3 Proprietário(a) (SIM/NÃO):"; pdf.text(l, mL, y); let x=mL+pdf.getTextWidth(l)+3; C(BLK); F("bold"); const s=(/sim/i.test(gv("fb_11_dom"))||gv("fb_nome"))?"SIM":""; pdf.text(s, x, y); x+=pdf.getTextWidth(s||"")+6; F("italic"); C(BLK); pdf.text("(Se sim, preencher item 1.3.1; se não, item 1.3.2)", x, y); y+=LH; })();
-    rv("1.3.1 Nome:", gv("fb_nome"), {gap0:4});
-    rv("RG:", gv("fb_rg"), {valTab:34});
-    rv("CPF:", gv("fb_cpf"), {valTab:34});
-    rv("Telefone:", gv("fb_telefone"), {valTab:34});
+    rv("1.3.1 Nome:", gv("fb_nome"), {valTab:23.5});
+    rv("RG:", gv("fb_rg"), {valTab:23.5});
+    rv("CPF:", gv("fb_cpf"), {valTab:23.5});
+    rv("Telefone:", gv("fb_telefone"), {valTab:23.5});
     rv("Estado Civil (Casado, solteiro, viúvo, divorciado ou união estável):", gv("fb_estcivil"), {valTab:0});
     rv("Cônjuge:", gv("fb_conjuge"), {valTab:34});
     rv("Endereço:", gv("fb_endereco"), {valTab:34, gapTop:LH});
-    rv("Município:", gv("fb_municipio"), {valTab:34});
+    rv2("Município:", gv("fb_municipio"), "UF:", gv("fb_uf"));
     rv("1.3.2 Informante (nome):", gv("fb_inf_nome"), {valTab:44, gapTop:LH});
     rv("Grau de parentesco:", gv("fb_411_par"), {valTab:44});
     rv("Dados comprobatório:", gv("fb_inf_dados"), {valTab:44});
@@ -12841,7 +12841,7 @@ function AV_gerarDescSituacao(){
     h2("1.4 Propriedade");
     rv("Identificação:", gv("fb_prop_id"), {valTab:30});
     rv("Endereço:", gv("fb_prop_end"), {valTab:30});
-    rv("Município:", gv("fb_prop_mun"), {valTab:30});
+    rv2("Município:", gv("fb_prop_mun"), "UF:", gv("fb_prop_uf"));
     rv("Área Total (ha):", gv("fb_area_total"), {valTab:30});
     rv("Área de desapropriação (ha):", gv("fb_area_desap"), {valTab:30});
     rv("Matrícula:", gv("fb_matricula"), {valTab:30});
@@ -12863,10 +12863,10 @@ function AV_gerarDescSituacao(){
     rv("2.4.3 Hidrografia / Vazão (m³ ou L/s):", "", {ind:4, gapTop:LH}); para(gv("fb_243_hidro"), 4); y+=1;
     rv("2.4.4 Informações Complementares:", "", {ind:4, gapTop:LH}); para(gv("fb_244_comp"), 4); y+=1;
     h2iu("2.5","IMÓVEL URBANO:");
-    rv("2.5.1 Infraestrutura:", gv("fb_251_infra"), {ind:4, valTab:44});
-    rv("2.5.2 Topográfica:", gv("fb_252_topo"), {ind:4, valTab:44});
-    rv("2.5.3 Distância do centro:", gv("fb_253_dist"), {ind:4, valTab:44});
-    rv("2.5.4 Informações Complementares:", gv("fb_254_comp"), {ind:4, valTab:56});
+    rv("2.5.1 Infraestrutura:", gv("fb_251_infra"), {ind:4, valTab:64});
+    rv("2.5.2 Topográfica:", gv("fb_252_topo"), {ind:4, valTab:64});
+    rv("2.5.3 Distância do centro:", gv("fb_253_dist"), {ind:4, valTab:64});
+    rv("2.5.4 Informações Complementares:", gv("fb_254_comp"), {ind:4, valTab:64});
 
     // ===================== 3 - DESCRIÇÃO DAS BENFEITORIAS =====================
     novoTopico();
@@ -12947,11 +12947,11 @@ function AV_gerarDescSituacao(){
     paraReg("4.10.1 Quais as expectativas futuras da família em relação à moradia atual e pós desapropriação:");
     checks(["Continuar morando nas redondezas da localidade","Construir em outro local fora da localidade"], ["fb_4101_0","fb_4101_1"], {vert:true});
     (function(){ garantir(LH+1); const on=chk("fb_4101_2"); F(on?"bold":"normal"); pdf.setFontSize(FS); C(BLK); const l="Outra ( "+(on?"X":"  ")+" ): "; pdf.text(l, mL, y); F("bold"); const lw=pdf.getTextWidth(l), w=Math.max(RX-(mL+lw),25); const vl=pdf.splitTextToSize(gv("fb_4101_outra"), w); for(let i=0;i<vl.length;i++){ if(i>0) garantir(LH); _lineJust(vl[i], mL+lw, y+i*LH, w, i===vl.length-1); } y+=Math.max(1,vl.length)*LH; })();
-    (function(){ y+=1; garantir(LH+1); F("normal"); pdf.setFontSize(FS); C(BLK); const box=simnaoBox("fb_4102"); const l="4.10.2 A família recebe algum benefício do Governo Federal: "; const lines=pdf.splitTextToSize(l, contentW-40); F("normal"); pdf.text(lines, mL, y); const lastw=pdf.getTextWidth(lines[lines.length-1]); let x=mL+lastw+2; const yy=y+(lines.length-1)*LH; F(box.s?"bold":"normal"); pdf.text(box.t1, x, yy); F(box.n?"bold":"normal"); pdf.text(box.t2, x+pdf.getTextWidth(box.t1), yy); y+=lines.length*LH; })();
+    (function(){ y+=LH; garantir(LH+1); F("normal"); pdf.setFontSize(FS); C(BLK); const box=simnaoBox("fb_4102"); const l="4.10.2 A família recebe algum benefício do Governo Federal: "; const lines=pdf.splitTextToSize(l, contentW-40); F("normal"); pdf.text(lines, mL, y); const lastw=pdf.getTextWidth(lines[lines.length-1]); let x=mL+lastw+2; const yy=y+(lines.length-1)*LH; F(box.s?"bold":"normal"); pdf.text(box.t1, x, yy); F(box.n?"bold":"normal"); pdf.text(box.t2, x+pdf.getTextWidth(box.t1), yy); y+=lines.length*LH; })();
     rv("Qual:", gv("fb_4102_qual"), {valTab:16});
-    (function(){ y+=1; garantir(LH+1); F("normal"); pdf.setFontSize(FS); C(BLK); const box=simnaoBox("fb_4103"); const l="4.10.3 A família participa de algum programa do município: "; const lines=pdf.splitTextToSize(l, contentW-40); F("normal"); pdf.text(lines, mL, y); const lastw=pdf.getTextWidth(lines[lines.length-1]); let x=mL+lastw+2; const yy=y+(lines.length-1)*LH; F(box.s?"bold":"normal"); pdf.text(box.t1, x, yy); F(box.n?"bold":"normal"); pdf.text(box.t2, x+pdf.getTextWidth(box.t1), yy); y+=lines.length*LH; })();
+    (function(){ y+=LH; garantir(LH+1); F("normal"); pdf.setFontSize(FS); C(BLK); const box=simnaoBox("fb_4103"); const l="4.10.3 A família participa de algum programa do município: "; const lines=pdf.splitTextToSize(l, contentW-40); F("normal"); pdf.text(lines, mL, y); const lastw=pdf.getTextWidth(lines[lines.length-1]); let x=mL+lastw+2; const yy=y+(lines.length-1)*LH; F(box.s?"bold":"normal"); pdf.text(box.t1, x, yy); F(box.n?"bold":"normal"); pdf.text(box.t2, x+pdf.getTextWidth(box.t1), yy); y+=lines.length*LH; })();
     rv("Qual:", gv("fb_4103_qual"), {valTab:16});
-    (function(){ y+=1; garantir(LH+1); F("normal"); pdf.setFontSize(FS); C(BLK); const box=simnaoBox("fb_4104"); const l="4.10.4 A família participa de projetos e organizações da comunidade: "; const lines=pdf.splitTextToSize(l, contentW-40); F("normal"); pdf.text(lines, mL, y); const lastw=pdf.getTextWidth(lines[lines.length-1]); let x=mL+lastw+2; const yy=y+(lines.length-1)*LH; F(box.s?"bold":"normal"); pdf.text(box.t1, x, yy); F(box.n?"bold":"normal"); pdf.text(box.t2, x+pdf.getTextWidth(box.t1), yy); y+=lines.length*LH; })();
+    (function(){ y+=LH; garantir(LH+1); F("normal"); pdf.setFontSize(FS); C(BLK); const box=simnaoBox("fb_4104"); const l="4.10.4 A família participa de projetos e organizações da comunidade: "; const lines=pdf.splitTextToSize(l, contentW-40); F("normal"); pdf.text(lines, mL, y); const lastw=pdf.getTextWidth(lines[lines.length-1]); let x=mL+lastw+2; const yy=y+(lines.length-1)*LH; F(box.s?"bold":"normal"); pdf.text(box.t1, x, yy); F(box.n?"bold":"normal"); pdf.text(box.t2, x+pdf.getTextWidth(box.t1), yy); y+=lines.length*LH; })();
     rv("Qual:", gv("fb_4104_qual"), {valTab:16});
     paraReg("4.10.5 Dados relativos sobre saúde, educação, segurança comunitária e questões sociais, situações de vulnerabilidades relacionadas à família e seus membros:");
     y+=LH;
