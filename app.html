@@ -12604,14 +12604,12 @@ function AV_gerarDescSituacao(){
     // banda de seção: faixa azul-clara + título azul-marinho em negrito ("N - TÍTULO")
     // seção principal: preto, negrito, com régua abaixo (padrão do Relatório)
     // (sem o respiro de 1cm se a banda já cai bem no topo de uma página nova)
-    function banda(txt, extra){ if(y>topY+0.5) y+=10+(extra||0); garantir(13); F("bold"); pdf.setFontSize(11.5); C(BLK); pdf.text(txt, mL, y); y+=2.4; pdf.setDrawColor(70,70,70); pdf.setLineWidth(0.3); pdf.line(mL, y, RX, y); y+=6.5; pdf.setFontSize(FS); }
+    function banda(txt, extra){ if(y>topY+0.5) y+=10+(extra||0); garantir(13); F("bold"); pdf.setFontSize(11.5); C(NAVY); pdf.text(txt, mL, y); y+=2.4; pdf.setDrawColor(70,70,70); pdf.setLineWidth(0.3); pdf.line(mL, y, RX, y); y+=6.5; pdf.setFontSize(FS); }
     // força início de página nova antes de um tópico (usado nos itens 2 e 3)
     function novoTopico(){ if(y>topY+0.5){ rodape(); novaPagina(); } }
 
-    // subtópico "N.N" — azul-marinho negrito
+    // subtópico nível 1 "N.N" — azul-marinho negrito
     function h2(txt, extra){ y+=5+(extra||0); garantir(6); F("bold"); pdf.setFontSize(FS); C(NAVY); pdf.text(txt, mL, y); y+=6.4; }
-    // subtópico N.N com nome em itálico sublinhado (2.4 / 2.5)
-    function h2iu(num,name){ y+=5; garantir(6); pdf.setFontSize(FS); C(NAVY); F("bold"); pdf.text(num+" ", mL, y); const wx=pdf.getTextWidth(num+" "); F("bolditalic"); pdf.text(name, mL+wx, y); const uw=pdf.getTextWidth(name); pdf.setDrawColor(NAVY[0],NAVY[1],NAVY[2]); pdf.setLineWidth(0.35); pdf.line(mL+wx, y+1, mL+wx+uw, y+1); y+=5.6; }
 
     // ---- justificação universal (todos os campos do documento) ----
     // desenha UMA linha justificada (distribui o espaço entre as palavras).
@@ -12673,12 +12671,14 @@ function AV_gerarDescSituacao(){
       }
     }
 
-    // rótulo (preto normal, ou azul via o.navy) + valor em negrito; valTab = coluna do valor (mm a partir da margem)
+    // rótulo (preto normal; azul-marinho negrito via o.navy = nível 1; azul-marinho sem negrito via
+    // o.navy2 = nível 2) + valor SEM negrito, preto; valTab = coluna do valor (mm a partir da margem)
     // rótulo e valor SEMPRE quebram dentro da folha; valor longo desce p/ a linha seguinte; valor justificado.
     function rv(label, val, o){ o=o||{}; const x=mL+(o.ind||0);
       if(o.gapTop) y+=o.gapTop;
       val=(val==null?"":String(val));
-      F(o.navy?"bold":"normal"); pdf.setFontSize(FS); C(o.navy?NAVY:BLK);
+      const navyCor=o.navy||o.navy2;
+      F(o.navy?"bold":"normal"); pdf.setFontSize(FS); C(navyCor?NAVY:BLK);
       const labLines=pdf.splitTextToSize(label, Math.max(RX-x,20));
       const lastLabW=pdf.getTextWidth(labLines[labLines.length-1]);
       const gap0=(o.gap0!==undefined)?o.gap0:3;
@@ -12691,10 +12691,10 @@ function AV_gerarDescSituacao(){
       const alt=sameLine ? Math.max(nLab,(nLab-1)+Math.max(1,nVal)) : (nLab+nVal);
       garantir(alt*LH+1);
       const y0=y;
-      C(o.navy?NAVY:BLK); F(o.navy?"bold":"normal");
+      C(navyCor?NAVY:BLK); F(o.navy?"bold":"normal");
       for(let i=0;i<nLab;i++) pdf.text(labLines[i], x, y0+i*LH);
       if(val){
-        F("bold"); C(BLK);
+        F("normal"); C(BLK);
         const vy0=sameLine ? (y0+(nLab-1)*LH) : (y0+nLab*LH);
         for(let i=0;i<nVal;i++) _lineJust(vLines[i], vx, vy0+i*LH, availV, i===nVal-1);
       }
@@ -12702,18 +12702,20 @@ function AV_gerarDescSituacao(){
       y=y0+alt*LH+(o.gap||0);
     }
     // dois pares rótulo:valor lado a lado (col esquerda / col direita) — cada valor quebra dentro da sua coluna
-    function rv2(l1,v1,l2,v2){ const xL=mL, xR=mL+contentW/2;
+    // o.valTab (opcional) fixa a coluna do valor esquerdo, pra alinhar com outros rv() da mesma seção
+    function rv2(l1,v1,l2,v2,o){ o=o||{}; const xL=mL, xR=mL+contentW/2;
       v1=(v1==null?"":String(v1)); v2=(v2==null?"":String(v2));
       F("normal"); pdf.setFontSize(FS); C(BLK);
       const w1=pdf.getTextWidth(l1+" "), w2=pdf.getTextWidth(l2+" ");
-      const availL=Math.max((xR-3)-(xL+w1),15), availR=Math.max(RX-(xR+w2),15);
+      const vx1=(o.valTab!==undefined)?Math.max(xL+o.valTab, xL+w1):(xL+w1);
+      const availL=Math.max((xR-3)-vx1,15), availR=Math.max(RX-(xR+w2),15);
       const t1=v1?pdf.splitTextToSize(v1,availL):[];
       const t2=v2?pdf.splitTextToSize(v2,availR):[];
       const alt=Math.max(1,t1.length,t2.length);
       garantir(alt*LH+1); const y0=y;
       F("normal"); C(BLK);
-      pdf.text(l1,xL,y0); if(v1){ F("bold"); for(let i=0;i<t1.length;i++) pdf.text(t1[i],xL+w1,y0+i*LH); F("normal"); }
-      pdf.text(l2,xR,y0); if(v2){ F("bold"); for(let i=0;i<t2.length;i++) pdf.text(t2[i],xR+w2,y0+i*LH); F("normal"); }
+      pdf.text(l1,xL,y0); if(v1){ for(let i=0;i<t1.length;i++) pdf.text(t1[i],vx1,y0+i*LH); }
+      pdf.text(l2,xR,y0); if(v2){ for(let i=0;i<t2.length;i++) pdf.text(t2[i],xR+w2,y0+i*LH); }
       y=y0+alt*LH+0.4;
     }
     // Normaliza texto digitado em CAIXA ALTA para "Frase normal, com maiúscula só
@@ -12741,10 +12743,10 @@ function AV_gerarDescSituacao(){
         return out;
       }).join("\n");
     }
-    // parágrafo com valor em negrito, justificado (para respostas longas) — texto
+    // parágrafo de resposta, sem negrito, preto, justificado (para respostas longas) — texto
     // digitado pelo usuário passa por sentenceCase (nunca os títulos/rótulos fixos).
-    function para(val, ind, naoBold){ if(val===undefined||val===null) val=""; if(!String(val).trim()) return; const x=mL+(ind||0); const w=RX-x;
-      F(naoBold?"normal":"bold"); pdf.setFontSize(FS); C(BLK);
+    function para(val, ind){ if(val===undefined||val===null) val=""; if(!String(val).trim()) return; const x=mL+(ind||0); const w=RX-x;
+      F("normal"); pdf.setFontSize(FS); C(BLK);
       bloco(sentenceCase(val), x, w);
       C(BLK); F("normal");
     }
@@ -12756,16 +12758,16 @@ function AV_gerarDescSituacao(){
       C(BLK); F("normal");
     }
     // linha de opções tipo checkbox: "OPÇÃO ( X )" — selecionada em negrito
-    function checks(opts, ids, o){ o=o||{}; const x=mL+(o.ind||0); pdf.setFontSize(FS); C(BLK);
-      if(o.vert){ for(let k=0;k<opts.length;k++){ const on=chk(ids[k]); garantir(LH); F(on?"bold":"normal"); pdf.text(opts[k]+" ( "+(on?"X":"  ")+" )", x, y); y+=LH; } return; }
+    function checks(opts, ids, o){ o=o||{}; const x=mL+(o.ind||0); pdf.setFontSize(FS); C(BLK); F("normal");
+      if(o.vert){ for(let k=0;k<opts.length;k++){ const on=chk(ids[k]); garantir(LH); pdf.text(opts[k]+" ( "+(on?"X":"  ")+" )", x, y); y+=LH; } return; }
       let cx=x; garantir(LH);
-      for(let k=0;k<opts.length;k++){ const on=chk(ids[k]); const seg=opts[k]+" ( "+(on?"X":"  ")+" )"; F(on?"bold":"normal"); const wseg=pdf.getTextWidth(seg)+5;
+      for(let k=0;k<opts.length;k++){ const on=chk(ids[k]); const seg=opts[k]+" ( "+(on?"X":"  ")+" )"; const wseg=pdf.getTextWidth(seg)+5;
         if(cx+wseg>RX+2){ y+=LH; cx=x; garantir(LH); } pdf.text(seg, cx, y); cx+=wseg; }
       y+=LH;
     }
     // SIM ( ) NÃO ( X ) a partir de um select 1-Sim/2-Não
-    function simnaoBox(id){ const v=gv(id); const s=/sim/i.test(v), n=/n[aã]o/i.test(v); pdf.setFontSize(FS); C(BLK);
-      F(s?"bold":"normal"); const t1="SIM ( "+(s?"X":"  ")+" )   "; const t2="NÃO ( "+(n?"X":"  ")+" )";
+    function simnaoBox(id){ const v=gv(id); const s=/sim/i.test(v), n=/n[aã]o/i.test(v); pdf.setFontSize(FS); C(BLK); F("normal");
+      const t1="SIM ( "+(s?"X":"  ")+" )   "; const t2="NÃO ( "+(n?"X":"  ")+" )";
       return {t1,t2,s,n}; }
     // tabela de composição familiar (índice 1-8 + NOME + IDADE, com bordas)
     function tabelaFamilia(){ const dados=fam(); const rows=8; const rh=5.6;
@@ -12784,7 +12786,7 @@ function AV_gerarDescSituacao(){
         pdf.rect(x0, yy, wIdx, rh); pdf.rect(xNome, yy, wNome, rh); pdf.rect(xPar, yy, wPar, rh); pdf.rect(xIdade, yy, wIdade, rh);
         F("normal"); C(BLK); pdf.text(String(r+1), x0+wIdx/2, yy+3.8, {align:"center"});
         const p=dados[r];
-        if(p && ((p.nome||"").trim() || (p.idade||"").trim() || (p.parentesco||"").trim())){ F("bold");
+        if(p && ((p.nome||"").trim() || (p.idade||"").trim() || (p.parentesco||"").trim())){ F("normal");
           pdf.text(String(p.nome||"").toUpperCase(), xNome+1.5, yy+3.8);
           pdf.text(String(p.parentesco||""), xPar+wPar/2, yy+3.8, {align:"center"});
           pdf.text(String(p.idade||""), xIdade+wIdade/2, yy+3.8, {align:"center"}); }
@@ -12795,7 +12797,7 @@ function AV_gerarDescSituacao(){
     // ===================== CABEÇALHO / TÍTULO =====================
     cabecalho();
     // Título (tabela de topo do modelo): título + (ANEXO B) centralizados
-    F("bold"); pdf.setFontSize(12); C(BLK);
+    F("bold"); pdf.setFontSize(12); C(NAVY);
     pdf.text("FICHA DE VISTORIA E CADASTRO SOCIOECONÔMICO (ANEXO B)", W/2, y, {align:"center", maxWidth:contentW});
     y+=8;
     const proc=gv("fb_processo")||gv("fb_proc_preview");
@@ -12815,25 +12817,25 @@ function AV_gerarDescSituacao(){
     banda("1 - IDENTIFICAÇÃO");
     // 1.1 / 1.2 (navy) com valor SIM/NÃO + Quais?
     (function(){ garantir(LH+1); F("bold"); pdf.setFontSize(FS); C(NAVY); const l="1.1 Documentos dominiais (SIM/NÃO):"; pdf.text(l, mL, y); let x=mL+pdf.getTextWidth(l)+3;
-      C(BLK); F("bold"); pdf.text(sn("fb_11_dom"), x, y);
+      C(BLK); F("normal"); pdf.text(sn("fb_11_dom"), x, y);
       y+=LH; garantir(LH+1);
-      let x2=mL; F("normal"); C(BLK); pdf.text("Quais? ", x2, y); x2+=pdf.getTextWidth("Quais? "); F("bold"); const q=gv("fb_11_quais"); const availq=Math.max(RX-x2,20); const ql=pdf.splitTextToSize(q,availq); for(let i=0;i<ql.length;i++){ if(i>0) garantir(LH); pdf.text(ql[i], x2, y+i*LH); } y+=LH*Math.max(1,ql.length); })();
+      let x2=mL; F("normal"); C(BLK); pdf.text("Quais? ", x2, y); x2+=pdf.getTextWidth("Quais? "); F("normal"); const q=gv("fb_11_quais"); const availq=Math.max(RX-x2,20); const ql=pdf.splitTextToSize(q,availq); for(let i=0;i<ql.length;i++){ if(i>0) garantir(LH); pdf.text(ql[i], x2, y+i*LH); } y+=LH*Math.max(1,ql.length); })();
     y+=2;
-    (function(){ garantir(LH+1); F("bold"); pdf.setFontSize(FS); C(NAVY); const l="1.2 Notificação Proprietário (SIM/NÃO):"; pdf.text(l, mL, y); let x=mL+pdf.getTextWidth(l)+3; C(BLK); F("bold"); pdf.text(sn("fb_12_notif"), x, y);
+    (function(){ garantir(LH+1); F("bold"); pdf.setFontSize(FS); C(NAVY); const l="1.2 Notificação proprietário (SIM/NÃO):"; pdf.text(l, mL, y); let x=mL+pdf.getTextWidth(l)+3; C(BLK); F("normal"); pdf.text(sn("fb_12_notif"), x, y);
       y+=LH; garantir(LH+1);
-      let x2=mL; F("normal"); C(BLK); pdf.text("Quais? ", x2, y); x2+=pdf.getTextWidth("Quais? "); F("bold"); const q=gv("fb_12_quais"); const availq=Math.max(RX-x2,20); const ql=pdf.splitTextToSize(q,availq); for(let i=0;i<ql.length;i++){ if(i>0) garantir(LH); pdf.text(ql[i], x2, y+i*LH); } y+=LH*Math.max(1,ql.length); })();
+      let x2=mL; F("normal"); C(BLK); pdf.text("Quais? ", x2, y); x2+=pdf.getTextWidth("Quais? "); F("normal"); const q=gv("fb_12_quais"); const availq=Math.max(RX-x2,20); const ql=pdf.splitTextToSize(q,availq); for(let i=0;i<ql.length;i++){ if(i>0) garantir(LH); pdf.text(ql[i], x2, y+i*LH); } y+=LH*Math.max(1,ql.length); })();
     y+=2;
     // 1.3 Proprietário(a)
-    (function(){ garantir(LH+1); F("bold"); pdf.setFontSize(FS); C(NAVY); const l="1.3 Proprietário(a) (SIM/NÃO):"; pdf.text(l, mL, y); let x=mL+pdf.getTextWidth(l)+3; C(BLK); F("bold"); const s=(/sim/i.test(gv("fb_11_dom"))||gv("fb_nome"))?"SIM":""; pdf.text(s, x, y); x+=pdf.getTextWidth(s||"")+6; F("italic"); C(BLK); pdf.text("(Se sim, preencher item 1.3.1; se não, item 1.3.2)", x, y); y+=LH; })();
-    rv("1.3.1 Nome:", gv("fb_nome"), {valTab:23.5});
+    (function(){ garantir(LH+1); F("bold"); pdf.setFontSize(FS); C(NAVY); const l="1.3 Proprietário(a) (SIM/NÃO):"; pdf.text(l, mL, y); let x=mL+pdf.getTextWidth(l)+3; C(BLK); F("normal"); const s=(/sim/i.test(gv("fb_11_dom"))||gv("fb_nome"))?"SIM":""; pdf.text(s, x, y); x+=pdf.getTextWidth(s||"")+6; F("italic"); C(BLK); pdf.text("(Se sim, preencher item 1.3.1; se não, item 1.3.2)", x, y); y+=LH; })();
+    rv("1.3.1 Nome:", gv("fb_nome"), {navy2:true, valTab:23.5});
     rv("RG:", gv("fb_rg"), {valTab:23.5});
     rv("CPF:", gv("fb_cpf"), {valTab:23.5});
     rv("Telefone:", gv("fb_telefone"), {valTab:23.5});
     rv("Estado Civil (Casado, solteiro, viúvo, divorciado ou união estável):", gv("fb_estcivil"), {valTab:0});
-    rv("Cônjuge:", gv("fb_conjuge"), {valTab:34});
-    rv("Endereço:", gv("fb_endereco"), {valTab:34, gapTop:LH});
-    rv2("Município:", gv("fb_municipio"), "UF:", gv("fb_uf"));
-    rv("1.3.2 Informante (nome):", gv("fb_inf_nome"), {valTab:44, gapTop:LH});
+    rv("Cônjuge:", gv("fb_conjuge"), {valTab:23.5});
+    rv("Endereço:", gv("fb_endereco"), {valTab:23.5, gapTop:LH});
+    rv2("Município:", gv("fb_municipio"), "UF:", gv("fb_uf"), {valTab:23.5});
+    rv("1.3.2 Informante (nome):", gv("fb_inf_nome"), {navy2:true, valTab:44, gapTop:LH});
     rv("Grau de parentesco:", gv("fb_411_par"), {valTab:44});
     rv("Dados comprobatório:", gv("fb_inf_dados"), {valTab:44});
     y+=2;
@@ -12849,118 +12851,118 @@ function AV_gerarDescSituacao(){
     y+=2;
     // 1.5 Observações
     h2("1.5 Observações:");
-    para(gv("fb_15_obs"),0,true);
+    para(gv("fb_15_obs"));
 
     // ===================== 2 - CARACTERIZAÇÃO DO IMÓVEL =====================
     novoTopico();
     banda("2 - CARACTERIZAÇÃO DO IMÓVEL", 4);
-    h2("2.1 Ambientais:"); para(gv("fb_21_amb"), 0, true); y+=1.5;
-    h2("2.2 Localização:"); para(gv("fb_22_loc"), 0, true); y+=1.5;
-    h2("2.3 Características Físicas:"); para(gv("fb_23_fis"), 0, true); y+=1.5;
-    h2iu("2.4","IMÓVEL RURAL:");
-    rv("2.4.1 Infraestrutura:", "", {ind:4}); para(gv("fb_241_infra"), 4); y+=1;
-    rv("2.4.2 Características da terra:", "", {ind:4, gapTop:LH}); para(gv("fb_242_terra"), 4); y+=1;
-    rv("2.4.3 Hidrografia / Vazão (m³ ou L/s):", "", {ind:4, gapTop:LH}); para(gv("fb_243_hidro"), 4); y+=1;
-    rv("2.4.4 Informações Complementares:", "", {ind:4, gapTop:LH}); para(gv("fb_244_comp"), 4); y+=1;
-    h2iu("2.5","IMÓVEL URBANO:");
-    rv("2.5.1 Infraestrutura:", gv("fb_251_infra"), {ind:4, valTab:64});
-    rv("2.5.2 Topográfica:", gv("fb_252_topo"), {ind:4, valTab:64});
-    rv("2.5.3 Distância do centro:", gv("fb_253_dist"), {ind:4, valTab:64});
-    rv("2.5.4 Informações Complementares:", gv("fb_254_comp"), {ind:4, valTab:64});
+    h2("2.1 Ambientais:"); para(gv("fb_21_amb")); y+=1.5;
+    h2("2.2 Localização:"); para(gv("fb_22_loc")); y+=1.5;
+    h2("2.3 Características físicas:"); para(gv("fb_23_fis")); y+=1.5;
+    h2("2.4 Imóvel rural:");
+    rv("2.4.1 Infraestrutura:", "", {navy2:true}); para(gv("fb_241_infra")); y+=1;
+    rv("2.4.2 Características da terra:", "", {navy2:true, gapTop:LH}); para(gv("fb_242_terra")); y+=1;
+    rv("2.4.3 Hidrografia / Vazão (m³ ou L/s):", "", {navy2:true, gapTop:LH}); para(gv("fb_243_hidro")); y+=1;
+    rv("2.4.4 Informações complementares:", "", {navy2:true, gapTop:LH}); para(gv("fb_244_comp")); y+=1;
+    h2("2.5 Imóvel urbano:");
+    rv("2.5.1 Infraestrutura:", gv("fb_251_infra"), {navy2:true, valTab:64});
+    rv("2.5.2 Topográfica:", gv("fb_252_topo"), {navy2:true, valTab:64});
+    rv("2.5.3 Distância do centro:", gv("fb_253_dist"), {navy2:true, valTab:64});
+    rv("2.5.4 Informações complementares:", gv("fb_254_comp"), {navy2:true, valTab:64});
 
     // ===================== 3 - DESCRIÇÃO DAS BENFEITORIAS =====================
     novoTopico();
     banda("3 - DESCRIÇÃO DAS BENFEITORIAS", 4);
-    h2("3.1 NÃO REPRODUTIVAS:"); para(gv("fb_31_nrep")); y+=1;
-    rv("3.1.1 Benfeitorias não reprodutivas da faixa não edificante:", "", {ind:4}); para(gv("fb_311"), 4); y+=1;
-    rv("3.1.2 informações complementares:", "", {ind:4}); para(gv("fb_312"), 4); y+=1;
-    h2("3.2. REPRODUTIVAS:"); para(gv("fb_32_rep")); y+=1;
-    rv("3.2.1 Benfeitorias reprodutivas da faixa não edificante:", "", {ind:4}); para(gv("fb_321"), 4); y+=1;
-    rv("3.2.2 informações complementares:", "", {ind:4}); para(gv("fb_322"), 4);
+    h2("3.1 Não reprodutivas:"); para(gv("fb_31_nrep")); y+=1;
+    rv("3.1.1 Benfeitorias não reprodutivas da faixa não edificante:", "", {navy2:true}); para(gv("fb_311")); y+=1;
+    rv("3.1.2 Informações complementares:", "", {navy2:true}); para(gv("fb_312")); y+=1;
+    h2("3.2 Reprodutivas:"); para(gv("fb_32_rep")); y+=1;
+    rv("3.2.1 Benfeitorias reprodutivas da faixa não edificante:", "", {navy2:true}); para(gv("fb_321")); y+=1;
+    rv("3.2.2 Informações complementares:", "", {navy2:true}); para(gv("fb_322"));
 
     // ===================== 4 - CARACTERIZAÇÃO SOCIOECONÔMICA =====================
     banda("4 - CARACTERIZAÇÃO SOCIOECONÔMICA");
-    h2("4.1     IDENTIFICAÇÃO");
-    (function(){ garantir(LH+1); F("normal"); pdf.setFontSize(FS); C(BLK); const l="Proprietário(a) do imóvel (SIM/NÃO):"; pdf.text(l, mL+2, y); let x=mL+2+pdf.getTextWidth(l)+3; F("bold"); const s=(gv("fb_41_prop")); pdf.text(sn("fb_41_prop"), x, y); x+=pdf.getTextWidth(sn("fb_41_prop")||"")+6; F("normal"); pdf.text("Se NÃO preencher também item 4.1.1.", x, y); y+=LH; })();
-    rv("Nome:", gv("fb_41_nome"), {ind:2, gap0:4});
-    rv("4.1.1  Grau de parentesco:", gv("fb_411_par"), {ind:2, valTab:44});
-    h2("4.2     NATURALIDADE");
-    rv("Do município (1), outro município (2) ou outro estado (3):", (function(){ const v=gv("fb_42_nat"); const m=v.match(/\((\d)\)/); return m?m[1]:v; })(), {ind:2, valTab:0});
-    rv("Qual?", gv("fb_42_qual"), {ind:2, valTab:60});
-    rv("Há quanto tempo reside na comunidade?", gv("fb_42_tempo"), {ind:2, valTab:60});
-    h2("4.3     NÍVEL DE ESCOLARIDADE");
-    para(gv("fb_43_esc"), 8);
-    h2("4.4     DADOS PROFISSIONAIS");
-    rv("Trabalha (SIM/NÃO):", sn("fb_44_trab"), {ind:6, valTab:44});
-    rv("Empresa em que trabalha:", gv("fb_44_empresa"), {ind:6, valTab:44});
-    rv("Tempo de trabalho:", gv("fb_44_tempo"), {ind:6, valTab:44});
-    rv("Profissão:", gv("fb_44_prof"), {ind:6, valTab:44});
-    rv("Remuneração:", gv("fb_44_remun"), {ind:6, valTab:44});
-    rv("Renda familiar:", gv("fb_44_renda"), {ind:6, valTab:44});
+    h2("4.1 Identificação");
+    (function(){ garantir(LH+1); F("normal"); pdf.setFontSize(FS); C(BLK); const l="Proprietário(a) do imóvel (SIM/NÃO):"; pdf.text(l, mL, y); let x=mL+pdf.getTextWidth(l)+3; F("normal"); const s=(gv("fb_41_prop")); pdf.text(sn("fb_41_prop"), x, y); x+=pdf.getTextWidth(sn("fb_41_prop")||"")+6; F("normal"); pdf.text("Se NÃO preencher também item 4.1.1.", x, y); y+=LH; })();
+    rv("Nome:", gv("fb_41_nome"), {gap0:4});
+    rv("4.1.1  Grau de parentesco:", gv("fb_411_par"), {navy2:true, valTab:44});
+    h2("4.2 Naturalidade");
+    rv("Do município (1), outro município (2) ou outro estado (3):", (function(){ const v=gv("fb_42_nat"); const m=v.match(/\((\d)\)/); return m?m[1]:v; })(), {valTab:0});
+    rv("Qual?", gv("fb_42_qual"), {valTab:60});
+    rv("Há quanto tempo reside na comunidade?", gv("fb_42_tempo"), {valTab:60});
+    h2("4.3 Nível de escolaridade");
+    para(gv("fb_43_esc"));
+    h2("4.4 Dados profissionais");
+    rv("Trabalha (SIM/NÃO):", sn("fb_44_trab"), {valTab:44});
+    rv("Empresa em que trabalha:", gv("fb_44_empresa"), {valTab:44});
+    rv("Tempo de trabalho:", gv("fb_44_tempo"), {valTab:44});
+    rv("Profissão:", gv("fb_44_prof"), {valTab:44});
+    rv("Remuneração:", gv("fb_44_remun"), {valTab:44});
+    rv("Renda familiar:", gv("fb_44_renda"), {valTab:44});
     garantir(64); // mantém o título e a tabela juntos (não separa por página)
-    h2("4.5     COMPOSIÇÃO FAMILIAR");
+    h2("4.5 Composição familiar");
     tabelaFamilia();
-    (function(){ garantir(LH+1); F("normal"); pdf.setFontSize(FS); C(BLK); const l="4.5.1 Os filhos ou familiares estudam na escola do bairro (SIM/NÃO)"; const lines=pdf.splitTextToSize(l, contentW-24); pdf.text(lines, mL, y); F("bold"); pdf.text(sn("fb_451"), RX-pdf.getTextWidth(sn("fb_451")||"  "), y); y+=lines.length*LH; })();
-    rv("Em qual bairro?", gv("fb_451_bairro"), {ind:4, valTab:36});
-    (function(){ y+=1.2; garantir(LH+1); F("normal"); pdf.setFontSize(FS); C(BLK); const l="4.5.2 Reside na moradia alguma pessoa com deficiência (SIM/NÃO)"; const lines=pdf.splitTextToSize(l, contentW-24); pdf.text(lines, mL, y); F("bold"); pdf.text(sn("fb_452"), RX-pdf.getTextWidth(sn("fb_452")||"  "), y); y+=lines.length*LH; })();
-    rv("Qual?", gv("fb_452_qual"), {ind:4, valTab:20});
-    (function(){ y+=1.2; garantir(LH+1); F("normal"); pdf.setFontSize(FS); C(BLK); const l="4.5.3 Recebe BPC – Benefício de Prestação Continuada (SIM/NÃO)"; const lines=pdf.splitTextToSize(l, contentW-24); pdf.text(lines, mL, y); F("bold"); pdf.text(sn("fb_453_bpc"), RX-pdf.getTextWidth(sn("fb_453_bpc")||"  "), y); y+=lines.length*LH; })();
-    paraReg("4.5.4 Das doenças abaixo citadas, quais as que acontecem com mais frequência na família:");
+    (function(){ garantir(LH+1); F("normal"); pdf.setFontSize(FS); C(NAVY); const l="4.5.1 Os filhos ou familiares estudam na escola do bairro (SIM/NÃO)"; const lines=pdf.splitTextToSize(l, contentW-24); pdf.text(lines, mL, y); C(BLK); F("normal"); pdf.text(sn("fb_451"), RX-pdf.getTextWidth(sn("fb_451")||"  "), y); y+=lines.length*LH; })();
+    rv("Em qual bairro?", gv("fb_451_bairro"), {valTab:36});
+    (function(){ y+=1.2; garantir(LH+1); F("normal"); pdf.setFontSize(FS); C(NAVY); const l="4.5.2 Reside na moradia alguma pessoa com deficiência (SIM/NÃO)"; const lines=pdf.splitTextToSize(l, contentW-24); pdf.text(lines, mL, y); C(BLK); F("normal"); pdf.text(sn("fb_452"), RX-pdf.getTextWidth(sn("fb_452")||"  "), y); y+=lines.length*LH; })();
+    rv("Qual?", gv("fb_452_qual"), {valTab:20});
+    (function(){ y+=1.2; garantir(LH+1); F("normal"); pdf.setFontSize(FS); C(NAVY); const l="4.5.3 Recebe BPC – Benefício de Prestação Continuada (SIM/NÃO)"; const lines=pdf.splitTextToSize(l, contentW-24); pdf.text(lines, mL, y); C(BLK); F("normal"); pdf.text(sn("fb_453_bpc"), RX-pdf.getTextWidth(sn("fb_453_bpc")||"  "), y); y+=lines.length*LH; })();
+    paraReg("4.5.4 Das doenças abaixo citadas, quais as que acontecem com mais frequência na família:", {navy:true});
     checks(["Alergia","Desnutrição","Diarreia","Doença respiratória","Verminose"], ["fb_454_0","fb_454_1","fb_454_2","fb_454_3","fb_454_4"]);
 
     // ---- 4.6 ----
-    h2("4.6     SITUAÇÃO DA MORADIA", 4);
-    paraReg("4.6.1 Tipo do imóvel:"); checks(["Terreno","Comércio","Casa residencial","Casa abandonada","Outros"], ["fb_461_tipo_0","fb_461_tipo_1","fb_461_tipo_2","fb_461_tipo_3","fb_461_tipo_4"]);
+    h2("4.6 Situação da moradia", 4);
+    paraReg("4.6.1 Tipo do imóvel:", {navy:true}); checks(["Terreno","Comércio","Casa residencial","Casa abandonada","Outros"], ["fb_461_tipo_0","fb_461_tipo_1","fb_461_tipo_2","fb_461_tipo_3","fb_461_tipo_4"]);
     rv("Outros:", gv("fb_461_outros"), {valTab:22});
-    paraReg("4.6.2  Forma de ocupação da moradia:"); checks(["Própria","Alugada","Cedida"], ["fb_462_ocup_0","fb_462_ocup_1","fb_462_ocup_2"]);
-    paraReg("4.6.3  Número de famílias na residência:"); checks(["Uma família","Duas famílias","Mais de duas famílias"], ["fb_463_fam_0","fb_463_fam_1","fb_463_fam_2"]);
-    paraReg("4.6.4  Estado de conservação do imóvel:"); checks(["Bom","Regular","Ruim"], ["fb_464_cons_0","fb_464_cons_1","fb_464_cons_2"]);
-    paraReg("4.6.5  Característica da construção:"); checks(["Alvenaria","Madeira","Misto"], ["fb_465_constr_0","fb_465_constr_1","fb_465_constr_2"]);
-    rv("4.6.6  Número de cômodos:", gv("fb_466_comodos"), {valTab:52, gapTop:3.2});
-    rv("Obs.:", "", {}); para(gv("fb_46_obs"), 4);
-    paraReg("4.6.7  Situação do imóvel:"); checks(["Com escritura","Sem escritura","Comprovante de compra e venda","Posseiro","Título de posse do INCRA"], ["fb_467_sit_0","fb_467_sit_1","fb_467_sit_2","fb_467_sit_3","fb_467_sit_4"]); (function(){ if(chk("fb_467_sit_4")||gv("fb_467_incra_desc")){ paraReg("Título de posse do INCRA — descrição:"); para(gv("fb_467_incra_desc")); } })();
+    paraReg("4.6.2  Forma de ocupação da moradia:", {navy:true}); checks(["Própria","Alugada","Cedida"], ["fb_462_ocup_0","fb_462_ocup_1","fb_462_ocup_2"]);
+    paraReg("4.6.3  Número de famílias na residência:", {navy:true}); checks(["Uma família","Duas famílias","Mais de duas famílias"], ["fb_463_fam_0","fb_463_fam_1","fb_463_fam_2"]);
+    paraReg("4.6.4  Estado de conservação do imóvel:", {navy:true}); checks(["Bom","Regular","Ruim"], ["fb_464_cons_0","fb_464_cons_1","fb_464_cons_2"]);
+    paraReg("4.6.5  Característica da construção:", {navy:true}); checks(["Alvenaria","Madeira","Misto"], ["fb_465_constr_0","fb_465_constr_1","fb_465_constr_2"]);
+    rv("4.6.6  Número de cômodos:", gv("fb_466_comodos"), {navy2:true, valTab:52, gapTop:3.2});
+    rv("Obs.:", "", {}); para(gv("fb_46_obs"));
+    paraReg("4.6.7  Situação do imóvel:", {navy:true}); checks(["Com escritura","Sem escritura","Comprovante de compra e venda","Posseiro","Título de posse do INCRA"], ["fb_467_sit_0","fb_467_sit_1","fb_467_sit_2","fb_467_sit_3","fb_467_sit_4"]); (function(){ if(chk("fb_467_sit_4")||gv("fb_467_incra_desc")){ paraReg("Título de posse do INCRA — descrição:"); para(gv("fb_467_incra_desc")); } })();
 
-    h2("4.7     INFRAESTRUTURA DO IMOVÉL:", 4);
-    paraReg("4.7.1  Abastecimento de água:"); checks(["Rede pública","Poço","Fonte","Cedido por vizinho","Rio"], ["fb_471_agua_0","fb_471_agua_1","fb_471_agua_2","fb_471_agua_3","fb_471_agua_4"]);
-    paraReg("4.7.2  Energia elétrica:"); checks(["Com padrão","Sem padrão"], ["fb_472_energia_0","fb_472_energia_1"]);
-    paraReg("4.7.3  Eliminação de dejetos:"); checks(["Rede de esgoto","Fossa séptica","Vala a céu aberto"], ["fb_473_dejetos_0","fb_473_dejetos_1","fb_473_dejetos_2"]);
-    paraReg("4.7.4  Destino dado ao lixo doméstico:"); checks(["Coleta pública","Queimado","Enterrado","Jogado em terreno baldio"], ["fb_474_lixo_0","fb_474_lixo_1","fb_474_lixo_2","fb_474_lixo_3"]);
+    h2("4.7 Infraestrutura do imóvel:", 4);
+    paraReg("4.7.1  Abastecimento de água:", {navy:true}); checks(["Rede pública","Poço","Fonte","Cedido por vizinho","Rio"], ["fb_471_agua_0","fb_471_agua_1","fb_471_agua_2","fb_471_agua_3","fb_471_agua_4"]);
+    paraReg("4.7.2  Energia elétrica:", {navy:true}); checks(["Com padrão","Sem padrão"], ["fb_472_energia_0","fb_472_energia_1"]);
+    paraReg("4.7.3  Eliminação de dejetos:", {navy:true}); checks(["Rede de esgoto","Fossa séptica","Vala a céu aberto"], ["fb_473_dejetos_0","fb_473_dejetos_1","fb_473_dejetos_2"]);
+    paraReg("4.7.4  Destino dado ao lixo doméstico:", {navy:true}); checks(["Coleta pública","Queimado","Enterrado","Jogado em terreno baldio"], ["fb_474_lixo_0","fb_474_lixo_1","fb_474_lixo_2","fb_474_lixo_3"]);
 
-    h2("4.8  DOS SENTIDOS DE IDENTIFICAÇÃO (AUTORRECONHECIMENTO)", 4);
+    h2("4.8 Dos sentidos de identificação (autorreconhecimento)", 4);
     paraReg("*Aplicável somente às comunidades tradicionais", {i:true});
-    paraReg("4.8.1  O Sr. ou a Sra. se autorreconhece como:");
+    paraReg("4.8.1  O Sr. ou a Sra. se autorreconhece como:", {navy:true});
     checks(["A) Quilombola","B) Indígena","C) Comunidade tradicional"], ["fb_481_0","fb_481_1","fb_481_2"], {vert:true});
-    (function(){ const on=chk("fb_481_3"); F(on?"bold":"normal"); pdf.setFontSize(FS); C(BLK); garantir(LH+1); pdf.text("D) Outros ( "+(on?"X":"  ")+" )", mL, y); y+=LH; garantir(LH+1); pdf.text("Especificar:", mL, y); y+=LH; F("bold"); const val=gv("fb_481_esp")||""; const w=RX-mL; const parts=val?pdf.splitTextToSize(val, w):[]; garantir(LH*(Math.max(1,parts.length))+1); parts.forEach(function(p,k){ if(k>0){ y+=LH; garantir(LH+1); } pdf.text(p, mL, y); }); y+=LH; })();
+    (function(){ const on=chk("fb_481_3"); F("normal"); pdf.setFontSize(FS); C(BLK); garantir(LH+1); pdf.text("D) Outros ( "+(on?"X":"  ")+" )", mL, y); y+=LH; garantir(LH+1); pdf.text("Especificar:", mL, y); y+=LH; F("normal"); const val=gv("fb_481_esp")||""; const w=RX-mL; const parts=val?pdf.splitTextToSize(val, w):[]; garantir(LH*(Math.max(1,parts.length))+1); parts.forEach(function(p,k){ if(k>0){ y+=LH; garantir(LH+1); } pdf.text(p, mL, y); }); y+=LH; })();
 
-    h2("4.9 APROVEITAMENTO DA TERRA:", 4);
-    paraReg("4.9.1  Uso das terras:");
+    h2("4.9 Aproveitamento da terra:", 4);
+    paraReg("4.9.1  Uso das terras:", {navy:true});
     checks(["Seca","Chuva"], ["fb_491_uso_0","fb_491_uso_1"]);
-    (function(){ garantir(LH+1); const on=chk("fb_491_uso_2"); F(on?"bold":"normal"); pdf.setFontSize(FS); C(BLK); pdf.text("Plantio ( "+(on?"X":"  ")+" )", mL, y); y+=LH; garantir(LH+1); pdf.text("Caracterizar:", mL, y); y+=LH; F("bold"); const w=RX-mL; const vl=pdf.splitTextToSize(gv("fb_491_plantio"), w); for(let i=0;i<vl.length;i++){ if(i>0) garantir(LH); _lineJust(vl[i], mL, y+i*LH, w, i===vl.length-1); } y+=Math.max(1,vl.length)*LH; })();
-    (function(){ garantir(LH+1); const on=chk("fb_491_uso_3"); F(on?"bold":"normal"); pdf.setFontSize(FS); C(BLK); pdf.text("Criação de animais ( "+(on?"X":"  ")+" )", mL, y); y+=LH; garantir(LH+1); pdf.text("Caracterizar:", mL, y); y+=LH; F("bold"); const w=RX-mL; const vl=pdf.splitTextToSize(gv("fb_491_criacao"), w); for(let i=0;i<vl.length;i++){ if(i>0) garantir(LH); _lineJust(vl[i], mL, y+i*LH, w, i===vl.length-1); } y+=Math.max(1,vl.length)*LH; })(); (function(){ const v=gv("fb_491_desc"); if(v){ paraReg("Descrição do uso das terras:"); para(v); } })();
-    paraReg("4.9.2  O que é produzido na propriedade:");
+    (function(){ garantir(LH+1); const on=chk("fb_491_uso_2"); F("normal"); pdf.setFontSize(FS); C(BLK); pdf.text("Plantio ( "+(on?"X":"  ")+" )", mL, y); y+=LH; garantir(LH+1); pdf.text("Caracterizar:", mL, y); y+=LH; const w=RX-mL; const vl=pdf.splitTextToSize(gv("fb_491_plantio"), w); for(let i=0;i<vl.length;i++){ if(i>0) garantir(LH); _lineJust(vl[i], mL, y+i*LH, w, i===vl.length-1); } y+=Math.max(1,vl.length)*LH; })();
+    (function(){ garantir(LH+1); const on=chk("fb_491_uso_3"); F("normal"); pdf.setFontSize(FS); C(BLK); pdf.text("Criação de animais ( "+(on?"X":"  ")+" )", mL, y); y+=LH; garantir(LH+1); pdf.text("Caracterizar:", mL, y); y+=LH; const w=RX-mL; const vl=pdf.splitTextToSize(gv("fb_491_criacao"), w); for(let i=0;i<vl.length;i++){ if(i>0) garantir(LH); _lineJust(vl[i], mL, y+i*LH, w, i===vl.length-1); } y+=Math.max(1,vl.length)*LH; })(); (function(){ const v=gv("fb_491_desc"); if(v){ paraReg("Descrição do uso das terras:"); para(v); } })();
+    paraReg("4.9.2  O que é produzido na propriedade:", {navy:true});
     checks(["Extrativismo","Agricultura","Pecuária"], ["fb_492_prod_0","fb_492_prod_1","fb_492_prod_2"], {vert:true});
-    paraReg("4.9.3 Quais impactos concebidos pela comunidade sobre a construção da ferrovia, e qual a sua opinião?");
+    paraReg("4.9.3 Quais impactos concebidos pela comunidade sobre a construção da ferrovia, e qual a sua opinião?", {navy:true});
     y+=LH;
-    para(gv("fb_493_impactos"),0,true);
+    para(gv("fb_493_impactos"));
 
-    h2("4.10  OUTRAS INFORMAÇÕES");
-    paraReg("4.10.1 Quais as expectativas futuras da família em relação à moradia atual e pós desapropriação:");
+    h2("4.10 Outras informações");
+    paraReg("4.10.1 Quais as expectativas futuras da família em relação à moradia atual e pós desapropriação:", {navy:true});
     checks(["Continuar morando nas redondezas da localidade","Construir em outro local fora da localidade"], ["fb_4101_0","fb_4101_1"], {vert:true});
-    (function(){ garantir(LH+1); const on=chk("fb_4101_2"); F(on?"bold":"normal"); pdf.setFontSize(FS); C(BLK); const l="Outra ( "+(on?"X":"  ")+" ): "; pdf.text(l, mL, y); F("bold"); const lw=pdf.getTextWidth(l), w=Math.max(RX-(mL+lw),25); const vl=pdf.splitTextToSize(gv("fb_4101_outra"), w); for(let i=0;i<vl.length;i++){ if(i>0) garantir(LH); _lineJust(vl[i], mL+lw, y+i*LH, w, i===vl.length-1); } y+=Math.max(1,vl.length)*LH; })();
-    (function(){ y+=LH; garantir(LH+1); F("normal"); pdf.setFontSize(FS); C(BLK); const box=simnaoBox("fb_4102"); const l="4.10.2 A família recebe algum benefício do Governo Federal: "; const lines=pdf.splitTextToSize(l, contentW-40); F("normal"); pdf.text(lines, mL, y); const lastw=pdf.getTextWidth(lines[lines.length-1]); let x=mL+lastw+2; const yy=y+(lines.length-1)*LH; F(box.s?"bold":"normal"); pdf.text(box.t1, x, yy); F(box.n?"bold":"normal"); pdf.text(box.t2, x+pdf.getTextWidth(box.t1), yy); y+=lines.length*LH; })();
+    (function(){ garantir(LH+1); const on=chk("fb_4101_2"); F("normal"); pdf.setFontSize(FS); C(BLK); const l="Outra ( "+(on?"X":"  ")+" ): "; pdf.text(l, mL, y); const lw=pdf.getTextWidth(l), w=Math.max(RX-(mL+lw),25); const vl=pdf.splitTextToSize(gv("fb_4101_outra"), w); for(let i=0;i<vl.length;i++){ if(i>0) garantir(LH); _lineJust(vl[i], mL+lw, y+i*LH, w, i===vl.length-1); } y+=Math.max(1,vl.length)*LH; })();
+    (function(){ y+=LH; garantir(LH+1); F("normal"); pdf.setFontSize(FS); C(BLK); const box=simnaoBox("fb_4102"); const l="4.10.2 A família recebe algum benefício do Governo Federal: "; const lines=pdf.splitTextToSize(l, contentW-40); F("normal"); C(NAVY); pdf.text(lines, mL, y); C(BLK); const lastw=pdf.getTextWidth(lines[lines.length-1]); let x=mL+lastw+2; const yy=y+(lines.length-1)*LH; F("normal"); pdf.text(box.t1, x, yy); F("normal"); pdf.text(box.t2, x+pdf.getTextWidth(box.t1), yy); y+=lines.length*LH; })();
     rv("Qual:", gv("fb_4102_qual"), {valTab:16});
-    (function(){ y+=LH; garantir(LH+1); F("normal"); pdf.setFontSize(FS); C(BLK); const box=simnaoBox("fb_4103"); const l="4.10.3 A família participa de algum programa do município: "; const lines=pdf.splitTextToSize(l, contentW-40); F("normal"); pdf.text(lines, mL, y); const lastw=pdf.getTextWidth(lines[lines.length-1]); let x=mL+lastw+2; const yy=y+(lines.length-1)*LH; F(box.s?"bold":"normal"); pdf.text(box.t1, x, yy); F(box.n?"bold":"normal"); pdf.text(box.t2, x+pdf.getTextWidth(box.t1), yy); y+=lines.length*LH; })();
+    (function(){ y+=LH; garantir(LH+1); F("normal"); pdf.setFontSize(FS); C(BLK); const box=simnaoBox("fb_4103"); const l="4.10.3 A família participa de algum programa do município: "; const lines=pdf.splitTextToSize(l, contentW-40); F("normal"); C(NAVY); pdf.text(lines, mL, y); C(BLK); const lastw=pdf.getTextWidth(lines[lines.length-1]); let x=mL+lastw+2; const yy=y+(lines.length-1)*LH; F("normal"); pdf.text(box.t1, x, yy); F("normal"); pdf.text(box.t2, x+pdf.getTextWidth(box.t1), yy); y+=lines.length*LH; })();
     rv("Qual:", gv("fb_4103_qual"), {valTab:16});
-    (function(){ y+=LH; garantir(LH+1); F("normal"); pdf.setFontSize(FS); C(BLK); const box=simnaoBox("fb_4104"); const l="4.10.4 A família participa de projetos e organizações da comunidade: "; const lines=pdf.splitTextToSize(l, contentW-40); F("normal"); pdf.text(lines, mL, y); const lastw=pdf.getTextWidth(lines[lines.length-1]); let x=mL+lastw+2; const yy=y+(lines.length-1)*LH; F(box.s?"bold":"normal"); pdf.text(box.t1, x, yy); F(box.n?"bold":"normal"); pdf.text(box.t2, x+pdf.getTextWidth(box.t1), yy); y+=lines.length*LH; })();
+    (function(){ y+=LH; garantir(LH+1); F("normal"); pdf.setFontSize(FS); C(BLK); const box=simnaoBox("fb_4104"); const l="4.10.4 A família participa de projetos e organizações da comunidade: "; const lines=pdf.splitTextToSize(l, contentW-40); F("normal"); C(NAVY); pdf.text(lines, mL, y); C(BLK); const lastw=pdf.getTextWidth(lines[lines.length-1]); let x=mL+lastw+2; const yy=y+(lines.length-1)*LH; F("normal"); pdf.text(box.t1, x, yy); F("normal"); pdf.text(box.t2, x+pdf.getTextWidth(box.t1), yy); y+=lines.length*LH; })();
     rv("Qual:", gv("fb_4104_qual"), {valTab:16});
-    paraReg("4.10.5 Dados relativos sobre saúde, educação, segurança comunitária e questões sociais, situações de vulnerabilidades relacionadas à família e seus membros:");
+    paraReg("4.10.5 Dados relativos sobre saúde, educação, segurança comunitária e questões sociais, situações de vulnerabilidades relacionadas à família e seus membros:", {navy:true});
     y+=LH;
-    para(gv("fb_4105"),0,true);
+    para(gv("fb_4105"));
 
     // ===================== 5 - INFORMAÇÕES COMPLEMENTARES =====================
     banda("5 - INFORMAÇÕES COMPLEMENTARES (PROPRIEDADE)");
-    rv("5.1 Obras e Melhorias das Terras:", gv("fb_51_obras"), {navy:true, valTab:64});
-    rv("5.2 Outras Atividades:", gv("fb_52_ativ"), {navy:true, valTab:64});
+    rv("5.1 Obras e melhorias das terras:", gv("fb_51_obras"), {navy:true, valTab:64});
+    rv("5.2 Outras atividades:", gv("fb_52_ativ"), {navy:true, valTab:64});
     rv("5.3 Observações:", gv("fb_53_obs"), {navy:true, valTab:64});
     { // garante espaço p/ o título JUNTO da 1ª linha de fotos (não deixa "5.4" sozinho no fim da página)
       const _fp=(window.FB_getFotos?window.FB_getFotos():[])||[];
