@@ -12681,7 +12681,8 @@ function AV_gerarDescSituacao(){
       F(o.navy?"bold":"normal"); pdf.setFontSize(FS); C(o.navy?NAVY:BLK);
       const labLines=pdf.splitTextToSize(label, Math.max(RX-x,20));
       const lastLabW=pdf.getTextWidth(labLines[labLines.length-1]);
-      let vx=(o.valTab!==undefined)?Math.max(mL+o.valTab, x+lastLabW+3):(x+lastLabW+3);
+      const gap0=(o.gap0!==undefined)?o.gap0:3;
+      let vx=(o.valTab!==undefined)?Math.max(mL+o.valTab, x+lastLabW+gap0):(x+lastLabW+gap0);
       let availV=RX-vx, sameLine=true;
       if(!val){ availV=20; }
       else if(availV<35){ sameLine=false; vx=x+2; availV=RX-vx; }
@@ -12824,13 +12825,15 @@ function AV_gerarDescSituacao(){
     y+=2;
     // 1.3 Proprietário(a)
     (function(){ garantir(LH+1); F("bold"); pdf.setFontSize(FS); C(NAVY); const l="1.3 Proprietário(a) (SIM/NÃO):"; pdf.text(l, mL, y); let x=mL+pdf.getTextWidth(l)+3; C(BLK); F("bold"); const s=(/sim/i.test(gv("fb_11_dom"))||gv("fb_nome"))?"SIM":""; pdf.text(s, x, y); x+=pdf.getTextWidth(s||"")+6; F("italic"); C(BLK); pdf.text("(Se sim, preencher item 1.3.1; se não, item 1.3.2)", x, y); y+=LH; })();
-    rv("1.3.1 Nome:", gv("fb_nome"), {valTab:34});
-    rv2("RG:", gv("fb_rg"), "CPF:", gv("fb_cpf"));
+    rv("1.3.1 Nome:", gv("fb_nome"), {gap0:4});
+    rv("RG:", gv("fb_rg"), {valTab:34});
+    rv("CPF:", gv("fb_cpf"), {valTab:34});
+    rv("Telefone:", gv("fb_telefone"), {valTab:34});
     rv("Estado Civil (Casado, solteiro, viúvo, divorciado ou união estável):", gv("fb_estcivil"), {valTab:0});
     rv("Cônjuge:", gv("fb_conjuge"), {valTab:34});
-    rv("Endereço:", gv("fb_endereco"), {valTab:34});
-    rv2("Município:", gv("fb_municipio"), "Telefone:", gv("fb_telefone"));
-    rv("1.3.2 Informante (nome):", gv("fb_inf_nome"), {valTab:44});
+    rv("Endereço:", gv("fb_endereco"), {valTab:34, gapTop:LH});
+    rv("Município:", gv("fb_municipio"), {valTab:34});
+    rv("1.3.2 Informante (nome):", gv("fb_inf_nome"), {valTab:44, gapTop:LH});
     rv("Grau de parentesco:", gv("fb_411_par"), {valTab:44});
     rv("Dados comprobatório:", gv("fb_inf_dados"), {valTab:44});
     y+=2;
@@ -12839,8 +12842,10 @@ function AV_gerarDescSituacao(){
     rv("Identificação:", gv("fb_prop_id"), {valTab:30});
     rv("Endereço:", gv("fb_prop_end"), {valTab:30});
     rv("Município:", gv("fb_prop_mun"), {valTab:30});
-    rv2("Área Total (ha):", gv("fb_area_total"), "Matrícula:", gv("fb_matricula"));
-    rv2("Área de desapropriação (ha):", gv("fb_area_desap"), "Cartório:", gv("fb_cartorio"));
+    rv("Área Total (ha):", gv("fb_area_total"), {valTab:30});
+    rv("Área de desapropriação (ha):", gv("fb_area_desap"), {valTab:30});
+    rv("Matrícula:", gv("fb_matricula"), {valTab:30});
+    rv("Cartório:", gv("fb_cartorio"), {valTab:30});
     y+=2;
     // 1.5 Observações
     h2("1.5 Observações:");
@@ -12877,14 +12882,13 @@ function AV_gerarDescSituacao(){
     banda("4 - CARACTERIZAÇÃO SOCIOECONÔMICA");
     h2("4.1     IDENTIFICAÇÃO");
     (function(){ garantir(LH+1); F("normal"); pdf.setFontSize(FS); C(BLK); const l="Proprietário(a) do imóvel (SIM/NÃO):"; pdf.text(l, mL+2, y); let x=mL+2+pdf.getTextWidth(l)+3; F("bold"); const s=(gv("fb_41_prop")); pdf.text(sn("fb_41_prop"), x, y); x+=pdf.getTextWidth(sn("fb_41_prop")||"")+6; F("normal"); pdf.text("Se NÃO preencher também item 4.1.1.", x, y); y+=LH; })();
-    rv("Nome:", gv("fb_41_nome"), {ind:2, valTab:34});
+    rv("Nome:", gv("fb_41_nome"), {ind:2, gap0:4});
     rv("4.1.1  Grau de parentesco:", gv("fb_411_par"), {ind:2, valTab:44});
     h2("4.2     NATURALIDADE");
     rv("Do município (1), outro município (2) ou outro estado (3):", (function(){ const v=gv("fb_42_nat"); const m=v.match(/\((\d)\)/); return m?m[1]:v; })(), {ind:2, valTab:0});
     rv("Qual?", gv("fb_42_qual"), {ind:2, valTab:60});
     rv("Há quanto tempo reside na comunidade?", gv("fb_42_tempo"), {ind:2, valTab:60});
     h2("4.3     NÍVEL DE ESCOLARIDADE");
-    paraReg("(Analfabeto(a), alfabetizado(a), ensino fundamental, ensino médio, ensino técnico e ensino superior).", {ind:2});
     para(gv("fb_43_esc"), 8);
     h2("4.4     DADOS PROFISSIONAIS");
     rv("Trabalha (SIM/NÃO):", sn("fb_44_trab"), {ind:6, valTab:44});
@@ -12893,6 +12897,7 @@ function AV_gerarDescSituacao(){
     rv("Profissão:", gv("fb_44_prof"), {ind:6, valTab:44});
     rv("Remuneração:", gv("fb_44_remun"), {ind:6, valTab:44});
     rv("Renda familiar:", gv("fb_44_renda"), {ind:6, valTab:44});
+    garantir(64); // mantém o título e a tabela juntos (não separa por página)
     h2("4.5     COMPOSIÇÃO FAMILIAR");
     tabelaFamilia();
     (function(){ garantir(LH+1); F("normal"); pdf.setFontSize(FS); C(BLK); const l="4.5.1 Os filhos ou familiares estudam na escola do bairro (SIM/NÃO)"; const lines=pdf.splitTextToSize(l, contentW-24); pdf.text(lines, mL, y); F("bold"); pdf.text(sn("fb_451"), RX-pdf.getTextWidth(sn("fb_451")||"  "), y); y+=lines.length*LH; })();
