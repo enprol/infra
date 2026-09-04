@@ -12603,7 +12603,10 @@ function AV_gerarDescSituacao(){
 
     // banda de seção: faixa azul-clara + título azul-marinho em negrito ("N - TÍTULO")
     // seção principal: preto, negrito, com régua abaixo (padrão do Relatório)
-    function banda(txt, extra){ y+=10+(extra||0); garantir(13); F("bold"); pdf.setFontSize(11.5); C(BLK); pdf.text(txt, mL, y); y+=2.4; pdf.setDrawColor(70,70,70); pdf.setLineWidth(0.3); pdf.line(mL, y, RX, y); y+=6.5; pdf.setFontSize(FS); }
+    // (sem o respiro de 1cm se a banda já cai bem no topo de uma página nova)
+    function banda(txt, extra){ if(y>topY+0.5) y+=10+(extra||0); garantir(13); F("bold"); pdf.setFontSize(11.5); C(BLK); pdf.text(txt, mL, y); y+=2.4; pdf.setDrawColor(70,70,70); pdf.setLineWidth(0.3); pdf.line(mL, y, RX, y); y+=6.5; pdf.setFontSize(FS); }
+    // força início de página nova antes de um tópico (usado nos itens 2 e 3)
+    function novoTopico(){ if(y>topY+0.5){ rodape(); novaPagina(); } }
 
     // subtópico "N.N" — azul-marinho negrito
     function h2(txt, extra){ y+=5+(extra||0); garantir(6); F("bold"); pdf.setFontSize(FS); C(NAVY); pdf.text(txt, mL, y); y+=6.4; }
@@ -12712,10 +12715,36 @@ function AV_gerarDescSituacao(){
       pdf.text(l2,xR,y0); if(v2){ F("bold"); for(let i=0;i<t2.length;i++) pdf.text(t2[i],xR+w2,y0+i*LH); F("normal"); }
       y=y0+alt*LH+0.4;
     }
-    // parágrafo com valor em negrito, justificado (para respostas longas)
+    // Normaliza texto digitado em CAIXA ALTA para "Frase normal, com maiúscula só
+    // no início de cada frase/parágrafo" — não mexe em números, preserva a marcação
+    // **negrito** (só troca a letra maiúscula/minúscula, nunca a pontuação/símbolos).
+    function sentenceCase(txt){
+      if(txt==null) return "";
+      return String(txt).split("\n").map(function(par){
+        if(!par.trim()) return par;
+        const lower=par.toLowerCase();
+        let out="", capNext=true;
+        for(let i=0;i<lower.length;i++){
+          const ch=lower[i];
+          if(capNext && /[a-zà-öø-ÿ]/i.test(ch)){ out+=ch.toUpperCase(); capNext=false; continue; }
+          out+=ch;
+          if(/[.!?]/.test(ch)){
+            // "2.5" (número decimal) não conta como fim de frase
+            const antesNum=i>0 && /[0-9]/.test(lower[i-1]);
+            const depoisNum=i+1<lower.length && /[0-9]/.test(lower[i+1]);
+            if(!(ch==="." && antesNum && depoisNum)) capNext=true;
+          } else if(!/\s/.test(ch) && ch!=="*"){
+            capNext=false;
+          }
+        }
+        return out;
+      }).join("\n");
+    }
+    // parágrafo com valor em negrito, justificado (para respostas longas) — texto
+    // digitado pelo usuário passa por sentenceCase (nunca os títulos/rótulos fixos).
     function para(val, ind, naoBold){ if(val===undefined||val===null) val=""; if(!String(val).trim()) return; const x=mL+(ind||0); const w=RX-x;
       F(naoBold?"normal":"bold"); pdf.setFontSize(FS); C(BLK);
-      bloco(val, x, w);
+      bloco(sentenceCase(val), x, w);
       C(BLK); F("normal");
     }
     // texto instrucional / regular (não-negrito), justificado
@@ -12820,6 +12849,7 @@ function AV_gerarDescSituacao(){
     para(gv("fb_15_obs"),0,true);
 
     // ===================== 2 - CARACTERIZAÇÃO DO IMÓVEL =====================
+    novoTopico();
     banda("2 - CARACTERIZAÇÃO DO IMÓVEL", 4);
     h2("2.1 Ambientais:"); para(gv("fb_21_amb"), 0, true); y+=1.5;
     h2("2.2 Localização:"); para(gv("fb_22_loc"), 0, true); y+=1.5;
@@ -12836,6 +12866,7 @@ function AV_gerarDescSituacao(){
     rv("2.5.4 Informações Complementares:", gv("fb_254_comp"), {ind:4, valTab:56});
 
     // ===================== 3 - DESCRIÇÃO DAS BENFEITORIAS =====================
+    novoTopico();
     banda("3 - DESCRIÇÃO DAS BENFEITORIAS", 4);
     h2("3.1 NÃO REPRODUTIVAS:"); para(gv("fb_31_nrep")); y+=1;
     rv("3.1.1 Benfeitorias não reprodutivas da faixa não edificante:", "", {ind:4}); para(gv("fb_311"), 4); y+=1;
