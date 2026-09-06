@@ -1977,6 +1977,15 @@ window.REL_baixarConjunto = async function(){
   #panel-desp1-drl .drl-btn{border:none; padding:11px 22px; font-size:14px; font-weight:700; border-radius:9px; cursor:pointer; background:var(--azul); color:#fff; box-shadow:0 3px 10px rgba(31,111,192,.3);}
   #panel-desp1-drl .drl-btn:hover{background:var(--azul-esc);}
   #panel-desp1-drl .drl-hint{font-size:11.5px; color:var(--label); margin-top:4px;}
+  #panel-desp1-drl .drl-imgdrop{display:flex; flex-direction:column; align-items:center; gap:5px; border:2px dashed var(--borda-forte); border-radius:12px; padding:22px 16px; cursor:pointer; background:#f7f9fc; text-align:center; transition:border-color .15s, background .15s;}
+  #panel-desp1-drl .drl-imgdrop:hover, #panel-desp1-drl .drl-imgdrop.over{border-color:var(--azul); background:#eaf3fc;}
+  #panel-desp1-drl .drl-imgdrop .ic{font-size:26px;}
+  #panel-desp1-drl .drl-imgdrop .t{font-size:13px; font-weight:600; color:var(--texto);}
+  #panel-desp1-drl .drl-imgdrop .h{font-size:11px; color:var(--label);}
+  #panel-desp1-drl .drl-imgdrop input{display:none;}
+  #panel-desp1-drl .drl-imgprev{margin-top:10px;}
+  #panel-desp1-drl .drl-imgprev img{max-width:100%; border:1px solid var(--borda); border-radius:8px;}
+  #panel-desp1-drl .drl-imgprev button{margin-top:6px; border:1px solid var(--borda-forte); background:#fff; color:#c0392b; font-size:12px; font-weight:700; padding:5px 14px; border-radius:8px; cursor:pointer;}
   @media (max-width:900px){ #panel-desp1-drl .drl-preview{position:static;} }
 
   /* ===== 1.10 Relatório Técnico — form styling ===== */
@@ -4590,26 +4599,15 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
           <button type="button" class="drl-mini" onclick="DRL_gerarTexto()">↻ Restaurar texto automático</button>
         </div>
         <div class="drl-card">
-          <label for="drl_conf_abrangida">Confrontantes da área abrangida</label>
-          <textarea id="drl_conf_abrangida" rows="3" placeholder="Um confrontante por linha (Norte: …, Sul: …). Deixe em branco para sair só o rótulo."></textarea>
-        </div>
-        <div class="drl-card">
-          <label for="drl_conf_remanescente">Confrontantes da área remanescente</label>
-          <textarea id="drl_conf_remanescente" rows="3" placeholder="Um confrontante por linha. Deixe em branco para sair só o rótulo."></textarea>
-        </div>
-        <div class="drl-card">
-          <div class="drl-row">
-            <div>
-              <label for="drl_anexos">Anexos (um por linha)</label>
-              <textarea id="drl_anexos" rows="2">Planta planimétrica
-Memorial descritivo</textarea>
-            </div>
-            <div>
-              <label for="drl_deacordo_n">Linhas "De acordo:"</label>
-              <input type="number" id="drl_deacordo_n" min="0" max="8" value="3">
-              <div class="drl-hint">Linhas de assinatura para os confrontantes.</div>
-            </div>
-          </div>
+          <label>Confrontantes da área abrangida (imagem da tabela)</label>
+          <input type="hidden" id="drl_conf_abrangida_img">
+          <label class="drl-imgdrop" id="drl_conf_drop">
+            <span class="ic">🖼️</span>
+            <span class="t">Clique ou arraste a imagem da tabela de confrontantes</span>
+            <span class="h">Imagem única • JPG ou PNG</span>
+            <input type="file" accept="image/*" id="drl_conf_file">
+          </label>
+          <div id="drl_conf_prev" class="drl-imgprev"></div>
         </div>
         <div class="drl-card">
           <label for="drl_local_data">Local e data</label>
@@ -15407,10 +15405,9 @@ window.DRL_gerarPDF=async function(opts){
   var d=window.DRL_dados();
 
   var texto=DRL_gv('drl_texto') || DRL_paragrafo(d);
-  var confA=DRL_gv('drl_conf_abrangida');
-  var confR=DRL_gv('drl_conf_remanescente');
-  var anexos=(DRL_gv('drl_anexos') || 'Planta planimétrica\nMemorial descritivo').split(/\r?\n/).filter(function(s){return s.trim();});
-  var nAc=parseInt(DRL_gv('drl_deacordo_n'),10); if(isNaN(nAc)||nAc<0) nAc=3; if(nAc>8) nAc=8;
+  var confAImg=DRL_gv('drl_conf_abrangida_img');           // imagem da tabela de confrontantes
+  var anexos=['Planta planimétrica','Memorial descritivo']; // fixo
+  var nAc=3;                                                // fixo
   var localData=DRL_gv('drl_local_data') || DRL_localDataPadrao(d);
 
   var END=["Av. Des. Moreira, nº 1300, T. Norte, Conj. 1016/1021, Aldeota, 60.170-002, Fortaleza-CE","Rua Idelfonso Freire, nº 106, Sala 202, Centro, 56.506-520, Arcoverde-PE","Rua Pedro Batista Ferreira, nº 278, Centro, 76.500-000, Santa Terezinha de Goiás-GO","Rua Nilo Peçanha, nº 25, 1º Andar, Sala 07, Centro, 47.640-000, Santa Maria da Vitória-BA","Rua Irmã Ambrosina, nº 249, Conj 03 e 04, Centro, 61.760-405, Eusébio-CE","Rua dos Timbiras, nº 2213, Conj.1206/1209, Lourdes, 30.140-069, Belo Horizonte-MG"];
@@ -15448,10 +15445,17 @@ window.DRL_gerarPDF=async function(opts){
   bloco(texto); y+=8;
 
   garantir(10); pdf.setFont('helvetica','bold'); pdf.setFontSize(11); pdf.text('Confrontantes da Área Abrangida:', mL, y); y+=7;
-  if(confA){ bloco(confA); } else { y+=6; }
-  y+=4;
-  garantir(10); pdf.setFont('helvetica','bold'); pdf.setFontSize(11); pdf.text('Confrontantes da Área Remanescente:', mL, y); y+=7;
-  if(confR){ bloco(confR); } else { y+=6; }
+  if(confAImg){
+    var _ci=await _drlImg(confAImg);
+    if(_ci && _ci.width && _ci.height){
+      var iw=RW, ih=iw*(_ci.height/_ci.width);
+      var maxIh=botY-topY-10; if(ih>maxIh){ ih=maxIh; iw=ih*(_ci.width/_ci.height); }
+      garantir(ih+4);
+      var fmt=/^data:image\/png/i.test(confAImg)?'PNG':'JPEG';
+      try{ pdf.addImage(confAImg, fmt, mL, y, iw, ih); }catch(e){}
+      y+=ih+4;
+    } else { y+=6; }
+  } else { y+=6; }
   y+=14;
 
   assinatura();
@@ -15497,11 +15501,44 @@ window.DRL_gerarPDF=async function(opts){
   }
   function agendar(){ clearTimeout(_t); _t=setTimeout(atualizarPreview, 420); }
   window.DRL_atualizarPreview=atualizarPreview;
+  function renderConfPrev(){
+    var hid=document.getElementById('drl_conf_abrangida_img'), pv=document.getElementById('drl_conf_prev');
+    if(!hid||!pv) return;
+    var src=hid.value||'';
+    pv.innerHTML = src ? ('<img src="'+src+'" alt="tabela de confrontantes"><br><button type="button" onclick="DRL_removerConfImg()">Remover imagem</button>') : '';
+  }
+  window.DRL_removerConfImg=function(){
+    var hid=document.getElementById('drl_conf_abrangida_img'); if(!hid) return;
+    hid.value=''; renderConfPrev(); hid.dispatchEvent(new Event('input',{bubbles:true}));
+  };
+  function lerConfImg(file){
+    if(!file || !/^image\//.test(file.type)) return;
+    var rd=new FileReader();
+    rd.onload=function(ev){
+      var o=ev.target.result;
+      (window.AV_normalizarImagem?window.AV_normalizarImagem(o,{maxLado:1800,q:0.9}):Promise.resolve(o)).then(function(n){
+        var hid=document.getElementById('drl_conf_abrangida_img'); if(!hid) return;
+        hid.value=n; renderConfPrev(); hid.dispatchEvent(new Event('input',{bubbles:true}));
+      });
+    };
+    rd.readAsDataURL(file);
+  }
   function ligar(){
     var p=document.getElementById('panel-desp1-drl'); if(!p) return;
     p.querySelectorAll('textarea, input').forEach(function(el){ el.addEventListener('input', agendar); });
+    // upload da imagem de confrontantes
+    var fi=document.getElementById('drl_conf_file'), dz=document.getElementById('drl_conf_drop');
+    if(fi) fi.addEventListener('change', function(e){ lerConfImg(e.target.files&&e.target.files[0]); e.target.value=''; });
+    if(dz){
+      dz.addEventListener('dragover', function(e){ e.preventDefault(); dz.classList.add('over'); });
+      dz.addEventListener('dragleave', function(){ dz.classList.remove('over'); });
+      dz.addEventListener('drop', function(e){ e.preventDefault(); dz.classList.remove('over'); lerConfImg(e.dataTransfer.files&&e.dataTransfer.files[0]); });
+    }
+    var hid=document.getElementById('drl_conf_abrangida_img');
+    if(hid) hid.addEventListener('input', renderConfPrev);   // reflete restauração de cadastro
+    renderConfPrev();
     // quando a aba fica visível, garante prévia atualizada
-    var mo=new MutationObserver(function(){ if(p.classList.contains('ativa')){ preencherPadrao(); agendar(); } });
+    var mo=new MutationObserver(function(){ if(p.classList.contains('ativa')){ preencherPadrao(); renderConfPrev(); agendar(); } });
     mo.observe(p, {attributes:true, attributeFilter:['class']});
     if(p.classList.contains('ativa')){ preencherPadrao(); agendar(); }
   }
@@ -15521,10 +15558,12 @@ window.DRL_gerarWord=async function(opts){
   var TAB=9070, linha="_________________________________________________";
   var _g=function(id){ var e=document.getElementById(id); return e?((e.value||'').replace(/\s+$/,'')):''; };
   var _txtEdit=_g('drl_texto');
-  var _confA=_g('drl_conf_abrangida'), _confR=_g('drl_conf_remanescente');
-  var _anexos=(_g('drl_anexos')||'Planta planimétrica\nMemorial descritivo').split(/\r?\n/).filter(function(s){return s.trim();});
-  var _nAc=parseInt(_g('drl_deacordo_n'),10); if(isNaN(_nAc)||_nAc<0) _nAc=3; if(_nAc>8) _nAc=8;
+  var _confImg=_g('drl_conf_abrangida_img');
+  var _anexos=['Planta planimétrica','Memorial descritivo'];
+  var _nAc=3;
   var _ld=_g('drl_local_data') || DRL_localDataPadrao(d);
+  function _imgDim(src){ return new Promise(function(res){ if(!src){res(null);return;} var im=new Image(); im.onload=function(){res({w:im.naturalWidth,h:im.naturalHeight});}; im.onerror=function(){res(null);}; im.src=src; }); }
+  var _confDim = _confImg ? await _imgDim(_confImg) : null;
   var K=[];
   K.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{before:120,after:280},children:[R("DECLARAÇÃO DE RESPEITO DE LIMITES",{bold:true,size:26})]}));
   if(_txtEdit && _txtEdit!==DRL_paragrafo(d)){
@@ -15537,9 +15576,13 @@ window.DRL_gerarWord=async function(opts){
       R(", declaro, sob as penas da lei, que foram respeitados os limites das divisas in loco com os confrontantes abaixo relacionados durante a execução dos trabalhos técnicos na citada propriedade, não havendo qualquer litígio entre as partes.")]}));
   }
   K.push(new Paragraph({spacing:{before:180,after:0},children:[R("Confrontantes da Área Abrangida:",{bold:true})]}));
-  if(_confA) _confA.split(/\r?\n/).forEach(function(l){ K.push(new Paragraph({spacing:{after:0},children:[R(l)]})); });
-  K.push(new Paragraph({spacing:{before:180,after:0},children:[R("Confrontantes da Área Remanescente:",{bold:true})]}));
-  if(_confR) _confR.split(/\r?\n/).forEach(function(l){ K.push(new Paragraph({spacing:{after:0},children:[R(l)]})); });
+  if(_confImg && _confDim && _confDim.w){
+    var _iu=b64u8(_confImg);
+    if(_iu){
+      var _wpx=Math.min(520, _confDim.w), _hpx=_wpx*(_confDim.h/_confDim.w);
+      try{ K.push(new Paragraph({spacing:{before:60,after:0},children:[new ImageRun({data:_iu, transformation:{width:Math.round(_wpx), height:Math.round(_hpx)}})]})); }catch(e){}
+    }
+  }
   K.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{before:760,after:0},children:[R(linha)]}));
   K.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:0},children:[R(val(d.nome),{bold:true})]}));
   K.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:0},children:[R("CPF nº: "+val(d.cpf))]}));
