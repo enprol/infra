@@ -14707,6 +14707,32 @@ window.UFOTO_rodapeHTML=rodapeHTML;
       "A(s) benfeitoria(s) está(ão) averbada(s) na matrícula do imóvel?"
     ]}
   ];
+  // Nem todo item marcado "Não" vira pendência documental na conclusão.
+  // Para os grupos abaixo, SÓ os itens listados aqui viram pendência quando "Não".
+  // Grupos que não aparecem aqui: qualquer "Não" continua virando pendência.
+  var PEND_SO_ESTES = {
+    "2. b) Identificação e Documentos – Outros Proprietários e/ou Herdeiros": [
+      "Caso aplicável, há a qualificação e documentos (RG e CPF) de todos os herdeiros?",
+      "Caso aplicável, há a qualificação e documentos (RG, CPF, contratos) de todos os demais envolvidos na contratação?"
+    ],
+    "6. f) Identificação e Documentos – Imóvel Abrangido": [
+      "Escritura Pública de aquisição",
+      "Certidão atualizada de inteiro teor da matrícula imobiliária (dentro do prazo de 30 dias) junto ao Cartório de Registro de Imóveis competente?",
+      "Certidão negativa de ônus, de ações reais ou pessoais reipersecutórios?",
+      "Comprovante de inscrição e situação fiscal do imóvel (se rural) junto à Secretaria da Receita Federal (ITR/CIB)?",
+      "Cópia da última declaração do ITR?",
+      "Comprovante de inscrição e situação fiscal do imóvel (se rural) junto ao Instituto Nacional de Colonização e Reforma Agrária - INCRA (CCIR)?",
+      "Comprovante de inscrição e situação fiscal do imóvel (se urbano) junto ao Cadastro Imobiliário do Município (projeto aprovado; habite-se; averbação das edificações)?",
+      "Comprovante de recolhimento do IPTU relativo aos últimos exercícios?",
+      "Memorial Descritivo?",
+      "Levantamento Topográfico e Planta Cadastral?",
+      "Imóvel arrolado em processo de inventário? (cópia do processo)"
+    ]
+  };
+  function pendEhElegivel(tab, crit){
+    var wl = PEND_SO_ESTES[tab && tab.titulo];
+    return !wl || wl.indexOf(crit) >= 0;
+  }
   var tabelasPAR={};
   function initTabelasPAR(){
     CHECKLIST_TABS.forEach(function(tab,n){
@@ -14766,7 +14792,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     var lista=[];
     CHECKLIST_TABS.forEach(function(tab,n){
       (tabelasPAR[n]||[]).forEach(function(lin,i){
-        if(lin.resp==="Não"){
+        if(lin.resp==="Não" && pendEhElegivel(tab, lin.crit)){
           var key=n+"_"+i;
           if(!pendState[key]) pendState[key]={ident:lin.crit.replace(/\?\s*$/,""), pend:"Apresentar.", sol:""};
           lista.push({key:key, st:pendState[key]});
@@ -14800,7 +14826,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     var lista=[];
     CHECKLIST_TABS.forEach(function(tab,n){
       (tabelasPAR[n]||[]).forEach(function(lin,i){
-        if(lin.resp==="Não"){
+        if(lin.resp==="Não" && pendEhElegivel(tab, lin.crit)){
           var key=n+"_"+i, st=pendState[key]||{ident:lin.crit.replace(/\?\s*$/,""), pend:"Apresentar.", sol:""};
           lista.push(st);
         }
