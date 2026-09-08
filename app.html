@@ -4776,6 +4776,11 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
     #panel-desp1-parecer table.par-pend .c-x{width:34px; text-align:center; padding:4px;}
     #panel-desp1-parecer .par-pend-rm{border:1px solid #d9b0aa; background:#fff; color:#b5382a; width:24px; height:24px; border-radius:6px; font-size:15px; line-height:1; cursor:pointer;}
     #panel-desp1-parecer .par-pend-rm:hover{background:#fdecec;}
+    #panel-desp1-parecer .par-pend-add{border:1px solid #a9c7b0; background:#fff; color:#2f7d43; width:24px; height:24px; border-radius:6px; font-size:14px; line-height:1; cursor:pointer;}
+    #panel-desp1-parecer .par-pend-add:hover{background:#eefaf0;}
+    #panel-desp1-parecer table.par-pend tr.par-pend-off td{opacity:.5;}
+    #panel-desp1-parecer table.par-pend tr.par-pend-off td.c-x{opacity:1;}
+    #panel-desp1-parecer table.par-pend tr.par-pend-off .c-p input{text-decoration:line-through;}
     #panel-desp1-parecer .par-aviso{background:#fdecec; border:1px solid #f0c0b8; border-radius:8px; padding:9px 13px; font-size:12.5px; color:#8a2c1f; margin-top:8px;}
     #panel-desp1-parecer .par-fixo{background:#f0f5fb; border:1px solid #cfe0f0; border-radius:8px; padding:12px 14px; font-size:13px; color:var(--texto); line-height:1.6; margin-top:8px;}
     #panel-desp1-parecer .par-fixo .dt{text-align:right; font-style:italic; margin-bottom:10px;}
@@ -4889,7 +4894,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
       <div class="vactions" style="margin-bottom:8px;"><button class="vbtn vbtn-ghost vbtn-sm" type="button" onclick="PAR_gerarTexto('conclusao')">↻ Restaurar texto automático</button></div>
       <label style="display:block;font-size:11px;font-weight:700;color:var(--label);text-transform:uppercase;letter-spacing:.4px;">Conclusão<span class="hint-auto"> (gerado automaticamente — edite direto no campo; o negrito aparece e sai igual no PDF)</span></label>
       <textarea data-rtf id="par_conclusao" style="display:none" aria-hidden="true" tabindex="-1"></textarea>
-      <div id="par_pend_aviso" class="par-aviso" style="display:none;" role="status">Há item(ns) marcado(s) como <b>Não</b> no check list documental. A tabela de pendências abaixo (Identificação / Pendência / Solução) foi gerada automaticamente — revise e descreva a solução de cada uma.</div>
+      <div id="par_pend_aviso" class="par-aviso" style="display:none;" role="status">Há item(ns) marcado(s) como <b>Não</b> no check list documental. A tabela de pendências abaixo (Identificação / Pendência / Solução) foi gerada automaticamente — revise e descreva a solução de cada uma. Use o <b>×</b> para não listar um item como pendência na conclusão.</div>
       <div id="par_pend_wrap" class="par-pend-wrap" style="display:none;">
         <h3 class="vsub" id="par_h_pendencias" style="color:#8a2c1f;">Pendências identificadas</h3>
         <div id="par_pendencias" role="group" aria-labelledby="par_h_pendencias"></div>
@@ -11421,7 +11426,8 @@ function AV_gerarDescSituacao(){
       assinaturas: (window.__ASSIN__ || {fb:null, rel:null}),
       parChecklist: (window.PAR_getChecklist?window.PAR_getChecklist():{}),
       parPendencias: (window.PAR_getPendencias?window.PAR_getPendencias():{}),
-      parPendExtras: (window.PAR_getPendExtras?window.PAR_getPendExtras():[])
+      parPendExtras: (window.PAR_getPendExtras?window.PAR_getPendExtras():[]),
+      parPendExcluidas: (window.PAR_getPendExcluidas?window.PAR_getPendExcluidas():{})
     };
   }
 
@@ -11542,6 +11548,7 @@ function AV_gerarDescSituacao(){
     etapa("check list do Parecer", function(){ if(pacote.parChecklist && window.PAR_setChecklist) window.PAR_setChecklist(pacote.parChecklist); });
     etapa("pendências do Parecer", function(){ if(pacote.parPendencias && window.PAR_setPendencias) window.PAR_setPendencias(pacote.parPendencias); });
     etapa("pendências avulsas do Parecer", function(){ if(window.PAR_setPendExtras) window.PAR_setPendExtras(pacote.parPendExtras||[]); });
+    etapa("pendências excluídas do Parecer", function(){ if(window.PAR_setPendExcluidas) window.PAR_setPendExcluidas(pacote.parPendExcluidas||{}); });
     etapa("marcação de tópicos (DESP 2)", function(){ if(window.D2_marcarTopicosManual) window.D2_marcarTopicosManual(); });
     etapa("imagens", function(){ restaurarImagens(pacote.imagens); });
     etapa("fotografias", function(){ if(pacote.fotos && window.FB_setFotos) window.FB_setFotos(pacote.fotos); });
@@ -14775,6 +14782,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
   window.PAR_marcar=function(n,i,c){
     if(!tabelasPAR[n]||!tabelasPAR[n][i]) return;
     tabelasPAR[n][i].resp = (tabelasPAR[n][i].resp===c) ? "" : c;
+    try{ delete pendExcluidas[n+"_"+i]; }catch(e){}   // resposta mudou -> decisão de excluir da conclusão volta ao zero
     renderChecklist();
     atualizarPendencias();
     if(window.PAR_gerarTexto) window.PAR_gerarTexto("conclusao"); // mantém a cláusula de pendências em dia, sem precisar clicar no botão
@@ -14795,13 +14803,14 @@ window.UFOTO_rodapeHTML=rodapeHTML;
   };
 
   // ---- Pendências (geradas a partir dos itens marcados "Não" + pendências avulsas) ----
-  var pendState={};   // key "n_i" -> {ident, pend, sol}  (derivadas do check list)
-  var pendExtras=[];  // pendências escritas livremente -> {ident, pend, sol}
+  var pendState={};      // key "n_i" -> {ident, pend, sol}  (derivadas do check list)
+  var pendExtras=[];     // pendências escritas livremente -> {ident, pend, sol}
+  var pendExcluidas={};  // key "n_i" -> true : item marcado "Não" que o usuário NÃO quer listar na conclusão
   window.__PAR_HASNAO__=false;
   function _extraValida(x){ return !!((x&&x.ident||"").trim() || (x&&x.pend||"").trim() || (x&&x.sol||"").trim()); }
   function _temChecklistNao(){
     var t=false;
-    CHECKLIST_TABS.forEach(function(tab,n){ (tabelasPAR[n]||[]).forEach(function(lin,i){ if(lin.resp==="Não" && pendEhElegivel(tab,lin.crit)) t=true; }); });
+    CHECKLIST_TABS.forEach(function(tab,n){ (tabelasPAR[n]||[]).forEach(function(lin,i){ if(lin.resp==="Não" && pendEhElegivel(tab,lin.crit) && !pendExcluidas[n+"_"+i]) t=true; }); });
     return t;
   }
   function _recalcHasNao(){ window.__PAR_HASNAO__ = _temChecklistNao() || pendExtras.some(_extraValida); }
@@ -14812,7 +14821,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
         if(lin.resp==="Não" && pendEhElegivel(tab, lin.crit)){
           var key=n+"_"+i;
           if(!pendState[key]) pendState[key]={ident:lin.crit.replace(/\?\s*$/,""), pend:"Apresentar.", sol:""};
-          lista.push({key:key, st:pendState[key]});
+          lista.push({key:key, st:pendState[key], excl:!!pendExcluidas[key]});
         }
       });
     });
@@ -14821,14 +14830,18 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     var temAlgo = lista.length>0 || pendExtras.length>0;
     if(!temAlgo){ if(wrap) wrap.style.display="none"; if(aviso) aviso.style.display="none"; if(host) host.innerHTML=""; return; }
     if(wrap) wrap.style.display="";
-    if(aviso) aviso.style.display = lista.length>0 ? "" : "none";
+    if(aviso) aviso.style.display = lista.some(function(p){ return !p.excl; }) ? "" : "none";
     var h='<table class="par-pend"><thead><tr><th class="c-p">Identificação</th><th class="c-pe">Pendência</th><th class="c-s">Solução</th><th class="c-x" aria-hidden="true"></th></tr></thead><tbody>';
     lista.forEach(function(p){
-      h+='<tr>'+
-        '<td class="c-p"><input type="text" value="'+esc(p.st.ident)+'" oninput="PAR_setPend(\''+p.key+'\',\'ident\',this.value)"></td>'+
-        '<td class="c-pe"><input type="text" value="'+esc(p.st.pend)+'" oninput="PAR_setPend(\''+p.key+'\',\'pend\',this.value)"></td>'+
-        '<td class="c-s"><textarea rows="2" placeholder="Descreva a solução..." oninput="PAR_setPend(\''+p.key+'\',\'sol\',this.value)">'+esc(p.st.sol)+'</textarea></td>'+
-        '<td class="c-x"></td>'+
+      var off=p.excl, dis=off?" disabled":"";
+      h+='<tr class="'+(off?"par-pend-off":"")+'">'+
+        '<td class="c-p"><input type="text"'+dis+' value="'+esc(p.st.ident)+'" oninput="PAR_setPend(\''+p.key+'\',\'ident\',this.value)"></td>'+
+        '<td class="c-pe"><input type="text"'+dis+' value="'+esc(p.st.pend)+'" oninput="PAR_setPend(\''+p.key+'\',\'pend\',this.value)"></td>'+
+        '<td class="c-s"><textarea rows="2"'+dis+' placeholder="Descreva a solução..." oninput="PAR_setPend(\''+p.key+'\',\'sol\',this.value)">'+esc(p.st.sol)+'</textarea></td>'+
+        '<td class="c-x">'+(off
+          ? '<button type="button" class="par-pend-add" title="Voltar a listar como pendência na conclusão" aria-label="Incluir de volta" onclick="PAR_incluirPendChk(\''+p.key+'\')">&#8630;</button>'
+          : '<button type="button" class="par-pend-rm" title="Não listar como pendência na conclusão" aria-label="Excluir da conclusão" onclick="PAR_excluirPendChk(\''+p.key+'\')">&times;</button>')+
+        '</td>'+
         '</tr>';
     });
     pendExtras.forEach(function(ex, idx){
@@ -14843,6 +14856,10 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     if(host) host.innerHTML=h;
   }
   window.PAR_setPend=function(key,field,v){ if(pendState[key]) pendState[key][field]=v; };
+  window.PAR_excluirPendChk=function(key){ pendExcluidas[key]=true;  atualizarPendencias(); if(window.PAR_gerarTexto) window.PAR_gerarTexto("conclusao"); };
+  window.PAR_incluirPendChk=function(key){ delete pendExcluidas[key]; atualizarPendencias(); if(window.PAR_gerarTexto) window.PAR_gerarTexto("conclusao"); };
+  window.PAR_getPendExcluidas=function(){ return pendExcluidas; };
+  window.PAR_setPendExcluidas=function(obj){ pendExcluidas = (obj && typeof obj==="object" && !Array.isArray(obj)) ? obj : {}; atualizarPendencias(); };
   window.PAR_addPendExtra=function(){
     pendExtras.push({ident:"", pend:"", sol:""});
     atualizarPendencias();
@@ -14877,7 +14894,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     var lista=[];
     CHECKLIST_TABS.forEach(function(tab,n){
       (tabelasPAR[n]||[]).forEach(function(lin,i){
-        if(lin.resp==="Não" && pendEhElegivel(tab, lin.crit)){
+        if(lin.resp==="Não" && pendEhElegivel(tab, lin.crit) && !pendExcluidas[n+"_"+i]){
           var key=n+"_"+i, st=pendState[key]||{ident:lin.crit.replace(/\?\s*$/,""), pend:"Apresentar.", sol:""};
           lista.push(st);
         }
@@ -15364,7 +15381,8 @@ window.UFOTO_rodapeHTML=rodapeHTML;
       assinaturas: (window.__ASSIN__||{fb:null, rel:null}),
       parChecklist: tabelasPAR,
       parPendencias: pendState,
-      parPendExtras: pendExtras
+      parPendExtras: pendExtras,
+      parPendExcluidas: pendExcluidas
     };
   }
   window.PAR_baixarZip=async function(){
