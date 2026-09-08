@@ -1322,6 +1322,10 @@ window.REL_baixarConjunto = async function(){
     display:flex; flex-direction:column; gap:2px;
     opacity:0; transform:translateY(-8px); transition:opacity .15s ease, transform .15s ease;
   }
+  /* fechado: some de verdade (o display:flex acima sobrepõe o [hidden] nativo,
+     senão o menu fica invisível mas ocupando espaço e clicável no canto direito) */
+  .top-dl-menu[hidden]{ display:none; }
+  .top-dl-menu:not(.dl-open){ pointer-events:none; }
   .top-dl-menu.dl-open{ opacity:1; transform:translateY(0); }
   .top-dl-menu button{
     border:none; background:transparent; text-align:left; padding:9px 12px; font-size:13.5px;
@@ -15635,7 +15639,8 @@ window.TOPDL_toggle = function(e){
   const m=document.getElementById('topDlMenu'); if(!m) return;
   if(m.hidden){
     m.hidden=false;
-    requestAnimationFrame(function(){ m.classList.add('dl-open'); });
+    void m.offsetWidth;                 // reflow: garante que a transição de opacidade rode
+    m.classList.add('dl-open');
     document.addEventListener('click', TOPDL_cliqueFora);
   } else {
     TOPDL_fechar();
