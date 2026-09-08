@@ -210,6 +210,63 @@ window.REL_baixarConjunto = async function(){
 };
 </script>
 
+<style>
+  /* atalhos de preenchimento (N/A, Ausentes, Não informado) na Ficha de Vistoria */
+  .fb-quick{ display:flex; gap:6px; flex-wrap:wrap; margin-top:5px; }
+  .fb-quick button{
+    font:600 11px/1 inherit; padding:4px 10px; border-radius:12px; cursor:pointer;
+    border:1px solid #b9c4d0; background:#f1f5f9; color:#41506a;
+    transition:background .12s, border-color .12s;
+  }
+  .fb-quick button:hover{ background:#e3ebf4; border-color:#8aa0b6; color:#1f2d45; }
+  .fb-quick button:active{ background:#d6e2f0; }
+</style>
+<script>
+/* ===== Ficha de Vistoria: botões de preenchimento rápido (N/A / Ausentes / Não informado) ===== */
+(function(){
+  var TXT = { na:"Não se aplica", aus:"Ausentes", ni:"Não informado", np:"Não possui", nd:"Não disponibilizado" };
+  var LBL = { na:"N/A – Não se aplica", aus:"Ausentes", ni:"Não informado", np:"Não possui", nd:"Não disponibilizado" };
+  var CFG = {
+    // 1.5 Propriedade -> CIB/ITR, CCIR, NIRF -> Não possui / Não disponibilizado
+    fb_cib:["np","nd"], fb_ccir:["np","nd"], fb_nirf:["np","nd"],
+    // 2.4 Imóvel Rural  +  2.5 Imóvel Urbano  -> N/A e Ausentes
+    fb_241_infra:["na","aus"], fb_242_terra:["na","aus"], fb_243_hidro:["na","aus"], fb_244_comp:["na","aus"],
+    fb_251_infra:["na","aus"], fb_252_topo:["na","aus"], fb_253_dist:["na","aus"], fb_254_comp:["na","aus"],
+    // 3.1 / 3.1.1 / 3.1.2 / 3.2 / 3.2.1 / 3.2.2 -> Ausentes
+    fb_31_nrep:["aus"], fb_311:["aus"], fb_312:["aus"], fb_32_rep:["aus"], fb_321:["aus"], fb_322:["aus"],
+    // 4.4 Remuneração / Renda familiar -> Não informado
+    fb_44_remun:["ni"], fb_44_renda:["ni"]
+  };
+  function preencher(el, texto){
+    if(!el) return;
+    var moeda = (el.id === "fb_44_remun" || el.id === "fb_44_renda");
+    el.value = texto;
+    if(el.tagName === "TEXTAREA" && el.hasAttribute("data-rtf") && window.RTF){
+      try{ window.RTF.render(el.id); }catch(e){}
+    }
+    if(!moeda) el.dispatchEvent(new Event("input", {bubbles:true}));  // moeda: pular p/ a máscara não apagar
+    el.dispatchEvent(new Event("change", {bubbles:true}));
+    try{ el.focus({preventScroll:true}); }catch(e){ try{ el.focus(); }catch(_){} }
+  }
+  function montar(){
+    Object.keys(CFG).forEach(function(id){
+      var el = document.getElementById(id); if(!el) return;
+      var vf = el.closest(".vfield"); if(!vf || vf.querySelector(".fb-quick")) return;
+      var box = document.createElement("div"); box.className = "fb-quick";
+      CFG[id].forEach(function(k){
+        var b = document.createElement("button");
+        b.type = "button"; b.textContent = LBL[k];
+        b.addEventListener("click", function(){ preencher(el, TXT[k]); });
+        box.appendChild(b);
+      });
+      vf.appendChild(box);
+    });
+  }
+  if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", function(){ montar(); setTimeout(montar, 600); });
+  else { montar(); setTimeout(montar, 600); }
+})();
+</script>
+
 <script>
 (function(){
   window.FS_salvar = async function(blob, nome){
@@ -12159,7 +12216,7 @@ function AV_gerarDescSituacao(){
   function FB_parOpts(sel){ return FB_PARENTESCO.map(function(o){ return '<option'+(o===(sel||"")?' selected':'')+'>'+o+'</option>'; }).join(''); }
   window.FB_parOpts=FB_parOpts;
   // ---- máscara moeda BRL + preenchimento automático de "Local e data" ----
-  function FB_moedaBR(el){ if(!el) return; function fmt(){ var d=(el.value||"").replace(/\D/g,""); if(!d){ el.value=""; return; } el.value=(parseInt(d,10)/100).toLocaleString("pt-BR",{style:"currency",currency:"BRL"}); } el.addEventListener("input",fmt); el.addEventListener("blur",fmt); }
+  function FB_moedaBR(el){ if(!el) return; function fmt(){ var v=(el.value||""); var d=v.replace(/\D/g,""); if(!d){ if(!v.trim()) el.value=""; return; } /* sem dígitos mas com texto (ex.: "Não informado") -> mantém */ el.value=(parseInt(d,10)/100).toLocaleString("pt-BR",{style:"currency",currency:"BRL"}); } el.addEventListener("input",fmt); el.addEventListener("blur",fmt); }
   function FB_dataExtenso(dmy){ var meses=["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"]; var mt=String(dmy||"").match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/); var d,m,a; if(mt){ d=parseInt(mt[1],10); m=parseInt(mt[2],10); a=mt[3]; } else { var n=new Date(); d=n.getDate(); m=n.getMonth()+1; a=n.getFullYear(); } if(m<1||m>12) return ""; return d+" de "+meses[m-1]+" de "+a; }
   function FB_gvid(id){ var e=document.getElementById(id); return e?(e.value||"").trim():""; }
   function FB_preencherLocalData(){ var el=document.getElementById("fb_ass_local"); if(!el||el.dataset.manual==="1") return; var mun=FB_gvid("fb_prop_mun"), uf=FB_gvid("fb_prop_uf"); var local=mun?(mun+(uf?("-"+uf):"")):""; var dext=FB_dataExtenso(FB_gvid("fb_data")); var txt=(local?local:"")+((local&&dext)?", ":"")+(dext||""); if(txt.trim()) el.value=txt; }
