@@ -4771,8 +4771,11 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
     #panel-desp1-parecer table.par-pend{border-collapse:collapse; width:100%; font-size:13px;}
     #panel-desp1-parecer table.par-pend th, #panel-desp1-parecer table.par-pend td{border:1px solid #b7c2ce; padding:7px 8px; vertical-align:top;}
     #panel-desp1-parecer table.par-pend thead th{background:#fdecec; color:#8a2c1f; font-weight:700; text-align:left; font-size:12px;}
-    #panel-desp1-parecer table.par-pend .c-p{width:46%; font-size:12.5px;}
+    #panel-desp1-parecer table.par-pend .c-p{width:44%; font-size:12.5px;}
     #panel-desp1-parecer table.par-pend .c-s textarea{font-size:12.5px; padding:5px 7px;}
+    #panel-desp1-parecer table.par-pend .c-x{width:34px; text-align:center; padding:4px;}
+    #panel-desp1-parecer .par-pend-rm{border:1px solid #d9b0aa; background:#fff; color:#b5382a; width:24px; height:24px; border-radius:6px; font-size:15px; line-height:1; cursor:pointer;}
+    #panel-desp1-parecer .par-pend-rm:hover{background:#fdecec;}
     #panel-desp1-parecer .par-aviso{background:#fdecec; border:1px solid #f0c0b8; border-radius:8px; padding:9px 13px; font-size:12.5px; color:#8a2c1f; margin-top:8px;}
     #panel-desp1-parecer .par-fixo{background:#f0f5fb; border:1px solid #cfe0f0; border-radius:8px; padding:12px 14px; font-size:13px; color:var(--texto); line-height:1.6; margin-top:8px;}
     #panel-desp1-parecer .par-fixo .dt{text-align:right; font-style:italic; margin-bottom:10px;}
@@ -4890,6 +4893,10 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
       <div id="par_pend_wrap" class="par-pend-wrap" style="display:none;">
         <h3 class="vsub" id="par_h_pendencias" style="color:#8a2c1f;">Pendências identificadas</h3>
         <div id="par_pendencias" role="group" aria-labelledby="par_h_pendencias"></div>
+      </div>
+      <div class="vactions" style="margin-top:8px;">
+        <button class="vbtn vbtn-ghost vbtn-sm" type="button" onclick="PAR_addPendExtra()">+ Adicionar pendência</button>
+        <span class="hint-auto" style="font-size:11.5px;"> — escreva livremente (Identificação / Pendência / Solução); não precisa constar nas tabelas do documento.</span>
       </div>
       <div class="vfield grow" style="margin-top:14px;"><label for="par_local_data">Local e data<span class="hint-auto"> (padrão: Brasília/DF, data atual — editável)</span></label><input type="text" id="par_local_data" placeholder="Ex.: Brasília/DF, 16 de agosto de 2026"></div>
       <div class="par-fixo">
@@ -11413,7 +11420,8 @@ function AV_gerarDescSituacao(){
       relTabelas: { "1":(window.REL_getTabela?window.REL_getTabela(1):[]), "2":(window.REL_getTabela?window.REL_getTabela(2):[]) },
       assinaturas: (window.__ASSIN__ || {fb:null, rel:null}),
       parChecklist: (window.PAR_getChecklist?window.PAR_getChecklist():{}),
-      parPendencias: (window.PAR_getPendencias?window.PAR_getPendencias():{})
+      parPendencias: (window.PAR_getPendencias?window.PAR_getPendencias():{}),
+      parPendExtras: (window.PAR_getPendExtras?window.PAR_getPendExtras():[])
     };
   }
 
@@ -11533,6 +11541,7 @@ function AV_gerarDescSituacao(){
     etapa("glebas da CCU (DESP 3)", function(){ if(pacote.ccuGlebas && window.CCU_setGlebas) window.CCU_setGlebas(pacote.ccuGlebas); });
     etapa("check list do Parecer", function(){ if(pacote.parChecklist && window.PAR_setChecklist) window.PAR_setChecklist(pacote.parChecklist); });
     etapa("pendências do Parecer", function(){ if(pacote.parPendencias && window.PAR_setPendencias) window.PAR_setPendencias(pacote.parPendencias); });
+    etapa("pendências avulsas do Parecer", function(){ if(window.PAR_setPendExtras) window.PAR_setPendExtras(pacote.parPendExtras||[]); });
     etapa("marcação de tópicos (DESP 2)", function(){ if(window.D2_marcarTopicosManual) window.D2_marcarTopicosManual(); });
     etapa("imagens", function(){ restaurarImagens(pacote.imagens); });
     etapa("fotografias", function(){ if(pacote.fotos && window.FB_setFotos) window.FB_setFotos(pacote.fotos); });
@@ -14785,9 +14794,17 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     atualizarPendencias();
   };
 
-  // ---- Pendências (geradas a partir dos itens marcados "Não") ----
-  var pendState={}; // key "n_i" -> {ident, pend, sol}
+  // ---- Pendências (geradas a partir dos itens marcados "Não" + pendências avulsas) ----
+  var pendState={};   // key "n_i" -> {ident, pend, sol}  (derivadas do check list)
+  var pendExtras=[];  // pendências escritas livremente -> {ident, pend, sol}
   window.__PAR_HASNAO__=false;
+  function _extraValida(x){ return !!((x&&x.ident||"").trim() || (x&&x.pend||"").trim() || (x&&x.sol||"").trim()); }
+  function _temChecklistNao(){
+    var t=false;
+    CHECKLIST_TABS.forEach(function(tab,n){ (tabelasPAR[n]||[]).forEach(function(lin,i){ if(lin.resp==="Não" && pendEhElegivel(tab,lin.crit)) t=true; }); });
+    return t;
+  }
+  function _recalcHasNao(){ window.__PAR_HASNAO__ = _temChecklistNao() || pendExtras.some(_extraValida); }
   function atualizarPendencias(){
     var lista=[];
     CHECKLIST_TABS.forEach(function(tab,n){
@@ -14799,27 +14816,61 @@ window.UFOTO_rodapeHTML=rodapeHTML;
         }
       });
     });
-    window.__PAR_HASNAO__ = lista.length>0;
+    _recalcHasNao();
     var wrap=document.getElementById("par_pend_wrap"), aviso=document.getElementById("par_pend_aviso"), host=document.getElementById("par_pendencias");
-    if(!lista.length){ if(wrap) wrap.style.display="none"; if(aviso) aviso.style.display="none"; if(host) host.innerHTML=""; return; }
-    if(wrap) wrap.style.display=""; if(aviso) aviso.style.display="";
-    var h='<table class="par-pend"><thead><tr><th class="c-p">Identificação</th><th class="c-pe">Pendência</th><th class="c-s">Solução</th></tr></thead><tbody>';
+    var temAlgo = lista.length>0 || pendExtras.length>0;
+    if(!temAlgo){ if(wrap) wrap.style.display="none"; if(aviso) aviso.style.display="none"; if(host) host.innerHTML=""; return; }
+    if(wrap) wrap.style.display="";
+    if(aviso) aviso.style.display = lista.length>0 ? "" : "none";
+    var h='<table class="par-pend"><thead><tr><th class="c-p">Identificação</th><th class="c-pe">Pendência</th><th class="c-s">Solução</th><th class="c-x" aria-hidden="true"></th></tr></thead><tbody>';
     lista.forEach(function(p){
       h+='<tr>'+
         '<td class="c-p"><input type="text" value="'+esc(p.st.ident)+'" oninput="PAR_setPend(\''+p.key+'\',\'ident\',this.value)"></td>'+
         '<td class="c-pe"><input type="text" value="'+esc(p.st.pend)+'" oninput="PAR_setPend(\''+p.key+'\',\'pend\',this.value)"></td>'+
         '<td class="c-s"><textarea rows="2" placeholder="Descreva a solução..." oninput="PAR_setPend(\''+p.key+'\',\'sol\',this.value)">'+esc(p.st.sol)+'</textarea></td>'+
+        '<td class="c-x"></td>'+
+        '</tr>';
+    });
+    pendExtras.forEach(function(ex, idx){
+      h+='<tr>'+
+        '<td class="c-p"><input type="text" value="'+esc(ex.ident||"")+'" placeholder="Identificação" oninput="PAR_setPendExtra('+idx+',\'ident\',this.value)"></td>'+
+        '<td class="c-pe"><input type="text" value="'+esc(ex.pend||"")+'" placeholder="Pendência" oninput="PAR_setPendExtra('+idx+',\'pend\',this.value)"></td>'+
+        '<td class="c-s"><textarea rows="2" placeholder="Descreva a solução..." oninput="PAR_setPendExtra('+idx+',\'sol\',this.value)">'+esc(ex.sol||"")+'</textarea></td>'+
+        '<td class="c-x"><button type="button" class="par-pend-rm" title="Remover esta pendência" aria-label="Remover pendência" onclick="PAR_remPendExtra('+idx+')">×</button></td>'+
         '</tr>';
     });
     h+="</tbody></table>";
     if(host) host.innerHTML=h;
   }
   window.PAR_setPend=function(key,field,v){ if(pendState[key]) pendState[key][field]=v; };
+  window.PAR_addPendExtra=function(){
+    pendExtras.push({ident:"", pend:"", sol:""});
+    atualizarPendencias();
+    if(window.PAR_gerarTexto) window.PAR_gerarTexto("conclusao");
+    setTimeout(function(){ var host=document.getElementById("par_pendencias"); if(host){ var tr=host.querySelector("tbody tr:last-child input"); if(tr) tr.focus(); } }, 30);
+  };
+  window.PAR_setPendExtra=function(idx,field,v){
+    if(!pendExtras[idx]) return;
+    pendExtras[idx][field]=v;
+    _recalcHasNao();                                   // sem re-renderizar (não perde o foco)
+    if(window.PAR_gerarTexto) window.PAR_gerarTexto("conclusao");
+  };
+  window.PAR_remPendExtra=function(idx){
+    if(idx<0||idx>=pendExtras.length) return;
+    pendExtras.splice(idx,1);
+    atualizarPendencias();
+    if(window.PAR_gerarTexto) window.PAR_gerarTexto("conclusao");
+  };
   // usados pelo Salvar/Abrir (.json) para persistir as edições manuais da tabela de pendências
   window.PAR_getPendencias=function(){ return pendState; };
   window.PAR_setPendencias=function(obj){
     if(!obj || typeof obj!=="object") return;
     pendState=obj;
+    atualizarPendencias();
+  };
+  window.PAR_getPendExtras=function(){ return pendExtras; };
+  window.PAR_setPendExtras=function(arr){
+    pendExtras = Array.isArray(arr) ? arr.map(function(x){ return {ident:(x&&x.ident)||"", pend:(x&&x.pend)||"", sol:(x&&x.sol)||""}; }) : [];
     atualizarPendencias();
   };
   function listaPendenciasAtual(){
@@ -14831,6 +14882,9 @@ window.UFOTO_rodapeHTML=rodapeHTML;
           lista.push(st);
         }
       });
+    });
+    pendExtras.forEach(function(ex){
+      if(_extraValida(ex)) lista.push({ident:ex.ident||"", pend:ex.pend||"", sol:ex.sol||""});
     });
     return lista;
   }
@@ -15309,7 +15363,8 @@ window.UFOTO_rodapeHTML=rodapeHTML;
       relTabelas: { "1":(window.REL_getTabela?window.REL_getTabela(1):[]), "2":(window.REL_getTabela?window.REL_getTabela(2):[]) },
       assinaturas: (window.__ASSIN__||{fb:null, rel:null}),
       parChecklist: tabelasPAR,
-      parPendencias: pendState
+      parPendencias: pendState,
+      parPendExtras: pendExtras
     };
   }
   window.PAR_baixarZip=async function(){
