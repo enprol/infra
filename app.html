@@ -13671,7 +13671,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
       if(nome){ t+=nome; if(estciv) t+=", "+estciv.toLowerCase(); if(rg) t+=", portador(a) da cédula de identidade RG nº "+rg; if(cpf) t+=" e inscrito(a) no CPF sob o nº "+cpf; if(end) t+=", residente e domiciliado(a) na "+end; if(mun) t+=", "+mun; if(cep) t+=", CEP "+cep; t+=". "; }
       if(imovel){ t+="O imóvel em questão, denominado "+imovel+(at?(", possui uma área total de "+at+" ha"):"")+(cib?(", encontrando-se cadastrado no ITR sob o CIB nº "+cib):"")+". "; }
       if(cart){ t+="A propriedade apresenta registro formal no "+cart+(matr?(", sob a Matrícula nº "+matr):"")+". "; }
-      if(ad){ t+="A área abrangida pela atual desapropriação é de "+ad+" ha, destinada a faixa de domínio da ferrovia"+(subtr?(" no trecho "+subtr):"")+(proc?(", por meio do processo administrativo "+proc):"")+(sei?(" (SEI nº: "+sei+")"):"")+". "; }
+      if(ad){ t+="A área abrangida pela atual desapropriação é de "+ad+" ha, destinada a faixa de domínio da ferrovia"+(subtr?(" no trecho "+subtr):"")+(proc?(", por meio do processo administrativo "+proc):"")+((sei && proc.indexOf(sei)<0)?(" (SEI nº: "+sei+")"):"")+". "; }
       const at2=areasTexto(); if(at2){ t+="O imóvel encontra-se inserido no seguinte segmento do traçado: "+at2+"."; }
       setF("rel_qualificacao",t.trim()); return;
     }
@@ -13903,6 +13903,8 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     titulo("2. IDENTIFICAÇÃO E QUALIFICAÇÃO DO PROPRIETÁRIO E DO IMÓVEL",TB["2"]);
     (function(){
       let qual=g("rel_qualificacao")||"";
+      // remove SEI repetido: "<nº> (SEI nº: <mesmo nº>)" -> "<nº>"
+      qual=qual.replace(/([0-9][0-9.\/-]{6,}[0-9])\s*\(SEI\s*n[ºo°]:?\s*\1\s*\)/gi, "$1");
       const segMark="O imóvel encontra-se inserido no seguinte segmento do traçado:";
       const iseg=qual.indexOf(segMark);
       if(iseg>=0) qual=qual.slice(0,iseg).trim();
@@ -14002,7 +14004,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
 
     // ================= CABEÇALHO / RODAPÉ =================
     const headerTbl=new Table({width:{size:CW,type:WidthType.DXA},layout:FIX,columnWidths:colw([50,50]),borders:noBorders,rows:[new TableRow({children:[ new TableCell({borders:noBorders,children:[new Paragraph({children: uI?[new ImageRun({data:uI,transformation:{width:100,height:28}})]:[R("")]})]}), new TableCell({borders:noBorders,children:[new Paragraph({alignment:AlignmentType.RIGHT,children: uE?[new ImageRun({data:uE,transformation:{width:100,height:28}})]:[R("")]})]}) ]})]});
-    const sei=g("rel_sei"); const docId="DESP-1 (Relatório Socioeconômico): "+(g("rel_processo")||"")+(sei?(" (SEI nº "+sei+")"):"");
+    const sei=g("rel_sei"); const _proc=g("rel_processo")||""; const docId="DESP-1 (Relatório Socioeconômico): "+_proc+((sei && _proc.indexOf(sei)<0)?(" (SEI nº "+sei+")"):"");
     const runHeader=new Header({children:[headerTbl,new Paragraph({tabStops:[{type:TabStopType.RIGHT,position:CW}],border:{bottom:{color:"1F6FC0",space:2,style:BorderStyle.SINGLE,size:6}},children:[R(docId,{size:14,color:"5A5A5A"}),new TextRun({text:"\t"}),R("Página | ",{size:14,color:"5A5A5A"}),new TextRun({children:[PageNumber.CURRENT],size:14,color:"5A5A5A",font:FONT})]})]});
     const emptyHeader=new Header({children:[new Paragraph({children:[R("")]})]});
     // Rodapé = endereços ENPROL (idêntico ao PDF)
@@ -14107,7 +14109,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
       if(imgI){let w=8*(imgI.width/imgI.height); pdf.addImage(imgI,"JPEG",mL,13,w,8);}
       if(imgE){let w=8*(imgE.width/imgE.height); pdf.addImage(imgE,"JPEG",W-mR-w,13,w,8);}
       pdf.setFont(FONT,"normal"); pdf.setFontSize(7); pdf.setTextColor(90,90,90);
-      const sei=g("rel_sei"); const docId="DESP-1 (Relatório Socioeconômico): "+(g("rel_processo")||"")+(sei?(" (SEI nº "+sei+")"):"");
+      const sei=g("rel_sei"); const _proc=g("rel_processo")||""; const docId="DESP-1 (Relatório Socioeconômico): "+_proc+((sei && _proc.indexOf(sei)<0)?(" (SEI nº "+sei+")"):"");
       pdf.text(docId, mL, 23);
       pdf.text("Página | "+PG, W-mR, 23, {align:"right"});
       pdf.setDrawColor(31,111,192); pdf.setLineWidth(0.5); pdf.line(mL,25,W-mR,25);
@@ -14159,20 +14161,29 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     }
     // parágrafo: Calibri, justificado às margens (justificação manual real), sem recuo de 1ª linha, entrelinha 1,5
     // suporta **negrito** explícito e realce automático dos campos em destaque (opts.realce:false desliga)
+    // desenha um "✓" vetorial (a fonte do PDF não tem esse glifo) alinhado à 1ª linha
+    function _drawCheck(x, yBase){
+      const pw=pdf.getLineWidth();
+      pdf.setLineWidth(0.5); pdf.setDrawColor(55,55,55); pdf.setLineCap("round"); pdf.setLineJoin("round");
+      pdf.lines([[1.15,1.15],[2.5,-3.7]], x, yBase-1.1, [1,1], "S");
+      pdf.setLineWidth(pw); pdf.setDrawColor(0,0,0); pdf.setLineCap("butt"); pdf.setLineJoin("miter");
+    }
     function paragrafo(t, opts){
       if(!t) return; opts=opts||{};
       const estilo  = opts.italico ? "italic" : "normal";
       const estiloB = opts.italico ? "bolditalic" : "bold";
       const fs = opts.fontSize || 11;
       const LHp = opts.lh || 5.8;                                  // entrelinha 1,5
-      const flI = (opts.flIndent!==undefined)?opts.flIndent:0;     // recuo da 1ª linha (0 = sem avanço)
+      const isChk = !!opts.check;                                  // marcador ✓ (bullet com recuo suspenso)
+      const flI = isChk ? 0 : ((opts.flIndent!==undefined)?opts.flIndent:0);  // recuo da 1ª linha
       const li  = opts.indent || 0;
+      const chkOff = isChk ? 6.2 : 0;                              // recuo do texto por causa do ✓
       const cor = opts.cor || [0,0,0];
       const justif = (opts.justif!==false);
       const realce = (opts.realce!==false);
       const setW=(bold)=>{ pdf.setFont(FONT, bold?estiloB:estilo); pdf.setFontSize(fs); pdf.setTextColor(cor[0],cor[1],cor[2]); };
       const wW=(o)=>{ setW(o.bold); return pdf.getTextWidth(o.text); };
-      const x0=mL+li, wFull=cw-li;
+      const x0=mL+li+chkOff, wFull=cw-li-chkOff;
       setW(false); const sw=pdf.getTextWidth(" ");
       String(t).split("\n").forEach(par=>{
         if(!par.trim()){ yc+=LHp*0.5; return; }
@@ -14200,6 +14211,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
           if(yc+LHp>botY){ rod(); nova(); }
           const first=(idx===0), last=(idx===lines.length-1);
           const x=first?(x0+flI):x0;
+          if(isChk && first) _drawCheck(mL+li, yc);
           let extra=0;
           if(!last && justif && ln.w.length>1){
             let nat=0; ln.w.forEach(o=>nat+=wW(o)); nat+=sw*(ln.w.length-1);
@@ -14211,6 +14223,29 @@ window.UFOTO_rodapeHTML=rodapeHTML;
         });
       });
       yc+=LHp*0.55;
+    }
+    // 1.1 Premissas: 2 parágrafos de abertura + sub-títulos "1."/"2." + itens com marcador ✓
+    function premissas(txt){
+      const linhas=String(txt||"").split("\n");
+      let buf=[], emItens=false;
+      const flush=()=>{ if(buf.length){ paragrafo(buf.join("\n")); buf=[]; } };
+      linhas.forEach(raw=>{
+        const t=(raw||"").trim(); if(!t) return;
+        const mh=t.match(/^(\d+)\.\s+([^:]+)$/);
+        if(mh){
+          flush(); emItens=true;
+          pdf.setFont(FONT,"bold"); pdf.setFontSize(11); pdf.setTextColor(0,0,0);
+          const hls=pdf.splitTextToSize(t, cw);
+          ensure(hls.length*5.8+9);            // mantém o sub-título junto do 1º item
+          yc+=2;
+          hls.forEach(l=>{ pdf.text(l, mL, yc); yc+=5.8; });
+          yc+=1.5;
+          return;
+        }
+        if(emItens) paragrafo(t, {check:true});
+        else buf.push(t);
+      });
+      flush();
     }
     // renderiza artigos/incisos como citação: recuado, menor, justificado
     function citacaoArtigos(t){
@@ -14365,10 +14400,12 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     rod();
     nova();
     titulo("1. APRESENTAÇÃO"); paragrafo(g("rel_apresentacao"));
-    subt("1.1 Referencial Normativo e Premissas Gerais Acerca das Opções de Medidas Compensatórias"); paragrafo(PREM());
+    subt("1.1 Referencial Normativo e Premissas Gerais Acerca das Opções de Medidas Compensatórias"); premissas(PREM());
     topico("2. IDENTIFICAÇÃO E QUALIFICAÇÃO DO PROPRIETÁRIO E DO IMÓVEL");
     (function(){
       let qual=g("rel_qualificacao")||"";
+      // remove SEI repetido: "<nº> (SEI nº: <mesmo nº>)" -> "<nº>"
+      qual=qual.replace(/([0-9][0-9.\/-]{6,}[0-9])\s*\(SEI\s*n[ºo°]:?\s*\1\s*\)/gi, "$1");
       const segMark="O imóvel encontra-se inserido no seguinte segmento do traçado:";
       const iseg=qual.indexOf(segMark);
       if(iseg>=0) qual=qual.slice(0,iseg).trim();
