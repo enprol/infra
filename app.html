@@ -15102,7 +15102,9 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     var imgI=await carregar(LI), imgE=await carregar(LE);
 
     var PG=0, yc=0;
-    var topY=29, botY=H-mB-19;
+    var topY=29, botY=H-34;
+    var PAR_END=["Av. Des. Moreira, nº 1300, T. Norte, Conj. 1016/1021, Aldeota, 60.170-002, Fortaleza-CE","Rua Idelfonso Freire, nº 106, Sala 202, Centro, 56.506-520, Arcoverde-PE","Rua Pedro Batista Ferreira, nº 278, Centro, 76.500-000, Santa Terezinha de Goiás-GO","Rua Nilo Peçanha, nº 25, 1º Andar, Sala 07, Centro, 47.640-000, Santa Maria da Vitória-BA","Rua Irmã Ambrosina, nº 249, Conj 03 e 04, Centro, 61.760-405, Eusébio-CE","Rua dos Timbiras, nº 2213, Conj.1206/1209, Lourdes, 30.140-069, Belo Horizonte-MG"];
+    var PAR_TEL=["(+55 85) 3289-6363   comercial@enprol.com.br","(+55 85) 3289-6363   comercial@enprol.com.br","(+55 85) 3289-6363   comercial@enprol.com.br","(+55 85) 3289-6363   comercial@enprol.com.br","(+55 85) 3289-6363   comercial@enprol.com.br","(+55 31) 3253-5500   comercial@enprol.com.br"];
     function cab(){
       PG++;
       if(imgI){ try{ var w=8*(imgI.width/imgI.height); pdf.addImage(imgI,"JPEG",mL,7,w,8); }catch(e){} }
@@ -15116,10 +15118,11 @@ window.UFOTO_rodapeHTML=rodapeHTML;
       pdf.setDrawColor(31,111,192); pdf.setLineWidth(0.5); pdf.line(mL,21,W-mR,21);
     }
     function rod(){
-      var yl=H-mB-8;
-      pdf.setDrawColor(31,111,192); pdf.setLineWidth(0.4); pdf.line(mL,yl,W-mR,yl);
-      pdf.setFont(FONT,"normal"); pdf.setFontSize(7); pdf.setTextColor(120,130,145);
-      pdf.text("INFRA S.A. — Gestão Fundiária e Regularização Documental", mL, yl+4);
+      var yl=H-28;
+      pdf.setDrawColor(31,111,192); pdf.setLineWidth(0.6); pdf.line(mL,yl,W-mR,yl);
+      pdf.setFont(FONT,"normal"); pdf.setFontSize(6); pdf.setTextColor(90,107,124);
+      var yy=yl+3.4;
+      for(var i=0;i<PAR_END.length;i++){ pdf.text(PAR_END[i], mL, yy); pdf.text(PAR_TEL[i], W-mR, yy, {align:"right"}); yy+=3; }
     }
     function nova(){ pdf.addPage(); cab(); yc=topY; }
     function ensure(h){ if(yc+h>botY){ rod(); nova(); } }
@@ -15160,7 +15163,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
         if(!parText.trim()){ yc+=LHp*0.5; return; }
         var isBullet=/^\s*•\s?/.test(parText);
         var cleanText=isBullet?parText.replace(/^\s*•\s?/,""):parText;
-        var flI = isBullet?0:((opts.flIndent!==undefined)?opts.flIndent:9);
+        var flI = isBullet?0:((opts.flIndent!==undefined)?opts.flIndent:0);  // sem recuo de 1ª linha
         var li = isBullet?6:(opts.indent||0);
         var x0=mL+li, wFull=cw-li;
         var segs=cleanText.split(/\*\*/);
@@ -15302,10 +15305,24 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     campo("CCIR", pf("par_ccir"));
     campo("NIRF", pf("par_nirf"));
     yc+=2;
-    if(pf("par_area_km")){
-      ensure(8); pdf.setFont(FONT,"bold"); pdf.setFontSize(10.5); pdf.setTextColor(0,0,0);
-      pdf.text("Área: "+pf("par_area_km"), W/2, yc, {align:"center"}); yc+=10;
-    }
+    (function(){
+      // Áreas de Locação — identificadas igual à capa: uma por linha, "ÁREA N: KM x ao KM y (Tipo)"
+      var areasLoc=(window.REL_getAreas?window.REL_getAreas():[]).map(function(a){
+        if(!a) return "";
+        if(typeof a==="string") return a.trim();
+        if(!a.ini && !a.fim) return "";
+        return "KM "+(a.ini||"___")+" ao KM "+(a.fim||"___")+(a.tipo?(" ("+a.tipo+")"):"");
+      }).filter(function(x){ return x; });
+      if(areasLoc.length){
+        ensure(6+areasLoc.length*6);
+        pdf.setFont(FONT,"bold"); pdf.setFontSize(10.5); pdf.setTextColor(0,0,0);
+        areasLoc.forEach(function(a,i){ ensure(6); pdf.text("ÁREA "+(i+1)+": "+a, W/2, yc, {align:"center"}); yc+=6; });
+        yc+=5;
+      } else if(pf("par_area_km")){
+        ensure(8); pdf.setFont(FONT,"bold"); pdf.setFontSize(10.5); pdf.setTextColor(0,0,0);
+        pdf.text("Área: "+pf("par_area_km"), W/2, yc, {align:"center"}); yc+=10;
+      }
+    })();
 
     tituloRom("I – Relatório");
     parRica(pf("par_relatorio"));
@@ -15329,13 +15346,14 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     parRica(pf("par_conclusao"));
     desenharPendencias(listaPendenciasAtual());
 
-    ensure(10); pdf.setFont(FONT,"normal"); pdf.setFontSize(11); pdf.setTextColor(0,0,0);
+    // "É o parecer, salvo melhor juízo." + data + assinatura: sempre juntos, na mesma página
+    ensure(46);
+    pdf.setFont(FONT,"normal"); pdf.setFontSize(11); pdf.setTextColor(0,0,0);
     pdf.text("É o parecer, salvo melhor juízo.", mL, yc);
     var dataTxt=computeParData();
     if(dataTxt){ pdf.setFont(FONT,"italic"); pdf.setFontSize(10.5); pdf.text(dataTxt, W-mR, yc, {align:"right"}); }
     yc+=26;
 
-    ensure(20);
     pdf.setFont(FONT,"normal"); pdf.setFontSize(11); pdf.setTextColor(0,0,0);
     pdf.text("Sávio Túlio Saraiva", W/2, yc, {align:"center"}); yc+=5.5;
     pdf.setFont(FONT,"bold"); pdf.setFontSize(10.5);
