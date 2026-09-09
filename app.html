@@ -15054,11 +15054,18 @@ window.UFOTO_rodapeHTML=rodapeHTML;
       var cart="**"+cartRaw+"**", imovel="**"+imovelRaw+"**";
       var areaTotal="**"+areaTotalRaw+"**", areaDesap="**"+areaDesapRaw+"**";
       var proc="**"+procRaw+"**", sei=seiRaw?("**"+seiRaw+"**"):"";
-      var areaKm="**"+areaKmRaw+"**";
+      var seiClause=(seiRaw && procRaw.indexOf(seiRaw)<0)?(" (SEI nº "+sei+")"):"";  // não repete o SEI se já está no nº do processo
+      // Áreas de Locação identificadas (ÁREA N + Faixa de Domínio / Remanescente)
+      var _areasLoc=(window.REL_getAreas?window.REL_getAreas():[]).map(function(a){
+        if(!a) return ""; if(typeof a==="string") return a.trim();
+        if(!a.ini && !a.fim) return "";
+        return "KM "+(a.ini||"___")+" ao KM "+(a.fim||"___")+(a.tipo?(" ("+a.tipo+")"):"");
+      }).filter(function(x){ return x; });
+      var areaKm=_areasLoc.length ? _areasLoc.map(function(a,i){ return "**ÁREA "+(i+1)+": "+a+"**"; }).join("\n") : ("**"+areaKmRaw+"**");
       var t="O presente Parecer tem por finalidade estabelecer as diretrizes jurídicas necessárias à regularização fundiária e documental da parcela de imóvel rural atingida pelo empreendimento Ferrovia Transnordestina, de titularidade de "+prop+", integrante do "+imovel+", situado no Município de "+mun+", Estado de "+uf+", e matriculado no "+cart+" sob o nº "+matr+".\n\n";
       t+="A área objeto da presente análise corresponde à parcela do imóvel rural denominada "+imovel+", com área total de "+areaTotal+" hectares, vinculada à Matrícula nº "+matr+", tendo como titular "+prop+".\n\n";
       t+="A análise jurídica tem por objeto verificar a situação dominial e documental da referida parcela, bem como definir os procedimentos necessários à sua regularização perante o registro imobiliário e aos demais órgãos competentes, considerando sua inserção na faixa de domínio destinada à implantação da Ferrovia Transnordestina e as particularidades decorrentes de sua origem.\n\n";
-      t+="A área objeto da indenização corresponde a "+areaDesap+" hectares, destinada à implantação da Ferrovia Transnordestina, conforme previsto no Processo Administrativo "+proc+(sei?(" (SEI nº "+sei+")"):"")+" inserido no âmbito das obras da Ferrovia Transnordestina EF-232.\n\n";
+      t+="A área objeto da indenização corresponde a "+areaDesap+" hectares, destinada à implantação da Ferrovia Transnordestina, conforme previsto no Processo Administrativo "+proc+seiClause+" inserido no âmbito das obras da Ferrovia Transnordestina EF-232.\n\n";
       t+="A intervenção tem por objetivo a constituição da faixa de domínio necessária à execução do empreendimento ferroviário, abrangendo as seguintes áreas:\n"+areaKm;
       setPF("par_relatorio", t);
       PAR_updatePreview("par_relatorio");
@@ -15325,7 +15332,23 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     })();
 
     tituloRom("I – Relatório");
-    parRica(pf("par_relatorio"));
+    (function(){
+      var rel=pf("par_relatorio")||"";
+      // rede de segurança p/ textos já gerados: tira o SEI repetido "<nº>** (SEI nº **<mesmo nº>**)"
+      rel=rel.replace(/([0-9][0-9.\/-]{5,}[0-9])(\*\*)?\s*\(SEI\s*n[ºo°]:?\s*(?:\*\*)?\1(?:\*\*)?\s*\)/gi, "$1$2");
+      // e refaz o trecho das áreas com "ÁREA N: ... (tipo)" se houver Áreas de Locação preenchidas
+      var areasLoc=(window.REL_getAreas?window.REL_getAreas():[]).map(function(a){
+        if(!a) return ""; if(typeof a==="string") return a.trim();
+        if(!a.ini && !a.fim) return "";
+        return "KM "+(a.ini||"___")+" ao KM "+(a.fim||"___")+(a.tipo?(" ("+a.tipo+")"):"");
+      }).filter(function(x){ return x; });
+      if(areasLoc.length){
+        var marca="abrangendo as seguintes áreas:";
+        var mi=rel.indexOf(marca);
+        if(mi>=0) rel=rel.slice(0, mi+marca.length)+"\n"+areasLoc.map(function(a,i){ return "**ÁREA "+(i+1)+": "+a+"**"; }).join("\n");
+      }
+      parRica(rel);
+    })();
 
     novaPaginaForcada();
     tituloRom("II – Fundamentação Legal");
