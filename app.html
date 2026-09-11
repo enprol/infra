@@ -4915,6 +4915,22 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
     #panel-desp1-campo .kv .kl{color:#5a6b7c; font-weight:600;}
     #panel-desp1-campo .kv .kvv{color:var(--texto); white-space:pre-wrap; word-break:break-word;}
     #panel-desp1-campo .kv.kv-h{border-bottom:none; padding-top:12px; padding-bottom:2px;}
+    #panel-desp1-campo .campo-grupo{
+      font-size:11.5px; font-weight:700; color:#175a9f; text-transform:uppercase; letter-spacing:.4px;
+      margin:16px 0 6px; padding-bottom:4px; border-bottom:1px dashed #d3dbe4;
+    }
+    #panel-desp1-campo .campo-fotos img{cursor:zoom-in;}
+    #campo_lightbox{
+      position:fixed; inset:0; z-index:9999; background:rgba(12,28,46,.92);
+      display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; padding:28px;
+    }
+    #campo_lightbox img{max-width:94vw; max-height:78vh; border-radius:8px; box-shadow:0 20px 60px rgba(0,0,0,.5);}
+    #campo_lightbox .cl-leg{color:#fff; font-size:14px; text-align:center; max-width:760px; line-height:1.5;}
+    #campo_lightbox .cl-leg .cl-g{opacity:.6; font-size:12.5px;}
+    #campo_lightbox .cl-x{
+      position:absolute; top:16px; right:20px; width:42px; height:42px; border-radius:50%;
+      border:none; background:rgba(255,255,255,.16); color:#fff; font-size:24px; cursor:pointer; line-height:1;
+    }
     #panel-desp1-campo .campo-fotos{display:grid; grid-template-columns:repeat(auto-fill,minmax(178px,1fr)); gap:12px; margin-top:10px;}
     #panel-desp1-campo .campo-fotos figure{margin:0; border:1px solid var(--borda,#c3ccd6); border-radius:9px; overflow:hidden; background:#fff;}
     #panel-desp1-campo .campo-fotos img{width:100%; aspect-ratio:4/3; object-fit:cover; display:block; background:#eef3f8;}
@@ -15968,6 +15984,23 @@ window.DRL_gerarPDF=async function(opts){
                                             function(){ prompt("Copie o link:", t); });
     } else { prompt("Copie o link:", t); }
   };
+  window.CAMPO_ampliar = function(i){
+    if(!CAMPO) return;
+    var fotos = todasFotos(CAMPO), o = fotos[i];
+    if(!o) return;
+    var ov = document.getElementById("campo_lightbox");
+    if(!ov){
+      ov = document.createElement("div");
+      ov.id = "campo_lightbox";
+      ov.addEventListener("click", function(ev){ if(ev.target === ov || ev.target.classList.contains("cl-x")) ov.remove(); });
+      document.body.appendChild(ov);
+    }
+    ov.innerHTML = '<button type="button" class="cl-x" aria-label="Fechar">×</button>'
+                 + '<img src="'+o.p.src+'" alt="Foto '+(i+1)+'">'
+                 + '<div class="cl-leg"><b>Foto '+(i+1)+'.</b> '+ (legenda(o) ? esc(legenda(o)) : "sem descrição")
+                 + ' <span class="cl-g">· '+esc(o.grupo)+'</span></div>';
+    document.body.appendChild(ov);
+  };
   window.CAMPO_setLeg = function(i, v){
     if(!CAMPO) return;
     var fotos = todasFotos(CAMPO);
@@ -16019,13 +16052,20 @@ window.DRL_gerarPDF=async function(opts){
     h += '<div class="vcard"><div class="vsub">Fotografias <span style="color:#7a8797;font-weight:600">('+fotos.length+')</span></div>';
     if(!fotos.length){ h += '<p class="hint-inline">Nenhuma foto nesta ficha.</p>'; }
     else {
-      h += '<p class="hint-inline">A legenda de cada foto é o que sai no <b>Relatório Fotográfico</b> (“Foto N. legenda”). Ajuste aqui se precisar.</p><div class="campo-fotos">';
+      h += '<p class="hint-inline">Todas as fotos que vieram do campo, na ordem em que saem no <b>Relatório Fotográfico</b>. '
+         + 'A descrição abaixo de cada uma é a legenda (“Foto N. legenda”) — clique na imagem para ampliar.</p>';
+      var grupoAtual = null;
       fotos.forEach(function(o, i){
-        h += '<figure><img src="'+o.p.src+'" alt="Foto '+(i+1)+'" loading="lazy">'
+        if(o.grupo !== grupoAtual){
+          if(grupoAtual !== null) h += '</div>';
+          grupoAtual = o.grupo;
+          h += '<div class="campo-grupo">'+esc(grupoAtual)+'</div><div class="campo-fotos">';
+        }
+        h += '<figure><img src="'+o.p.src+'" alt="Foto '+(i+1)+'" loading="lazy" onclick="CAMPO_ampliar('+i+')">'
            + '<figcaption>Foto '+(i+1)+'</figcaption>'
-           + '<input type="text" value="'+esc(legenda(o))+'" placeholder="Legenda" oninput="CAMPO_setLeg('+i+', this.value)"></figure>';
+           + '<input type="text" value="'+esc(legenda(o))+'" placeholder="Descrição da foto" oninput="CAMPO_setLeg('+i+', this.value)"></figure>';
       });
-      h += '</div>';
+      if(grupoAtual !== null) h += '</div>';
     }
     h += '</div>';
 
@@ -16051,7 +16091,10 @@ window.DRL_gerarPDF=async function(opts){
     if(mm){ mun = mm[1].trim(); uf = mm[2]; }
 
     var plano = [
-      ["fb_nome",      "Proprietário / Espólio",                 (g.proprietarios||"").trim()],
+      ["fb_proc_ctd",  "Nº CTD",                                 (g.processo||"").trim()],
+      ["fb_proc_lote", "Nº Lote (SPS-__)",                       (g.lote||"").trim()],
+      ["fb_proc_ferrovia", "Ferrovia",                           (g.ferrovia||"").trim()],
+      ["fb_nome",      (g.propTipo || "Proprietário / Espólio"), (g.proprietarios||"").trim()],
       ["fb_municipio", "Município",                              mun],
       ["fb_uf",        "UF",                                     uf],
       ["fb_data",      "Data",                                   dataBR(g.dataVistoria)],
@@ -16075,6 +16118,7 @@ window.DRL_gerarPDF=async function(opts){
       e.dispatchEvent(new Event("input", {bubbles:true}));
       e.dispatchEvent(new Event("change", {bubbles:true}));
     });
+    try{ if(window.FB_montarProcesso) window.FB_montarProcesso(); }catch(err){}
     if(fotos.length && window.FB_setFotos){
       var jaTem = (window.FB_getFotos ? window.FB_getFotos() : []) || [];
       window.FB_setFotos(jaTem.concat(fotos.map(function(o){ return o.p.src; })));

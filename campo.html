@@ -13,13 +13,15 @@
 <link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAA9zQYyAAACMElEQVR42u3csRGCQBBA0eXGCJuwEyuAWiwAIhuwFjqwE5sgxsDU0NF1ea8C3f1zA4zS9cO0BRTRjABBg6BB0CBoBA2CBkGDoEHQCBoEDYIGQYOgETQIGgQNggZBI2gQNAgaBA2CRtAgaBA0CBoEjaAhv0PmD7cuVxtK6jjOKT9Xl/GF50IWdplLDjH/l2z7aoZDpb01Q6HS/pphUGmPHtsRnkM7nUm6Tyc0TmgQNAgaBI2gQdAgaBA0CBpBg6BB0CBoEDSCBkFDeNHMx5wud9v8gsft7IQWcx3ZZ90MmEozdw2Nm0IQ9E5vUtwYClrUZh27f2wnalxDI2gQNAgaBI2gQdAgaBA0CBpBg6BB0CBoEDThNQbhj5vhN+JOaDGbi6AtzXwEDYJG0G583BgK2tLMJTy2szyc0CBoBA2CBkGDoEHQCBoEDYIGQYOgETQIGgQN4TUGxK5/S+41BpSan9cYUGqOrqFxUwiCdkNjjoIWtfmF1xjgkgMEDYIGQYOgETQIGgQNggZBI2gQNAgaBA2CJrzGIPzJM/y22wktZt9H0JYvakGDoBG0GyjfS9CW7/uEx3YiwDU0CBpBg6BB0CBoBG0ECBoE/d5xnG2hkF/v0wmNE9opTdY9NsOg0v6aoVBpb81wqLSvrh+mLeuw1uWqGCHXCRo8tkPQIGgQNAgaBI2gQdAgaBA0CBpBg6BB0CBoEDSCBkGDoEHQIGgEDYIGQYOgQdAIGgQNggZBw8sTc2RyeyprUPUAAAAASUVORK5CYII=">
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-html,body{margin:0;padding:0;}
+html,body{margin:0;padding:0;max-width:100%;overflow-x:hidden;overscroll-behavior-x:none;}
 body{
   font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
   background:#e7edf3; color:#243447;
   padding-bottom:env(safe-area-inset-bottom);
   -webkit-text-size-adjust:100%;
+  overflow-wrap:anywhere;
 }
+img,canvas,video{max-width:100%;}
 /* ---------- topo ---------- */
 .top{
   position:sticky; top:0; z-index:50; background:#0a4d7c; color:#fff;
@@ -42,18 +44,31 @@ body{
 .fichas button.on{background:#1F6FC0;border-color:#1F6FC0;color:#fff;}
 .fichas button.nova{border-style:dashed;color:#175a9f;font-weight:700;}
 
-/* ---------- seções ---------- */
-main{padding:10px 10px 130px;max-width:820px;margin:0 auto;}
+/* ---------- passos (wizard) ---------- */
+main{padding:12px 12px 132px;max-width:760px;margin:0 auto;width:100%;}
 .sec{background:#fff;border:1px solid #d3dce5;border-radius:12px;margin-bottom:10px;overflow:hidden;}
 .sec>h2{
-  margin:0;padding:13px 14px;font-size:14.5px;font-weight:700;color:#0a4d7c;
-  display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;background:#f4f8fb;
+  margin:0;padding:14px 15px;font-size:15px;font-weight:700;color:#0a4d7c;
+  display:flex;align-items:center;justify-content:space-between;gap:10px;background:#f4f8fb;
+  border-bottom:1px solid #e4ebf2;
 }
 .sec>h2 .cnt{font-size:11px;font-weight:600;color:#5a6b7c;background:#e7edf3;border-radius:20px;padding:2px 8px;}
-.sec>h2 .chev{transition:transform .2s;color:#6b7c8d;font-size:12px;}
-.sec.fechada>h2 .chev{transform:rotate(-90deg);}
-.sec.fechada .body{display:none;}
-.body{padding:12px 14px 16px;}
+.body{padding:14px 15px 18px;}
+/* trilha de passos */
+.passos{display:flex;gap:5px;padding:9px 12px 10px;background:#d8e3ec;border-bottom:1px solid #c3ccd6;align-items:center;}
+.passos .tr{flex:1;display:flex;gap:4px;}
+.passos .pt{flex:1;height:5px;border-radius:3px;background:#b6c4d2;border:none;padding:0;min-width:0;}
+.passos .pt.feito{background:#5fd08a;}
+.passos .pt.atual{background:#1F6FC0;}
+.passos .n{font-size:11.5px;font-weight:700;color:#3d5062;white-space:nowrap;}
+/* fim */
+.fimcard{background:#fff;border:1px solid #d3dce5;border-radius:12px;padding:22px 18px;text-align:center;}
+.fimcard .ok{font-size:40px;line-height:1;}
+.fimcard h3{margin:10px 0 4px;font-size:17px;color:#0a4d7c;}
+.fimcard p{margin:0 0 6px;font-size:13.5px;color:#5a6b7c;}
+.resumo{text-align:left;border:1px solid #e4ebf2;border-radius:10px;padding:12px 14px;margin:16px 0 4px;background:#fafcfe;font-size:13px;}
+.resumo div{display:flex;justify-content:space-between;gap:12px;padding:3px 0;}
+.resumo b{color:#0a4d7c;}
 
 /* ---------- campos ---------- */
 .f{margin-bottom:14px;}
@@ -74,6 +89,12 @@ select{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns=
 }
 .chips label.on{background:#e8f1fb;border-color:#1F6FC0;color:#175a9f;font-weight:600;}
 .chips input{width:16px;height:16px;margin:0;accent-color:#1F6FC0;}
+.segs{display:flex;gap:8px;flex-wrap:wrap;}
+.seg{
+  flex:1 1 130px;min-width:0;border:1.5px solid #c3ccd6;background:#fff;color:#3d5062;
+  border-radius:10px;padding:13px 10px;font:700 14px/1.1 inherit;
+}
+.seg.on{background:#1F6FC0;border-color:#1F6FC0;color:#fff;box-shadow:0 3px 10px rgba(31,111,192,.3);}
 
 /* ---------- repetidores ---------- */
 .item{border:1px solid #dde5ed;border-radius:10px;padding:12px;margin-bottom:12px;background:#fafcfe;}
@@ -112,9 +133,12 @@ select{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns=
   padding:10px 10px calc(10px + env(safe-area-inset-bottom));display:flex;gap:8px;
   box-shadow:0 -4px 18px rgba(30,50,80,.12);
 }
-.barra button{flex:1;border:none;border-radius:11px;padding:14px 10px;font:700 14.5px/1 inherit;}
+.barra button{flex:1;border:none;border-radius:11px;padding:14px 10px;font:700 14.5px/1 inherit;min-width:0;}
+.barra .icone{flex:0 0 52px;}
 .b1{background:#e7edf3;color:#3d5062;border:1px solid #c3ccd6 !important;}
-.b2{background:#178a3a;color:#fff;}
+.b2{background:#1F6FC0;color:#fff;}
+.b3{background:#178a3a;color:#fff;}
+.barra button:disabled{opacity:.4;}
 .salvo{position:fixed;left:50%;transform:translateX(-50%);bottom:88px;z-index:70;background:#243447;color:#fff;
   padding:9px 16px;border-radius:22px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .25s;}
 .salvo.on{opacity:.95;}
@@ -138,6 +162,7 @@ dialog::backdrop{background:rgba(15,35,60,.55);}
 </div>
 
 <div class="fichas" id="fichas"></div>
+<div class="passos" id="passos"></div>
 
 <main>
   <div class="aviso" id="avisoPrimeiro" style="display:none;">
@@ -148,8 +173,9 @@ dialog::backdrop{background:rgba(15,35,60,.55);}
 </main>
 
 <div class="barra">
-  <button class="b1" type="button" onclick="menuMais()">⋯ Mais</button>
-  <button class="b2" type="button" onclick="enviar()">📤 Enviar ficha</button>
+  <button class="b1 icone" type="button" onclick="menuMais()" aria-label="Mais opções">⋯</button>
+  <button class="b1" type="button" id="btVoltar" onclick="voltar()">← Voltar</button>
+  <button class="b2" type="button" id="btAvancar" onclick="avancar()">Avançar →</button>
 </div>
 <div class="salvo" id="salvo">salvo</div>
 
@@ -173,10 +199,13 @@ var FITO     = ["Ótimo", "Bom", "Regular", "Ruim"];
 /* --- esquema do formulário: espelha a Ficha de Campo (itens 1 a 128) --- */
 var SECOES = [
   { id:"ident", t:"1 · Identificação", campos:[
-    {k:"processo",      n:1, l:"Nº do processo",                  t:"text", ph:"CTD 001"},
-    {k:"lote",          n:2, l:"Lote",                            t:"text", ph:"SPS-04"},
+    {k:"processo",      n:1, l:"Nº CTD",                          t:"text", ph:"Ex.: 001"},
+    {k:"lote",          n:2, l:"Nº Lote (SPS-__)",                t:"sel",
+      o:["01","02","03","04","05","06","07","08","09"]},
+    {k:"ferrovia",      n:"",l:"Ferrovia",                        t:"sel", o:["FTN","FICO","FIOL"]},
     {k:"dataVistoria",  n:3, l:"Data da vistoria",                t:"date"},
-    {k:"proprietarios", n:4, l:"Proprietário(s)/Posseiro(s) — nome(s)", t:"ta"},
+    {k:"propTipo",      n:4, l:"O ocupante é",                    t:"radio", o:["Proprietário","Posseiro"]},
+    {k:"proprietarios", n:"",l:"Nome(s)",                         t:"ta", ph:"Nome completo. Se houver mais de um, um por linha."},
     {k:"locacaoKm",     n:5, l:"Locação (km)",                    t:"text", ph:"Ex.: 05 km de Custódia-PE"},
     {k:"municipio",     n:6, l:"Município",                       t:"text", ph:"Custódia-PE"},
     {k:"localidade",    n:7, l:"Localidade",                      t:"text", ph:"Sítio Fazendinha"}
@@ -254,7 +283,7 @@ var SECOES = [
 
 /* ---------------- estado ---------------- */
 var CHAVE = "enprol_ficha_campo_v1";
-var ST = { fichas: [], atual: null, fechadas: {} };
+var ST = { fichas: [], atual: null, fechadas: {}, passo: 0 };
 
 function novaFicha(){
   return {
@@ -276,6 +305,7 @@ function carregar(){
   if(!ST.fichas.length){ var f = novaFicha(); ST.fichas.push(f); ST.atual = f.id; }
   if(!atual()) ST.atual = ST.fichas[0].id;
   if(!ST.fechadas) ST.fechadas = {};
+  if(typeof ST.passo !== "number") ST.passo = 0;
 }
 var _tSalvar = null;
 function salvar(quieto){
@@ -322,6 +352,13 @@ function campoHTML(cam, c){
     c.o.forEach(function(op){ h += '<option'+(op===v?' selected':'')+'>'+esc(op)+'</option>'; });
     h += '<option value="__o"'+(outro?' selected':'')+'>Outro…</option></select>';
     h += '<div class="outro"'+(outro?'':' style="display:none"')+'><input type="text" placeholder="Digite a opção" value="'+esc(outro?v:"")+'" oninput="upd(this,\''+cam+'\')"></div>';
+  } else if(c.t === "radio"){
+    h = '<div class="segs">';
+    c.o.forEach(function(op){
+      var on = (v === op);
+      h += '<button type="button" class="seg'+(on?" on":"")+'" data-cam="'+esc(cam)+'" data-op="'+esc(op)+'">'+esc(op)+'</button>';
+    });
+    h += '</div>';
   } else if(c.t === "multi"){
     var arr = Array.isArray(v) ? v : (v ? [v] : []);
     h = '<div class="chips">';
@@ -388,38 +425,98 @@ function render(){
   // abas de fichas
   var fh = "";
   ST.fichas.forEach(function(x){
-    var nome = (x.geral && x.geral.processo) ? x.geral.processo : "Nova ficha";
-    fh += '<button type="button" class="'+(x.id===ST.atual?"on":"")+'" onclick="trocar(\''+x.id+'\')">'+esc(nome)+'</button>';
+    var nome = (x.geral && x.geral.processo) ? ("CTD " + x.geral.processo) : "Nova ficha";
+    fh += '<button type="button" class="'+(x.id===ST.atual?"on":"")+'" onclick="trocar(&quot;'+x.id+'&quot;)">'+esc(nome)+'</button>';
   });
   fh += '<button type="button" class="nova" onclick="addFicha()">+ ficha</button>';
   document.getElementById("fichas").innerHTML = fh;
   document.getElementById("subtit").textContent =
     "ENPROL · " + ((f.geral && f.geral.municipio) ? f.geral.municipio : "Vistoria de Avaliação");
 
+  var TOTAL = SECOES.length + 1;                       // +1 = tela de revisão/envio
+  if(ST.passo == null || ST.passo < 0) ST.passo = 0;
+  if(ST.passo > TOTAL - 1) ST.passo = TOTAL - 1;
+  var i = ST.passo, ultimo = (i === TOTAL - 1);
+
+  // trilha
+  var tr = "";
+  for(var k=0; k<TOTAL; k++){
+    tr += '<button type="button" class="pt'+(k<i?" feito":(k===i?" atual":""))+'" aria-label="Passo '+(k+1)+'" onclick="irPasso('+k+')"></button>';
+  }
+  document.getElementById("passos").innerHTML =
+    '<div class="tr">'+tr+'</div><span class="n">'+(i+1)+'/'+TOTAL+'</span>';
+
+  // conteúdo do passo
   var h = "";
-  SECOES.forEach(function(s){
-    var fechada = ST.fechadas[s.id] ? " fechada" : "";
-    var cnt = "";
-    if(s.rep){ cnt = '<span class="cnt">'+((getv(f, s.rep.lista)||[]).length)+'</span>'; }
-    if(s.galerias){
-      var tot = 0; s.galerias.forEach(function(g){ tot += (getv(f,g.k)||[]).length; });
-      cnt = '<span class="cnt">'+tot+'</span>';
+  if(ultimo){
+    h = revisaoHTML();
+  } else {
+    var sec = SECOES[i], cnt = "";
+    if(sec.rep){ cnt = '<span class="cnt">'+((getv(f, sec.rep.lista)||[]).length)+'</span>'; }
+    if(sec.galerias){
+      var tot = 0; sec.galerias.forEach(function(g){ tot += (getv(f,g.k)||[]).length; });
+      cnt = '<span class="cnt">'+tot+' foto(s)</span>';
     }
-    h += '<section class="sec'+fechada+'" id="sec-'+s.id+'">'
-       + '<h2 onclick="dobra(\''+s.id+'\')"><span>'+esc(s.t)+'</span><span style="display:flex;gap:8px;align-items:center">'+cnt+'<span class="chev">▾</span></span></h2>'
-       + '<div class="body">';
-    if(s.campos)   s.campos.forEach(function(c){ h += campoHTML((s.id==="fim"?"":"geral.")+c.k, c); });
-    if(s.galerias) s.galerias.forEach(function(g){ h += galeriaHTML(g.k, g.l, g.n); });
-    if(s.rep)      h += repHTML(s);
-    if(s.fim)      h += fimHTML();
+    h = '<section class="sec" id="sec-'+sec.id+'">'
+      + '<h2><span>'+esc(sec.t)+'</span>'+cnt+'</h2><div class="body">';
+    if(sec.campos)   sec.campos.forEach(function(c){ h += campoHTML((sec.id==="fim"?"":"geral.")+c.k, c); });
+    if(sec.galerias) sec.galerias.forEach(function(g){ h += galeriaHTML(g.k, g.l, g.n); });
+    if(sec.rep)      h += repHTML(sec);
+    if(sec.fim)      h += fimHTML();
     h += '</div></section>';
-  });
+  }
   document.getElementById("form").innerHTML = h;
-  if(!ST.fechadas["fim"]) montarSig();
+  if(!ultimo && SECOES[i].fim) montarSig();
+
+  // barra inferior
+  var bv = document.getElementById("btVoltar"), ba = document.getElementById("btAvancar");
+  bv.disabled = (i === 0);
+  if(ultimo){ ba.textContent = "📤 Enviar ficha"; ba.className = "b3"; ba.onclick = enviar; }
+  else      { ba.textContent = "Avançar →";      ba.className = "b2"; ba.onclick = avancar; }
   progresso();
 }
 
-function dobra(id){ ST.fechadas[id] = !ST.fechadas[id]; salvar(true); render(); }
+function revisaoHTML(){
+  var f = atual(), g = f.geral || {};
+  function n(lista){ return (f[lista]||[]).length; }
+  var fotos = (f.fotosImovel||[]).length + (f.fotosAcesso||[]).length;
+  ["reprodutivas","pastagem","naoReprodutivas","acessorias"].forEach(function(l){
+    (f[l]||[]).forEach(function(it){ fotos += (it.fotos||[]).length; });
+  });
+  var falta = [];
+  if(!g.processo)      falta.push("Nº CTD");
+  if(!g.lote)          falta.push("Nº Lote");
+  if(!g.dataVistoria)  falta.push("Data da vistoria");
+  if(!g.proprietarios) falta.push("Nome do proprietário/posseiro");
+  if(!g.municipio)     falta.push("Município");
+  if(!fotos)           falta.push("nenhuma foto");
+
+  var h = '<div class="fimcard"><div class="ok">'+(falta.length?"📝":"✅")+'</div>'
+        + '<h3>'+(falta.length?"Quase lá":"Ficha completa")+'</h3>'
+        + '<p>'+(falta.length ? "Dá para enviar assim, mas confira o que ficou em branco."
+                              : "Confira o resumo e envie para o escritório.")+'</p>'
+        + '<div class="resumo">'
+        + '<div><span>Nº CTD</span><b>'+esc(g.processo||"—")+'</b></div>'
+        + '<div><span>Lote</span><b>'+esc(g.lote?("SPS-"+g.lote):"—")+'</b></div>'
+        + '<div><span>Município</span><b>'+esc(g.municipio||"—")+'</b></div>'
+        + '<div><span>'+esc(g.propTipo||"Proprietário/Posseiro")+'</span><b>'+esc((g.proprietarios||"—").split(String.fromCharCode(10))[0])+'</b></div>'
+        + '<div><span>Benfeitorias</span><b>'+(n("reprodutivas")+n("naoReprodutivas")+n("acessorias")+n("pastagem"))+'</b></div>'
+        + '<div><span>Fotos</span><b>'+fotos+'</b></div>'
+        + '<div><span>Assinatura</span><b>'+(f.assinatura?"sim":"—")+'</b></div>'
+        + '</div>';
+  if(falta.length){
+    h += '<p style="margin-top:12px;color:#a5651a;font-size:12.5px;"><b>Em branco:</b> '+esc(falta.join(", "))+'</p>';
+  }
+  h += '<p style="margin-top:14px;font-size:12.5px;">Toque em <b>Enviar ficha</b> e escolha o WhatsApp do escritório.</p>';
+  h += '</div>';
+  return h;
+}
+
+function irPasso(i){ ST.passo = i; salvar(true); render(); window.scrollTo(0,0); }
+function avancar(){ irPasso((ST.passo||0) + 1); }
+function voltar(){  irPasso((ST.passo||0) - 1); }
+
+function dobra(id){ for(var i=0;i<SECOES.length;i++){ if(SECOES[i].id===id){ irPasso(i); return; } } }
 
 /* ---------------- edição ---------------- */
 function upd(el, cam){ setv(atual(), cam, el.value); salvar(true); tituloTalvez(cam); }
@@ -429,6 +526,15 @@ function updSel(el, cam){
   else { box.style.display = "none"; setv(atual(), cam, el.value); }
   salvar(true);
 }
+document.addEventListener("click", function(ev){
+  var btn = ev.target.closest ? ev.target.closest(".seg") : null;
+  if(!btn || !btn.dataset || !btn.dataset.cam) return;
+  var f = atual(), cam = btn.dataset.cam, op = btn.dataset.op;
+  setv(f, cam, getv(f, cam) === op ? "" : op);          // tocar de novo desmarca
+  btn.parentNode.querySelectorAll(".seg").forEach(function(b){ b.classList.remove("on"); });
+  if(getv(f, cam) === op) btn.classList.add("on");
+  salvar(true);
+});
 function updMulti(el, cam, op){
   var f = atual(), arr = getv(f, cam); if(!Array.isArray(arr)) arr = [];
   var i = arr.indexOf(op);
@@ -463,8 +569,8 @@ function rmItem(lista, i){
   if(!confirm("Remover este item?")) return;
   var arr = getv(atual(), lista); arr.splice(i,1); salvar(true); render();
 }
-function addFicha(){ var f = novaFicha(); ST.fichas.push(f); ST.atual = f.id; salvar(true); render(); window.scrollTo(0,0); }
-function trocar(id){ ST.atual = id; salvar(true); render(); window.scrollTo(0,0); }
+function addFicha(){ var f = novaFicha(); ST.fichas.push(f); ST.atual = f.id; ST.passo = 0; salvar(true); render(); window.scrollTo(0,0); }
+function trocar(id){ ST.atual = id; ST.passo = 0; salvar(true); render(); window.scrollTo(0,0); }
 
 /* ---------------- fotos ---------------- */
 function comprimir(file, maxLado, q){
@@ -585,7 +691,7 @@ function pacote(f){
 function nomeArq(f){
   var p = ((f.geral && f.geral.processo) || "ficha").replace(/[\\/:*?"<>|]+/g, "-").trim().replace(/\s+/g, "_");
   var d = (f.geral && f.geral.dataVistoria) || new Date().toISOString().slice(0,10);
-  return "FichaCampo_" + p + "_" + d + ".json";
+  return "FichaCampo_CTD_" + p + "_" + d + ".json";
 }
 function enviar(){
   var f = atual(); if(!f) return;
@@ -597,7 +703,7 @@ function enviar(){
   var mb = (blob.size/1048576).toFixed(1);
 
   if(file && navigator.canShare && navigator.canShare({ files:[file] })){
-    navigator.share({ files:[file], title:"Ficha de Campo", text:"Ficha de Campo — " + ((f.geral&&f.geral.processo)||"") })
+    navigator.share({ files:[file], title:"Ficha de Campo", text:"Ficha de Campo — CTD " + ((f.geral&&f.geral.processo)||"") + ((f.geral&&f.geral.lote)?(" / SPS-"+f.geral.lote):"") })
       .then(function(){ flash("ficha enviada ("+mb+" MB)"); })
       .catch(function(err){ if(err && err.name !== "AbortError") baixar(blob, nome, mb); });
     return;
@@ -620,7 +726,7 @@ function menuMais(){
   var nf = ST.fichas.length;
   document.getElementById("dlgB").innerHTML =
       '<p style="margin:0 0 12px;font-size:13.5px;color:#5a6b7c;">Ficha atual: <b>'
-      + esc((f.geral&&f.geral.processo)||"sem nº") + '</b> · ' + tam + ' · ' + nf + ' ficha(s) no celular.</p>'
+      + esc((f.geral&&f.geral.processo)?("CTD "+f.geral.processo):"sem nº") + '</b> · ' + tam + ' · ' + nf + ' ficha(s) no celular.</p>'
     + '<button class="add" type="button" style="margin-bottom:8px" onclick="abrirArquivo()">📂 Abrir ficha de um arquivo</button>'
     + '<button class="add" type="button" style="margin-bottom:8px" onclick="enviar()">📤 Enviar / salvar esta ficha</button>'
     + '<button class="add" type="button" style="margin-bottom:8px;border-color:#eccac7;color:#b5382a" onclick="apagarFicha()">🗑️ Apagar esta ficha do celular</button>'
