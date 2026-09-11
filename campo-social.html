@@ -1674,6 +1674,9 @@ function repHTML(sec){
   return h;
 }
 
+var TECNICOS = [
+  { nome:"Leonardo Rodrigues", doc:"008.044.553-50" }
+];
 function fimHTML(){
   var f = atual();
   return assinaturaHTML()
@@ -1812,6 +1815,11 @@ function upd(el, cam){
   setv(atual(), cam, v); salvar(true); tituloTalvez(cam);
 }
 function updSel(el, cam){
+  if(cam === "tecnico.nome"){                 // escolheu o t\u00e9cnico -> o CPF vem junto
+    var t = TECNICOS.filter(function(x){ return x.nome === el.value; })[0];
+    if(t){ setv(atual(), "tecnico.documento", t.doc); setv(atual(), cam, el.value);
+           salvar(true); render(); return; }
+  }
   var box = el.parentNode.querySelector(".outro");
   if(el.value === "__o"){ box.style.display = ""; setv(atual(), cam, box.querySelector("input").value || ""); box.querySelector("input").focus(); }
   else { box.style.display = "none"; setv(atual(), cam, el.value); }

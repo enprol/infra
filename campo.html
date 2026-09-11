@@ -502,16 +502,18 @@ function repHTML(sec){
   return h;
 }
 
+var TECNICOS = [
+  { nome:"Leonardo Rodrigues", doc:"008.044.553-50" }
+];
 function fimHTML(){
   var f = atual();
-  var h = campoHTML("tecnico.nome", {l:"Nome do técnico", t:"text"})
-        + campoHTML("tecnico.documento", {l:"CPF/Documento", t:"text"})
-        + assinaturaHTML()
-        + '<div class="f"><label>Localização (GPS)</label><div class="gps">'
-        + '<button class="add" type="button" style="width:auto;padding:10px 14px" onclick="pegarGPS()">📍 Capturar coordenada</button>'
-        + '<span id="gpsTxt">' + (f.gps ? (f.gps.lat.toFixed(6)+", "+f.gps.lon.toFixed(6)+" (±"+Math.round(f.gps.precisao)+" m)") : "—") + '</span>'
-        + '</div></div>';
-  return h;
+  return campoHTML("tecnico.nome", { l:"Nome do t\u00e9cnico", t:"sel",
+                                     o:TECNICOS.map(function(t){ return t.nome; }) })
+       + campoHTML("tecnico.documento", { l:"CPF/Documento", t:"text", m:"cpf", ph:"000.000.000-00" })
+       + '<div class="f"><label>Localiza\u00e7\u00e3o (GPS)</label><div class="gps">'
+       + '<button class="add" type="button" style="width:auto;padding:10px 14px" onclick="pegarGPS()">\uD83D\uDCCD Capturar coordenada</button>'
+       + '<span id="gpsTxt">' + (f.gps ? (f.gps.lat.toFixed(6)+", "+f.gps.lon.toFixed(6)+" (\u00b1"+Math.round(f.gps.precisao)+" m)") : "\u2014") + '</span>'
+       + '</div></div>';
 }
 
 function render(){
@@ -632,6 +634,11 @@ function upd(el, cam){
   setv(atual(), cam, v); salvar(true); tituloTalvez(cam);
 }
 function updSel(el, cam){
+  if(cam === "tecnico.nome"){                 // escolheu o t\u00e9cnico -> o CPF vem junto
+    var t = TECNICOS.filter(function(x){ return x.nome === el.value; })[0];
+    if(t){ setv(atual(), "tecnico.documento", t.doc); setv(atual(), cam, el.value);
+           salvar(true); render(); return; }
+  }
   var box = el.parentNode.querySelector(".outro");
   if(el.value === "__o"){ box.style.display = ""; setv(atual(), cam, box.querySelector("input").value || ""); box.querySelector("input").focus(); }
   else { box.style.display = "none"; setv(atual(), cam, el.value); }

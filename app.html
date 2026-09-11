@@ -4927,6 +4927,17 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 
     /* --- Ficha de Campo (DESP 1): conteúdo importado --- */
     #panel-desp1-campo .campo-kv{display:flex; flex-direction:column; gap:0;}
+    /* duas colunas dentro do mesmo tópico; campo "largo" ocupa a linha toda */
+    #panel-desp1-campo .campo-cols{display:grid; grid-template-columns:1fr 1fr; gap:0 26px;}
+    #panel-desp1-campo .kvc{display:flex; flex-direction:column; gap:2px; padding:7px 0;
+      border-bottom:1px solid #eef2f6; font-size:13px; min-width:0;}
+    #panel-desp1-campo .kvc.largo{grid-column:1 / -1;}
+    #panel-desp1-campo .kvc .kl{color:#8494a4; font-size:11px; font-weight:700;
+      text-transform:uppercase; letter-spacing:.3px;}
+    #panel-desp1-campo .kvc .kvv{color:var(--texto); white-space:pre-wrap; word-break:break-word;}
+    #panel-desp1-campo .campo-sub{grid-column:1 / -1; font-size:12px; font-weight:700; color:#175a9f;
+      margin:14px 0 2px; padding-bottom:3px; border-bottom:1px dashed #d3dbe4;}
+    @media (max-width:760px){ #panel-desp1-campo .campo-cols{grid-template-columns:1fr;} }
     #panel-desp1-campo .kv{display:grid; grid-template-columns:34px minmax(150px,1.1fr) 2fr; gap:10px; align-items:baseline;
       padding:6px 0; border-bottom:1px solid #eef2f6; font-size:13px;}
     #panel-desp1-campo .kv:last-child{border-bottom:none;}
@@ -4952,7 +4963,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
     }
     #panel-desp1-campo .campo-fotos{display:grid; grid-template-columns:repeat(auto-fill,minmax(178px,1fr)); gap:12px; margin-top:10px;}
     #panel-desp1-campo .campo-fotos figure{margin:0; border:1px solid var(--borda,#c3ccd6); border-radius:9px; overflow:hidden; background:#fff;}
-    #panel-desp1-campo .campo-fotos img{width:100%; aspect-ratio:4/3; object-fit:cover; display:block; background:#eef3f8;}
+    #panel-desp1-campo .campo-fotos img{width:100%; aspect-ratio:4/3; object-fit:contain; display:block; background:#eef3f8;}
     #panel-desp1-campo .campo-fotos figcaption{font-size:11px; font-weight:700; color:#175a9f; padding:6px 8px 2px;}
     #panel-desp1-campo .campo-fotos input{width:100%; border:none; border-top:1px solid #eef2f6; padding:7px 8px; font-size:12px; font-family:inherit; color:var(--texto); background:#fbfdff;}
     #panel-desp1-campo .campo-fotos input:focus{outline:2px solid var(--e-ring,#1F6FC0); outline-offset:-2px;}
@@ -15927,18 +15938,30 @@ window.DRL_gerarPDF=async function(opts){
   }
 
   /* --- rótulos dos itens 1 a 128, na ordem da ficha oficial --- */
-  var GERAIS = [
-    [1,"Nº do processo","processo"], [2,"Lote","lote"], [3,"Data da vistoria","dataVistoria"],
-    [4,"Proprietário(s)/Posseiro(s) - nome(s)","proprietarios"], [5,"Locação (km)","locacaoKm"],
-    [6,"Município","municipio"], [7,"Localidade","localidade"], [8,"Descrição do imóvel","descricaoImovel"],
-    [9,"Atividade principal","atividadePrincipal"], [10,"Hidrografia","hidrografia"], [11,"Vazão","vazao"],
-    [12,"Restrições ambientais","restricoesAmbientais"], [13,"Risco de inundação","riscoInundacao"],
-    [14,"Erosões","erosoes"], [15,"Usos predominantes","usosPredominantes"],
-    [16,"Infraestrutura disponível","infraestrutura"], [17,"Serviços públicos e comunitários","servicosPublicos"],
-    [18,"Tipo de estrada","tipoEstrada"], [19,"Condições de acesso","condicoesAcesso"],
-    [20,"Importância das distâncias","importanciaDistancias"], [21,"Praticabilidade durante o ano","praticabilidade"],
-    [22,"Informações complementares","informacoesComplementares"]
+  /* Campos gerais agrupados por tópico. O 3º elemento marca o campo como
+     "largo": ocupa a linha inteira (texto corrido); os demais entram em 2 colunas. */
+  var GRUPOS = [
+    { t:"Identifica\u00e7\u00e3o", campos:[
+      ["N\u00ba do processo","processo"], ["Lote","lote"], ["Data da vistoria","dataVistoria"],
+      ["Propriet\u00e1rio(s)/Posseiro(s)","proprietarios", true], ["Loca\u00e7\u00e3o (km)","locacaoKm"],
+      ["Munic\u00edpio","municipio"], ["Localidade","localidade"]
+    ]},
+    { t:"Caracteriza\u00e7\u00e3o do im\u00f3vel", campos:[
+      ["Descri\u00e7\u00e3o do im\u00f3vel","descricaoImovel", true],
+      ["Atividade principal","atividadePrincipal"], ["Hidrografia","hidrografia"],
+      ["Vaz\u00e3o","vazao"], ["Restri\u00e7\u00f5es ambientais","restricoesAmbientais"],
+      ["Risco de inunda\u00e7\u00e3o","riscoInundacao"], ["Eros\u00f5es","erosoes"],
+      ["Usos predominantes","usosPredominantes"], ["Infraestrutura dispon\u00edvel","infraestrutura"],
+      ["Servi\u00e7os p\u00fablicos e comunit\u00e1rios","servicosPublicos"],
+      ["Tipo de estrada","tipoEstrada"], ["Condi\u00e7\u00f5es de acesso","condicoesAcesso"],
+      ["Import\u00e2ncia das dist\u00e2ncias","importanciaDistancias"],
+      ["Praticabilidade durante o ano","praticabilidade"],
+      ["Informa\u00e7\u00f5es complementares","informacoesComplementares", true]
+    ]}
   ];
+  var GERAIS = [];   // lista plana, para quem so precisa percorrer tudo
+  GRUPOS.forEach(function(g){ g.campos.forEach(function(c){ GERAIS.push(c); }); });
+
   var CAMPOS_REP = {
     reprodutivas:   [["Benfeitoria (reprodutiva)","benfeitoria"],["Quantidade (reprodutiva)","quantidade"],
                      ["Estado fitossanitário","fitossanitario"],["Idade (anos)","idade"],
@@ -16037,34 +16060,41 @@ window.DRL_gerarPDF=async function(opts){
     var f = CAMPO, g = f.geral || {}, fotos = todasFotos(f);
     var h = "";
 
-    h += '<div class="vcard"><div class="vsub">Ficha importada</div><div class="campo-kv">';
-    GERAIS.forEach(function(it){
-      var v = it[2] === "dataVistoria" ? dataBR(g[it[2]]) : val(g[it[2]]);
-      h += '<div class="kv"><span class="kn">'+it[0]+'</span><span class="kl">'+esc(it[1])+'</span><span class="kvv">'+esc(v)+'</span></div>';
-    });
-    h += '</div></div>';
-
-    ["reprodutivas","pastagem","naoReprodutivas","acessorias"].forEach(function(lista){
-      var arr = f[lista] || [];
-      if(!arr.length) return;
-      h += '<div class="vcard"><div class="vsub">'+esc(TIT_REP[lista])+' <span style="color:#7a8797;font-weight:600">('+arr.length+')</span></div><div class="campo-kv">';
-      arr.forEach(function(it, i){
-        h += '<div class="kv kv-h"><span class="kn"></span><span class="kl" style="font-weight:700;color:#175a9f">'+esc(ROT_REP[lista])+' '+(i+1)+'</span><span class="kvv"></span></div>';
-        CAMPOS_REP[lista].forEach(function(c){
-          h += '<div class="kv"><span class="kn"></span><span class="kl">'+esc(c[0])+'</span><span class="kvv">'+esc(val(it[c[1]]))+'</span></div>';
-        });
-        var nf = (it.fotos||[]).length;
-        if(nf) h += '<div class="kv"><span class="kn"></span><span class="kl">Fotos</span><span class="kvv">'+nf+'</span></div>';
+    GRUPOS.forEach(function(gr){
+      h += '<div class="vcard"><div class="vsub">'+esc(gr.t)+'</div><div class="campo-cols">';
+      gr.campos.forEach(function(it){
+        var v = it[1] === "dataVistoria" ? dataBR(g[it[1]]) : val(g[it[1]]);
+        var largo = it[2] || String(v).length > 90;
+        h += '<div class="kvc'+(largo?" largo":"")+'"><span class="kl">'+esc(it[0])+'</span>'
+           + '<span class="kvv">'+esc(v)+'</span></div>';
       });
       h += '</div></div>';
     });
 
+    ["reprodutivas","pastagem","naoReprodutivas","acessorias"].forEach(function(lista){
+      var arr = f[lista] || [];
+      if(!arr.length) return;
+      h += '<div class="vcard"><div class="vsub">'+esc(TIT_REP[lista])+' <span style="color:#7a8797;font-weight:600">('+arr.length+')</span></div>';
+      arr.forEach(function(it, i){
+        h += '<div class="campo-sub">'+esc(ROT_REP[lista])+' '+(i+1)+'</div><div class="campo-cols">';
+        CAMPOS_REP[lista].forEach(function(c){
+          var v = val(it[c[1]]), largo = String(v).length > 90;
+          h += '<div class="kvc'+(largo?" largo":"")+'"><span class="kl">'+esc(c[0])+'</span>'
+             + '<span class="kvv">'+esc(v)+'</span></div>';
+        });
+        var nf = (it.fotos||[]).length;
+        if(nf) h += '<div class="kvc"><span class="kl">Fotos</span><span class="kvv">'+nf+'</span></div>';
+        h += '</div>';
+      });
+      h += '</div>';
+    });
+
     if(g.obsReprodutivas || g.obsNaoReprodutivas || f.tecnico || f.gps){
-      h += '<div class="vcard"><div class="vsub">Observações e responsável</div><div class="campo-kv">';
-      h += '<div class="kv"><span class="kn">77</span><span class="kl">Observações (reprodutiva e pastagem)</span><span class="kvv">'+esc(val(g.obsReprodutivas))+'</span></div>';
-      h += '<div class="kv"><span class="kn">127</span><span class="kl">Observações (não reprodutiva e acessórias)</span><span class="kvv">'+esc(val(g.obsNaoReprodutivas))+'</span></div>';
-      h += '<div class="kv"><span class="kn">128</span><span class="kl">Técnico</span><span class="kvv">'+esc(val((f.tecnico||{}).nome))+((f.tecnico&&f.tecnico.documento)?(" — "+esc(f.tecnico.documento)):"")+'</span></div>';
-      if(f.gps) h += '<div class="kv"><span class="kn"></span><span class="kl">Coordenada (GPS)</span><span class="kvv">'+f.gps.lat.toFixed(6)+", "+f.gps.lon.toFixed(6)+' <a href="https://www.google.com/maps?q='+f.gps.lat+','+f.gps.lon+'" target="_blank" rel="noopener">ver no mapa</a></span></div>';
+      h += '<div class="vcard"><div class="vsub">Observações e responsável</div><div class="campo-cols">';
+      h += '<div class="kvc largo"><span class="kl">Observações (reprodutiva e pastagem)</span><span class="kvv">'+esc(val(g.obsReprodutivas))+'</span></div>';
+      h += '<div class="kvc largo"><span class="kl">Observações (não reprodutiva e acessórias)</span><span class="kvv">'+esc(val(g.obsNaoReprodutivas))+'</span></div>';
+      h += '<div class="kvc"><span class="kl">Técnico</span><span class="kvv">'+esc(val((f.tecnico||{}).nome))+((f.tecnico&&f.tecnico.documento)?(" — "+esc(f.tecnico.documento)):"")+'</span></div>';
+      if(f.gps) h += '<div class="kvc"><span class="kl">Coordenada (GPS)</span><span class="kvv">'+f.gps.lat.toFixed(6)+", "+f.gps.lon.toFixed(6)+' <a href="https://www.google.com/maps?q='+f.gps.lat+','+f.gps.lon+'" target="_blank" rel="noopener">ver no mapa</a></span></div>';
       h += '</div></div>';
     }
 
@@ -16269,35 +16299,79 @@ window.DRL_gerarPDF=async function(opts){
       ls.forEach(function(l){ garantir(7); pdf.text(l, c.mL, y); y += 6.4; });
       pdf.setTextColor(0,0,0); y += 1.5;
     }
-    function item(n, lab, v){
+    /* ---- um campo; devolve a altura usada (nao mexe no y) ---- */
+    function item(lab, v, x0, larg){
+      x0 = (x0 === undefined) ? c.mL : x0;
+      larg = larg || c.RW;
       var texto = val(v);
+      pdf.setFont("helvetica","bold"); pdf.setFontSize(9.2);
+      var lr = pdf.splitTextToSize(String(lab), larg);
+      pdf.setFont("helvetica","normal"); pdf.setFontSize(10.2);
+      var lv = pdf.splitTextToSize(texto, larg - 2);
+      var alt = lr.length*4.2 + lv.length*4.9 + 2.2;
+      if(x0 === c.mL && larg === c.RW) garantir(alt);
+      var yy = y;
       pdf.setFont("helvetica","bold"); pdf.setFontSize(9.2); pdf.setTextColor(60,80,100);
-      var rot = (n ? (n + ") ") : "") + lab;
-      var lr = pdf.splitTextToSize(rot, c.RW);
+      lr.forEach(function(l){ pdf.text(l, x0, yy); yy += 4.2; });
       pdf.setFont("helvetica","normal"); pdf.setFontSize(10.2); pdf.setTextColor(0,0,0);
-      var lv = pdf.splitTextToSize(texto, c.RW - 4);
-      garantir(lr.length*4.2 + lv.length*4.9 + 3);
-      pdf.setFont("helvetica","bold"); pdf.setFontSize(9.2); pdf.setTextColor(60,80,100);
-      lr.forEach(function(l){ pdf.text(l, c.mL, y); y += 4.2; });
-      pdf.setFont("helvetica","normal"); pdf.setFontSize(10.2); pdf.setTextColor(0,0,0);
-      lv.forEach(function(l){ pdf.text(l, c.mL + 4, y); y += 4.9; });
-      y += 2.2;
+      lv.forEach(function(l){ pdf.text(l, x0 + 2, yy); yy += 4.9; });
+      return alt;
+    }
+    function alturaDe(lab, v, larg){
+      pdf.setFont("helvetica","bold"); pdf.setFontSize(9.2);
+      var a = pdf.splitTextToSize(String(lab), larg).length * 4.2;
+      pdf.setFont("helvetica","normal"); pdf.setFontSize(10.2);
+      return a + pdf.splitTextToSize(val(v), larg - 2).length * 4.9 + 2.2;
+    }
+    /* ---- campos do MESMO topico: os curtos saem em 2 colunas ---- */
+    function itens(lista){
+      var GAP = 8, larg = (c.RW - GAP) / 2, fila = [];
+      function despejar(){
+        if(!fila.length) return;
+        var a = fila[0], b = fila[1];
+        var hA = alturaDe(a[0], a[1], larg);
+        var hB = b ? alturaDe(b[0], b[1], larg) : 0;
+        var h = Math.max(hA, hB);
+        garantir(h);
+        item(a[0], a[1], c.mL, larg);
+        if(b) item(b[0], b[1], c.mL + larg + GAP, larg);
+        y += h;
+        fila = [];
+      }
+      lista.forEach(function(cp){
+        var largo = cp[2] || val(cp[1]).length > 60;
+        if(largo){ despejar(); y += item(cp[0], cp[1]); }
+        else { fila.push(cp); if(fila.length === 2) despejar(); }
+      });
+      despejar();
+    }
+    /* ---- fotos: retrato e paisagem, sem distorcer nem cortar ---- */
+    function propImg(src){
+      try{ var q = pdf.getImageProperties(src); if(q && q.width && q.height) return q.height / q.width; }
+      catch(e){}
+      return 0.75;
     }
     function fotosDoItem(arr, rotulo){
       arr = (arr||[]).filter(function(p){ return p && p.src; });
       if(!arr.length) return;
-      var lg = (c.RW - 6) / 2, alt = lg * 0.72;
-      for(var i=0;i<arr.length;i+=2){
-        garantir(alt + 9);
-        for(var k=0;k<2 && (i+k)<arr.length;k++){
-          var x = c.mL + k*(lg+6), p = arr[i+k];
-          try{ pdf.addImage(p.src, fmtImg(p.src), x, y, lg, alt); }catch(e){}
-          pdf.setDrawColor(190,200,212); pdf.setLineWidth(0.2); pdf.rect(x, y, lg, alt);
+      var GAP = 6, cel = (c.RW - GAP) / 2, altMax = 62;
+      for(var i=0; i<arr.length; i+=2){
+        var cx = arr.slice(i, i+2).map(function(p){
+          var r = propImg(p.src), w = cel, hh = w * r;
+          if(hh > altMax){ hh = altMax; w = hh / r; }       // retrato: limita a altura
+          return { p:p, w:w, h:hh };
+        });
+        var linhaH = Math.max.apply(null, cx.map(function(o){ return o.h; }));
+        garantir(linhaH + 9);
+        cx.forEach(function(o, k){
+          var x = c.mL + k*(cel+GAP) + (cel - o.w)/2;        // centraliza na celula
+          try{ pdf.addImage(o.p.src, fmtImg(o.p.src), x, y, o.w, o.h); }catch(e){}
+          pdf.setDrawColor(190,200,212); pdf.setLineWidth(0.2); pdf.rect(x, y, o.w, o.h);
           pdf.setFont("helvetica","italic"); pdf.setFontSize(7.6); pdf.setTextColor(90,107,124);
-          var cap = (p.leg && p.leg.trim()) ? p.leg.trim() : rotulo;
-          pdf.text(pdf.splitTextToSize(cap, lg)[0] || "", x, y + alt + 3.4);
-        }
-        y += alt + 8;
+          var cap = (o.p.leg && o.p.leg.trim()) ? o.p.leg.trim() : rotulo;
+          pdf.text(pdf.splitTextToSize(cap, cel)[0] || "", c.mL + k*(cel+GAP), y + linhaH + 3.4);
+        });
+        y += linhaH + 8;
       }
       pdf.setTextColor(0,0,0);
     }
@@ -16309,46 +16383,43 @@ window.DRL_gerarPDF=async function(opts){
     pdf.text("INFRA I — Levantamento de campo", c.W/2, y, {align:"center"});
     pdf.setTextColor(0,0,0); y += 10;
 
-    titulo("Identificação e caracterização do imóvel");
-    GERAIS.forEach(function(it){
-      item(it[0], it[1], it[2] === "dataVistoria" ? dataBR(g[it[2]]) : g[it[2]]);
+    GRUPOS.forEach(function(gr){
+      titulo(gr.t);
+      itens(gr.campos.map(function(cp){
+        return [cp[0], cp[1] === "dataVistoria" ? dataBR(g[cp[1]]) : g[cp[1]], cp[2]];
+      }));
     });
 
     if((f.fotosImovel||[]).length || (f.fotosAcesso||[]).length){
       titulo("Fotos gerais e acesso");
-      if((f.fotosImovel||[]).length){ item("23-25","Foto - Imóvel (fotos gerais)", (f.fotosImovel||[]).length+" foto(s)"); fotosDoItem(f.fotosImovel, "Imóvel — vista geral"); }
-      if((f.fotosAcesso||[]).length){ item("26-27","Foto - Acesso", (f.fotosAcesso||[]).length+" foto(s)"); fotosDoItem(f.fotosAcesso, "Acesso"); }
+      if((f.fotosImovel||[]).length){ y += item("Imóvel — fotos gerais", (f.fotosImovel||[]).length+" foto(s)"); fotosDoItem(f.fotosImovel, "Imóvel — vista geral"); }
+      if((f.fotosAcesso||[]).length){ y += item("Acesso", (f.fotosAcesso||[]).length+" foto(s)"); fotosDoItem(f.fotosAcesso, "Acesso"); }
     }
 
-    var num = { reprodutivas:"28-62", pastagem:"63-76", naoReprodutivas:"78-112", acessorias:"113-126" };
-    ["reprodutivas","pastagem"].forEach(function(lista){
+    function bloco(lista){
       var arr = f[lista] || []; if(!arr.length) return;
-      titulo(TIT_REP[lista] + "  (itens " + num[lista] + ")");
+      titulo(TIT_REP[lista]);
       arr.forEach(function(it, i){
-        item(null, ROT_REP[lista] + " " + (i+1), "");
-        CAMPOS_REP[lista].forEach(function(cc){ item(null, "   " + cc[0], it[cc[1]]); });
+        garantir(12);
+        pdf.setFont("helvetica","bold"); pdf.setFontSize(10); pdf.setTextColor(23,90,192);
+        pdf.text(ROT_REP[lista] + " " + (i+1), c.mL, y); pdf.setTextColor(0,0,0); y += 5.4;
+        itens(CAMPOS_REP[lista].map(function(cc){ return [cc[0], it[cc[1]]]; }));
         fotosDoItem(it.fotos, (it.benfeitoria || it.variedade || (ROT_REP[lista]+" "+(i+1))));
+        y += 2;
       });
-    });
-    item(77, "Observações (benfeitoria reprodutiva e pastagem)", g.obsReprodutivas);
+    }
+    ["reprodutivas","pastagem"].forEach(bloco);
+    y += item("Observações (benfeitoria reprodutiva e pastagem)", g.obsReprodutivas);
 
-    ["naoReprodutivas","acessorias"].forEach(function(lista){
-      var arr = f[lista] || []; if(!arr.length) return;
-      titulo(TIT_REP[lista] + "  (itens " + num[lista] + ")");
-      arr.forEach(function(it, i){
-        item(null, ROT_REP[lista] + " " + (i+1), "");
-        CAMPOS_REP[lista].forEach(function(cc){ item(null, "   " + cc[0], it[cc[1]]); });
-        fotosDoItem(it.fotos, (it.benfeitoria || (ROT_REP[lista]+" "+(i+1))));
-      });
-    });
-    item(127, "Observações (benfeitoria não reprodutiva e acessórias)", g.obsNaoReprodutivas);
+    ["naoReprodutivas","acessorias"].forEach(bloco);
+    y += item("Observações (benfeitoria não reprodutiva e acessórias)", g.obsNaoReprodutivas);
 
-    if(f.gps) item(null, "Coordenada do levantamento (GPS)",
+    if(f.gps) y += item("Coordenada do levantamento (GPS)",
                    f.gps.lat.toFixed(6) + ", " + f.gps.lon.toFixed(6) + "  (±" + Math.round(f.gps.precisao) + " m)");
 
     garantir(40);
     y += 6;
-    titulo("128) Assinatura", 11.5);
+    titulo("Responsável pelo levantamento", 11.5);
     if(f.assinatura){
       try{ pdf.addImage(f.assinatura, "PNG", c.mL, y, 62, 22); }catch(e){}
       y += 24;
@@ -16381,7 +16452,12 @@ window.DRL_gerarPDF=async function(opts){
     var c = novoPdf(), pdf = c.pdf;
     var imgE = await carregarImg(window.__LOGO_ENPROL__), imgI = await carregarImg(window.__LOGO_INFRA__);
 
-    var lg = c.RW, alt = lg * 0.60;                 // 2 fotos por página
+    var lg = c.RW, altCel = 92;                     // 2 fotos por página
+    function propRF(src){
+      try{ var q = pdf.getImageProperties(src); if(q && q.width && q.height) return q.height / q.width; }
+      catch(e){}
+      return 0.6;
+    }
     for(var i=0; i<fotos.length; i+=2){
       if(i > 0) pdf.addPage();
       fazCabecalho(c, imgI, imgE);
@@ -16395,9 +16471,12 @@ window.DRL_gerarPDF=async function(opts){
 
       for(var k=0; k<2 && (i+k)<fotos.length; k++){
         var o = fotos[i+k];
-        try{ pdf.addImage(o.p.src, fmtImg(o.p.src), c.mL, y, lg, alt); }catch(e){}
-        pdf.setDrawColor(190,200,212); pdf.setLineWidth(0.2); pdf.rect(c.mL, y, lg, alt);
-        y += alt + 4.6;
+        var r = propRF(o.p.src), w = lg, hh = w * r;
+        if(hh > altCel){ hh = altCel; w = hh / r; }      // retrato: limita pela altura
+        var xf = c.mL + (lg - w) / 2;                     // centraliza
+        try{ pdf.addImage(o.p.src, fmtImg(o.p.src), xf, y, w, hh); }catch(e){}
+        pdf.setDrawColor(190,200,212); pdf.setLineWidth(0.2); pdf.rect(xf, y, w, hh);
+        y += hh + 4.6;
         pdf.setFont("helvetica","normal"); pdf.setFontSize(9.5); pdf.setTextColor(0,0,0);
         var cap = "Foto " + (i+k+1) + ". " + legenda(o);
         var ls = pdf.splitTextToSize(cap, c.RW);
