@@ -1,0 +1,683 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a4d7c">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Ficha de Campo">
+<title>ENPROL · Ficha de Campo</title>
+<link rel="manifest" href="campo.webmanifest">
+<link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAA9zQYyAAACMElEQVR42u3csRGCQBBA0eXGCJuwEyuAWiwAIhuwFjqwE5sgxsDU0NF1ea8C3f1zA4zS9cO0BRTRjABBg6BB0CBoBA2CBkGDoEHQCBoEDYIGQYOgETQIGgQNggZBI2gQNAgaBA2CRtAgaBA0CBoEjaAhv0PmD7cuVxtK6jjOKT9Xl/GF50IWdplLDjH/l2z7aoZDpb01Q6HS/pphUGmPHtsRnkM7nUm6Tyc0TmgQNAgaBI2gQdAgaBA0CBpBg6BB0CBoEDSCBkFDeNHMx5wud9v8gsft7IQWcx3ZZ90MmEozdw2Nm0IQ9E5vUtwYClrUZh27f2wnalxDI2gQNAgaBI2gQdAgaBA0CBpBg6BB0CBoEDThNQbhj5vhN+JOaDGbi6AtzXwEDYJG0G583BgK2tLMJTy2szyc0CBoBA2CBkGDoEHQCBoEDYIGQYOgETQIGgQN4TUGxK5/S+41BpSan9cYUGqOrqFxUwiCdkNjjoIWtfmF1xjgkgMEDYIGQYOgETQIGgQNggZBI2gQNAgaBA2CJrzGIPzJM/y22wktZt9H0JYvakGDoBG0GyjfS9CW7/uEx3YiwDU0CBpBg6BB0CBoBG0ECBoE/d5xnG2hkF/v0wmNE9opTdY9NsOg0v6aoVBpb81wqLSvrh+mLeuw1uWqGCHXCRo8tkPQIGgQNAgaBI2gQdAgaBA0CBpBg6BB0CBoEDSCBkGDoEHQIGgEDYIGQYOgQdAIGgQNggZBw8sTc2RyeyprUPUAAAAASUVORK5CYII=">
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;}
+body{
+  font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  background:#e7edf3; color:#243447;
+  padding-bottom:env(safe-area-inset-bottom);
+  -webkit-text-size-adjust:100%;
+}
+/* ---------- topo ---------- */
+.top{
+  position:sticky; top:0; z-index:50; background:#0a4d7c; color:#fff;
+  padding:calc(10px + env(safe-area-inset-top)) 14px 10px;
+  box-shadow:0 2px 10px rgba(10,40,70,.25);
+}
+.top h1{margin:0;font-size:16px;font-weight:700;letter-spacing:.2px;display:flex;align-items:center;gap:8px;}
+.top .sub{font-size:12px;opacity:.82;margin-top:2px;}
+.badge-off{font-size:10.5px;background:#c23b34;padding:2px 7px;border-radius:20px;font-weight:700;letter-spacing:.3px;}
+.badge-on{font-size:10.5px;background:#178a3a;padding:2px 7px;border-radius:20px;font-weight:700;letter-spacing:.3px;}
+.prog{height:4px;background:rgba(255,255,255,.22);border-radius:3px;margin-top:8px;overflow:hidden;}
+.prog i{display:block;height:100%;background:#5fd08a;width:0;transition:width .25s;}
+
+/* ---------- seletor de fichas ---------- */
+.fichas{display:flex;gap:6px;overflow-x:auto;padding:8px 10px;background:#d8e3ec;border-bottom:1px solid #c3ccd6;-webkit-overflow-scrolling:touch;}
+.fichas button{
+  flex:0 0 auto;border:1px solid #b6c4d2;background:#fff;color:#243447;border-radius:20px;
+  padding:7px 13px;font:600 13px/1 inherit;white-space:nowrap;
+}
+.fichas button.on{background:#1F6FC0;border-color:#1F6FC0;color:#fff;}
+.fichas button.nova{border-style:dashed;color:#175a9f;font-weight:700;}
+
+/* ---------- seções ---------- */
+main{padding:10px 10px 130px;max-width:820px;margin:0 auto;}
+.sec{background:#fff;border:1px solid #d3dce5;border-radius:12px;margin-bottom:10px;overflow:hidden;}
+.sec>h2{
+  margin:0;padding:13px 14px;font-size:14.5px;font-weight:700;color:#0a4d7c;
+  display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;background:#f4f8fb;
+}
+.sec>h2 .cnt{font-size:11px;font-weight:600;color:#5a6b7c;background:#e7edf3;border-radius:20px;padding:2px 8px;}
+.sec>h2 .chev{transition:transform .2s;color:#6b7c8d;font-size:12px;}
+.sec.fechada>h2 .chev{transform:rotate(-90deg);}
+.sec.fechada .body{display:none;}
+.body{padding:12px 14px 16px;}
+
+/* ---------- campos ---------- */
+.f{margin-bottom:14px;}
+.f>label{display:block;font-size:12.5px;font-weight:700;color:#3d5062;margin-bottom:5px;}
+.f>label .num{display:inline-block;min-width:22px;margin-right:7px;color:#8494a4;font-weight:600;}
+input[type=text],input[type=date],input[type=number],textarea,select{
+  width:100%;border:1px solid #c3ccd6;border-radius:9px;background:#fff;color:#243447;
+  padding:11px 12px;font:15px/1.35 inherit;
+}
+textarea{min-height:74px;resize:vertical;}
+input:focus,textarea:focus,select:focus{outline:2.5px solid #1F6FC0;outline-offset:1px;border-color:#1F6FC0;}
+select{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'><path d='M1 1l5 5 5-5' fill='none' stroke='%236b7c8d' stroke-width='1.8' stroke-linecap='round'/></svg>");background-repeat:no-repeat;background-position:right 12px center;background-size:12px;padding-right:34px;}
+.outro{margin-top:6px;}
+.chips{display:flex;flex-wrap:wrap;gap:6px;}
+.chips label{
+  display:inline-flex;align-items:center;gap:6px;border:1px solid #c3ccd6;background:#fff;
+  border-radius:20px;padding:7px 12px;font-size:13.5px;
+}
+.chips label.on{background:#e8f1fb;border-color:#1F6FC0;color:#175a9f;font-weight:600;}
+.chips input{width:16px;height:16px;margin:0;accent-color:#1F6FC0;}
+
+/* ---------- repetidores ---------- */
+.item{border:1px solid #dde5ed;border-radius:10px;padding:12px;margin-bottom:12px;background:#fafcfe;}
+.item>.cab{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.item>.cab b{font-size:13px;color:#0a4d7c;}
+.rm{border:1px solid #eccac7;background:#fff;color:#b5382a;border-radius:8px;padding:5px 10px;font:600 12px/1 inherit;}
+.add{width:100%;border:1px dashed #9aa7b5;background:transparent;color:#175a9f;border-radius:10px;padding:12px;font:700 13.5px/1 inherit;}
+.add:active{background:#eaf2fb;}
+
+/* ---------- fotos ---------- */
+.fotos{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;margin-top:8px;}
+.fotos .ph{position:relative;aspect-ratio:1;border-radius:9px;overflow:hidden;border:1px solid #c3ccd6;background:#eef3f8;}
+.fotos .ph img{width:100%;height:100%;object-fit:cover;display:block;}
+.fotos .ph .x{
+  position:absolute;top:3px;right:3px;width:24px;height:24px;border:none;border-radius:50%;
+  background:rgba(0,0,0,.6);color:#fff;font:700 14px/1 inherit;display:flex;align-items:center;justify-content:center;
+}
+.fotos .ph .leg{position:absolute;left:0;right:0;bottom:0;background:rgba(10,40,70,.78);color:#fff;border:none;width:100%;font:500 10.5px/1.2 inherit;padding:4px 5px;text-align:left;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.cam{display:flex;gap:8px;margin-top:8px;}
+.cam label{
+  flex:1;display:flex;align-items:center;justify-content:center;gap:7px;
+  border:1px dashed #9aa7b5;border-radius:10px;padding:12px;font:700 13.5px/1 inherit;color:#175a9f;
+}
+.cam label:active{background:#eaf2fb;}
+.cam input{display:none;}
+
+/* ---------- assinatura / gps ---------- */
+#sigWrap{border:1px solid #c3ccd6;border-radius:10px;background:#fff;overflow:hidden;}
+#sig{display:block;width:100%;height:170px;touch-action:none;}
+.gps{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px;color:#3d5062;}
+
+/* ---------- barra inferior ---------- */
+.barra{
+  position:fixed;left:0;right:0;bottom:0;z-index:60;background:#fff;border-top:1px solid #c3ccd6;
+  padding:10px 10px calc(10px + env(safe-area-inset-bottom));display:flex;gap:8px;
+  box-shadow:0 -4px 18px rgba(30,50,80,.12);
+}
+.barra button{flex:1;border:none;border-radius:11px;padding:14px 10px;font:700 14.5px/1 inherit;}
+.b1{background:#e7edf3;color:#3d5062;border:1px solid #c3ccd6 !important;}
+.b2{background:#178a3a;color:#fff;}
+.salvo{position:fixed;left:50%;transform:translateX(-50%);bottom:88px;z-index:70;background:#243447;color:#fff;
+  padding:9px 16px;border-radius:22px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .25s;}
+.salvo.on{opacity:.95;}
+.aviso{background:#fff6e5;border:1px solid #f0d6a0;color:#7a5a12;border-radius:10px;padding:11px 13px;font-size:13px;margin-bottom:10px;}
+.aviso b{color:#6a4d0a;}
+dialog{border:none;border-radius:14px;padding:0;max-width:92vw;width:420px;box-shadow:0 20px 60px rgba(0,0,0,.35);}
+dialog::backdrop{background:rgba(15,35,60,.55);}
+.dlg-h{padding:15px 18px;border-bottom:1px solid #e2e8f0;font-weight:700;color:#0a4d7c;}
+.dlg-b{padding:16px 18px;}
+.dlg-f{padding:12px 18px;border-top:1px solid #e2e8f0;display:flex;gap:8px;justify-content:flex-end;}
+.dlg-f button{border-radius:9px;padding:10px 16px;font:600 14px/1 inherit;border:1px solid #c3ccd6;background:#fff;}
+.dlg-f .pri{background:#1F6FC0;color:#fff;border-color:#1F6FC0;}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <h1>📋 Ficha de Campo <span id="net" class="badge-on">online</span></h1>
+  <div class="sub" id="subtit">ENPROL · Vistoria de Avaliação</div>
+  <div class="prog"><i id="progbar"></i></div>
+</div>
+
+<div class="fichas" id="fichas"></div>
+
+<main>
+  <div class="aviso" id="avisoPrimeiro" style="display:none;">
+    <b>Funciona sem internet.</b> Toque em <b>Compartilhar → Adicionar à Tela de Início</b> (iPhone)
+    ou no menu <b>⋮ → Instalar aplicativo</b> (Android). Depois disso a ficha abre e salva mesmo sem sinal.
+  </div>
+  <div id="form"></div>
+</main>
+
+<div class="barra">
+  <button class="b1" type="button" onclick="menuMais()">⋯ Mais</button>
+  <button class="b2" type="button" onclick="enviar()">📤 Enviar ficha</button>
+</div>
+<div class="salvo" id="salvo">salvo</div>
+
+<dialog id="dlg">
+  <div class="dlg-h" id="dlgH">Mais opções</div>
+  <div class="dlg-b" id="dlgB"></div>
+  <div class="dlg-f"><button type="button" onclick="document.getElementById('dlg').close()">Fechar</button></div>
+</dialog>
+
+<script>
+"use strict";
+/* =========================================================================
+   ENPROL — Ficha de Campo (offline)
+   Coleta em campo, sem internet. Os dados voltam para o escritório num
+   arquivo .json que a aba "Ficha de Campo" do site importa.
+   ========================================================================= */
+
+var SIM_NAO = ["Não", "Sim"];
+var FITO     = ["Ótimo", "Bom", "Regular", "Ruim"];
+
+/* --- esquema do formulário: espelha a Ficha de Campo (itens 1 a 128) --- */
+var SECOES = [
+  { id:"ident", t:"1 · Identificação", campos:[
+    {k:"processo",      n:1, l:"Nº do processo",                  t:"text", ph:"CTD 001"},
+    {k:"lote",          n:2, l:"Lote",                            t:"text", ph:"SPS-04"},
+    {k:"dataVistoria",  n:3, l:"Data da vistoria",                t:"date"},
+    {k:"proprietarios", n:4, l:"Proprietário(s)/Posseiro(s) — nome(s)", t:"ta"},
+    {k:"locacaoKm",     n:5, l:"Locação (km)",                    t:"text", ph:"Ex.: 05 km de Custódia-PE"},
+    {k:"municipio",     n:6, l:"Município",                       t:"text", ph:"Custódia-PE"},
+    {k:"localidade",    n:7, l:"Localidade",                      t:"text", ph:"Sítio Fazendinha"}
+  ]},
+  { id:"carac", t:"2 · Caracterização do imóvel", campos:[
+    {k:"descricaoImovel", n:8,  l:"Descrição do imóvel", t:"ta"},
+    {k:"atividadePrincipal", n:9, l:"Atividade principal", t:"sel",
+      o:["Agrícola","Pecuária","Mista","Residencial","Extrativista","Sem atividade"]},
+    {k:"hidrografia", n:10, l:"Hidrografia", t:"multi",
+      o:["Açude","Barreiro","Cacimba","Córrego","Lagoa","Nascente","Poço artesiano","Riacho","Rio","Tanque","Não há"]},
+    {k:"vazao", n:11, l:"Vazão", t:"text"},
+    {k:"restricoesAmbientais", n:12, l:"Restrições ambientais", t:"sel", o:SIM_NAO},
+    {k:"riscoInundacao",       n:13, l:"Risco de inundação",     t:"sel", o:SIM_NAO},
+    {k:"erosoes",              n:14, l:"Erosões",                t:"sel", o:SIM_NAO},
+    {k:"usosPredominantes", n:15, l:"Usos predominantes", t:"multi",
+      o:["Residencial unifamiliar","Residencial multifamiliar","Comercial","Industrial","Institucional","Rural","Misto"]},
+    {k:"infraestrutura", n:16, l:"Infraestrutura disponível", t:"multi",
+      o:["Água","Energia elétrica","Iluminação pública","Esgoto","Telefonia","Internet","Coleta de lixo","Pavimentação","Nenhuma"]},
+    {k:"servicosPublicos", n:17, l:"Serviços públicos e comunitários", t:"multi",
+      o:["Escola","Saúde","Transporte","Segurança","Correio","Igreja","Comércio","Nenhum"]},
+    {k:"tipoEstrada", n:18, l:"Tipo de estrada", t:"sel",
+      o:["Pavimentada","Não pavimentada","Parcialmente pavimentada"]},
+    {k:"condicoesAcesso", n:19, l:"Condições de acesso", t:"sel",
+      o:["Livre","Fecho de servidão","Porteira","Servidão de passagem","Restrito"]},
+    {k:"importanciaDistancias", n:20, l:"Importância das distâncias", t:"sel",
+      o:["Irrelevante","Limitada","Relevante","Determinante"]},
+    {k:"praticabilidade", n:21, l:"Praticabilidade durante o ano", t:"sel",
+      o:["Permanente","Sazonal","Precária"]},
+    {k:"informacoesComplementares", n:22, l:"Informações complementares", t:"ta"}
+  ]},
+  { id:"fotosger", t:"3 · Fotos gerais e acesso", galerias:[
+    {k:"fotosImovel", n:"23-25", l:"Fotos do imóvel (gerais)"},
+    {k:"fotosAcesso", n:"26-27", l:"Fotos do acesso"}
+  ]},
+  { id:"repro", t:"4 · Benfeitorias reprodutivas", rep:{
+    lista:"reprodutivas", rot:"Item", n:"28-62", campos:[
+      {k:"benfeitoria",    l:"Benfeitoria (reprodutiva)", t:"text", ph:"Ex.: Imbuzeiro"},
+      {k:"quantidade",     l:"Quantidade", t:"text"},
+      {k:"fitossanitario", l:"Estado fitossanitário", t:"sel", o:FITO},
+      {k:"idade",          l:"Idade (anos)", t:"text"},
+      {k:"produtividade",  l:"Condição de produtividade", t:"sel", o:["Produtiva","Improdutiva","Em formação"]}
+    ]}},
+  { id:"past", t:"5 · Pastagem", rep:{
+    lista:"pastagem", rot:"Pastagem", n:"63-76", campos:[
+      {k:"variedade",      l:"Variedade", t:"ta"},
+      {k:"ervasInvasoras", l:"Ervas invasoras", t:"sel", o:SIM_NAO},
+      {k:"fitossanitario", l:"Fitossanitário", t:"sel", o:FITO},
+      {k:"erosao",         l:"Erosão", t:"sel", o:SIM_NAO},
+      {k:"falhasFormacao", l:"Falhas na formação", t:"sel", o:SIM_NAO}
+    ]}},
+  { id:"obs1", t:"6 · Observações (reprodutiva e pastagem)", campos:[
+    {k:"obsReprodutivas", n:77, l:"Observações", t:"ta"}
+  ]},
+  { id:"naorepro", t:"7 · Benfeitorias não reprodutivas", rep:{
+    lista:"naoReprodutivas", rot:"Item", n:"78-112", campos:[
+      {k:"benfeitoria",   l:"Benfeitoria (não reprodutiva)", t:"text", ph:"Ex.: Casa / depósito"},
+      {k:"quantidade",    l:"Quantidade", t:"text"},
+      {k:"unidade",       l:"Unidade", t:"ta", ph:"Ex.: Casa · m² · metros lineares"},
+      {k:"idadeAparente", l:"Idade aparente (anos)", t:"text"},
+      {k:"vidaUtil",      l:"Vida útil (anos)", t:"text"}
+    ]}},
+  { id:"acess", t:"8 · Benfeitorias acessórias", rep:{
+    lista:"acessorias", rot:"Acessória", n:"113-126", campos:[
+      {k:"benfeitoria",   l:"Benfeitoria", t:"text"},
+      {k:"quantidade",    l:"Quantidade", t:"text"},
+      {k:"unidade",       l:"Unidade", t:"ta"},
+      {k:"idadeAparente", l:"Idade aparente (anos)", t:"text"},
+      {k:"vidaUtil",      l:"Vida útil (anos)", t:"text"}
+    ]}},
+  { id:"obs2", t:"9 · Observações (não reprodutiva e acessórias)", campos:[
+    {k:"obsNaoReprodutivas", n:127, l:"Observações", t:"ta"}
+  ]},
+  { id:"fim", t:"10 · Responsável e assinatura", fim:true }
+];
+
+/* ---------------- estado ---------------- */
+var CHAVE = "enprol_ficha_campo_v1";
+var ST = { fichas: [], atual: null, fechadas: {} };
+
+function novaFicha(){
+  return {
+    id: "f" + Date.now() + Math.random().toString(36).slice(2,6),
+    criadaEm: new Date().toISOString(),
+    geral: {}, fotosImovel: [], fotosAcesso: [],
+    reprodutivas: [], pastagem: [], naoReprodutivas: [], acessorias: [],
+    tecnico: { nome:"", documento:"" }, assinatura: "",
+    gps: null
+  };
+}
+function atual(){ return ST.fichas.filter(function(f){ return f.id===ST.atual; })[0] || null; }
+
+function carregar(){
+  try{
+    var raw = localStorage.getItem(CHAVE);
+    if(raw){ var o = JSON.parse(raw); if(o && Array.isArray(o.fichas)) ST = o; }
+  }catch(e){ console.warn("sem localStorage", e); }
+  if(!ST.fichas.length){ var f = novaFicha(); ST.fichas.push(f); ST.atual = f.id; }
+  if(!atual()) ST.atual = ST.fichas[0].id;
+  if(!ST.fechadas) ST.fechadas = {};
+}
+var _tSalvar = null;
+function salvar(quieto){
+  clearTimeout(_tSalvar);
+  _tSalvar = setTimeout(function(){
+    try{
+      localStorage.setItem(CHAVE, JSON.stringify(ST));
+      if(!quieto) flash("salvo no celular");
+    }catch(e){
+      flash("⚠ não consegui salvar — envie a ficha agora");
+    }
+    progresso();
+  }, 250);
+}
+function flash(txt){
+  var el = document.getElementById("salvo");
+  el.textContent = txt; el.classList.add("on");
+  clearTimeout(el._t); el._t = setTimeout(function(){ el.classList.remove("on"); }, 1600);
+}
+
+/* ---------------- helpers ---------------- */
+function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){ return ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]; }); }
+function porCaminho(f, cam){
+  // cam: "geral.municipio" | "reprodutivas.2.benfeitoria" | "tecnico.nome"
+  var p = cam.split("."), o = f;
+  for(var i=0;i<p.length-1;i++){ if(o[p[i]]==null) o[p[i]] = /^\d+$/.test(p[i+1]) ? [] : {}; o = o[p[i]]; }
+  return { o:o, ult:p[p.length-1] };
+}
+function getv(f, cam){ var r = porCaminho(f, cam); return r.o[r.ult]; }
+function setv(f, cam, v){ var r = porCaminho(f, cam); r.o[r.ult] = v; }
+
+/* ---------------- render ---------------- */
+function campoHTML(cam, c){
+  var f = atual(), v = getv(f, cam);
+  var lab = '<label>' + (c.n?'<span class="num">'+c.n+'</span>':'') + esc(c.l) + '</label>';
+  var h = '';
+  if(c.t === "text" || c.t === "date"){
+    h = '<input type="'+(c.t==="date"?"date":"text")+'" value="'+esc(v||"")+'" placeholder="'+esc(c.ph||"")+'" oninput="upd(this,\''+cam+'\')">';
+  } else if(c.t === "ta"){
+    h = '<textarea placeholder="'+esc(c.ph||"")+'" oninput="upd(this,\''+cam+'\')">'+esc(v||"")+'</textarea>';
+  } else if(c.t === "sel"){
+    var achou = c.o.indexOf(v||"") >= 0, outro = !achou && v;
+    h = '<select onchange="updSel(this,\''+cam+'\')"><option value="">— selecione —</option>';
+    c.o.forEach(function(op){ h += '<option'+(op===v?' selected':'')+'>'+esc(op)+'</option>'; });
+    h += '<option value="__o"'+(outro?' selected':'')+'>Outro…</option></select>';
+    h += '<div class="outro"'+(outro?'':' style="display:none"')+'><input type="text" placeholder="Digite a opção" value="'+esc(outro?v:"")+'" oninput="upd(this,\''+cam+'\')"></div>';
+  } else if(c.t === "multi"){
+    var arr = Array.isArray(v) ? v : (v ? [v] : []);
+    h = '<div class="chips">';
+    c.o.forEach(function(op){
+      var on = arr.indexOf(op) >= 0;
+      h += '<label class="'+(on?"on":"")+'"><input type="checkbox"'+(on?" checked":"")+' onchange="updMulti(this,\''+cam+'\',\''+esc(op).replace(/'/g,"&#39;")+'\')"><span>'+esc(op)+'</span></label>';
+    });
+    h += '</div>';
+    var extras = arr.filter(function(x){ return c.o.indexOf(x) < 0; });
+    h += '<div class="outro"><input type="text" placeholder="Outro (separe por vírgula)" value="'+esc(extras.join(", "))+'" oninput="updMultiOutro(this,\''+cam+'\')"></div>';
+  }
+  return '<div class="f">' + lab + h + '</div>';
+}
+
+function galeriaHTML(cam, titulo, num){
+  var f = atual(), arr = getv(f, cam) || [];
+  var h = '<div class="f"><label>'+(num?'<span class="num">'+num+'</span>':'')+esc(titulo)+' <span style="color:#8494a4;font-weight:600">('+arr.length+')</span></label>';
+  if(arr.length){
+    h += '<div class="fotos">';
+    arr.forEach(function(p, i){
+      h += '<div class="ph"><img src="'+p.src+'" alt=""><button class="x" type="button" onclick="rmFoto(\''+cam+'\','+i+')">×</button>'
+         + '<button class="leg" type="button" onclick="legFoto(\''+cam+'\','+i+')">'+(p.leg?esc(p.leg):"+ legenda")+'</button></div>';
+    });
+    h += '</div>';
+  }
+  h += '<div class="cam">'
+     + '<label>📷 Câmera<input type="file" accept="image/*" capture="environment" multiple onchange="addFoto(this,\''+cam+'\')"></label>'
+     + '<label>🖼️ Galeria<input type="file" accept="image/*" multiple onchange="addFoto(this,\''+cam+'\')"></label>'
+     + '</div></div>';
+  return h;
+}
+
+function repHTML(sec){
+  var r = sec.rep, f = atual(), arr = getv(f, r.lista) || [];
+  var h = '';
+  arr.forEach(function(it, i){
+    h += '<div class="item"><div class="cab"><b>'+esc(r.rot)+' '+(i+1)+'</b>'
+       + '<button class="rm" type="button" onclick="rmItem(\''+r.lista+'\','+i+')">Remover</button></div>';
+    r.campos.forEach(function(c){ h += campoHTML(r.lista+"."+i+"."+c.k, c); });
+    h += galeriaHTML(r.lista+"."+i+".fotos", "Fotos");
+    h += '</div>';
+  });
+  h += '<button class="add" type="button" onclick="addItem(\''+r.lista+'\')">+ Adicionar '+esc(r.rot.toLowerCase())+'</button>';
+  return h;
+}
+
+function fimHTML(){
+  var f = atual();
+  var h = campoHTML("tecnico.nome", {l:"Nome do técnico", t:"text"})
+        + campoHTML("tecnico.documento", {l:"CPF/Documento", t:"text"})
+        + '<div class="f"><label><span class="num">128</span>Assinatura</label>'
+        + '<div id="sigWrap"><canvas id="sig"></canvas></div>'
+        + '<div class="cam"><label style="cursor:pointer" onclick="limparSig()">🧹 Limpar assinatura</label></div></div>'
+        + '<div class="f"><label>Localização (GPS)</label><div class="gps">'
+        + '<button class="add" type="button" style="width:auto;padding:10px 14px" onclick="pegarGPS()">📍 Capturar coordenada</button>'
+        + '<span id="gpsTxt">' + (f.gps ? (f.gps.lat.toFixed(6)+", "+f.gps.lon.toFixed(6)+" (±"+Math.round(f.gps.precisao)+" m)") : "—") + '</span>'
+        + '</div></div>';
+  return h;
+}
+
+function render(){
+  var f = atual();
+  if(!f){ return; }
+  // abas de fichas
+  var fh = "";
+  ST.fichas.forEach(function(x){
+    var nome = (x.geral && x.geral.processo) ? x.geral.processo : "Nova ficha";
+    fh += '<button type="button" class="'+(x.id===ST.atual?"on":"")+'" onclick="trocar(\''+x.id+'\')">'+esc(nome)+'</button>';
+  });
+  fh += '<button type="button" class="nova" onclick="addFicha()">+ ficha</button>';
+  document.getElementById("fichas").innerHTML = fh;
+  document.getElementById("subtit").textContent =
+    "ENPROL · " + ((f.geral && f.geral.municipio) ? f.geral.municipio : "Vistoria de Avaliação");
+
+  var h = "";
+  SECOES.forEach(function(s){
+    var fechada = ST.fechadas[s.id] ? " fechada" : "";
+    var cnt = "";
+    if(s.rep){ cnt = '<span class="cnt">'+((getv(f, s.rep.lista)||[]).length)+'</span>'; }
+    if(s.galerias){
+      var tot = 0; s.galerias.forEach(function(g){ tot += (getv(f,g.k)||[]).length; });
+      cnt = '<span class="cnt">'+tot+'</span>';
+    }
+    h += '<section class="sec'+fechada+'" id="sec-'+s.id+'">'
+       + '<h2 onclick="dobra(\''+s.id+'\')"><span>'+esc(s.t)+'</span><span style="display:flex;gap:8px;align-items:center">'+cnt+'<span class="chev">▾</span></span></h2>'
+       + '<div class="body">';
+    if(s.campos)   s.campos.forEach(function(c){ h += campoHTML((s.id==="fim"?"":"geral.")+c.k, c); });
+    if(s.galerias) s.galerias.forEach(function(g){ h += galeriaHTML(g.k, g.l, g.n); });
+    if(s.rep)      h += repHTML(s);
+    if(s.fim)      h += fimHTML();
+    h += '</div></section>';
+  });
+  document.getElementById("form").innerHTML = h;
+  if(!ST.fechadas["fim"]) montarSig();
+  progresso();
+}
+
+function dobra(id){ ST.fechadas[id] = !ST.fechadas[id]; salvar(true); render(); }
+
+/* ---------------- edição ---------------- */
+function upd(el, cam){ setv(atual(), cam, el.value); salvar(true); tituloTalvez(cam); }
+function updSel(el, cam){
+  var box = el.parentNode.querySelector(".outro");
+  if(el.value === "__o"){ box.style.display = ""; setv(atual(), cam, box.querySelector("input").value || ""); box.querySelector("input").focus(); }
+  else { box.style.display = "none"; setv(atual(), cam, el.value); }
+  salvar(true);
+}
+function updMulti(el, cam, op){
+  var f = atual(), arr = getv(f, cam); if(!Array.isArray(arr)) arr = [];
+  var i = arr.indexOf(op);
+  if(el.checked && i < 0) arr.push(op);
+  if(!el.checked && i >= 0) arr.splice(i,1);
+  setv(f, cam, arr);
+  el.parentNode.classList.toggle("on", el.checked);
+  salvar(true);
+}
+function updMultiOutro(el, cam){
+  var f = atual(), arr = (getv(f, cam)||[]).filter(function(x){ return true; });
+  // mantém só os que vieram das opções (os marcados) e junta os digitados
+  var sec = el.closest(".f"), marcados = [];
+  sec.querySelectorAll(".chips input:checked").forEach(function(cb){ marcados.push(cb.nextElementSibling.textContent); });
+  var extras = el.value.split(",").map(function(s){ return s.trim(); }).filter(function(s){ return s; });
+  setv(f, cam, marcados.concat(extras));
+  salvar(true);
+}
+function tituloTalvez(cam){
+  if(cam === "geral.processo" || cam === "geral.municipio"){
+    var f = atual();
+    document.getElementById("subtit").textContent = "ENPROL · " + ((f.geral&&f.geral.municipio)||"Vistoria de Avaliação");
+    var b = document.querySelector("#fichas button.on");
+    if(b) b.textContent = (f.geral && f.geral.processo) ? f.geral.processo : "Nova ficha";
+  }
+}
+function addItem(lista){
+  var f = atual(), arr = getv(f, lista); if(!Array.isArray(arr)){ arr = []; setv(f, lista, arr); }
+  arr.push({ fotos: [] }); salvar(true); render();
+}
+function rmItem(lista, i){
+  if(!confirm("Remover este item?")) return;
+  var arr = getv(atual(), lista); arr.splice(i,1); salvar(true); render();
+}
+function addFicha(){ var f = novaFicha(); ST.fichas.push(f); ST.atual = f.id; salvar(true); render(); window.scrollTo(0,0); }
+function trocar(id){ ST.atual = id; salvar(true); render(); window.scrollTo(0,0); }
+
+/* ---------------- fotos ---------------- */
+function comprimir(file, maxLado, q){
+  return new Promise(function(res, rej){
+    var fr = new FileReader();
+    fr.onload = function(){
+      var img = new Image();
+      img.onload = function(){
+        var w = img.width, h = img.height, esc = Math.min(1, maxLado / Math.max(w,h));
+        var cv = document.createElement("canvas");
+        cv.width = Math.round(w*esc); cv.height = Math.round(h*esc);
+        var cx = cv.getContext("2d");
+        cx.fillStyle = "#fff"; cx.fillRect(0,0,cv.width,cv.height);
+        cx.drawImage(img, 0, 0, cv.width, cv.height);
+        res(cv.toDataURL("image/jpeg", q));
+      };
+      img.onerror = rej; img.src = fr.result;
+    };
+    fr.onerror = rej; fr.readAsDataURL(file);
+  });
+}
+function addFoto(input, cam){
+  var files = Array.prototype.slice.call(input.files || []);
+  if(!files.length) return;
+  flash("processando " + files.length + " foto(s)…");
+  var f = atual(), arr = getv(f, cam); if(!Array.isArray(arr)){ arr = []; setv(f, cam, arr); }
+  Promise.all(files.map(function(file){ return comprimir(file, 1280, 0.7).catch(function(){ return null; }); }))
+    .then(function(srcs){
+      srcs.forEach(function(s){ if(s) arr.push({ src:s, leg:"", em:new Date().toISOString() }); });
+      input.value = "";
+      salvar(); render();
+    });
+}
+function rmFoto(cam, i){
+  if(!confirm("Remover esta foto?")) return;
+  var arr = getv(atual(), cam); arr.splice(i,1); salvar(true); render();
+}
+function legFoto(cam, i){
+  var arr = getv(atual(), cam);
+  var v = prompt("Legenda da foto (sai no Relatório Fotográfico):", arr[i].leg || "");
+  if(v === null) return;
+  arr[i].leg = v.trim(); salvar(true); render();
+}
+
+/* ---------------- assinatura ---------------- */
+function montarSig(){
+  var cv = document.getElementById("sig"); if(!cv) return;
+  var f = atual();
+  var r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  cv.width = Math.round(r.width*dpr); cv.height = Math.round(170*dpr);
+  var cx = cv.getContext("2d");
+  cx.scale(dpr, dpr); cx.lineWidth = 2.2; cx.lineCap = "round"; cx.lineJoin = "round"; cx.strokeStyle = "#16324d";
+  cx.fillStyle = "#fff"; cx.fillRect(0,0,r.width,170);
+  if(f.assinatura){ var im = new Image(); im.onload = function(){ cx.drawImage(im, 0, 0, r.width, 170); }; im.src = f.assinatura; }
+  var desenhando = false, ult = null;
+  function pos(e){ var b = cv.getBoundingClientRect(); var p = e.touches ? e.touches[0] : e; return { x:p.clientX-b.left, y:p.clientY-b.top }; }
+  function ini(e){ e.preventDefault(); desenhando = true; ult = pos(e); }
+  function mov(e){ if(!desenhando) return; e.preventDefault(); var p = pos(e); cx.beginPath(); cx.moveTo(ult.x, ult.y); cx.lineTo(p.x, p.y); cx.stroke(); ult = p; }
+  function fim(){ if(!desenhando) return; desenhando = false; atual().assinatura = cv.toDataURL("image/png"); salvar(true); }
+  cv.addEventListener("pointerdown", ini); cv.addEventListener("pointermove", mov);
+  cv.addEventListener("pointerup", fim);   cv.addEventListener("pointerleave", fim);
+  cv.addEventListener("pointercancel", fim);
+}
+function limparSig(){
+  var cv = document.getElementById("sig"); if(!cv) return;
+  var cx = cv.getContext("2d"), r = cv.getBoundingClientRect();
+  cx.fillStyle = "#fff"; cx.fillRect(0,0,r.width,170);
+  atual().assinatura = ""; salvar(true);
+}
+
+/* ---------------- GPS ---------------- */
+function pegarGPS(){
+  if(!navigator.geolocation){ alert("Este celular não tem GPS disponível no navegador."); return; }
+  flash("buscando GPS…");
+  navigator.geolocation.getCurrentPosition(function(p){
+    atual().gps = { lat:p.coords.latitude, lon:p.coords.longitude, precisao:p.coords.accuracy, quando:new Date().toISOString() };
+    salvar(true);
+    var el = document.getElementById("gpsTxt");
+    if(el) el.textContent = p.coords.latitude.toFixed(6)+", "+p.coords.longitude.toFixed(6)+" (±"+Math.round(p.coords.accuracy)+" m)";
+    flash("coordenada capturada");
+  }, function(err){
+    alert("Não consegui pegar a coordenada: " + err.message + "\n\nConfira se o GPS do celular está ligado.");
+  }, { enableHighAccuracy:true, timeout:20000, maximumAge:0 });
+}
+
+/* ---------------- progresso ---------------- */
+function progresso(){
+  var f = atual(); if(!f) return;
+  var total = 0, ok = 0;
+  SECOES.forEach(function(s){
+    if(s.campos) s.campos.forEach(function(c){
+      if(s.id === "fim") return;
+      total++;
+      var v = getv(f, "geral."+c.k);
+      if(Array.isArray(v) ? v.length : (v!=null && String(v).trim())) ok++;
+    });
+  });
+  total += 2;
+  if((f.fotosImovel||[]).length) ok++;
+  if((f.reprodutivas||[]).length + (f.naoReprodutivas||[]).length) ok++;
+  var pc = total ? Math.round(ok/total*100) : 0;
+  document.getElementById("progbar").style.width = pc + "%";
+}
+
+/* ---------------- exportar / enviar ---------------- */
+function pacote(f){
+  return {
+    _app: "ENPROL-FichaCampo", _v: 1,
+    _geradoEm: new Date().toISOString(),
+    id: f.id, criadaEm: f.criadaEm,
+    geral: f.geral || {},
+    fotosImovel: f.fotosImovel || [], fotosAcesso: f.fotosAcesso || [],
+    reprodutivas: f.reprodutivas || [], pastagem: f.pastagem || [],
+    naoReprodutivas: f.naoReprodutivas || [], acessorias: f.acessorias || [],
+    tecnico: f.tecnico || {}, assinatura: f.assinatura || "", gps: f.gps || null
+  };
+}
+function nomeArq(f){
+  var p = ((f.geral && f.geral.processo) || "ficha").replace(/[\\/:*?"<>|]+/g, "-").trim().replace(/\s+/g, "_");
+  var d = (f.geral && f.geral.dataVistoria) || new Date().toISOString().slice(0,10);
+  return "FichaCampo_" + p + "_" + d + ".json";
+}
+function enviar(){
+  var f = atual(); if(!f) return;
+  var json = JSON.stringify(pacote(f));
+  var nome = nomeArq(f);
+  var blob = new Blob([json], { type:"application/json" });
+  var file = null;
+  try { file = new File([blob], nome, { type:"application/json" }); } catch(e){}
+  var mb = (blob.size/1048576).toFixed(1);
+
+  if(file && navigator.canShare && navigator.canShare({ files:[file] })){
+    navigator.share({ files:[file], title:"Ficha de Campo", text:"Ficha de Campo — " + ((f.geral&&f.geral.processo)||"") })
+      .then(function(){ flash("ficha enviada ("+mb+" MB)"); })
+      .catch(function(err){ if(err && err.name !== "AbortError") baixar(blob, nome, mb); });
+    return;
+  }
+  baixar(blob, nome, mb);
+}
+function baixar(blob, nome, mb){
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement("a");
+  a.href = url; a.download = nome; document.body.appendChild(a); a.click();
+  setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 1500);
+  flash("arquivo salvo ("+mb+" MB) — mande no WhatsApp");
+}
+
+/* ---------------- menu "Mais" ---------------- */
+function menuMais(){
+  var f = atual();
+  var tam = "—";
+  try { tam = (new Blob([JSON.stringify(pacote(f))]).size/1048576).toFixed(1) + " MB"; } catch(e){}
+  var nf = ST.fichas.length;
+  document.getElementById("dlgB").innerHTML =
+      '<p style="margin:0 0 12px;font-size:13.5px;color:#5a6b7c;">Ficha atual: <b>'
+      + esc((f.geral&&f.geral.processo)||"sem nº") + '</b> · ' + tam + ' · ' + nf + ' ficha(s) no celular.</p>'
+    + '<button class="add" type="button" style="margin-bottom:8px" onclick="abrirArquivo()">📂 Abrir ficha de um arquivo</button>'
+    + '<button class="add" type="button" style="margin-bottom:8px" onclick="enviar()">📤 Enviar / salvar esta ficha</button>'
+    + '<button class="add" type="button" style="margin-bottom:8px;border-color:#eccac7;color:#b5382a" onclick="apagarFicha()">🗑️ Apagar esta ficha do celular</button>'
+    + '<input type="file" accept=".json,application/json" id="impFile" style="display:none" onchange="impArquivo(this)">';
+  document.getElementById("dlg").showModal();
+}
+function abrirArquivo(){ document.getElementById("impFile").click(); }
+function impArquivo(input){
+  var file = input.files && input.files[0]; if(!file) return;
+  var fr = new FileReader();
+  fr.onload = function(){
+    try{
+      var o = JSON.parse(fr.result);
+      if(!o || o._app !== "ENPROL-FichaCampo") throw new Error("Não é uma ficha de campo.");
+      var nf = novaFicha();
+      ["geral","fotosImovel","fotosAcesso","reprodutivas","pastagem","naoReprodutivas","acessorias","tecnico","assinatura","gps"]
+        .forEach(function(k){ if(o[k] != null) nf[k] = o[k]; });
+      ST.fichas.push(nf); ST.atual = nf.id; salvar(true);
+      document.getElementById("dlg").close(); render(); window.scrollTo(0,0);
+      flash("ficha carregada");
+    }catch(e){ alert("Não consegui ler o arquivo: " + e.message); }
+  };
+  fr.readAsText(file);
+}
+function apagarFicha(){
+  if(!confirm("Apagar esta ficha do celular? Se ainda não enviou, os dados serão perdidos.")) return;
+  ST.fichas = ST.fichas.filter(function(x){ return x.id !== ST.atual; });
+  if(!ST.fichas.length){ var f = novaFicha(); ST.fichas.push(f); }
+  ST.atual = ST.fichas[0].id;
+  salvar(true); document.getElementById("dlg").close(); render();
+}
+
+/* ---------------- rede / service worker ---------------- */
+function net(){
+  var el = document.getElementById("net");
+  if(navigator.onLine){ el.className = "badge-on"; el.textContent = "online"; }
+  else { el.className = "badge-off"; el.textContent = "offline"; }
+}
+window.addEventListener("online", net); window.addEventListener("offline", net);
+
+if("serviceWorker" in navigator){
+  window.addEventListener("load", function(){
+    navigator.serviceWorker.register("campo-sw.js").catch(function(e){ console.warn("SW:", e); });
+  });
+}
+window.addEventListener("beforeunload", function(e){
+  try{ localStorage.setItem(CHAVE, JSON.stringify(ST)); }catch(err){}
+});
+
+/* ---------------- início ---------------- */
+carregar(); net(); render();
+try{
+  if(!localStorage.getItem(CHAVE + "_visto")){
+    document.getElementById("avisoPrimeiro").style.display = "";
+    localStorage.setItem(CHAVE + "_visto", "1");
+  }
+}catch(e){ document.getElementById("avisoPrimeiro").style.display = ""; }
+</script>
+</body>
+</html>

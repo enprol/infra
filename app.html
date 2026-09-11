@@ -2745,6 +2745,7 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
   <div class="sb-sub" id="sbSub">
     <div class="sb-sub-grupo" data-grupo="desp1">
       <div class="sb-grp">Documentação</div>
+      <button class="sb-link" data-alvo="panel-desp1-campo" onclick="trocarAba(this)">Ficha de Campo — coleta em campo (offline)</button>
       <button class="sb-link ativa" data-alvo="panel-desp1-vist" onclick="trocarAba(this)">Ficha de Vistoria e Cadastro Socioeconômico (Anexo B)</button>
       <button class="sb-link" data-alvo="panel-desp1-drl" onclick="trocarAba(this)">DRL — Declaração de Respeito de Limites</button>
       <button class="sb-link" data-alvo="panel-desp1-rel" onclick="trocarAba(this)">Relatório Técnico de Caracterização Socioeconômica</button>
@@ -4568,6 +4569,67 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 </div>
   </section>
 
+<section class="tab-panel" id="panel-desp1-campo">
+<div class="wrap">
+<h1>Ficha de Campo — coleta em campo (offline)</h1>
+<p class="sub">O técnico preenche a ficha no celular, <b>sem internet</b>, e manda o arquivo. Aqui você importa, confere, gera a Ficha de Campo e o Relatório Fotográfico, e joga os dados para a Ficha de Vistoria.</p>
+
+<div class="vcard">
+  <div class="vsub">1 · Aplicativo de campo (para o técnico)</div>
+  <p class="hint-inline" style="margin-top:0;">Mande este link no WhatsApp do técnico. Ele abre <b>uma vez com internet</b>; depois disso funciona offline, mesmo sem sinal nenhum.</p>
+  <div class="vrow">
+    <div class="vfield grow"><label for="campo_url">Link do aplicativo de campo</label>
+      <input type="text" id="campo_url" value="https://enprol.github.io/infra/campo.html" readonly class="bloqueado"></div>
+  </div>
+  <div class="vactions" style="margin-top:6px;">
+    <button class="vbtn vbtn-ghost vbtn-sm" type="button" onclick="CAMPO_copiarLink()">🔗 Copiar link</button>
+    <a class="vbtn vbtn-ghost vbtn-sm" href="https://enprol.github.io/infra/campo.html" target="_blank" rel="noopener" style="text-decoration:none;">↗ Abrir aplicativo</a>
+  </div>
+  <p class="hint-inline">No celular, mande o técnico tocar em <b>Compartilhar → Adicionar à Tela de Início</b> (iPhone) ou <b>⋮ → Instalar aplicativo</b> (Android). Vira um ícone e abre offline.</p>
+</div>
+
+<div class="vcard">
+  <div class="vsub">2 · Importar a ficha que voltou do campo</div>
+  <label class="img-drop" id="campo_drop" style="display:block;">
+    <span class="ic">📥</span>
+    <span class="t">Clique para escolher o arquivo da ficha de campo</span>
+    <span class="h">Arquivo .json gerado pelo aplicativo de campo</span>
+    <input type="file" accept=".json,application/json" id="campo_file" onchange="CAMPO_importar(this)">
+  </label>
+  <div class="vactions" style="margin-top:8px;">
+    <button class="vbtn vbtn-ghost vbtn-sm" type="button" onclick="CAMPO_limpar()">🗑️ Remover ficha importada</button>
+  </div>
+</div>
+
+<div class="vcard" id="campo_vazio">
+  <p class="hint-inline" style="margin:0;">Nenhuma ficha de campo importada neste cadastro ainda. Importe o arquivo acima para ver o conteúdo, gerar os PDFs e alimentar a Ficha de Vistoria.</p>
+</div>
+
+<div id="campo_conteudo" style="display:none;"></div>
+
+<div class="vcard">
+  <div class="vsub">3 · Relatório Fotográfico — cabeçalho</div>
+  <div class="vrow">
+    <div class="vfield grow"><label for="campo_rf_l2">Linha 2 (empreendimento)<span class="hint-auto"> em branco = usa a Ferrovia do Relatório Técnico</span></label>
+      <input type="text" id="campo_rf_l2" placeholder="Ferrovia Transnordestina – EF-232"></div>
+    <div class="vfield grow"><label for="campo_rf_l3">Linha 3 (identificação)<span class="hint-auto"> em branco = CTD – Lote – Município</span></label>
+      <input type="text" id="campo_rf_l3" placeholder="CTD 001 - CP- SPS-04 – PE"></div>
+  </div>
+</div>
+
+<div class="vcard">
+  <div class="vsub">4 · Gerar e aproveitar</div>
+  <div class="vactions">
+    <button class="vbtn" type="button" onclick="CAMPO_pdfFicha()">📄 PDF — Ficha de Campo</button>
+    <button class="vbtn" type="button" onclick="CAMPO_pdfFotos()">📄 PDF — Relatório Fotográfico</button>
+    <button class="vbtn vbtn-ghost" type="button" onclick="CAMPO_paraFicha()">↧ Enviar dados para a Ficha de Vistoria</button>
+  </div>
+  <p class="hint-inline">O envio para a Ficha de Vistoria preenche proprietário, município/UF, data, o resumo das benfeitorias (3.1.1 e 3.2.1) e acrescenta as fotografias em 5.3 — mostrando antes o que vai ser escrito.</p>
+</div>
+
+</div>
+</section>
+
 <section class="tab-panel ativa" id="panel-desp1-vist">
 <div class="wrap">
 <h1>Ficha de Vistoria e Cadastro Socioeconômico (Anexo B)</h1>
@@ -4787,6 +4849,79 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
     #panel-desp1-parecer .par-fixo .as{text-align:center; margin-top:10px;}
     #panel-desp1-parecer .par-fixo .as b{display:block;}
     #panel-desp1-parecer .par-idwrap{margin-top:12px; padding-top:12px; border-top:1px dashed var(--borda);}
+
+    /* --- Ficha de Campo (DESP 1): base visual (mesmo padrão das outras abas) --- */
+    #panel-desp1-campo{
+      --azul:#1F6FC0; --azul-esc:#175a9f; --azul-inf:#0a4d7c;
+      --borda:#d3dbe4; --borda-forte:#b3bfcc; --texto:#243447;
+      --bg:#eef2f6; --card:#ffffff; --label:#5a6b7c; --suave:#f7f9fc;
+      font-family:"Segoe UI", Arial, Helvetica, sans-serif;
+      background:var(--bg); color:var(--texto); padding:26px 20px 80px;
+    }
+    #panel-desp1-campo .wrap{max-width:1040px; margin:0 auto;}
+    #panel-desp1-campo h1{font-size:22px; margin:0 0 4px; color:var(--azul-esc); letter-spacing:.3px;}
+    #panel-desp1-campo .sub{font-size:14px; color:#5a6b7c; margin:0 0 24px;}
+    #panel-desp1-campo .vcard{
+      background:var(--card); border:1px solid var(--borda); border-radius:12px;
+      padding:18px 18px 20px; margin-bottom:14px; box-shadow:0 8px 22px rgba(30,50,80,.07);
+    }
+    #panel-desp1-campo .vsub{
+      font-size:12.5px; font-weight:700; color:var(--azul-esc); letter-spacing:.3px;
+      margin:16px 0 8px; padding-bottom:4px; border-bottom:1px solid var(--borda);
+      display:flex; align-items:center; justify-content:space-between;
+    }
+    #panel-desp1-campo .vsub:first-child{margin-top:0;}
+    #panel-desp1-campo .vrow{display:flex; gap:14px; flex-wrap:wrap; margin-bottom:13px;}
+    #panel-desp1-campo .vfield{display:flex; flex-direction:column; gap:4px; min-width:150px;}
+    #panel-desp1-campo .vfield.grow{flex:1; min-width:220px;}
+    #panel-desp1-campo .vfield>label{color:#6b7887; font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:.4px;}
+    #panel-desp1-campo input[type=text]{
+      width:100%; border:1px solid var(--borda-forte); border-radius:7px;
+      padding:8px 11px; font-size:13.5px; color:var(--texto); background:#fff;
+      font-family:inherit; outline:none; transition:border-color .15s, box-shadow .15s;
+    }
+    #panel-desp1-campo input.bloqueado{
+      background:#eef1f4 !important; color:#5a6b7c !important; cursor:not-allowed; border-color:#d3dbe4 !important;
+    }
+    #panel-desp1-campo input[type=file]{display:none;}
+    #panel-desp1-campo .vactions{margin-top:14px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;}
+    #panel-desp1-campo .vbtn{
+      border:none; padding:11px 22px; font-size:14px; font-weight:700; border-radius:9px; cursor:pointer;
+      display:inline-flex; align-items:center; gap:8px; background:var(--azul); color:#fff;
+      box-shadow:0 3px 10px rgba(31,111,192,.3);
+    }
+    #panel-desp1-campo .vbtn:hover{background:var(--azul-esc);}
+    #panel-desp1-campo .vbtn-ghost{background:#fff; color:var(--texto); border:1px solid var(--borda-forte); box-shadow:none;}
+    #panel-desp1-campo .vbtn-ghost:hover{background:#eaf3fc; border-color:var(--azul);}
+    #panel-desp1-campo .vbtn-sm{padding:6px 13px; font-size:12px; border-radius:7px;}
+    #panel-desp1-campo .img-drop{
+      display:flex; flex-direction:column; align-items:center; gap:5px;
+      border:2px dashed var(--borda-forte); border-radius:12px; padding:26px 16px;
+      cursor:pointer; background:var(--suave); transition:border-color .15s, background .15s; text-align:center;
+    }
+    #panel-desp1-campo .img-drop:hover{border-color:var(--azul); background:#eaf3fc;}
+    #panel-desp1-campo .img-drop .ic{font-size:30px;}
+    #panel-desp1-campo .img-drop .t{font-size:13.5px; font-weight:600; color:var(--texto);}
+    #panel-desp1-campo .img-drop .h{font-size:11.5px; color:var(--label);}
+    #panel-desp1-campo .hint-inline{display:block; font-size:11.5px; color:#7a8797; margin-top:6px; text-transform:none; letter-spacing:0; font-weight:400;}
+    #panel-desp1-campo .hint-auto{font-weight:400; font-size:11px; color:#8a97a6; text-transform:none; letter-spacing:0;}
+
+    /* --- Ficha de Campo (DESP 1): conteúdo importado --- */
+    #panel-desp1-campo .campo-kv{display:flex; flex-direction:column; gap:0;}
+    #panel-desp1-campo .kv{display:grid; grid-template-columns:34px minmax(150px,1.1fr) 2fr; gap:10px; align-items:baseline;
+      padding:6px 0; border-bottom:1px solid #eef2f6; font-size:13px;}
+    #panel-desp1-campo .kv:last-child{border-bottom:none;}
+    #panel-desp1-campo .kv .kn{color:#9aa7b5; font-size:11.5px; font-weight:700; text-align:right;}
+    #panel-desp1-campo .kv .kl{color:#5a6b7c; font-weight:600;}
+    #panel-desp1-campo .kv .kvv{color:var(--texto); white-space:pre-wrap; word-break:break-word;}
+    #panel-desp1-campo .kv.kv-h{border-bottom:none; padding-top:12px; padding-bottom:2px;}
+    #panel-desp1-campo .campo-fotos{display:grid; grid-template-columns:repeat(auto-fill,minmax(178px,1fr)); gap:12px; margin-top:10px;}
+    #panel-desp1-campo .campo-fotos figure{margin:0; border:1px solid var(--borda,#c3ccd6); border-radius:9px; overflow:hidden; background:#fff;}
+    #panel-desp1-campo .campo-fotos img{width:100%; aspect-ratio:4/3; object-fit:cover; display:block; background:#eef3f8;}
+    #panel-desp1-campo .campo-fotos figcaption{font-size:11px; font-weight:700; color:#175a9f; padding:6px 8px 2px;}
+    #panel-desp1-campo .campo-fotos input{width:100%; border:none; border-top:1px solid #eef2f6; padding:7px 8px; font-size:12px; font-family:inherit; color:var(--texto); background:#fbfdff;}
+    #panel-desp1-campo .campo-fotos input:focus{outline:2px solid var(--e-ring,#1F6FC0); outline-offset:-2px;}
+    @media (max-width:700px){ #panel-desp1-campo .kv{grid-template-columns:28px 1fr; } #panel-desp1-campo .kv .kvv{grid-column:2;} }
     #panel-desp1-parecer .par-preview-label{font-size:10.5px; font-weight:700; color:var(--label); text-transform:uppercase; letter-spacing:.4px; margin:10px 0 4px;}
     #panel-desp1-parecer .par-preview{padding:14px 16px; background:#fbfcfe; border:1px solid var(--borda); border-radius:9px; font-size:13px; line-height:1.7; color:var(--texto);}
     #panel-desp1-parecer .par-preview p{margin:0 0 10px; text-align:justify;}
@@ -11429,7 +11564,8 @@ function AV_gerarDescSituacao(){
       parChecklist: (window.PAR_getChecklist?window.PAR_getChecklist():{}),
       parPendencias: (window.PAR_getPendencias?window.PAR_getPendencias():{}),
       parPendExtras: (window.PAR_getPendExtras?window.PAR_getPendExtras():[]),
-      parPendExcluidas: (window.PAR_getPendExcluidas?window.PAR_getPendExcluidas():{})
+      parPendExcluidas: (window.PAR_getPendExcluidas?window.PAR_getPendExcluidas():{}),
+      campoFicha: (window.CAMPO_getFicha?window.CAMPO_getFicha():null)
     };
   }
 
@@ -11551,6 +11687,7 @@ function AV_gerarDescSituacao(){
     etapa("pendências do Parecer", function(){ if(pacote.parPendencias && window.PAR_setPendencias) window.PAR_setPendencias(pacote.parPendencias); });
     etapa("pendências avulsas do Parecer", function(){ if(window.PAR_setPendExtras) window.PAR_setPendExtras(pacote.parPendExtras||[]); });
     etapa("pendências excluídas do Parecer", function(){ if(window.PAR_setPendExcluidas) window.PAR_setPendExcluidas(pacote.parPendExcluidas||{}); });
+    etapa("ficha de campo", function(){ if(window.CAMPO_setFicha) window.CAMPO_setFicha(pacote.campoFicha||null); });
     etapa("marcação de tópicos (DESP 2)", function(){ if(window.D2_marcarTopicosManual) window.D2_marcarTopicosManual(); });
     etapa("imagens", function(){ restaurarImagens(pacote.imagens); });
     etapa("fotografias", function(){ if(pacote.fotos && window.FB_setFotos) window.FB_setFotos(pacote.fotos); });
@@ -15728,6 +15865,422 @@ window.DRL_gerarPDF=async function(opts){
   if(opts&&opts.retornar) return {blob:blob, nome:_nomeD};
   await window.FS_salvar(blob, _nomeD);
 };
+
+/* =========================================================================
+   FICHA DE CAMPO (DESP 1) — importa o .json gerado pelo app de campo offline
+   (campo.html), mostra o conteúdo, gera os 2 PDFs e alimenta a Ficha de
+   Vistoria. O app de campo fica em https://enprol.github.io/infra/campo.html
+   ========================================================================= */
+(function(){
+  "use strict";
+  var CAMPO = null;                                     // ficha importada
+  var URL_CAMPO = "https://enprol.github.io/infra/campo.html";
+
+  window.CAMPO_getFicha = function(){ return CAMPO; };
+  window.CAMPO_setFicha = function(o){ CAMPO = (o && o.geral) ? o : null; CAMPO_render(); };
+
+  function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){ return ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]; }); }
+  function val(v){
+    if(v==null || v==="") return "—";
+    if(Array.isArray(v)) return v.length ? v.join(", ") : "—";
+    return String(v);
+  }
+  function dataBR(iso){
+    if(!iso) return "";
+    var m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    return m ? (m[3]+"/"+m[2]+"/"+m[1]) : String(iso);
+  }
+
+  /* --- rótulos dos itens 1 a 128, na ordem da ficha oficial --- */
+  var GERAIS = [
+    [1,"Nº do processo","processo"], [2,"Lote","lote"], [3,"Data da vistoria","dataVistoria"],
+    [4,"Proprietário(s)/Posseiro(s) - nome(s)","proprietarios"], [5,"Locação (km)","locacaoKm"],
+    [6,"Município","municipio"], [7,"Localidade","localidade"], [8,"Descrição do imóvel","descricaoImovel"],
+    [9,"Atividade principal","atividadePrincipal"], [10,"Hidrografia","hidrografia"], [11,"Vazão","vazao"],
+    [12,"Restrições ambientais","restricoesAmbientais"], [13,"Risco de inundação","riscoInundacao"],
+    [14,"Erosões","erosoes"], [15,"Usos predominantes","usosPredominantes"],
+    [16,"Infraestrutura disponível","infraestrutura"], [17,"Serviços públicos e comunitários","servicosPublicos"],
+    [18,"Tipo de estrada","tipoEstrada"], [19,"Condições de acesso","condicoesAcesso"],
+    [20,"Importância das distâncias","importanciaDistancias"], [21,"Praticabilidade durante o ano","praticabilidade"],
+    [22,"Informações complementares","informacoesComplementares"]
+  ];
+  var CAMPOS_REP = {
+    reprodutivas:   [["Benfeitoria (reprodutiva)","benfeitoria"],["Quantidade (reprodutiva)","quantidade"],
+                     ["Estado fitossanitário","fitossanitario"],["Idade (anos)","idade"],
+                     ["Condição de produtividade","produtividade"]],
+    pastagem:       [["Variedade","variedade"],["Ervas invasoras","ervasInvasoras"],["Fitossanitário","fitossanitario"],
+                     ["Erosão","erosao"],["Falhas na formação","falhasFormacao"]],
+    naoReprodutivas:[["Benfeitoria (não reprodutiva)","benfeitoria"],["Quantidade (não reprodutiva)","quantidade"],
+                     ["Unidade","unidade"],["Idade aparente (anos)","idadeAparente"],["Vida útil (anos)","vidaUtil"]],
+    acessorias:     [["Benfeitoria","benfeitoria"],["Quantidade","quantidade"],["Unidade","unidade"],
+                     ["Idade aparente (anos)","idadeAparente"],["Vida útil (anos)","vidaUtil"]]
+  };
+  var ROT_REP = { reprodutivas:"Item", pastagem:"Pastagem - Item", naoReprodutivas:"Item", acessorias:"Acessórias - Item" };
+  var TIT_REP = { reprodutivas:"Benfeitorias reprodutivas", pastagem:"Pastagem",
+                  naoReprodutivas:"Benfeitorias não reprodutivas", acessorias:"Benfeitorias acessórias" };
+
+  /* --- todas as fotos, achatadas, mantendo referência ao objeto original --- */
+  function todasFotos(f){
+    var out = [];
+    function push(lista, rotulo){
+      (lista||[]).forEach(function(p){ if(p && p.src) out.push({ p:p, grupo:rotulo }); });
+    }
+    push(f.fotosImovel, "Imóvel — vista geral");
+    push(f.fotosAcesso, "Acesso");
+    (f.reprodutivas||[]).forEach(function(it,i){ push(it.fotos, it.benfeitoria || ("Benfeitoria reprodutiva "+(i+1))); });
+    (f.pastagem||[]).forEach(function(it,i){ push(it.fotos, it.variedade || ("Pastagem "+(i+1))); });
+    (f.naoReprodutivas||[]).forEach(function(it,i){ push(it.fotos, it.benfeitoria || ("Benfeitoria não reprodutiva "+(i+1))); });
+    (f.acessorias||[]).forEach(function(it,i){ push(it.fotos, it.benfeitoria || ("Benfeitoria acessória "+(i+1))); });
+    return out;
+  }
+  function legenda(o){ return (o.p.leg && o.p.leg.trim()) ? o.p.leg.trim() : o.grupo; }
+
+  /* ---------------- importar ---------------- */
+  window.CAMPO_importar = function(input){
+    var file = input && input.files && input.files[0];
+    if(!file) return;
+    var fr = new FileReader();
+    fr.onload = function(){
+      try{
+        var o = JSON.parse(fr.result);
+        if(!o || o._app !== "ENPROL-FichaCampo") throw new Error("Este arquivo não é uma Ficha de Campo do app da ENPROL.");
+        CAMPO = o;
+        CAMPO_render();
+        try{ if(window.CAD_marcarSujo) window.CAD_marcarSujo(); }catch(e){}
+        alert("Ficha de campo importada: " + ((o.geral && o.geral.processo) || "sem nº") + "\n"
+              + todasFotos(o).length + " foto(s).");
+      }catch(e){
+        alert("Não consegui ler o arquivo:\n" + e.message);
+      }
+      input.value = "";
+    };
+    fr.readAsText(file);
+  };
+  window.CAMPO_limpar = function(){
+    if(!CAMPO) return;
+    if(!confirm("Remover a ficha de campo importada deste cadastro?")) return;
+    CAMPO = null; CAMPO_render();
+  };
+  window.CAMPO_copiarLink = function(){
+    var t = URL_CAMPO;
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(t).then(function(){ alert("Link copiado:\n" + t + "\n\nMande no WhatsApp do técnico."); },
+                                            function(){ prompt("Copie o link:", t); });
+    } else { prompt("Copie o link:", t); }
+  };
+  window.CAMPO_setLeg = function(i, v){
+    if(!CAMPO) return;
+    var fotos = todasFotos(CAMPO);
+    if(fotos[i]) fotos[i].p.leg = v;
+  };
+
+  /* ---------------- render do painel ---------------- */
+  function CAMPO_render(){
+    var box = document.getElementById("campo_conteudo");
+    var vazio = document.getElementById("campo_vazio");
+    if(!box) return;
+    if(!CAMPO){ box.innerHTML = ""; box.style.display = "none"; if(vazio) vazio.style.display = ""; return; }
+    box.style.display = ""; if(vazio) vazio.style.display = "none";
+
+    var f = CAMPO, g = f.geral || {}, fotos = todasFotos(f);
+    var h = "";
+
+    h += '<div class="vcard"><div class="vsub">Ficha importada</div><div class="campo-kv">';
+    GERAIS.forEach(function(it){
+      var v = it[2] === "dataVistoria" ? dataBR(g[it[2]]) : val(g[it[2]]);
+      h += '<div class="kv"><span class="kn">'+it[0]+'</span><span class="kl">'+esc(it[1])+'</span><span class="kvv">'+esc(v)+'</span></div>';
+    });
+    h += '</div></div>';
+
+    ["reprodutivas","pastagem","naoReprodutivas","acessorias"].forEach(function(lista){
+      var arr = f[lista] || [];
+      if(!arr.length) return;
+      h += '<div class="vcard"><div class="vsub">'+esc(TIT_REP[lista])+' <span style="color:#7a8797;font-weight:600">('+arr.length+')</span></div><div class="campo-kv">';
+      arr.forEach(function(it, i){
+        h += '<div class="kv kv-h"><span class="kn"></span><span class="kl" style="font-weight:700;color:#175a9f">'+esc(ROT_REP[lista])+' '+(i+1)+'</span><span class="kvv"></span></div>';
+        CAMPOS_REP[lista].forEach(function(c){
+          h += '<div class="kv"><span class="kn"></span><span class="kl">'+esc(c[0])+'</span><span class="kvv">'+esc(val(it[c[1]]))+'</span></div>';
+        });
+        var nf = (it.fotos||[]).length;
+        if(nf) h += '<div class="kv"><span class="kn"></span><span class="kl">Fotos</span><span class="kvv">'+nf+'</span></div>';
+      });
+      h += '</div></div>';
+    });
+
+    if(g.obsReprodutivas || g.obsNaoReprodutivas || f.tecnico || f.gps){
+      h += '<div class="vcard"><div class="vsub">Observações e responsável</div><div class="campo-kv">';
+      h += '<div class="kv"><span class="kn">77</span><span class="kl">Observações (reprodutiva e pastagem)</span><span class="kvv">'+esc(val(g.obsReprodutivas))+'</span></div>';
+      h += '<div class="kv"><span class="kn">127</span><span class="kl">Observações (não reprodutiva e acessórias)</span><span class="kvv">'+esc(val(g.obsNaoReprodutivas))+'</span></div>';
+      h += '<div class="kv"><span class="kn">128</span><span class="kl">Técnico</span><span class="kvv">'+esc(val((f.tecnico||{}).nome))+((f.tecnico&&f.tecnico.documento)?(" — "+esc(f.tecnico.documento)):"")+'</span></div>';
+      if(f.gps) h += '<div class="kv"><span class="kn"></span><span class="kl">Coordenada (GPS)</span><span class="kvv">'+f.gps.lat.toFixed(6)+", "+f.gps.lon.toFixed(6)+' <a href="https://www.google.com/maps?q='+f.gps.lat+','+f.gps.lon+'" target="_blank" rel="noopener">ver no mapa</a></span></div>';
+      h += '</div></div>';
+    }
+
+    h += '<div class="vcard"><div class="vsub">Fotografias <span style="color:#7a8797;font-weight:600">('+fotos.length+')</span></div>';
+    if(!fotos.length){ h += '<p class="hint-inline">Nenhuma foto nesta ficha.</p>'; }
+    else {
+      h += '<p class="hint-inline">A legenda de cada foto é o que sai no <b>Relatório Fotográfico</b> (“Foto N. legenda”). Ajuste aqui se precisar.</p><div class="campo-fotos">';
+      fotos.forEach(function(o, i){
+        h += '<figure><img src="'+o.p.src+'" alt="Foto '+(i+1)+'" loading="lazy">'
+           + '<figcaption>Foto '+(i+1)+'</figcaption>'
+           + '<input type="text" value="'+esc(legenda(o))+'" placeholder="Legenda" oninput="CAMPO_setLeg('+i+', this.value)"></figure>';
+      });
+      h += '</div>';
+    }
+    h += '</div>';
+
+    box.innerHTML = h;
+  }
+  window.CAMPO_render = CAMPO_render;
+
+  /* ---------------- envio para a Ficha de Vistoria ---------------- */
+  function resumoBenf(arr, campos){
+    return (arr||[]).map(function(it){
+      var nome = (it.benfeitoria || it.variedade || "").trim();
+      if(!nome) return "";
+      var q = (it.quantidade || "").trim();
+      var u = (it.unidade || "").trim();
+      return nome + (q ? (" ("+q+(u?(" "+u):"")+")") : "");
+    }).filter(function(s){ return s; }).join("; ");
+  }
+  window.CAMPO_paraFicha = function(){
+    if(!CAMPO){ alert("Importe uma ficha de campo primeiro."); return; }
+    var g = CAMPO.geral || {}, fotos = todasFotos(CAMPO);
+    var mun = (g.municipio||"").trim(), uf = "";
+    var mm = mun.match(/^(.*?)[\s\-\/]+([A-Z]{2})$/);
+    if(mm){ mun = mm[1].trim(); uf = mm[2]; }
+
+    var plano = [
+      ["fb_nome",      "Proprietário / Espólio",                 (g.proprietarios||"").trim()],
+      ["fb_municipio", "Município",                              mun],
+      ["fb_uf",        "UF",                                     uf],
+      ["fb_data",      "Data",                                   dataBR(g.dataVistoria)],
+      ["fb_321",       "3.2.1 Benfeitorias reprodutivas",         resumoBenf(CAMPO.reprodutivas)],
+      ["fb_311",       "3.1.1 Benfeitorias não reprodutivas",     resumoBenf((CAMPO.naoReprodutivas||[]).concat(CAMPO.acessorias||[]))],
+      ["fb_15_obs",    "1.5 Observações",                        (g.informacoesComplementares||"").trim()]
+    ].filter(function(p){ return p[2]; });
+
+    var existentes = plano.filter(function(p){ var e = document.getElementById(p[0]); return e && (e.value||"").trim(); });
+    var msg = "Vou preencher na Ficha de Vistoria:\n\n"
+            + plano.map(function(p){ return "• " + p[1] + ": " + (p[2].length>60 ? p[2].slice(0,60)+"…" : p[2]); }).join("\n")
+            + "\n\n• " + fotos.length + " fotografia(s) → 5.3 Fotografias do imóvel";
+    if(existentes.length) msg += "\n\nATENÇÃO: " + existentes.length + " campo(s) já preenchido(s) serão substituídos.";
+    msg += "\n\nConfirma?";
+    if(!confirm(msg)) return;
+
+    plano.forEach(function(p){
+      var e = document.getElementById(p[0]); if(!e) return;
+      e.value = p[2];
+      try{ if(e.hasAttribute("data-rtf") && window.RTF) window.RTF.render(p[0]); }catch(err){}
+      e.dispatchEvent(new Event("input", {bubbles:true}));
+      e.dispatchEvent(new Event("change", {bubbles:true}));
+    });
+    if(fotos.length && window.FB_setFotos){
+      var jaTem = (window.FB_getFotos ? window.FB_getFotos() : []) || [];
+      window.FB_setFotos(jaTem.concat(fotos.map(function(o){ return o.p.src; })));
+    }
+    alert("Pronto. Confira a aba “Ficha de Vistoria e Cadastro Socioeconômico (Anexo B)”.");
+  };
+
+  /* ---------------- infraestrutura comum dos PDFs ---------------- */
+  var END=["Av. Des. Moreira, nº 1300, T. Norte, Conj. 1016/1021, Aldeota, 60.170-002, Fortaleza-CE","Rua Idelfonso Freire, nº 106, Sala 202, Centro, 56.506-520, Arcoverde-PE","Rua Pedro Batista Ferreira, nº 278, Centro, 76.500-000, Santa Terezinha de Goiás-GO","Rua Nilo Peçanha, nº 25, 1º Andar, Sala 07, Centro, 47.640-000, Santa Maria da Vitória-BA","Rua Irmã Ambrosina, nº 249, Conj 03 e 04, Centro, 61.760-405, Eusébio-CE","Rua dos Timbiras, nº 2213, Conj.1206/1209, Lourdes, 30.140-069, Belo Horizonte-MG"];
+  var TEL=["(+55 85) 3289-6363   comercial@enprol.com.br","(+55 85) 3289-6363   comercial@enprol.com.br","(+55 85) 3289-6363   comercial@enprol.com.br","(+55 85) 3289-6363   comercial@enprol.com.br","(+55 85) 3289-6363   comercial@enprol.com.br","(+55 31) 3253-5500   comercial@enprol.com.br"];
+  function carregarImg(src){
+    return new Promise(function(res){ if(!src){ res(null); return; }
+      var im = new Image(); im.onload = function(){ res(im); }; im.onerror = function(){ res(null); }; im.src = src; });
+  }
+  function fmtImg(src){ return /^data:image\/png/i.test(src) ? "PNG" : "JPEG"; }
+
+  function novoPdf(){
+    var jsPDF = window.jspdf.jsPDF;
+    var pdf = new jsPDF({unit:"mm", format:"a4"});
+    var ctx = { pdf:pdf, W:210, H:297, mL:25, mR:25 };
+    ctx.RW = ctx.W - ctx.mL - ctx.mR;
+    return ctx;
+  }
+  function fazRodape(c){
+    var pdf=c.pdf, yL=c.H-28;
+    pdf.setDrawColor(31,111,192); pdf.setLineWidth(0.6); pdf.line(c.mL,yL,c.W-c.mR,yL);
+    pdf.setFont("helvetica","normal"); pdf.setFontSize(6); pdf.setTextColor(90,107,124);
+    var yy=yL+3.4;
+    for(var i=0;i<END.length;i++){ pdf.text(END[i],c.mL,yy); pdf.text(TEL[i],c.W-c.mR,yy,{align:"right"}); yy+=3; }
+  }
+  function fazCabecalho(c, imgI, imgE){
+    var pdf=c.pdf;
+    if(imgI){ var wi=10*(imgI.width/imgI.height); try{ pdf.addImage(imgI,"JPEG",c.mL,12,wi,10); }catch(e){} }
+    if(imgE){ var we=10*(imgE.width/imgE.height); try{ pdf.addImage(imgE,"JPEG",c.W-c.mR-we,12,we,10); }catch(e){} }
+    pdf.setDrawColor(31,111,192); pdf.setLineWidth(0.6); pdf.line(c.mL,25,c.W-c.mR,25);
+  }
+
+  /* ---------------- PDF 1 — Ficha de Campo ---------------- */
+  window.CAMPO_pdfFicha = async function(opts){
+    if(!CAMPO){ alert("Importe uma ficha de campo primeiro."); return; }
+    if(!window.jspdf){ alert("Biblioteca de PDF ainda carregando. Tente novamente em instantes."); return; }
+    var f = CAMPO, g = f.geral || {};
+    var c = novoPdf(), pdf = c.pdf;
+    var imgE = await carregarImg(window.__LOGO_ENPROL__), imgI = await carregarImg(window.__LOGO_INFRA__);
+
+    var topY = 34, botY = c.H - 34, y = topY;
+    fazCabecalho(c, imgI, imgE);
+    function novaPagina(){
+      fazRodape(c); pdf.addPage();
+      pdf.setDrawColor(31,111,192); pdf.setLineWidth(0.6); pdf.line(c.mL,18,c.W-c.mR,18);
+      y = 24;
+    }
+    function garantir(h){ if(y + h > botY) novaPagina(); }
+    function titulo(txt, size){
+      garantir(12);
+      pdf.setFont("helvetica","bold"); pdf.setFontSize(size||12.5); pdf.setTextColor(10,77,124);
+      var ls = pdf.splitTextToSize(txt, c.RW);
+      ls.forEach(function(l){ garantir(7); pdf.text(l, c.mL, y); y += 6.4; });
+      pdf.setTextColor(0,0,0); y += 1.5;
+    }
+    function item(n, lab, v){
+      var texto = val(v);
+      pdf.setFont("helvetica","bold"); pdf.setFontSize(9.2); pdf.setTextColor(60,80,100);
+      var rot = (n ? (n + ") ") : "") + lab;
+      var lr = pdf.splitTextToSize(rot, c.RW);
+      pdf.setFont("helvetica","normal"); pdf.setFontSize(10.2); pdf.setTextColor(0,0,0);
+      var lv = pdf.splitTextToSize(texto, c.RW - 4);
+      garantir(lr.length*4.2 + lv.length*4.9 + 3);
+      pdf.setFont("helvetica","bold"); pdf.setFontSize(9.2); pdf.setTextColor(60,80,100);
+      lr.forEach(function(l){ pdf.text(l, c.mL, y); y += 4.2; });
+      pdf.setFont("helvetica","normal"); pdf.setFontSize(10.2); pdf.setTextColor(0,0,0);
+      lv.forEach(function(l){ pdf.text(l, c.mL + 4, y); y += 4.9; });
+      y += 2.2;
+    }
+    function fotosDoItem(arr, rotulo){
+      arr = (arr||[]).filter(function(p){ return p && p.src; });
+      if(!arr.length) return;
+      var lg = (c.RW - 6) / 2, alt = lg * 0.72;
+      for(var i=0;i<arr.length;i+=2){
+        garantir(alt + 9);
+        for(var k=0;k<2 && (i+k)<arr.length;k++){
+          var x = c.mL + k*(lg+6), p = arr[i+k];
+          try{ pdf.addImage(p.src, fmtImg(p.src), x, y, lg, alt); }catch(e){}
+          pdf.setDrawColor(190,200,212); pdf.setLineWidth(0.2); pdf.rect(x, y, lg, alt);
+          pdf.setFont("helvetica","italic"); pdf.setFontSize(7.6); pdf.setTextColor(90,107,124);
+          var cap = (p.leg && p.leg.trim()) ? p.leg.trim() : rotulo;
+          pdf.text(pdf.splitTextToSize(cap, lg)[0] || "", x, y + alt + 3.4);
+        }
+        y += alt + 8;
+      }
+      pdf.setTextColor(0,0,0);
+    }
+
+    y = 38;
+    pdf.setFont("helvetica","bold"); pdf.setFontSize(14); pdf.setTextColor(10,77,124);
+    pdf.text("FICHA DE CAMPO (AVALIAÇÃO)", c.W/2, y, {align:"center"}); y += 6.5;
+    pdf.setFont("helvetica","normal"); pdf.setFontSize(9.5); pdf.setTextColor(90,107,124);
+    pdf.text("INFRA I — Levantamento de campo", c.W/2, y, {align:"center"});
+    pdf.setTextColor(0,0,0); y += 10;
+
+    titulo("Identificação e caracterização do imóvel");
+    GERAIS.forEach(function(it){
+      item(it[0], it[1], it[2] === "dataVistoria" ? dataBR(g[it[2]]) : g[it[2]]);
+    });
+
+    if((f.fotosImovel||[]).length || (f.fotosAcesso||[]).length){
+      titulo("Fotos gerais e acesso");
+      if((f.fotosImovel||[]).length){ item("23-25","Foto - Imóvel (fotos gerais)", (f.fotosImovel||[]).length+" foto(s)"); fotosDoItem(f.fotosImovel, "Imóvel — vista geral"); }
+      if((f.fotosAcesso||[]).length){ item("26-27","Foto - Acesso", (f.fotosAcesso||[]).length+" foto(s)"); fotosDoItem(f.fotosAcesso, "Acesso"); }
+    }
+
+    var num = { reprodutivas:"28-62", pastagem:"63-76", naoReprodutivas:"78-112", acessorias:"113-126" };
+    ["reprodutivas","pastagem"].forEach(function(lista){
+      var arr = f[lista] || []; if(!arr.length) return;
+      titulo(TIT_REP[lista] + "  (itens " + num[lista] + ")");
+      arr.forEach(function(it, i){
+        item(null, ROT_REP[lista] + " " + (i+1), "");
+        CAMPOS_REP[lista].forEach(function(cc){ item(null, "   " + cc[0], it[cc[1]]); });
+        fotosDoItem(it.fotos, (it.benfeitoria || it.variedade || (ROT_REP[lista]+" "+(i+1))));
+      });
+    });
+    item(77, "Observações (benfeitoria reprodutiva e pastagem)", g.obsReprodutivas);
+
+    ["naoReprodutivas","acessorias"].forEach(function(lista){
+      var arr = f[lista] || []; if(!arr.length) return;
+      titulo(TIT_REP[lista] + "  (itens " + num[lista] + ")");
+      arr.forEach(function(it, i){
+        item(null, ROT_REP[lista] + " " + (i+1), "");
+        CAMPOS_REP[lista].forEach(function(cc){ item(null, "   " + cc[0], it[cc[1]]); });
+        fotosDoItem(it.fotos, (it.benfeitoria || (ROT_REP[lista]+" "+(i+1))));
+      });
+    });
+    item(127, "Observações (benfeitoria não reprodutiva e acessórias)", g.obsNaoReprodutivas);
+
+    if(f.gps) item(null, "Coordenada do levantamento (GPS)",
+                   f.gps.lat.toFixed(6) + ", " + f.gps.lon.toFixed(6) + "  (±" + Math.round(f.gps.precisao) + " m)");
+
+    garantir(40);
+    y += 6;
+    titulo("128) Assinatura", 11.5);
+    if(f.assinatura){
+      try{ pdf.addImage(f.assinatura, "PNG", c.mL, y, 62, 22); }catch(e){}
+      y += 24;
+    } else { y += 14; }
+    pdf.setDrawColor(0,0,0); pdf.setLineWidth(0.3); pdf.line(c.mL, y, c.mL+80, y); y += 4.6;
+    pdf.setFont("helvetica","normal"); pdf.setFontSize(10);
+    pdf.text(((f.tecnico||{}).nome) || "", c.mL, y); y += 4.6;
+    if((f.tecnico||{}).documento){ pdf.setFontSize(9); pdf.setTextColor(90,107,124); pdf.text("Documento: " + f.tecnico.documento, c.mL, y); }
+
+    fazRodape(c);
+    var blob = pdf.output("blob");
+    var nome = "Ficha_de_Campo_" + ((g.processo||"CTD").replace(/[\\/:*?"<>|]+/g,"-").replace(/\s+/g,"_")) + ".pdf";
+    if(opts && opts.retornar) return { blob:blob, nome:nome };
+    await window.FS_salvar(blob, nome);
+  };
+
+  /* ---------------- PDF 2 — Relatório Fotográfico ---------------- */
+  window.CAMPO_pdfFotos = async function(opts){
+    if(!CAMPO){ alert("Importe uma ficha de campo primeiro."); return; }
+    if(!window.jspdf){ alert("Biblioteca de PDF ainda carregando. Tente novamente em instantes."); return; }
+    var f = CAMPO, g = f.geral || {}, fotos = todasFotos(f);
+    if(!fotos.length){ alert("Esta ficha de campo não tem fotografias."); return; }
+
+    var l2 = (document.getElementById("campo_rf_l2") || {}).value;
+    var l3 = (document.getElementById("campo_rf_l3") || {}).value;
+    if(!l2) l2 = (document.getElementById("rel_ferrovia") || {}).value || "Ferrovia Transnordestina – EF-232";
+    if(!l3) l3 = [ (g.processo||"").trim(), (g.lote||"").trim(), (g.municipio||"").trim() ]
+                   .filter(function(s){ return s; }).join(" – ");
+
+    var c = novoPdf(), pdf = c.pdf;
+    var imgE = await carregarImg(window.__LOGO_ENPROL__), imgI = await carregarImg(window.__LOGO_INFRA__);
+
+    var lg = c.RW, alt = lg * 0.60;                 // 2 fotos por página
+    for(var i=0; i<fotos.length; i+=2){
+      if(i > 0) pdf.addPage();
+      fazCabecalho(c, imgI, imgE);
+      var y = 34;
+      pdf.setFont("helvetica","bold"); pdf.setFontSize(13); pdf.setTextColor(10,77,124);
+      pdf.text("Relatório Fotográfico", c.W/2, y, {align:"center"}); y += 6;
+      pdf.setFont("helvetica","normal"); pdf.setFontSize(10.5); pdf.setTextColor(36,52,71);
+      pdf.text(l2, c.W/2, y, {align:"center"}); y += 5.6;
+      pdf.setFont("helvetica","bold"); pdf.setFontSize(10.5);
+      pdf.text(l3, c.W/2, y, {align:"center"}); y += 10;
+
+      for(var k=0; k<2 && (i+k)<fotos.length; k++){
+        var o = fotos[i+k];
+        try{ pdf.addImage(o.p.src, fmtImg(o.p.src), c.mL, y, lg, alt); }catch(e){}
+        pdf.setDrawColor(190,200,212); pdf.setLineWidth(0.2); pdf.rect(c.mL, y, lg, alt);
+        y += alt + 4.6;
+        pdf.setFont("helvetica","normal"); pdf.setFontSize(9.5); pdf.setTextColor(0,0,0);
+        var cap = "Foto " + (i+k+1) + ". " + legenda(o);
+        var ls = pdf.splitTextToSize(cap, c.RW);
+        ls.forEach(function(l){ pdf.text(l, c.W/2, y, {align:"center"}); y += 4.6; });
+        y += 5;
+      }
+      fazRodape(c);
+    }
+
+    var blob = pdf.output("blob");
+    var nome = "Relatorio_Fotografico_" + ((g.processo||"CTD").replace(/[\\/:*?"<>|]+/g,"-").replace(/\s+/g,"_")) + ".pdf";
+    if(opts && opts.retornar) return { blob:blob, nome:nome };
+    await window.FS_salvar(blob, nome);
+  };
+
+  document.addEventListener("DOMContentLoaded", function(){ try{ CAMPO_render(); }catch(e){} });
+})();
 
 /* ===== aba DRL: pré-preencher campos + imagem de confrontantes ===== */
 (function(){
