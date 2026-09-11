@@ -7,9 +7,9 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Ficha de Campo">
-<title>ENPROL · Ficha de Campo</title>
-<link rel="manifest" href="campo.webmanifest">
+<meta name="apple-mobile-web-app-title" content="Ficha Social">
+<title>ENPROL · Ficha Social (Anexo B)</title>
+<link rel="manifest" href="campo-social.webmanifest">
 <link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAA9zQYyAAACMElEQVR42u3csRGCQBBA0eXGCJuwEyuAWiwAIhuwFjqwE5sgxsDU0NF1ea8C3f1zA4zS9cO0BRTRjABBg6BB0CBoBA2CBkGDoEHQCBoEDYIGQYOgETQIGgQNggZBI2gQNAgaBA2CRtAgaBA0CBoEjaAhv0PmD7cuVxtK6jjOKT9Xl/GF50IWdplLDjH/l2z7aoZDpb01Q6HS/pphUGmPHtsRnkM7nUm6Tyc0TmgQNAgaBI2gQdAgaBA0CBpBg6BB0CBoEDSCBkFDeNHMx5wud9v8gsft7IQWcx3ZZ90MmEozdw2Nm0IQ9E5vUtwYClrUZh27f2wnalxDI2gQNAgaBI2gQdAgaBA0CBpBg6BB0CBoEDThNQbhj5vhN+JOaDGbi6AtzXwEDYJG0G583BgK2tLMJTy2szyc0CBoBA2CBkGDoEHQCBoEDYIGQYOgETQIGgQN4TUGxK5/S+41BpSan9cYUGqOrqFxUwiCdkNjjoIWtfmF1xjgkgMEDYIGQYOgETQIGgQNggZBI2gQNAgaBA2CJrzGIPzJM/y22wktZt9H0JYvakGDoBG0GyjfS9CW7/uEx3YiwDU0CBpBg6BB0CBoBG0ECBoE/d5xnG2hkF/v0wmNE9opTdY9NsOg0v6aoVBpb81wqLSvrh+mLeuw1uWqGCHXCRo8tkPQIGgQNAgaBI2gQdAgaBA0CBpBg6BB0CBoEDSCBkGDoEHQIGgEDYIGQYOgQdAIGgQNggZBw8sTc2RyeyprUPUAAAAASUVORK5CYII=">
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
@@ -163,8 +163,8 @@ dialog::backdrop{background:rgba(15,35,60,.55);}
 <body>
 
 <div class="top">
-  <h1>📋 Ficha de Campo <span id="net" class="badge-on">online</span></h1>
-  <div class="sub" id="subtit">ENPROL · Vistoria de Avaliação</div>
+  <h1>🏡 Ficha Social <span id="net" class="badge-on">online</span></h1>
+  <div class="sub" id="subtit">ENPROL · Anexo B + Relatório Técnico</div>
   <div class="prog"><i id="progbar"></i></div>
 </div>
 
@@ -174,7 +174,7 @@ dialog::backdrop{background:rgba(15,35,60,.55);}
 <main>
   <div class="aviso" id="avisoPrimeiro" style="display:none;">
     <b>Funciona sem internet.</b> Toque em <b>Compartilhar → Adicionar à Tela de Início</b> (iPhone)
-    ou no menu <b>⋮ → Instalar aplicativo</b> (Android). Depois disso a ficha abre e salva mesmo sem sinal.
+    ou no menu <b>⋮ → Instalar aplicativo</b> (Android). Depois disso a ficha abre e salva mesmo sem sinal nenhum.
   </div>
   <div id="form"></div>
 </main>
@@ -200,106 +200,1071 @@ dialog::backdrop{background:rgba(15,35,60,.55);}
    arquivo .json que a aba "Ficha de Campo" do site importa.
    ========================================================================= */
 
-var SIM_NAO = ["Não", "Sim"];
-var FITO     = ["Ótimo", "Bom", "Regular", "Ruim"];
-
-/* --- esquema do formulário: espelha a Ficha de Campo (itens 1 a 128) --- */
+/* --- esquema: Ficha de Vistoria e Cadastro Socioeconômico (Anexo B) +
+       Relatório Técnico de Caracterização Socioeconômica.
+       Os ids são os MESMOS da página web (fb_*, rel_*), por isso a
+       importação no escritório cai direto nos campos certos. --- */
 var SECOES = [
-  { id:"ident", t:"1 · Identificação", campos:[
-    {k:"processo",      n:1, l:"Nº CTD",                          t:"text", ph:"Ex.: 001"},
-    {k:"lote",          n:2, l:"Nº Lote (SPS-__)",                t:"sel",
-      o:["01","02","03","04","05","06","07","08","09"]},
-    {k:"ferrovia",      n:"",l:"Ferrovia",                        t:"sel", o:["FTN","FICO","FIOL"]},
-    {k:"dataVistoria",  n:3, l:"Data da vistoria",                t:"date"},
-    {k:"propTipo",      n:4, l:"O ocupante é",                    t:"radio", o:["Proprietário","Posseiro"]},
-    {k:"proprietarios", n:"",l:"Nome(s)",                         t:"ta", ph:"Nome completo. Se houver mais de um, um por linha."},
-    {k:"locacaoKm",     n:5, l:"Locação (km)",                    t:"text", ph:"Ex.: 05 km de Custódia-PE"},
-    {k:"municipio",     n:6, l:"Município",                       t:"text", ph:"Custódia-PE"},
-    {k:"localidade",    n:7, l:"Localidade",                      t:"text", ph:"Sítio Fazendinha"}
-  ]},
-  { id:"carac", t:"2 · Caracterização do imóvel", campos:[
-    {k:"descricaoImovel", n:8,  l:"Descrição do imóvel", t:"ta"},
-    {k:"atividadePrincipal", n:9, l:"Atividade principal", t:"sel",
-      o:["Agrícola","Pecuária","Mista","Residencial","Extrativista","Sem atividade"]},
-    {k:"hidrografia", n:10, l:"Hidrografia", t:"multi",
-      o:["Açude","Barreiro","Cacimba","Córrego","Lagoa","Nascente","Poço artesiano","Riacho","Rio","Tanque","Não há"]},
-    {k:"vazao", n:11, l:"Vazão", t:"text"},
-    {k:"restricoesAmbientais", n:12, l:"Restrições ambientais", t:"sel", o:SIM_NAO},
-    {k:"riscoInundacao",       n:13, l:"Risco de inundação",     t:"sel", o:SIM_NAO},
-    {k:"erosoes",              n:14, l:"Erosões",                t:"sel", o:SIM_NAO},
-    {k:"usosPredominantes", n:15, l:"Usos predominantes", t:"multi",
-      o:["Residencial unifamiliar","Residencial multifamiliar","Comercial","Industrial","Institucional","Rural","Misto"]},
-    {k:"infraestrutura", n:16, l:"Infraestrutura disponível", t:"multi",
-      o:["Água","Energia elétrica","Iluminação pública","Esgoto","Telefonia","Internet","Coleta de lixo","Pavimentação","Nenhuma"]},
-    {k:"servicosPublicos", n:17, l:"Serviços públicos e comunitários", t:"multi",
-      o:["Escola","Saúde","Transporte","Segurança","Correio","Igreja","Comércio","Nenhum"]},
-    {k:"tipoEstrada", n:18, l:"Tipo de estrada", t:"sel",
-      o:["Pavimentada","Não pavimentada","Parcialmente pavimentada"]},
-    {k:"condicoesAcesso", n:19, l:"Condições de acesso", t:"sel",
-      o:["Livre","Fecho de servidão","Porteira","Servidão de passagem","Restrito"]},
-    {k:"importanciaDistancias", n:20, l:"Importância das distâncias", t:"sel",
-      o:["Irrelevante","Limitada","Relevante","Determinante"]},
-    {k:"praticabilidade", n:21, l:"Praticabilidade durante o ano", t:"sel",
-      o:["Permanente","Sazonal","Precária"]},
-    {k:"informacoesComplementares", n:22, l:"Informações complementares", t:"ta"}
-  ]},
-  { id:"fotosger", t:"3 · Fotos gerais e acesso", galerias:[
-    {k:"fotosImovel", n:"23-25", l:"Fotos do imóvel (gerais)"},
-    {k:"fotosAcesso", n:"26-27", l:"Fotos do acesso"}
-  ]},
-  { id:"repro", t:"4 · Benfeitorias reprodutivas", rep:{
-    lista:"reprodutivas", rot:"Item", n:"28-62", campos:[
-      {k:"benfeitoria",    l:"Benfeitoria (reprodutiva)", t:"text", ph:"Ex.: Imbuzeiro"},
-      {k:"quantidade",     l:"Quantidade", t:"text"},
-      {k:"fitossanitario", l:"Estado fitossanitário", t:"sel", o:FITO},
-      {k:"idade",          l:"Idade (anos)", t:"text"},
-      {k:"produtividade",  l:"Condição de produtividade", t:"sel", o:["Produtiva","Improdutiva","Em formação"]}
-    ]}},
-  { id:"past", t:"5 · Pastagem", rep:{
-    lista:"pastagem", rot:"Pastagem", n:"63-76", campos:[
-      {k:"variedade",      l:"Variedade", t:"ta"},
-      {k:"ervasInvasoras", l:"Ervas invasoras", t:"sel", o:SIM_NAO},
-      {k:"fitossanitario", l:"Fitossanitário", t:"sel", o:FITO},
-      {k:"erosao",         l:"Erosão", t:"sel", o:SIM_NAO},
-      {k:"falhasFormacao", l:"Falhas na formação", t:"sel", o:SIM_NAO}
-    ]}},
-  { id:"obs1", t:"6 · Observações (reprodutiva e pastagem)", campos:[
-    {k:"obsReprodutivas", n:77, l:"Observações", t:"ta"}
-  ]},
-  { id:"naorepro", t:"7 · Benfeitorias não reprodutivas", rep:{
-    lista:"naoReprodutivas", rot:"Item", n:"78-112", campos:[
-      {k:"benfeitoria",   l:"Benfeitoria (não reprodutiva)", t:"text", ph:"Ex.: Casa / depósito"},
-      {k:"quantidade",    l:"Quantidade", t:"text"},
-      {k:"unidade",       l:"Unidade", t:"ta", ph:"Ex.: Casa · m² · metros lineares"},
-      {k:"idadeAparente", l:"Idade aparente (anos)", t:"text"},
-      {k:"vidaUtil",      l:"Vida útil (anos)", t:"text"}
-    ]}},
-  { id:"acess", t:"8 · Benfeitorias acessórias", rep:{
-    lista:"acessorias", rot:"Acessória", n:"113-126", campos:[
-      {k:"benfeitoria",   l:"Benfeitoria", t:"text"},
-      {k:"quantidade",    l:"Quantidade", t:"text"},
-      {k:"unidade",       l:"Unidade", t:"ta"},
-      {k:"idadeAparente", l:"Idade aparente (anos)", t:"text"},
-      {k:"vidaUtil",      l:"Vida útil (anos)", t:"text"}
-    ]}},
-  { id:"obs2", t:"9 · Observações (não reprodutiva e acessórias)", campos:[
-    {k:"obsNaoReprodutivas", n:127, l:"Observações", t:"ta"}
-  ]},
-  { id:"fim", t:"10 · Responsável e assinatura", fim:true }
+ {
+  "id": "proc",
+  "t": "1 · Processo e vistoria",
+  "campos": [
+   {
+    "k": "campos.fb_proc_ctd",
+    "l": "Nº CTD",
+    "t": "text",
+    "ph": "Ex.: 001"
+   },
+   {
+    "k": "campos.fb_proc_lote",
+    "l": "Nº Lote (SPS-__)",
+    "t": "sel",
+    "o": [
+     "01",
+     "02",
+     "03",
+     "04",
+     "05",
+     "06",
+     "07",
+     "08",
+     "09"
+    ]
+   },
+   {
+    "k": "campos.fb_proc_ferrovia",
+    "l": "Ferrovia",
+    "t": "sel",
+    "o": [
+     "FTN",
+     "FICO",
+     "FIOL"
+    ]
+   },
+   {
+    "k": "campos.fb_proc_sei",
+    "l": "Processo (SEI)",
+    "t": "text",
+    "ph": "99999.999999/9999-99"
+   },
+   {
+    "k": "campos.fb_aplicador",
+    "l": "Nome do Aplicador(a)",
+    "t": "sel",
+    "o": [
+     "JAYLLA SAMYLLA PEREIRA DOS SANTOS MONTEIRO",
+     "Zaira Raquel Cordeiro Gonçalves"
+    ]
+   },
+   {
+    "k": "campos.fb_data",
+    "l": "Data da vistoria",
+    "t": "date"
+   }
+  ]
+ },
+ {
+  "id": "areas",
+  "t": "2 · Áreas de Locação",
+  "rep": {
+   "lista": "relAreas",
+   "rot": "Área",
+   "semFotos": true,
+   "campos": [
+    {
+     "k": "ini",
+     "l": "KM inicial",
+     "t": "text",
+     "ph": "939+921,31"
+    },
+    {
+     "k": "fim",
+     "l": "KM final",
+     "t": "text",
+     "ph": "940+002,28"
+    },
+    {
+     "k": "tipo",
+     "l": "Tipo",
+     "t": "sel",
+     "o": [
+      "Faixa de Domínio",
+      "Área Remanescente"
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "id": "ident",
+  "t": "3 · Identificação (1.1–1.3)",
+  "campos": [
+   {
+    "k": "campos.fb_11_dom",
+    "l": "1.1 Documentos dominiais",
+    "t": "sel",
+    "o": [
+     "1 - Sim",
+     "2 - Não"
+    ]
+   },
+   {
+    "k": "campos.fb_11_quais",
+    "l": "Quais?",
+    "t": "text"
+   },
+   {
+    "k": "campos.fb_12_notif",
+    "l": "1.2 Notificação Proprietário",
+    "t": "sel",
+    "o": [
+     "1 - Sim",
+     "2 - Não"
+    ]
+   },
+   {
+    "k": "campos.fb_12_quais",
+    "l": "Quais?",
+    "t": "text"
+   },
+   {
+    "k": "campos.fb_nome",
+    "l": "1.3 Proprietário(a) — Nome",
+    "t": "text"
+   },
+   {
+    "k": "campos.fb_rg",
+    "l": "RG",
+    "t": "text"
+   },
+   {
+    "k": "campos.fb_cpf",
+    "l": "CPF",
+    "t": "text"
+   },
+   {
+    "k": "campos.fb_estcivil",
+    "l": "Estado Civil",
+    "t": "sel",
+    "o": [
+     "SOLTEIRO(A)",
+     "CASADO(A)",
+     "DIVORCIADO(A)",
+     "VIÚVO(A)",
+     "UNIÃO ESTÁVEL"
+    ]
+   },
+   {
+    "k": "campos.fb_conjuge",
+    "l": "Cônjuge",
+    "t": "text"
+   },
+   {
+    "k": "campos.fb_endereco",
+    "l": "Endereço",
+    "t": "text"
+   },
+   {
+    "k": "campos.fb_cep",
+    "l": "CEP",
+    "t": "text"
+   },
+   {
+    "k": "campos.fb_municipio",
+    "l": "Município",
+    "t": "text"
+   },
+   {
+    "k": "campos.fb_uf",
+    "l": "UF",
+    "t": "sel",
+    "o": [
+     "AC",
+     "AL",
+     "AP",
+     "AM",
+     "BA",
+     "CE",
+     "DF",
+     "ES",
+     "GO",
+     "MA",
+     "MT",
+     "MS",
+     "MG",
+     "PA",
+     "PB",
+     "PR",
+     "PE",
+     "PI",
+     "RJ",
+     "RN",
+     "RS",
+     "RO",
+     "RR",
+     "SC",
+     "SP",
+     "SE",
+     "TO"
+    ]
+   },
+   {
+    "k": "campos.fb_telefone",
+    "l": "Telefone",
+    "t": "text"
+   }
+  ]
+ },
+ {
+  "id": "prop",
+  "t": "4 · Informante e Propriedade (1.4–1.6)",
+  "campos": [
+   {
+    "k": "campos.fb_inf_nome",
+    "l": "1.4 Informante — Nome",
+    "t": "text"
+   },
+   {
+    "k": "campos.fb_inf_dados",
+    "l": "Dados complementares",
+    "t": "text"
+   },
+   {
+    "k": "campos.fb_prop_id",
+    "l": "1.5 Propriedade — Identificação",
+    "t": "text"
+   },
+   {
+    "k": "campos.fb_area_total",
+    "l": "Área Total (ha)",
+    "t": "text"
+   },
+   {
+    "k": "campos.fb_prop_end",
+    "l": "Endereço",
+    "t": "text"
+   },
+   {
+    "k": "campos.fb_area_desap",
+    "l": "Área Desapropriada (ha)",
+    "t": "text"
+   },
+   {
+    "k": "campos.fb_prop_mun",
+    "l": "Município",
+    "t": "text"
+   },
+   {
+    "k": "campos.fb_prop_uf",
+    "l": "UF",
+    "t": "sel",
+    "o": [
+     "AC",
+     "AL",
+     "AP",
+     "AM",
+     "BA",
+     "CE",
+     "DF",
+     "ES",
+     "GO",
+     "MA",
+     "MT",
+     "MS",
+     "MG",
+     "PA",
+     "PB",
+     "PR",
+     "PE",
+     "PI",
+     "RJ",
+     "RN",
+     "RS",
+     "RO",
+     "RR",
+     "SC",
+     "SP",
+     "SE",
+     "TO"
+    ]
+   },
+   {
+    "k": "campos.fb_matricula",
+    "l": "Matrícula",
+    "t": "text"
+   },
+   {
+    "k": "campos.fb_cartorio",
+    "l": "Cartório / Registro",
+    "t": "text"
+   },
+   {
+    "k": "campos.fb_cib",
+    "l": "CIB/ITR",
+    "t": "text"
+   },
+   {
+    "k": "campos.fb_ccir",
+    "l": "CCIR",
+    "t": "text"
+   },
+   {
+    "k": "campos.fb_nirf",
+    "l": "NIRF",
+    "t": "text"
+   },
+   {
+    "k": "campos.fb_georref",
+    "l": "Possui georreferenciamento?",
+    "t": "sel",
+    "o": [
+     "Sim",
+     "Não"
+    ]
+   },
+   {
+    "k": "campos.fb_sigef",
+    "l": "SIGEF",
+    "t": "text"
+   },
+   {
+    "k": "campos.fb_car",
+    "l": "CAR",
+    "t": "text"
+   },
+   {
+    "k": "campos.fb_15_obs",
+    "l": "1.6 Observações",
+    "t": "ta"
+   }
+  ]
+ },
+ {
+  "id": "imovel",
+  "t": "5 · Caracterização do imóvel (2)",
+  "campos": [
+   {
+    "k": "campos.fb_21_amb",
+    "l": "2.1 Ambientais",
+    "t": "ta"
+   },
+   {
+    "k": "campos.fb_22_loc",
+    "l": "2.2 Localização",
+    "t": "ta"
+   },
+   {
+    "k": "campos.fb_23_fis",
+    "l": "2.3 Características Físicas",
+    "t": "ta"
+   },
+   {
+    "k": "campos.fb_241_infra",
+    "l": "2.4.1 Rural — Infraestrutura",
+    "t": "ta"
+   },
+   {
+    "k": "campos.fb_242_terra",
+    "l": "2.4.2 Rural — Características da terra",
+    "t": "ta"
+   },
+   {
+    "k": "campos.fb_243_hidro",
+    "l": "2.4.3 Rural — Hidrografia / Vazão",
+    "t": "ta"
+   },
+   {
+    "k": "campos.fb_244_comp",
+    "l": "2.4.4 Rural — Informações complementares",
+    "t": "ta"
+   },
+   {
+    "k": "campos.fb_251_infra",
+    "l": "2.5.1 Urbano — Infraestrutura",
+    "t": "text"
+   },
+   {
+    "k": "campos.fb_252_topo",
+    "l": "2.5.2 Urbano — Topografia",
+    "t": "text"
+   },
+   {
+    "k": "campos.fb_253_dist",
+    "l": "2.5.3 Urbano — Distância do centro",
+    "t": "text"
+   },
+   {
+    "k": "campos.fb_254_comp",
+    "l": "2.5.4 Urbano — Informações complementares",
+    "t": "text"
+   }
+  ]
+ },
+ {
+  "id": "benf",
+  "t": "6 · Benfeitorias (3)",
+  "campos": [
+   {
+    "k": "campos.fb_31_nrep",
+    "l": "3.1 Não reprodutivas",
+    "t": "ta"
+   },
+   {
+    "k": "campos.fb_311",
+    "l": "3.1.1 Não reprodutivas da faixa não edificante",
+    "t": "text"
+   },
+   {
+    "k": "campos.fb_312",
+    "l": "3.1.2 Informações complementares",
+    "t": "ta"
+   },
+   {
+    "k": "campos.fb_32_rep",
+    "l": "3.2 Reprodutivas",
+    "t": "ta"
+   },
+   {
+    "k": "campos.fb_321",
+    "l": "3.2.1 Reprodutivas da faixa não edificante",
+    "t": "text"
+   },
+   {
+    "k": "campos.fb_322",
+    "l": "3.2.2 Informações complementares",
+    "t": "ta"
+   }
+  ]
+ },
+ {
+  "id": "socio1",
+  "t": "7 · Socioeconômica (4.1–4.4)",
+  "campos": [
+   {
+    "k": "campos.fb_41_prop",
+    "l": "4.1 Proprietário(a) do imóvel",
+    "t": "sel",
+    "o": [
+     "1 - Sim",
+     "2 - Não"
+    ]
+   },
+   {
+    "k": "campos.fb_41_nome",
+    "l": "Nome",
+    "t": "text"
+   },
+   {
+    "k": "campos.fb_411_par",
+    "l": "4.1.1 Grau de parentesco",
+    "t": "sel",
+    "o": [
+     "Cônjuge",
+     "Filho(a)",
+     "Neto(a)",
+     "Irmão(ã)",
+     "Pai/Mãe",
+     "Sobrinho(a)",
+     "Genro/Nora",
+     "Outro",
+     "Não se aplica"
+    ]
+   },
+   {
+    "k": "campos.fb_42_nat",
+    "l": "4.2 Naturalidade",
+    "t": "sel",
+    "o": [
+     "Do município (1)",
+     "Outro município (2)",
+     "Outro estado (3)"
+    ]
+   },
+   {
+    "k": "campos.fb_42_qual",
+    "l": "Qual?",
+    "t": "text"
+   },
+   {
+    "k": "campos.fb_42_tempo",
+    "l": "Há quanto tempo reside na comunidade?",
+    "t": "text"
+   },
+   {
+    "k": "campos.fb_43_esc",
+    "l": "4.3 Escolaridade",
+    "t": "sel",
+    "o": [
+     "Analfabeto(a)",
+     "Alfabetizado(a)",
+     "Ensino Fundamental Completo",
+     "Ensino Fundamental Incompleto",
+     "Ensino Médio Completo",
+     "Ensino Médio Incompleto",
+     "Ensino Técnico Completo",
+     "Ensino Técnico Incompleto",
+     "Ensino Superior Completo",
+     "Ensino Superior Incompleto"
+    ]
+   },
+   {
+    "k": "campos.fb_44_trab",
+    "l": "4.4 Trabalha",
+    "t": "sel",
+    "o": [
+     "1 - Sim",
+     "2 - Não"
+    ]
+   },
+   {
+    "k": "campos.fb_44_empresa",
+    "l": "Empresa que trabalha",
+    "t": "text"
+   },
+   {
+    "k": "campos.fb_44_tempo",
+    "l": "Tempo de trabalho",
+    "t": "text"
+   },
+   {
+    "k": "campos.fb_44_prof",
+    "l": "Profissão",
+    "t": "text"
+   },
+   {
+    "k": "campos.fb_44_remun",
+    "l": "Remuneração (R$)",
+    "t": "text"
+   },
+   {
+    "k": "campos.fb_44_renda",
+    "l": "Renda familiar (R$)",
+    "t": "text"
+   }
+  ]
+ },
+ {
+  "id": "familia",
+  "t": "8 · Composição familiar (4.5)",
+  "rep": {
+   "lista": "familia",
+   "rot": "Pessoa",
+   "semFotos": true,
+   "campos": [
+    {
+     "k": "nome",
+     "l": "Nome",
+     "t": "text"
+    },
+    {
+     "k": "parentesco",
+     "l": "Parentesco",
+     "t": "sel",
+     "o": [
+      "Titular",
+      "Cônjuge",
+      "Companheiro(a)",
+      "Filho(a)",
+      "Enteado(a)",
+      "Neto(a)",
+      "Irmão(ã)",
+      "Pai/Mãe",
+      "Sogro(a)",
+      "Genro/Nora",
+      "Sobrinho(a)",
+      "Primo(a)",
+      "Tio(a)",
+      "Outro",
+      "Não se aplica"
+     ]
+    },
+    {
+     "k": "idade",
+     "l": "Idade",
+     "t": "text"
+    }
+   ]
+  },
+  "campos": [
+   {
+    "k": "campos.fb_451",
+    "l": "4.5.1 Os filhos ou familiares estudam na escola do bairro",
+    "t": "sel",
+    "o": [
+     "1 - Sim",
+     "2 - Não"
+    ]
+   },
+   {
+    "k": "campos.fb_451_bairro",
+    "l": "Em qual bairro?",
+    "t": "text"
+   },
+   {
+    "k": "campos.fb_452",
+    "l": "4.5.2 Reside na moradia alguma pessoa com deficiência",
+    "t": "sel",
+    "o": [
+     "1 - Sim",
+     "2 - Não"
+    ]
+   },
+   {
+    "k": "campos.fb_452_qual",
+    "l": "Qual?",
+    "t": "text"
+   },
+   {
+    "k": "campos.fb_453_bpc",
+    "l": "4.5.3 Recebe BPC – Benefício de Prestação Continuada",
+    "t": "sel",
+    "o": [
+     "1 - Sim",
+     "2 - Não"
+    ]
+   },
+   {
+    "k": "chk454",
+    "l": "4.5.4 Problemas de saúde na família",
+    "t": "chks",
+    "ids": [
+     "fb_454_0",
+     "fb_454_1",
+     "fb_454_2",
+     "fb_454_3",
+     "fb_454_4"
+    ],
+    "o": [
+     "Alergia",
+     "Desnutrição",
+     "Diarreia",
+     "Doença respiratória",
+     "Verminose"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "moradia",
+  "t": "9 · Situação da moradia (4.6)",
+  "campos": [
+   {
+    "k": "chk461",
+    "l": "4.6.1 Tipo",
+    "t": "chks",
+    "ids": [
+     "fb_461_tipo_0",
+     "fb_461_tipo_1",
+     "fb_461_tipo_2",
+     "fb_461_tipo_3",
+     "fb_461_tipo_4"
+    ],
+    "o": [
+     "Terreno",
+     "Comércio",
+     "Casa residencial",
+     "Casa abandonada",
+     "Outros"
+    ]
+   },
+   {
+    "k": "campos.fb_461_outros",
+    "l": "Outros (especificar)",
+    "t": "text"
+   },
+   {
+    "k": "chk462",
+    "l": "4.6.2 Ocupação",
+    "t": "chks",
+    "ids": [
+     "fb_462_ocup_0",
+     "fb_462_ocup_1",
+     "fb_462_ocup_2"
+    ],
+    "o": [
+     "Própria",
+     "Alugada",
+     "Cedida"
+    ]
+   },
+   {
+    "k": "chk463",
+    "l": "4.6.3 Famílias na moradia",
+    "t": "chks",
+    "ids": [
+     "fb_463_fam_0",
+     "fb_463_fam_1",
+     "fb_463_fam_2"
+    ],
+    "o": [
+     "Uma família",
+     "Duas famílias",
+     "Mais de duas famílias"
+    ]
+   },
+   {
+    "k": "chk464",
+    "l": "4.6.4 Estado de conservação",
+    "t": "chks",
+    "ids": [
+     "fb_464_cons_0",
+     "fb_464_cons_1",
+     "fb_464_cons_2"
+    ],
+    "o": [
+     "Bom",
+     "Regular",
+     "Ruim"
+    ]
+   },
+   {
+    "k": "chk465",
+    "l": "4.6.5 Construção",
+    "t": "chks",
+    "ids": [
+     "fb_465_constr_0",
+     "fb_465_constr_1",
+     "fb_465_constr_2"
+    ],
+    "o": [
+     "Alvenaria",
+     "Madeira",
+     "Misto"
+    ]
+   },
+   {
+    "k": "campos.fb_466_comodos",
+    "l": "4.6.6 Número de cômodos",
+    "t": "text"
+   },
+   {
+    "k": "chk467",
+    "l": "4.6.7 Situação do imóvel",
+    "t": "chks",
+    "ids": [
+     "fb_467_sit_0",
+     "fb_467_sit_1",
+     "fb_467_sit_2",
+     "fb_467_sit_3",
+     "fb_467_sit_4"
+    ],
+    "o": [
+     "Com escritura",
+     "Sem escritura",
+     "Comprovante de compra e venda",
+     "Posseiro",
+     "Título de posse do INCRA"
+    ]
+   },
+   {
+    "k": "campos.fb_46_obs",
+    "l": "Observações",
+    "t": "ta"
+   }
+  ]
+ },
+ {
+  "id": "infra",
+  "t": "10 · Infraestrutura e identificação (4.7–4.8)",
+  "campos": [
+   {
+    "k": "chk471",
+    "l": "4.7.1 Água",
+    "t": "chks",
+    "ids": [
+     "fb_471_agua_0",
+     "fb_471_agua_1",
+     "fb_471_agua_2",
+     "fb_471_agua_3",
+     "fb_471_agua_4"
+    ],
+    "o": [
+     "Rede pública",
+     "Poço",
+     "Fonte",
+     "Cedido por vizinho",
+     "Rio"
+    ]
+   },
+   {
+    "k": "chk472",
+    "l": "4.7.2 Energia",
+    "t": "chks",
+    "ids": [
+     "fb_472_energia_0",
+     "fb_472_energia_1"
+    ],
+    "o": [
+     "Com padrão",
+     "Sem padrão"
+    ]
+   },
+   {
+    "k": "chk473",
+    "l": "4.7.3 Dejetos",
+    "t": "chks",
+    "ids": [
+     "fb_473_dejetos_0",
+     "fb_473_dejetos_1",
+     "fb_473_dejetos_2"
+    ],
+    "o": [
+     "Rede de esgoto",
+     "Fossa séptica",
+     "Vala a céu aberto"
+    ]
+   },
+   {
+    "k": "chk474",
+    "l": "4.7.4 Lixo",
+    "t": "chks",
+    "ids": [
+     "fb_474_lixo_0",
+     "fb_474_lixo_1",
+     "fb_474_lixo_2",
+     "fb_474_lixo_3"
+    ],
+    "o": [
+     "Coleta pública",
+     "Queimado",
+     "Enterrado",
+     "Jogado em terreno baldio"
+    ]
+   },
+   {
+    "k": "chk481",
+    "l": "4.8 Autorreconhecimento",
+    "t": "chks",
+    "ids": [
+     "fb_481_0",
+     "fb_481_1",
+     "fb_481_2",
+     "fb_481_3"
+    ],
+    "o": [
+     "Quilombola – Liderança",
+     "Indígena – Liderança",
+     "Comunidade tradicional – Liderança",
+     "Outros"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "terra",
+  "t": "11 · Aproveitamento da terra (4.9)",
+  "campos": [
+   {
+    "k": "chk491",
+    "l": "4.9.1 Uso das terras",
+    "t": "chks",
+    "ids": [
+     "fb_491_uso_0",
+     "fb_491_uso_1",
+     "fb_491_uso_2",
+     "fb_491_uso_3"
+    ],
+    "o": [
+     "Seca",
+     "Chuva",
+     "Plantio",
+     "Criação de animais"
+    ]
+   },
+   {
+    "k": "campos.fb_491_desc",
+    "l": "4.9.1 Uso das terras — descrição",
+    "t": "ta"
+   },
+   {
+    "k": "chk492",
+    "l": "4.9.2 Produção",
+    "t": "chks",
+    "ids": [
+     "fb_492_prod_0",
+     "fb_492_prod_1",
+     "fb_492_prod_2"
+    ],
+    "o": [
+     "Extrativismo",
+     "Agricultura",
+     "Pecuária"
+    ]
+   },
+   {
+    "k": "campos.fb_493_impactos",
+    "l": "4.9.3 Impactos concebidos pela comunidade sobre a ferrovia e sua opinião",
+    "t": "ta"
+   }
+  ]
+ },
+ {
+  "id": "outras",
+  "t": "12 · Outras informações (4.10)",
+  "campos": [
+   {
+    "k": "chk4101",
+    "l": "4.10.1 Expectativa de moradia",
+    "t": "chks",
+    "ids": [
+     "fb_4101_0",
+     "fb_4101_1",
+     "fb_4101_2"
+    ],
+    "o": [
+     "Continuar morando nas redondezas da localidade",
+     "Construir em outro local fora da localidade",
+     "Outra"
+    ]
+   },
+   {
+    "k": "campos.fb_4101_outra",
+    "l": "Outra (especificar)",
+    "t": "text"
+   },
+   {
+    "k": "campos.fb_4102",
+    "l": "4.10.2 Recebe benefício do Governo Federal",
+    "t": "sel",
+    "o": [
+     "1 - Sim",
+     "2 - Não"
+    ]
+   },
+   {
+    "k": "campos.fb_4102_qual",
+    "l": "Qual?",
+    "t": "text"
+   },
+   {
+    "k": "campos.fb_4103",
+    "l": "4.10.3 Participa de programa do município",
+    "t": "sel",
+    "o": [
+     "1 - Sim",
+     "2 - Não"
+    ]
+   },
+   {
+    "k": "campos.fb_4103_qual",
+    "l": "Qual?",
+    "t": "text"
+   },
+   {
+    "k": "campos.fb_4104",
+    "l": "4.10.4 Participa de projetos/organizações da comunidade",
+    "t": "sel",
+    "o": [
+     "1 - Sim",
+     "2 - Não"
+    ]
+   },
+   {
+    "k": "campos.fb_4104_qual",
+    "l": "Qual?",
+    "t": "text"
+   },
+   {
+    "k": "campos.fb_4105",
+    "l": "4.10.5 Saúde, educação, segurança comunitária e vulnerabilidades",
+    "t": "ta"
+   }
+  ]
+ },
+ {
+  "id": "compl",
+  "t": "13 · Complementares e fotos (5)",
+  "campos": [
+   {
+    "k": "campos.fb_51_obras",
+    "l": "5.1 Obras e Melhorias das Terras",
+    "t": "text"
+   },
+   {
+    "k": "campos.fb_52_ativ",
+    "l": "5.2 Outras Atividades",
+    "t": "text"
+   }
+  ],
+  "galerias": [
+   {
+    "k": "fotos",
+    "n": "5.3",
+    "l": "Fotografias do imóvel"
+   }
+  ]
+ },
+ {
+  "id": "relat",
+  "t": "14 · Relatório Técnico",
+  "campos": [
+   {
+    "k": "campos.rel_34_relato",
+    "l": "3.4 Síntese — Relato de campo",
+    "t": "ta",
+    "ph": "Quem recebeu a equipe, condições encontradas, percepções da família..."
+   },
+   {
+    "k": "campos.rel_grau_vuln",
+    "l": "Grau de vulnerabilidade",
+    "t": "sel",
+    "o": [
+     "baixa",
+     "moderada",
+     "alta",
+     "muito alta"
+    ]
+   },
+   {
+    "k": "campos.rel_local_data",
+    "l": "Local e data",
+    "t": "text",
+    "ph": "Ex.: Custódia-PE, 16 de agosto de 2026"
+   }
+  ]
+ },
+ {
+  "id": "fim",
+  "t": "15 · Assinatura do(a) vistoriador(a)",
+  "fim": true,
+  "campos": [
+   {
+    "k": "campos.fb_ass_nome",
+    "l": "Nome do(a) vistoriador(a)",
+    "t": "text"
+   },
+   {
+    "k": "campos.fb_ass_cargo",
+    "l": "Cargo/Função",
+    "t": "text",
+    "ph": "Ex.: Assistente Social"
+   },
+   {
+    "k": "campos.fb_ass_reg",
+    "l": "Registro (CRESS)",
+    "t": "text",
+    "ph": "Ex.: CRESS-PE 14780"
+   },
+   {
+    "k": "campos.fb_ass_local",
+    "l": "Local e data",
+    "t": "text"
+   }
+  ]
+ }
 ];
 
 /* ---------------- estado ---------------- */
-var CHAVE = "enprol_ficha_campo_v1";
+var CHAVE = "enprol_ficha_social_v1";
 var ST = { fichas: [], atual: null, fechadas: {}, passo: 0 };
 
 function novaFicha(){
   return {
     id: "f" + Date.now() + Math.random().toString(36).slice(2,6),
     criadaEm: new Date().toISOString(),
-    geral: {}, fotosImovel: [], fotosAcesso: [],
-    reprodutivas: [], pastagem: [], naoReprodutivas: [], acessorias: [],
-    tecnico: { nome:"", documento:"" }, assinatura: "",
-    gps: null
+    campos: {},                 // ids iguais aos da web: fb_*, rel_*
+    familia: [], relAreas: [], fotos: [],
+    assinatura: "", gps: null
   };
 }
 function atual(){ return ST.fichas.filter(function(f){ return f.id===ST.atual; })[0] || null; }
@@ -366,6 +1331,15 @@ function campoHTML(cam, c){
       h += '<button type="button" class="seg'+(on?" on":"")+'" data-cam="'+esc(cam)+'" data-op="'+esc(op)+'">'+esc(op)+'</button>';
     });
     h += '</div>';
+  } else if(c.t === "chks"){
+    var marc = Array.isArray(v) ? v : [];
+    h = '<div class="chips">';
+    c.o.forEach(function(op, idx){
+      var on = marc.indexOf(op) >= 0;
+      h += '<label class="'+(on?"on":"")+'"><input type="checkbox"'+(on?" checked":"")
+         + ' data-cam="'+esc(cam)+'" data-op="'+esc(op)+'" class="cbx"><span>'+esc(op)+'</span></label>';
+    });
+    h += '</div>';
   } else if(c.t === "multi"){
     var arr = Array.isArray(v) ? v : (v ? [v] : []);
     h = '<div class="chips">';
@@ -405,7 +1379,7 @@ function repHTML(sec){
     h += '<div class="item"><div class="cab"><b>'+esc(r.rot)+' '+(i+1)+'</b>'
        + '<button class="rm" type="button" onclick="rmItem(\''+r.lista+'\','+i+')">Remover</button></div>';
     r.campos.forEach(function(c){ h += campoHTML(r.lista+"."+i+"."+c.k, c); });
-    h += galeriaHTML(r.lista+"."+i+".fotos", "Fotos");
+    if(!r.semFotos) h += galeriaHTML(r.lista+"."+i+".fotos", "Fotos");
     h += '</div>';
   });
   h += '<button class="add" type="button" onclick="addItem(\''+r.lista+'\')">+ Adicionar '+esc(r.rot.toLowerCase())+'</button>';
@@ -414,14 +1388,12 @@ function repHTML(sec){
 
 function fimHTML(){
   var f = atual();
-  var h = campoHTML("tecnico.nome", {l:"Nome do técnico", t:"text"})
-        + campoHTML("tecnico.documento", {l:"CPF/Documento", t:"text"})
-        + '<div class="f"><label><span class="num">128</span>Assinatura</label>'
+  var h = '<div class="f"><label>Assinatura do(a) vistoriador(a)</label>'
         + '<div id="sigWrap"><canvas id="sig"></canvas></div>'
-        + '<div class="cam"><label style="cursor:pointer" onclick="limparSig()">🧹 Limpar assinatura</label></div></div>'
-        + '<div class="f"><label>Localização (GPS)</label><div class="gps">'
-        + '<button class="add" type="button" style="width:auto;padding:10px 14px" onclick="pegarGPS()">📍 Capturar coordenada</button>'
-        + '<span id="gpsTxt">' + (f.gps ? (f.gps.lat.toFixed(6)+", "+f.gps.lon.toFixed(6)+" (±"+Math.round(f.gps.precisao)+" m)") : "—") + '</span>'
+        + '<div class="cam"><label style="cursor:pointer" onclick="limparSig()">\uD83E\uDDF9 Limpar assinatura</label></div></div>'
+        + '<div class="f"><label>Localiza\u00e7\u00e3o (GPS)</label><div class="gps">'
+        + '<button class="add" type="button" style="width:auto;padding:10px 14px" onclick="pegarGPS()">\uD83D\uDCCD Capturar coordenada</button>'
+        + '<span id="gpsTxt">' + (f.gps ? (f.gps.lat.toFixed(6)+", "+f.gps.lon.toFixed(6)+" (\u00b1"+Math.round(f.gps.precisao)+" m)") : "\u2014") + '</span>'
         + '</div></div>';
   return h;
 }
@@ -432,7 +1404,7 @@ function render(){
   // abas de fichas
   var fh = "";
   ST.fichas.forEach(function(x){
-    var nome = (x.geral && x.geral.processo) ? ("CTD " + x.geral.processo) : "Nova ficha";
+    var nome = (x.campos && x.campos.fb_proc_ctd) ? ("CTD " + x.campos.fb_proc_ctd) : "Nova ficha";
     var mexida = !x.enviadaEm;
     if(x.id === ST.atual){
       fh += '<span class="chip"><button type="button" class="on" onclick="trocar(&quot;'+x.id+'&quot;)">'
@@ -445,7 +1417,7 @@ function render(){
   fh += '<button type="button" class="nova" onclick="addFicha()">+ ficha</button>';
   document.getElementById("fichas").innerHTML = fh;
   document.getElementById("subtit").textContent =
-    "ENPROL · " + ((f.geral && f.geral.municipio) ? f.geral.municipio : "Vistoria de Avaliação");
+    "ENPROL · " + ((f.campos && f.campos.fb_municipio) ? f.campos.fb_municipio : "Anexo B + Relatório Técnico");
 
   var TOTAL = SECOES.length + 1;                       // +1 = tela de revisão/envio
   if(ST.passo == null || ST.passo < 0) ST.passo = 0;
@@ -473,9 +1445,9 @@ function render(){
     }
     h = '<section class="sec" id="sec-'+sec.id+'">'
       + '<h2><span>'+esc(sec.t)+'</span>'+cnt+'</h2><div class="body">';
-    if(sec.campos)   sec.campos.forEach(function(c){ h += campoHTML((sec.id==="fim"?"":"geral.")+c.k, c); });
-    if(sec.galerias) sec.galerias.forEach(function(g){ h += galeriaHTML(g.k, g.l, g.n); });
     if(sec.rep)      h += repHTML(sec);
+    if(sec.campos)   sec.campos.forEach(function(c){ h += campoHTML(c.k, c); });
+    if(sec.galerias) sec.galerias.forEach(function(g){ h += galeriaHTML(g.k, g.l, g.n); });
     if(sec.fim)      h += fimHTML();
     h += '</div></section>';
   }
@@ -491,42 +1463,45 @@ function render(){
 }
 
 function revisaoHTML(){
-  var f = atual(), g = f.geral || {};
-  function n(lista){ return (f[lista]||[]).length; }
-  var fotos = (f.fotosImovel||[]).length + (f.fotosAcesso||[]).length;
-  ["reprodutivas","pastagem","naoReprodutivas","acessorias"].forEach(function(l){
-    (f[l]||[]).forEach(function(it){ fotos += (it.fotos||[]).length; });
-  });
+  var f = atual(), c = f.campos || {};
+  var fotos = (f.fotos || []).length;
+  var pessoas = (f.familia || []).filter(function(p){ return p && p.nome; }).length;
+  var preenchidos = 0, totalCampos = 0;
+  SECOES.forEach(function(s){ (s.campos||[]).forEach(function(cc){
+    totalCampos++; var v = getv(f, cc.k);
+    if(Array.isArray(v) ? v.length : (v != null && String(v).trim())) preenchidos++;
+  }); });
   var falta = [];
-  if(!g.processo)      falta.push("Nº CTD");
-  if(!g.lote)          falta.push("Nº Lote");
-  if(!g.dataVistoria)  falta.push("Data da vistoria");
-  if(!g.proprietarios) falta.push("Nome do proprietário/posseiro");
-  if(!g.municipio)     falta.push("Município");
-  if(!fotos)           falta.push("nenhuma foto");
+  if(!c.fb_proc_ctd) falta.push("Nº CTD");
+  if(!c.fb_nome)     falta.push("Nome do proprietário");
+  if(!c.fb_municipio)falta.push("Município");
+  if(!c.fb_data)     falta.push("Data da vistoria");
+  if(!pessoas)       falta.push("composição familiar");
+  if(!c.rel_34_relato) falta.push("relato de campo");
+  if(!f.assinatura)  falta.push("assinatura");
 
-  var h = '<div class="fimcard"><div class="ok">'+(falta.length?"📝":"✅")+'</div>'
-        + '<h3>'+(falta.length?"Quase lá":"Ficha completa")+'</h3>'
-        + '<p>'+(falta.length ? "Dá para enviar assim, mas confira o que ficou em branco."
-                              : "Confira o resumo e envie para o escritório.")+'</p>'
+  var h = '<div class="fimcard"><div class="ok">' + (falta.length ? "\u{1F4DD}" : "\u2705") + '</div>'
+        + '<h3>' + (falta.length ? "Quase lá" : "Ficha completa") + '</h3>'
+        + '<p>' + preenchidos + ' de ' + totalCampos + ' campos preenchidos.</p>'
         + '<div class="resumo">'
-        + '<div><span>Nº CTD</span><b>'+esc(g.processo||"—")+'</b></div>'
-        + '<div><span>Lote</span><b>'+esc(g.lote?("SPS-"+g.lote):"—")+'</b></div>'
-        + '<div><span>Município</span><b>'+esc(g.municipio||"—")+'</b></div>'
-        + '<div><span>'+esc(g.propTipo||"Proprietário/Posseiro")+'</span><b>'+esc((g.proprietarios||"—").split(String.fromCharCode(10))[0])+'</b></div>'
-        + '<div><span>Benfeitorias</span><b>'+(n("reprodutivas")+n("naoReprodutivas")+n("acessorias")+n("pastagem"))+'</b></div>'
-        + '<div><span>Fotos</span><b>'+fotos+'</b></div>'
-        + '<div><span>Assinatura</span><b>'+(f.assinatura?"sim":"—")+'</b></div>'
+        + '<div><span>Nº CTD</span><b>' + esc(c.fb_proc_ctd || "—") + '</b></div>'
+        + '<div><span>Lote</span><b>' + esc(c.fb_proc_lote ? ("SPS-" + c.fb_proc_lote) : "—") + '</b></div>'
+        + '<div><span>Proprietário(a)</span><b>' + esc(c.fb_nome || "—") + '</b></div>'
+        + '<div><span>Município</span><b>' + esc(c.fb_municipio || "—") + '</b></div>'
+        + '<div><span>Pessoas na família</span><b>' + pessoas + '</b></div>'
+        + '<div><span>Fotos</span><b>' + fotos + '</b></div>'
+        + '<div><span>Relato de campo</span><b>' + (c.rel_34_relato ? "sim" : "—") + '</b></div>'
+        + '<div><span>Assinatura</span><b>' + (f.assinatura ? "sim" : "—") + '</b></div>'
         + '</div>';
   if(falta.length){
-    h += '<p style="margin-top:12px;color:#a5651a;font-size:12.5px;"><b>Em branco:</b> '+esc(falta.join(", "))+'</p>';
+    h += '<p style="margin-top:12px;color:#a5651a;font-size:12.5px;"><b>Em branco:</b> ' + esc(falta.join(", ")) + '</p>';
   }
   h += '<p style="margin-top:14px;font-size:12.5px;">Toque em <b>Enviar ficha</b> e escolha o WhatsApp do escritório.</p>';
   var pend = ST.fichas.filter(function(x){ return x.id !== f.id && !x.enviadaEm; }).length;
   if(pend){
-    h += '<div class="alerta"><b>Vai só esta ficha.</b> Você tem mais <b>'+pend+'</b> ficha(s) no celular '
+    h += '<div class="alerta"><b>Vai só esta ficha.</b> Você tem mais <b>' + pend + '</b> ficha(s) no celular '
        + 'ainda não enviada(s) — troque na barra de cima e envie uma de cada vez. '
-       + 'Ficha já enviada aparece com ✓.</div>';
+       + 'Ficha já enviada aparece com \u2713.</div>';
   }
   h += '</div>';
   return h;
@@ -555,6 +1530,18 @@ document.addEventListener("click", function(ev){
   if(getv(f, cam) === op) btn.classList.add("on");
   salvar(true);
 });
+document.addEventListener("change", function(ev){
+  var el = ev.target;
+  if(!el.classList || !el.classList.contains("cbx")) return;
+  var f = atual(), cam = el.dataset.cam, op = el.dataset.op;
+  var arr = getv(f, cam); if(!Array.isArray(arr)) arr = [];
+  var i = arr.indexOf(op);
+  if(el.checked && i < 0) arr.push(op);
+  if(!el.checked && i >= 0) arr.splice(i, 1);
+  setv(f, cam, arr);
+  el.parentNode.classList.toggle("on", el.checked);
+  salvar(true);
+});
 function updMulti(el, cam, op){
   var f = atual(), arr = getv(f, cam); if(!Array.isArray(arr)) arr = [];
   var i = arr.indexOf(op);
@@ -574,12 +1561,7 @@ function updMultiOutro(el, cam){
   salvar(true);
 }
 function tituloTalvez(cam){
-  if(cam === "geral.processo" || cam === "geral.municipio"){
-    var f = atual();
-    document.getElementById("subtit").textContent = "ENPROL · " + ((f.geral&&f.geral.municipio)||"Vistoria de Avaliação");
-    var b = document.querySelector("#fichas button.on");
-    if(b) b.textContent = (f.geral && f.geral.processo) ? f.geral.processo : "Nova ficha";
-  }
+  if(cam === "campos.fb_proc_ctd" || cam === "campos.fb_municipio") render();
 }
 function addItem(lista){
   var f = atual(), arr = getv(f, lista); if(!Array.isArray(arr)){ arr = []; setv(f, lista, arr); }
@@ -681,43 +1663,54 @@ function progresso(){
   var f = atual(); if(!f) return;
   var total = 0, ok = 0;
   SECOES.forEach(function(s){
-    if(s.campos) s.campos.forEach(function(c){
-      if(s.id === "fim") return;
+    (s.campos || []).forEach(function(c){
       total++;
-      var v = getv(f, "geral."+c.k);
-      if(Array.isArray(v) ? v.length : (v!=null && String(v).trim())) ok++;
+      var v = getv(f, c.k);
+      if(Array.isArray(v) ? v.length : (v != null && String(v).trim())) ok++;
     });
   });
   total += 2;
-  if((f.fotosImovel||[]).length) ok++;
-  if((f.reprodutivas||[]).length + (f.naoReprodutivas||[]).length) ok++;
-  var pc = total ? Math.round(ok/total*100) : 0;
-  document.getElementById("progbar").style.width = pc + "%";
+  if((f.familia || []).some(function(p){ return p && p.nome; })) ok++;
+  if((f.fotos || []).length) ok++;
+  var pc = total ? Math.round(ok / total * 100) : 0;
+  var b = document.getElementById("progbar"); if(b) b.style.width = pc + "%";
 }
 
 /* ---------------- exportar / enviar ---------------- */
 function pacote(f){
+  var campos = {};
+  Object.keys(f.campos || {}).forEach(function(k){ campos[k] = f.campos[k]; });
+  // grupos de caixas viram os ids individuais que a web usa: {__chk:true/false}
+  SECOES.forEach(function(s){
+    (s.campos || []).forEach(function(c){
+      if(c.t !== "chks") return;
+      var marc = getv(f, c.k) || [];
+      c.ids.forEach(function(id, i){ campos[id] = { __chk: marc.indexOf(c.o[i]) >= 0 }; });
+    });
+  });
   return {
-    _app: "ENPROL-FichaCampo", _v: 1,
+    _app: "ENPROL-FichaSocial", _v: 1,
     _geradoEm: new Date().toISOString(),
     id: f.id, criadaEm: f.criadaEm,
-    geral: f.geral || {},
-    fotosImovel: f.fotosImovel || [], fotosAcesso: f.fotosAcesso || [],
-    reprodutivas: f.reprodutivas || [], pastagem: f.pastagem || [],
-    naoReprodutivas: f.naoReprodutivas || [], acessorias: f.acessorias || [],
-    tecnico: f.tecnico || {}, assinatura: f.assinatura || "", gps: f.gps || null
+    campos: campos,
+    familia: (f.familia || []).filter(function(p){ return p && (p.nome || p.idade); }),
+    relAreas: (f.relAreas || []).filter(function(a){ return a && (a.ini || a.fim); }),
+    fotos: (f.fotos || []).map(function(p){ return p.src; }),
+    legendas: (f.fotos || []).map(function(p){ return p.leg || ""; }),
+    assinaturas: { fb: f.assinatura || null, rel: null },
+    gps: f.gps || null
   };
 }
 function nomeArq(f){
-  var p = ((f.geral && f.geral.processo) || "ficha").replace(/[\\/:*?"<>|]+/g, "-").trim().replace(/\s+/g, "_");
-  var d = (f.geral && f.geral.dataVistoria) || new Date().toISOString().slice(0,10);
-  return "FichaCampo_CTD_" + p + "_" + d + ".json";
+  var p = (((f.campos||{}).fb_proc_ctd) || "ficha").replace(/[\\/:*?"<>|]+/g, "-").trim().replace(/\s+/g, "_");
+  var d = ((f.campos||{}).fb_data || "").split("/").reverse().join("-") || new Date().toISOString().slice(0,10);
+  return "FichaSocial_CTD_" + p + "_" + d + ".json";
 }
 function enviar(){
   var f = atual(); if(!f) return;
   var pendentes = ST.fichas.filter(function(x){ return x.id !== f.id && !x.enviadaEm; }).length;
   if(pendentes){
-    var nome = (f.geral && f.geral.processo) ? ("CTD " + f.geral.processo) : "esta ficha";
+    var nome = ((f.campos||{}).fb_proc_ctd) ? ("CTD " + f.campos.fb_proc_ctd) : "esta ficha";
     if(!confirm("Vai ser enviada SÓ a ficha " + nome + ".\n\n"
               + "Outras " + pendentes + " ficha(s) continuam guardadas no celular e precisam ser "
               + "enviadas uma de cada vez, trocando na barra de cima.\n\nEnviar agora?")) return;
@@ -730,7 +1723,7 @@ function enviar(){
   var mb = (blob.size/1048576).toFixed(1);
 
   if(file && navigator.canShare && navigator.canShare({ files:[file] })){
-    navigator.share({ files:[file], title:"Ficha de Campo", text:"Ficha de Campo — CTD " + ((f.geral&&f.geral.processo)||"") + ((f.geral&&f.geral.lote)?(" / SPS-"+f.geral.lote):"") })
+    navigator.share({ files:[file], title:"Ficha Social", text:"Ficha Social (Anexo B) — CTD " + ((f.geral&&f.geral.processo)||"") + ((f.geral&&f.geral.lote)?(" / SPS-"+f.geral.lote):"") })
       .then(function(){ marcarEnviada(f); flash("ficha enviada ("+mb+" MB)"); })
       .catch(function(err){ if(err && err.name !== "AbortError") baixar(blob, nome, mb); });
     return;
@@ -769,10 +1762,16 @@ function impArquivo(input){
   fr.onload = function(){
     try{
       var o = JSON.parse(fr.result);
-      if(!o || o._app !== "ENPROL-FichaCampo") throw new Error("Não é uma ficha de campo.");
+      if(!o || o._app !== "ENPROL-FichaSocial") throw new Error("Não é uma ficha social.");
       var nf = novaFicha();
-      ["geral","fotosImovel","fotosAcesso","reprodutivas","pastagem","naoReprodutivas","acessorias","tecnico","assinatura","gps"]
-        .forEach(function(k){ if(o[k] != null) nf[k] = o[k]; });
+      if(o.campos) nf.campos = o.campos;
+      if(o.familia) nf.familia = o.familia;
+      if(o.relAreas) nf.relAreas = o.relAreas;
+      if(o.fotos) nf.fotos = o.fotos.map(function(src, i){
+        return { src: src, leg: (o.legendas && o.legendas[i]) || "" };
+      });
+      if(o.assinaturas && o.assinaturas.fb) nf.assinatura = o.assinaturas.fb;
+      if(o.gps) nf.gps = o.gps;
       ST.fichas.push(nf); ST.atual = nf.id; salvar(true);
       document.getElementById("dlg").close(); render(); window.scrollTo(0,0);
       flash("ficha carregada");
@@ -782,11 +1781,8 @@ function impArquivo(input){
 }
 function apagarFicha(){
   var f = atual(); if(!f) return;
-  var nome = (f.geral && f.geral.processo) ? ("CTD " + f.geral.processo) : "esta ficha (sem nº)";
-  var fotos = (f.fotosImovel||[]).length + (f.fotosAcesso||[]).length;
-  ["reprodutivas","pastagem","naoReprodutivas","acessorias"].forEach(function(l){
-    (f[l]||[]).forEach(function(it){ fotos += (it.fotos||[]).length; });
-  });
+  var nome = ((f.campos||{}).fb_proc_ctd) ? ("CTD " + f.campos.fb_proc_ctd) : "esta ficha (sem nº)";
+  var fotos = (f.fotos||[]).length;
   var msg;
   if(f.enviadaEm){
     msg = "Apagar " + nome + " do celular?\n\nEla já foi enviada em "
@@ -815,7 +1811,7 @@ window.addEventListener("online", net); window.addEventListener("offline", net);
 
 if("serviceWorker" in navigator){
   window.addEventListener("load", function(){
-    navigator.serviceWorker.register("campo-sw.js").catch(function(e){ console.warn("SW:", e); });
+    navigator.serviceWorker.register("campo-social-sw.js").catch(function(e){ console.warn("SW:", e); });
   });
 }
 window.addEventListener("beforeunload", function(e){

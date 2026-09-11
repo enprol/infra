@@ -2745,7 +2745,7 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
   <div class="sb-sub" id="sbSub">
     <div class="sb-sub-grupo" data-grupo="desp1">
       <div class="sb-grp">Documentação</div>
-      <button class="sb-link" data-alvo="panel-desp1-campo" onclick="trocarAba(this)">Ficha de Campo — coleta em campo (offline)</button>
+      <button class="sb-link" data-alvo="panel-desp1-campo" onclick="trocarAba(this)">Coleta em campo (offline) — Ficha de Campo e Ficha Social</button>
       <button class="sb-link ativa" data-alvo="panel-desp1-vist" onclick="trocarAba(this)">Ficha de Vistoria e Cadastro Socioeconômico (Anexo B)</button>
       <button class="sb-link" data-alvo="panel-desp1-drl" onclick="trocarAba(this)">DRL — Declaração de Respeito de Limites</button>
       <button class="sb-link" data-alvo="panel-desp1-rel" onclick="trocarAba(this)">Relatório Técnico de Caracterização Socioeconômica</button>
@@ -4571,11 +4571,30 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 
 <section class="tab-panel" id="panel-desp1-campo">
 <div class="wrap">
-<h1>Ficha de Campo — coleta em campo (offline)</h1>
-<p class="sub">O técnico preenche a ficha no celular, <b>sem internet</b>, e manda o arquivo. Aqui você importa, confere, gera a Ficha de Campo e o Relatório Fotográfico, e joga os dados para a Ficha de Vistoria.</p>
+<h1>Coleta em campo (offline)</h1>
+<p class="sub">Dois aplicativos de celular que funcionam <b>sem internet</b>: o do <b>avaliador</b> (Ficha de Campo) e o da <b>assistente social</b> (Anexo B + Relatório Técnico). Eles preenchem em campo, mandam o arquivo, e aqui você importa.</p>
+
+<div class="vcard" style="border-left:4px solid #178a3a;">
+  <div class="vsub" style="color:#12782f;">👩‍💼 Aplicativo da assistente social — Anexo B + Relatório Técnico</div>
+  <p class="hint-inline" style="margin-top:0;">Preenche a <b>Ficha de Vistoria e Cadastro Socioeconômico (Anexo B)</b> inteira (itens 1 a 5, composição familiar, fotos, assinatura) e o <b>relato de campo</b> do Relatório Técnico. Ao importar, tudo cai direto nos campos das duas abas.</p>
+  <div class="vrow">
+    <div class="vfield grow"><label for="camposoc_url">Link do aplicativo</label>
+      <input type="text" id="camposoc_url" value="https://enprol.github.io/infra/campo-social.html" readonly class="bloqueado"></div>
+  </div>
+  <div class="vactions" style="margin-top:6px;">
+    <button class="vbtn vbtn-ghost vbtn-sm" type="button" onclick="CAMPO_copiarLink('https://enprol.github.io/infra/campo-social.html')">🔗 Copiar link</button>
+    <a class="vbtn vbtn-ghost vbtn-sm" href="https://enprol.github.io/infra/campo-social.html" target="_blank" rel="noopener" style="text-decoration:none;">↗ Abrir aplicativo</a>
+  </div>
+  <label class="img-drop" id="camposoc_drop" style="display:block;margin-top:12px;">
+    <span class="ic">📥</span>
+    <span class="t">Importar a Ficha Social que voltou do campo</span>
+    <span class="h">Arquivo .json gerado pelo aplicativo da assistente social</span>
+    <input type="file" accept=".json,application/json" id="camposoc_file" onchange="CAMPOSOC_importar(this)">
+  </label>
+</div>
 
 <div class="vcard">
-  <div class="vsub">1 · Aplicativo de campo (para o técnico)</div>
+  <div class="vsub">1 · Aplicativo de campo do avaliador (Ficha de Campo)</div>
   <p class="hint-inline" style="margin-top:0;">Mande este link no WhatsApp do técnico. Ele abre <b>uma vez com internet</b>; depois disso funciona offline, mesmo sem sinal nenhum.</p>
   <div class="vrow">
     <div class="vfield grow"><label for="campo_url">Link do aplicativo de campo</label>
@@ -15977,8 +15996,8 @@ window.DRL_gerarPDF=async function(opts){
     if(!confirm("Remover a ficha de campo importada deste cadastro?")) return;
     CAMPO = null; CAMPO_render();
   };
-  window.CAMPO_copiarLink = function(){
-    var t = URL_CAMPO;
+  window.CAMPO_copiarLink = function(qual){
+    var t = qual || URL_CAMPO;
     if(navigator.clipboard && navigator.clipboard.writeText){
       navigator.clipboard.writeText(t).then(function(){ alert("Link copiado:\n" + t + "\n\nMande no WhatsApp do técnico."); },
                                             function(){ prompt("Copie o link:", t); });
@@ -16124,6 +16143,71 @@ window.DRL_gerarPDF=async function(opts){
       window.FB_setFotos(jaTem.concat(fotos.map(function(o){ return o.p.src; })));
     }
     alert("Pronto. Confira a aba “Ficha de Vistoria e Cadastro Socioeconômico (Anexo B)”.");
+  };
+
+  /* ---------------- Ficha Social (Anexo B) vinda do app das assistentes ----------- */
+  window.CAMPOSOC_importar = function(input){
+    var file = input && input.files && input.files[0];
+    if(!file) return;
+    var fr = new FileReader();
+    fr.onload = function(){
+      try{
+        var o = JSON.parse(fr.result);
+        if(!o || o._app !== "ENPROL-FichaSocial")
+          throw new Error("Este arquivo não é uma Ficha Social do app das assistentes sociais.");
+
+        var campos = o.campos || {};
+        var nPreenchidos = Object.keys(campos).filter(function(k){
+          var v = campos[k];
+          return (v && typeof v === "object") ? !!v.__chk : (v != null && String(v).trim());
+        }).length;
+        var jaTem = Object.keys(campos).filter(function(k){
+          var e = document.getElementById(k);
+          return e && e.type !== "checkbox" && (e.value||"").trim();
+        }).length;
+
+        var msg = "Ficha Social — CTD " + (campos.fb_proc_ctd || "?") + "\n\n"
+                + "• " + nPreenchidos + " campo(s) preenchido(s) vão para a Ficha de Vistoria (Anexo B)\n"
+                + "• " + (o.familia||[]).length + " pessoa(s) na composição familiar (4.5)\n"
+                + "• " + (o.relAreas||[]).length + " Área(s) de Locação\n"
+                + "• " + (o.fotos||[]).length + " fotografia(s) → 5.3\n"
+                + "• relato de campo e grau de vulnerabilidade → Relatório Técnico\n"
+                + ((o.assinaturas && o.assinaturas.fb) ? "• assinatura do(a) vistoriador(a)\n" : "");
+        if(jaTem) msg += "\nATENÇÃO: " + jaTem + " campo(s) já preenchido(s) serão substituídos.";
+        msg += "\n\nImportar agora?";
+        if(!confirm(msg)){ input.value = ""; return; }
+
+        // campos (ids idênticos aos da web)
+        Object.keys(campos).forEach(function(id){
+          var e = document.getElementById(id); if(!e) return;
+          var v = campos[id];
+          if(v && typeof v === "object" && "__chk" in v){ e.checked = !!v.__chk; }
+          else { e.value = v; }
+          try{ if(e.hasAttribute("data-rtf") && window.RTF) window.RTF.render(id); }catch(err){}
+          e.dispatchEvent(new Event("input", {bubbles:true}));
+          e.dispatchEvent(new Event("change", {bubbles:true}));
+        });
+        if(o.familia && o.familia.length && window.FB_setFamilia) window.FB_setFamilia(o.familia);
+        if(o.relAreas && o.relAreas.length && window.REL_setAreas) window.REL_setAreas(o.relAreas);
+        if(o.fotos && o.fotos.length && window.FB_setFotos){
+          var atuais = (window.FB_getFotos ? window.FB_getFotos() : []) || [];
+          window.FB_setFotos(atuais.concat(o.fotos));
+        }
+        if(o.assinaturas && o.assinaturas.fb){
+          window.__ASSIN__ = window.__ASSIN__ || {fb:null, rel:null};
+          window.__ASSIN__.fb = o.assinaturas.fb;
+          var pv = document.getElementById("fb_ass_img_prev");
+          if(pv) pv.innerHTML = '<img src="'+o.assinaturas.fb+'" style="max-height:64px;border:1px solid #cfd9e4;border-radius:6px;padding:3px;background:#fff;">';
+        }
+        try{ if(window.FB_montarProcesso) window.FB_montarProcesso(); }catch(err){}
+        try{ if(window.CAD_marcarSujo) window.CAD_marcarSujo(); }catch(err){}
+        alert("Ficha Social importada.\n\nConfira as abas “Ficha de Vistoria e Cadastro Socioeconômico (Anexo B)” e “Relatório Técnico de Caracterização Socioeconômica”.");
+      }catch(e){
+        alert("Não consegui ler o arquivo:\n" + e.message);
+      }
+      input.value = "";
+    };
+    fr.readAsText(file);
   };
 
   /* ---------------- infraestrutura comum dos PDFs ---------------- */
