@@ -832,27 +832,69 @@ function nomeArq(f){
 function enviar(){
   var f = atual(); if(!f) return;
   var pendentes = ST.fichas.filter(function(x){ return x.id !== f.id && !x.enviadaEm; }).length;
-  if(pendentes){
-    var nome = (f.geral && f.geral.processo) ? ("CTD " + f.geral.processo) : "esta ficha";
-    if(!confirm("Vai ser enviada SÓ a ficha " + nome + ".\n\n"
-              + "Outras " + pendentes + " ficha(s) continuam guardadas no celular e precisam ser "
-              + "enviadas uma de cada vez, trocando na barra de cima.\n\nEnviar agora?")) return;
-  }
-  var json = JSON.stringify(pacote(f));
-  var nome = nomeArq(f);
-  var blob = new Blob([json], { type:"application/json" });
-  var file = null;
-  try { file = new File([blob], nome, { type:"application/json" }); } catch(e){}
-  var mb = (blob.size/1048576).toFixed(1);
+  if(!pendentes){ enviarAgora(f); return; }
 
-  if(file && navigator.canShare && navigator.canShare({ files:[file] })){
-    navigator.share({ files:[file], title:"Ficha de Campo", text:"Ficha de Campo — CTD " + ((f.geral&&f.geral.processo)||"") + ((f.geral&&f.geral.lote)?(" / SPS-"+f.geral.lote):"") })
-      .then(function(){ marcarEnviada(f); flash("ficha enviada ("+mb+" MB)"); })
-      .catch(function(err){ if(err && err.name !== "AbortError") baixar(blob, nome, mb); });
+  // Aviso em dialogo PROPRIO (o confirm() nativo consome o gesto do usuario e
+  // o navigator.share() passa a ser bloqueado no Android).
+  var nome = (f.geral && f.geral.processo) ? ("CTD " + f.geral.processo) : "esta ficha";
+  document.getElementById("dlgH").textContent = "Enviar " + nome + "?";
+  document.getElementById("dlgB").innerHTML =
+      '<p style="margin:0 0 10px;font-size:14px;line-height:1.5;">Vai ser enviada <b>s\u00f3 a ficha '
+    + esc(nome) + '</b>.</p>'
+    + '<p style="margin:0 0 14px;font-size:13.5px;line-height:1.5;color:#5a6b7c;">Outras <b>'
+    + pendentes + '</b> ficha(s) continuam guardadas no celular e precisam ser enviadas uma de cada '
+    + 'vez, trocando na barra de cima. Ficha j\u00e1 enviada aparece com \u2713.</p>'
+    + '<button class="add" type="button" id="btEnviarAgora" '
+    + 'style="background:#178a3a;color:#fff;border:none;padding:15px;font-size:15px;">\uD83D\uDCE4 Enviar agora</button>';
+  var dlg = document.getElementById("dlg");
+  document.getElementById("btEnviarAgora").onclick = function(){
+    dlg.close();
+    enviarAgora(f);            // clique real -> gesto valido para o compartilhamento
+  };
+  dlg.showModal();
+}
+
+/* Monta o arquivo no melhor formato que ESTE aparelho aceita compartilhar.
+   O Chrome do Android so compartilha alguns tipos: .json fica de fora, .txt passa.
+   O iPhone aceita os dois, entao tentamos .json primeiro. */
+function arquivoCompartilhavel(json, base){
+  var tentativas = [
+    { n: base + ".json", t: "application/json" },
+    { n: base + ".txt",  t: "text/plain" }
+  ];
+  for(var i = 0; i < tentativas.length; i++){
+    try{
+      var f = new File([json], tentativas[i].n, { type: tentativas[i].t });
+      if(navigator.canShare && navigator.canShare({ files: [f] })) return f;
+    }catch(e){}
+  }
+  return null;
+}
+
+function enviarAgora(f){
+  var json = JSON.stringify(pacote(f));
+  var base = nomeArq(f).replace(/\.json$/i, "");
+  var blob = new Blob([json], { type: "application/json" });
+  var mb = (blob.size / 1048576).toFixed(1);
+  var file = arquivoCompartilhavel(json, base);
+
+  if(file){
+    navigator.share({
+      files: [file],
+      title: "Ficha de Campo",
+      text: "Ficha de Campo \u2014 CTD " + ((f.geral && f.geral.processo) || "")
+            + ((f.geral && f.geral.lote) ? (" / SPS-" + f.geral.lote) : "")
+    }).then(function(){
+      marcarEnviada(f); flash("ficha enviada (" + mb + " MB)");
+    }).catch(function(err){
+      if(err && err.name === "AbortError") return;        // o usuario fechou o menu
+      baixar(blob, base + ".json", mb);
+    });
     return;
   }
-  baixar(blob, nome, mb);
+  baixar(blob, base + ".json", mb);
 }
+
 function marcarEnviada(f){ if(f){ f.enviadaEm = new Date().toISOString(); salvar(true); render(); } }
 function baixar(blob, nome, mb){
   var url = URL.createObjectURL(blob);
@@ -873,9 +915,9 @@ function menuMais(){
       '<p style="margin:0 0 12px;font-size:13.5px;color:#5a6b7c;">Ficha atual: <b>'
       + esc((f.geral&&f.geral.processo)?("CTD "+f.geral.processo):"sem nº") + '</b> · ' + tam + ' · ' + nf + ' ficha(s) no celular.</p>'
     + '<button class="add" type="button" style="margin-bottom:8px" onclick="abrirArquivo()">📂 Abrir ficha de um arquivo</button>'
-    + '<button class="add" type="button" style="margin-bottom:8px" onclick="enviar()">📤 Enviar / salvar esta ficha</button>'
+    + '<button class="add" type="button" style="margin-bottom:8px" onclick="document.getElementById(&quot;dlg&quot;).close(); enviarAgora(atual());">📤 Enviar / salvar esta ficha</button>'
     + '<button class="add" type="button" style="margin-bottom:8px;border-color:#eccac7;color:#b5382a" onclick="apagarFicha()">🗑️ Apagar esta ficha do celular</button>'
-    + '<input type="file" accept=".json,application/json" id="impFile" style="display:none" onchange="impArquivo(this)">';
+    + '<input type="file" accept=".json,.txt,application/json,text/plain" id="impFile" style="display:none" onchange="impArquivo(this)">';
   document.getElementById("dlg").showModal();
 }
 function abrirArquivo(){ document.getElementById("impFile").click(); }
