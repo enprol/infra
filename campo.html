@@ -88,6 +88,16 @@ textarea{min-height:74px;resize:vertical;}
 input:focus,textarea:focus,select:focus{outline:2.5px solid #1F6FC0;outline-offset:1px;border-color:#1F6FC0;}
 select{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'><path d='M1 1l5 5 5-5' fill='none' stroke='%236b7c8d' stroke-width='1.8' stroke-linecap='round'/></svg>");background-repeat:no-repeat;background-position:right 12px center;background-size:12px;padding-right:34px;}
 .outro{margin-top:6px;}
+.rapidos{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px;}
+.rapidos button{
+  border:1px solid #c8d4e0;background:#f4f8fb;color:#175a9f;border-radius:18px;
+  padding:7px 13px;font-size:12.5px;font-weight:600;
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+}
+.rapidos button:active{background:#dbe9f7;}
+.assin{border:1px solid #c3ccd6;border-radius:10px;background:#fff;padding:12px;text-align:center;}
+.assin img{max-width:100%;max-height:190px;display:block;margin:0 auto 10px;}
+.assin .vazio{color:#8494a4;font-size:13px;padding:26px 0 22px;}
 .chips{display:flex;flex-wrap:wrap;gap:6px;}
 .chips label{
   display:inline-flex;align-items:center;gap:6px;border:1px solid #c3ccd6;background:#fff;
@@ -333,6 +343,58 @@ function flash(txt){
   clearTimeout(el._t); el._t = setTimeout(function(){ el.classList.remove("on"); }, 1600);
 }
 
+/* ---------------- mascaras ---------------- */
+var MASCARAS = {
+  cpf: function(v){
+    var d = String(v).replace(/[^0-9]/g, "").slice(0, 11);
+    if(d.length > 9)      return d.slice(0,3)+"."+d.slice(3,6)+"."+d.slice(6,9)+"-"+d.slice(9);
+    if(d.length > 6)      return d.slice(0,3)+"."+d.slice(3,6)+"."+d.slice(6);
+    if(d.length > 3)      return d.slice(0,3)+"."+d.slice(3);
+    return d;
+  },
+  cep: function(v){
+    var d = String(v).replace(/[^0-9]/g, "").slice(0, 8);
+    return d.length > 5 ? d.slice(0,5)+"-"+d.slice(5) : d;
+  },
+  tel: function(v){
+    var d = String(v).replace(/[^0-9]/g, "").slice(0, 11);
+    if(!d) return "";
+    if(d.length <= 2)  return "(" + d;
+    if(d.length <= 6)  return "(" + d.slice(0,2) + ") " + d.slice(2);
+    if(d.length <= 10) return "(" + d.slice(0,2) + ") " + d.slice(2,6) + "-" + d.slice(6);
+    return "(" + d.slice(0,2) + ") " + d.slice(2,7) + "-" + d.slice(7);
+  },
+  // area em hectares: 4 casas, padrao brasileiro (0,0000)
+  area: function(v){
+    var t = String(v);
+    if(t && !/[0-9]/.test(t)) return t;                 // deixa passar "N/A", "Ausente"...
+    var d = t.replace(/[^0-9]/g, "").replace(/^0+/, "");
+    if(!d) return "";
+    while(d.length < 5) d = "0" + d;
+    var i = d.slice(0, d.length-4), f = d.slice(-4);
+    return i.replace(/\B(?=(\d{3})+(?!\d))/g, ".") + "," + f;
+  },
+  // dinheiro: 2 casas, padrao brasileiro
+  moeda: function(v){
+    var t = String(v);
+    if(t && !/[0-9]/.test(t)) return t;                 // "Nao informado" continua texto
+    var d = t.replace(/[^0-9]/g, "").replace(/^0+/, "");
+    if(!d) return "";
+    while(d.length < 3) d = "0" + d;
+    var i = d.slice(0, d.length-2), f = d.slice(-2);
+    return i.replace(/\B(?=(\d{3})+(?!\d))/g, ".") + "," + f;
+  }
+};
+function aplicaMascara(el, tipo){
+  var fn = MASCARAS[tipo]; if(!fn) return el.value;
+  var novo = fn(el.value);
+  if(novo !== el.value){
+    el.value = novo;
+    try{ el.setSelectionRange(novo.length, novo.length); }catch(e){}
+  }
+  return novo;
+}
+
 /* ---------------- helpers ---------------- */
 function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){ return ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]; }); }
 function porCaminho(f, cam){
@@ -350,9 +412,10 @@ function campoHTML(cam, c){
   var lab = '<label>' + (c.n?'<span class="num">'+c.n+'</span>':'') + esc(c.l) + '</label>';
   var h = '';
   if(c.t === "text" || c.t === "date"){
-    h = '<input type="'+(c.t==="date"?"date":"text")+'" value="'+esc(v||"")+'" placeholder="'+esc(c.ph||"")+'" oninput="upd(this,\''+cam+'\')">';
+    var im = c.m ? (' inputmode="' + (c.m==="tel"?"tel":"numeric") + '" data-m="'+c.m+'"') : "";
+    h = '<input type="'+(c.t==="date"?"date":"text")+'"'+im+' value="'+esc(v||"")+'" placeholder="'+esc(c.ph||"")+'" oninput="upd(this,\''+cam+'\')">';
   } else if(c.t === "ta"){
-    h = '<textarea placeholder="'+esc(c.ph||"")+'" oninput="upd(this,\''+cam+'\')">'+esc(v||"")+'</textarea>';
+    h = '<textarea'+(c.rows?(' rows="'+c.rows+'"'):'')+' placeholder="'+esc(c.ph||"")+'" oninput="upd(this,\''+cam+'\')">'+esc(v||"")+'</textarea>';
   } else if(c.t === "sel"){
     var achou = c.o.indexOf(v||"") >= 0, outro = !achou && v;
     h = '<select onchange="updSel(this,\''+cam+'\')"><option value="">— selecione —</option>';
@@ -377,8 +440,35 @@ function campoHTML(cam, c){
     var extras = arr.filter(function(x){ return c.o.indexOf(x) < 0; });
     h += '<div class="outro"><input type="text" placeholder="Outro (separe por vírgula)" value="'+esc(extras.join(", "))+'" oninput="updMultiOutro(this,\''+cam+'\')"></div>';
   }
+  if(c.q && c.q.length){
+    h += '<div class="rapidos">';
+    c.q.forEach(function(cod){
+      var t = Q_TXT[cod]; if(!t) return;
+      h += '<button type="button" data-qcam="'+esc(cam)+'" data-qval="'+esc(t.v)+'">'+esc(t.r)+'</button>';
+    });
+    h += '</div>';
+  }
   return '<div class="f">' + lab + h + '</div>';
 }
+
+/* atalhos de preenchimento — os mesmos rótulos e textos da página web */
+var Q_TXT = {
+  na:  { r:"N/A – Não se aplica",  v:"Não se aplica" },
+  nax: { r:"N/A",                  v:"N/A" },
+  aus: { r:"Ausentes",             v:"Ausentes" },
+  ni:  { r:"Não informado",        v:"Não informado" },
+  np:  { r:"Não possui",           v:"Não possui" },
+  nd:  { r:"Não disponibilizado",  v:"Não disponibilizado" }
+};
+document.addEventListener("click", function(ev){
+  var b = ev.target.closest ? ev.target.closest("[data-qcam]") : null;
+  if(!b) return;
+  var cam = b.dataset.qcam, val = b.dataset.qval;
+  setv(atual(), cam, val);
+  var campo = b.parentNode.parentNode.querySelector("input,textarea,select");
+  if(campo) campo.value = val;
+  salvar(true);
+});
 
 function galeriaHTML(cam, titulo, num){
   var f = atual(), arr = getv(f, cam) || [];
@@ -416,9 +506,7 @@ function fimHTML(){
   var f = atual();
   var h = campoHTML("tecnico.nome", {l:"Nome do técnico", t:"text"})
         + campoHTML("tecnico.documento", {l:"CPF/Documento", t:"text"})
-        + '<div class="f"><label><span class="num">128</span>Assinatura</label>'
-        + '<div id="sigWrap"><canvas id="sig"></canvas></div>'
-        + '<div class="cam"><label style="cursor:pointer" onclick="limparSig()">🧹 Limpar assinatura</label></div></div>'
+        + assinaturaHTML()
         + '<div class="f"><label>Localização (GPS)</label><div class="gps">'
         + '<button class="add" type="button" style="width:auto;padding:10px 14px" onclick="pegarGPS()">📍 Capturar coordenada</button>'
         + '<span id="gpsTxt">' + (f.gps ? (f.gps.lat.toFixed(6)+", "+f.gps.lon.toFixed(6)+" (±"+Math.round(f.gps.precisao)+" m)") : "—") + '</span>'
@@ -480,7 +568,7 @@ function render(){
     h += '</div></section>';
   }
   document.getElementById("form").innerHTML = h;
-  if(!ultimo && SECOES[i].fim) montarSig();
+  /* assinatura agora é imagem — nada a montar */
 
   // barra inferior
   var bv = document.getElementById("btVoltar"), ba = document.getElementById("btAvancar");
@@ -539,7 +627,10 @@ function voltar(){  irPasso((ST.passo||0) - 1); }
 function dobra(id){ for(var i=0;i<SECOES.length;i++){ if(SECOES[i].id===id){ irPasso(i); return; } } }
 
 /* ---------------- edição ---------------- */
-function upd(el, cam){ setv(atual(), cam, el.value); salvar(true); tituloTalvez(cam); }
+function upd(el, cam){
+  var v = el.dataset && el.dataset.m ? aplicaMascara(el, el.dataset.m) : el.value;
+  setv(atual(), cam, v); salvar(true); tituloTalvez(cam);
+}
 function updSel(el, cam){
   var box = el.parentNode.querySelector(".outro");
   if(el.value === "__o"){ box.style.display = ""; setv(atual(), cam, box.querySelector("input").value || ""); box.querySelector("input").focus(); }
@@ -635,7 +726,34 @@ function legFoto(cam, i){
   arr[i].leg = v.trim(); salvar(true); render();
 }
 
-/* ---------------- assinatura ---------------- */
+/* ---------------- assinatura (imagem) ---------------- */
+function assinaturaHTML(){
+  var f = atual();
+  var h = '<div class="f"><label>Assinatura</label><div class="assin">';
+  h += f.assinatura
+     ? '<img src="'+f.assinatura+'" alt="Assinatura">'
+     : '<div class="vazio">Nenhuma assinatura enviada ainda.</div>';
+  h += '<div class="cam" style="margin-top:0">'
+     + '<label>📷 Fotografar<input type="file" accept="image/*" capture="environment" onchange="addAssinatura(this)"></label>'
+     + '<label>🖼️ Da galeria<input type="file" accept="image/*" onchange="addAssinatura(this)"></label>'
+     + '</div>';
+  if(f.assinatura){
+    h += '<button class="add" type="button" style="margin-top:8px;border-color:#eccac7;color:#b5382a" onclick="limparSig()">Remover assinatura</button>';
+  }
+  h += '</div><p style="font-size:12px;color:#5a6b7c;margin:7px 2px 0;">'
+     + 'Assine numa folha branca e fotografe, ou escolha uma imagem já salva no celular.</p></div>';
+  return h;
+}
+function addAssinatura(input){
+  var file = input.files && input.files[0]; if(!file) return;
+  flash("processando assinatura…");
+  comprimir(file, 900, 0.85).then(function(src){
+    atual().assinatura = src; input.value = "";
+    salvar(); render();
+  }).catch(function(){ alert("Não consegui ler essa imagem."); });
+}
+
+/* ---------------- assinatura (desenho — legado) ---------------- */
 function montarSig(){
   var cv = document.getElementById("sig"); if(!cv) return;
   var f = atual();
@@ -655,10 +773,8 @@ function montarSig(){
   cv.addEventListener("pointercancel", fim);
 }
 function limparSig(){
-  var cv = document.getElementById("sig"); if(!cv) return;
-  var cx = cv.getContext("2d"), r = cv.getBoundingClientRect();
-  cx.fillStyle = "#fff"; cx.fillRect(0,0,r.width,170);
-  atual().assinatura = ""; salvar(true);
+  if(!confirm("Remover a assinatura?")) return;
+  atual().assinatura = ""; salvar(true); render();
 }
 
 /* ---------------- GPS ---------------- */
