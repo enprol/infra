@@ -16170,6 +16170,7 @@ window.DRL_gerarPDF=async function(opts){
                 + "• " + nPreenchidos + " campo(s) preenchido(s) vão para a Ficha de Vistoria (Anexo B)\n"
                 + "• " + (o.familia||[]).length + " pessoa(s) na composição familiar (4.5)\n"
                 + "• " + (o.relAreas||[]).length + " Área(s) de Locação\n"
+                + (o.relTabelas ? ("• Tabelas 1 e 2 de vulnerabilidade + classificação IVS\n") : "")
                 + "• " + (o.fotos||[]).length + " fotografia(s) → 5.3\n"
                 + "• relato de campo e grau de vulnerabilidade → Relatório Técnico\n"
                 + ((o.assinaturas && o.assinaturas.fb) ? "• assinatura do(a) vistoriador(a)\n" : "");
@@ -16189,6 +16190,11 @@ window.DRL_gerarPDF=async function(opts){
         });
         if(o.familia && o.familia.length && window.FB_setFamilia) window.FB_setFamilia(o.familia);
         if(o.relAreas && o.relAreas.length && window.REL_setAreas) window.REL_setAreas(o.relAreas);
+        if(o.relTabelas && window.REL_setTabela){
+          window.REL_setTabela(1, o.relTabelas["1"] || o.relTabelas[1] || []);
+          window.REL_setTabela(2, o.relTabelas["2"] || o.relTabelas[2] || []);
+          try{ if(window.REL_atualizarIVS) window.REL_atualizarIVS(); }catch(err){}
+        }
         if(o.fotos && o.fotos.length && window.FB_setFotos){
           var atuais = (window.FB_getFotos ? window.FB_getFotos() : []) || [];
           window.FB_setFotos(atuais.concat(o.fotos));

@@ -98,6 +98,30 @@ select{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns=
 .assin{border:1px solid #c3ccd6;border-radius:10px;background:#fff;padding:12px;text-align:center;}
 .assin img{max-width:100%;max-height:190px;display:block;margin:0 auto 10px;}
 .assin .vazio{color:#8494a4;font-size:13px;padding:26px 0 22px;}
+
+/* ---------- tabelas de criterios (Relatorio Tecnico) ---------- */
+.tabtit{
+  font-size:12.5px;font-weight:700;color:#0a4d7c;line-height:1.35;
+  margin:18px 0 10px;padding-bottom:6px;border-bottom:2px solid #d8e3ec;
+}
+.crit{border:1px solid #dde5ed;border-radius:10px;padding:12px;margin-bottom:10px;background:#fafcfe;}
+.crit-txt{font-size:13.5px;line-height:1.4;color:#243447;margin-bottom:10px;}
+.crit .segs{margin-bottom:8px;}
+.crit .seg{flex:1 1 0;padding:11px 6px;font-size:13.5px;}
+.crit-obs{
+  width:100%;border:1px solid #c3ccd6;border-radius:8px;background:#fff;color:#243447;
+  padding:9px 11px;font:16px/1.3 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+}
+.ivs{border:1px solid #b9d3ec;border-radius:10px;background:#f0f6fc;padding:13px 14px;margin:4px 0 6px;}
+.ivs-tit{font-size:12.5px;font-weight:700;color:#0a4d7c;margin-bottom:9px;}
+.ivs-tit span{font-weight:600;color:#5a6b7c;}
+.ivs-l{display:flex;align-items:flex-start;gap:9px;padding:6px 0;font-size:13px;color:#3d5062;line-height:1.35;}
+.ivs-l .x{
+  flex:0 0 22px;height:22px;border:1.5px solid #b6c4d2;border-radius:5px;background:#fff;
+  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:#fff;
+}
+.ivs-l.mk{color:#0a4d7c;font-weight:600;}
+.ivs-l.mk .x{background:#1F6FC0;border-color:#1F6FC0;}
 .chips{display:flex;flex-wrap:wrap;gap:6px;}
 .chips label{
   display:inline-flex;align-items:center;gap:6px;border:1px solid #c3ccd6;background:#fff;
@@ -1270,17 +1294,50 @@ var SECOES = [
     "k": "campos.rel_34_relato",
     "l": "3.4 Síntese — Relato de campo",
     "t": "ta",
+    "rows": 8,
     "ph": "Quem recebeu a equipe, condições encontradas, percepções da família..."
+   }
+  ],
+  "tabelas": [
+   {
+    "n": 1,
+    "comNA": true,
+    "ivs": true,
+    "titulo": "Tabela 1 — Critérios de Avaliação de Vulnerabilidade Socioeconômica (IVS/IPEA)",
+    "criterios": [
+     "1. A família possui renda per capita inferior a ½ (meio) salário-mínimo.",
+     "2. Parte significativa das atividades realizadas no imóvel, como agricultura familiar e criação de animais, visa à subsistência familiar.",
+     "3. Há presença de pessoas idosas, crianças pequenas ou pessoas com deficiência na composição familiar.",
+     "4. A moradia apresenta condições precárias (estrutura, saneamento, energia).",
+     "5. O(a) responsável pelo domicílio apresenta baixo nível de escolaridade e encontra-se desempregado(a) ou exerce atividade informal, ou ainda possui renda exclusiva proveniente de benefícios previdenciários (ex.: aposentadoria rural).",
+     "6. A família depende de benefícios sociais (ex: Bolsa Família, BPC).",
+     "7. Há fragilidade ou ausência de rede de apoio familiar e comunitária.",
+     "8. Existe risco de deslocamento físico, perda de moradia decorrente das obras ou processos de reassentamento."
+    ]
    },
+   {
+    "n": 2,
+    "comNA": false,
+    "ivs": false,
+    "titulo": "Tabela 2 — Critérios conforme Art. 3º da Resolução Normativa INFRASA nº 7/2023",
+    "criterios": [
+     "Indivíduos ou núcleos familiares forem consideradas de baixa renda, segundo critérios constantes do “Cadastro Único” administrado pelo Governo Federal.",
+     "O empreendimento compromete mais de 30% da única ou principal fonte de renda familiar oriunda de pequenos negócios, agricultura familiar ou locação/arrendamento para terceiros.",
+     "Se trata de família monoparental chefiada por pessoa com baixo nível de escolaridade (até 5º ano completo – primeiro segmento do ensino fundamental) e que detenha a guarda fática ou jurídica de descendentes menores de 18 anos.",
+     "Indivíduos ou núcleos familiares habitam edificação que se enquadre no padrão RP1Q (Residência Unifamiliar Popular) da NBR 12.721 e/ou que apresente estado de conservação severamente deteriorado, assim considerado por laudo específico."
+    ]
+   }
+  ],
+  "camposFim": [
    {
     "k": "campos.rel_grau_vuln",
     "l": "Grau de vulnerabilidade",
     "t": "sel",
     "o": [
+     "ausência de vulnerabilidade",
      "baixa",
      "moderada",
-     "alta",
-     "muito alta"
+     "alta"
     ]
    },
    {
@@ -1331,6 +1388,7 @@ function novaFicha(){
     id: "f" + Date.now() + Math.random().toString(36).slice(2,6),
     criadaEm: new Date().toISOString(),
     campos: {},                 // ids iguais aos da web: fb_*, rel_*
+    relTabelas: tabelasIniciais(),
     familia: [], relAreas: [], fotos: [],
     assinatura: "", gps: null
   };
@@ -1428,6 +1486,88 @@ function porCaminho(f, cam){
 }
 function getv(f, cam){ var r = porCaminho(f, cam); return r.o[r.ult]; }
 function setv(f, cam, v){ var r = porCaminho(f, cam); r.o[r.ult] = v; }
+
+/* ---------------- tabelas de criterios + IVS ---------------- */
+function tabelasIniciais(){
+  var out = {};
+  SECOES.forEach(function(s){
+    (s.tabelas || []).forEach(function(t){
+      out[t.n] = t.criterios.map(function(c){ return { crit:c, resp:"", obs:"" }; });
+    });
+  });
+  return out;
+}
+function linhasTab(n){
+  var f = atual();
+  if(!f.relTabelas) f.relTabelas = tabelasIniciais();
+  if(!f.relTabelas[n]) f.relTabelas[n] = [];
+  return f.relTabelas[n];
+}
+function contaSim(){
+  return linhasTab(1).filter(function(l){ return l.resp === "Sim"; }).length;
+}
+var IVS_FAIXAS = [
+  ["Sem respostas \u201cSim\u201d",      "Aus\u00eancia de vulnerabilidade", "aus\u00eancia de vulnerabilidade"],
+  ["1 a 2 respostas \u201cSim\u201d",    "Baixa vulnerabilidade",            "baixa"],
+  ["3 a 5 respostas \u201cSim\u201d",    "Vulnerabilidade moderada",         "moderada"],
+  ["6 a 8 respostas \u201cSim\u201d",    "Alta vulnerabilidade",             "alta"]
+];
+function faixaIVS(){
+  var n = contaSim();
+  return n === 0 ? 0 : (n <= 2 ? 1 : (n <= 5 ? 2 : 3));
+}
+function ivsHTML(){
+  var sims = contaSim(), fx = faixaIVS();
+  var h = '<div class="ivs"><div class="ivs-tit">Classifica\u00e7\u00e3o do IVS '
+        + '<span>(' + sims + ' resposta(s) \u201cSim\u201d)</span></div>';
+  IVS_FAIXAS.forEach(function(l, i){
+    var mk = (i === fx);
+    h += '<div class="ivs-l' + (mk ? " mk" : "") + '"><span class="x">' + (mk ? "X" : "") + '</span>'
+       + '<span>' + esc(l[0]) + ' \u2192 <b>' + esc(l[1]) + '</b></span></div>';
+  });
+  h += '</div>';
+  return h;
+}
+function tabelasHTML(sec){
+  var h = "";
+  (sec.tabelas || []).forEach(function(t){
+    var linhas = linhasTab(t.n);
+    var opcoes = t.comNA ? ["Sim", "N\u00e3o", "N/A"] : ["Sim", "N\u00e3o"];
+    h += '<div class="tabtit">' + esc(t.titulo) + '</div>';
+    linhas.forEach(function(lin, i){
+      h += '<div class="crit"><div class="crit-txt">' + esc(lin.crit) + '</div><div class="segs">';
+      opcoes.forEach(function(op){
+        h += '<button type="button" class="seg' + (lin.resp === op ? " on" : "") + '"'
+           + ' data-tn="' + t.n + '" data-ti="' + i + '" data-top="' + esc(op) + '">' + esc(op) + '</button>';
+      });
+      h += '</div><input type="text" class="crit-obs" placeholder="Observa\u00e7\u00f5es"'
+         + ' value="' + esc(lin.obs || "") + '" data-on="' + t.n + '" data-oi="' + i + '"></div>';
+    });
+    if(t.ivs) h += ivsHTML();
+  });
+  return h;
+}
+/* marcar Sim/Nao/N/A — e toque, pode re-renderizar sem atrapalhar digitacao */
+document.addEventListener("click", function(ev){
+  var b = ev.target.closest ? ev.target.closest("[data-tn]") : null;
+  if(!b) return;
+  var n = +b.dataset.tn, i = +b.dataset.ti, op = b.dataset.top;
+  var lin = linhasTab(n)[i]; if(!lin) return;
+  lin.resp = (lin.resp === op) ? "" : op;      // tocar de novo desmarca
+  if(n === 1){                                  // IVS manda no grau de vulnerabilidade
+    var f = atual();
+    f.campos = f.campos || {};
+    f.campos.rel_grau_vuln = IVS_FAIXAS[faixaIVS()][2];
+  }
+  salvar(true); render();
+});
+/* observacao — digitacao: so grava, NUNCA re-renderiza (perderia o foco) */
+document.addEventListener("input", function(ev){
+  var el = ev.target;
+  if(!el.dataset || el.dataset.on === undefined) return;
+  var lin = linhasTab(+el.dataset.on)[+el.dataset.oi];
+  if(lin){ lin.obs = el.value; salvar(true); }
+});
 
 /* ---------------- render ---------------- */
 function campoHTML(cam, c){
@@ -1592,6 +1732,8 @@ function render(){
       + '<h2><span>'+esc(sec.t)+'</span>'+cnt+'</h2><div class="body">';
     if(sec.rep)      h += repHTML(sec);
     if(sec.campos)   sec.campos.forEach(function(c){ h += campoHTML(c.k, c); });
+    if(sec.tabelas)  h += tabelasHTML(sec);
+    if(sec.camposFim) sec.camposFim.forEach(function(c){ h += campoHTML(c.k, c); });
     if(sec.galerias) sec.galerias.forEach(function(g){ h += galeriaHTML(g.k, g.l, g.n); });
     if(sec.fim)      h += fimHTML();
     h += '</div></section>';
@@ -1623,6 +1765,8 @@ function revisaoHTML(){
   if(!c.fb_data)     falta.push("Data da vistoria");
   if(!pessoas)       falta.push("composição familiar");
   if(!c.rel_34_relato) falta.push("relato de campo");
+  if(!linhasTab(1).some(function(l){ return l.resp; })) falta.push("Tabela 1 (crit\u00e9rios IVS)");
+  if(!linhasTab(2).some(function(l){ return l.resp; })) falta.push("Tabela 2 (Res. INFRASA 7/2023)");
   if(!f.assinatura)  falta.push("assinatura");
 
   var h = '<div class="fimcard"><div class="ok">' + (falta.length ? "\u{1F4DD}" : "\u2705") + '</div>'
@@ -1636,6 +1780,10 @@ function revisaoHTML(){
         + '<div><span>Pessoas na família</span><b>' + pessoas + '</b></div>'
         + '<div><span>Fotos</span><b>' + fotos + '</b></div>'
         + '<div><span>Relato de campo</span><b>' + (c.rel_34_relato ? "sim" : "—") + '</b></div>'
+        + '<div><span>Crit\u00e9rios respondidos</span><b>'
+        + (linhasTab(1).filter(function(l){ return l.resp; }).length + linhasTab(2).filter(function(l){ return l.resp; }).length)
+        + ' de ' + (linhasTab(1).length + linhasTab(2).length) + '</b></div>'
+        + '<div><span>Classifica\u00e7\u00e3o IVS</span><b>' + esc(IVS_FAIXAS[faixaIVS()][1]) + '</b></div>'
         + '<div><span>Assinatura</span><b>' + (f.assinatura ? "sim" : "—") + '</b></div>'
         + '</div>';
   if(falta.length){
@@ -1844,7 +1992,7 @@ function progresso(){
   var f = atual(); if(!f) return;
   var total = 0, ok = 0;
   SECOES.forEach(function(s){
-    (s.campos || []).forEach(function(c){
+    (s.campos || []).concat(s.camposFim || []).forEach(function(c){
       total++;
       var v = getv(f, c.k);
       if(Array.isArray(v) ? v.length : (v != null && String(v).trim())) ok++;
@@ -1876,6 +2024,7 @@ function pacote(f){
     campos: campos,
     familia: (f.familia || []).filter(function(p){ return p && (p.nome || p.idade); }),
     relAreas: (f.relAreas || []).filter(function(a){ return a && (a.ini || a.fim); }),
+    relTabelas: { "1": linhasTab(1), "2": linhasTab(2) },
     fotos: (f.fotos || []).map(function(p){ return p.src; }),
     legendas: (f.fotos || []).map(function(p){ return p.leg || ""; }),
     assinaturas: { fb: f.assinatura || null, rel: null },
@@ -1948,6 +2097,7 @@ function impArquivo(input){
       if(o.campos) nf.campos = o.campos;
       if(o.familia) nf.familia = o.familia;
       if(o.relAreas) nf.relAreas = o.relAreas;
+      if(o.relTabelas) nf.relTabelas = o.relTabelas;
       if(o.fotos) nf.fotos = o.fotos.map(function(src, i){
         return { src: src, leg: (o.legendas && o.legendas[i]) || "" };
       });
