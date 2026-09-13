@@ -2777,8 +2777,8 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
             <th>R$ Total</th>
           </tr>
           <tr class="pg-filtros">
-            <th><select id="pgFiltroLote" onchange="PG_renderizar()"><option value="">Todos</option></select></th>
-            <th><input type="text" id="pgFiltroCadastro" placeholder="Filtrar…" oninput="PG_renderizar()"></th>
+            <th><button type="button" class="pg-filtbtn" id="pgFiltBtnLote" onclick="PG_toggleFiltro(event,'lote')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
+            <th><button type="button" class="pg-filtbtn" id="pgFiltBtnCad" onclick="PG_toggleFiltro(event,'cad')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
             <th></th><th></th><th></th><th></th><th></th><th></th>
           </tr>
         </thead>
@@ -2788,6 +2788,19 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
         <tfoot id="pgRodape"></tfoot>
       </table>
     </div>
+  </div>
+
+  <div class="pg-filtpop" id="pgPopLote" hidden>
+    <div class="pg-filtpop-search"><input type="text" placeholder="Buscar…" oninput="PG_filtrarLista('lote',this.value)"></div>
+    <label class="pg-filtpop-all"><input type="checkbox" id="pgSelAllLote" checked onchange="PG_toggleTodos('lote',this.checked)"> Selecionar todos</label>
+    <div class="pg-filtpop-list" id="pgListaLote"></div>
+    <div class="pg-filtpop-actions"><button type="button" class="pg-btn pg-btn-primaria" onclick="PG_fecharFiltro('lote')">OK</button></div>
+  </div>
+  <div class="pg-filtpop" id="pgPopCad" hidden>
+    <div class="pg-filtpop-search"><input type="text" placeholder="Buscar…" oninput="PG_filtrarLista('cad',this.value)"></div>
+    <label class="pg-filtpop-all"><input type="checkbox" id="pgSelAllCad" checked onchange="PG_toggleTodos('cad',this.checked)"> Selecionar todos</label>
+    <div class="pg-filtpop-list" id="pgListaCad"></div>
+    <div class="pg-filtpop-actions"><button type="button" class="pg-btn pg-btn-primaria" onclick="PG_fecharFiltro('cad')">OK</button></div>
   </div>
 </main>
 
@@ -2839,11 +2852,30 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
   .pg-tabela td.pg-total{ font-weight:700; color:#0a4d7c; }
   .pg-vazio{ text-align:center; color:#8a97a6; padding:26px 14px !important; white-space:normal; }
   .pg-tabela thead tr.pg-filtros th{ position:sticky; top:37px; background:#fff; padding:6px 14px 10px; border-bottom:2px solid #e4ebf2; }
-  .pg-tabela thead tr.pg-filtros select, .pg-tabela thead tr.pg-filtros input{
-    width:100%; border:1px solid #c3ccd6; border-radius:7px; padding:6px 9px;
-    font-size:12.5px; font-weight:400; text-transform:none; letter-spacing:0; color:#243447; background:#fff;
+  .pg-filtbtn{
+    width:100%; display:flex; align-items:center; justify-content:space-between; gap:6px;
+    border:1px solid #c3ccd6; border-radius:7px; padding:6px 9px; background:#fff;
+    font-size:12.5px; font-weight:400; text-transform:none; letter-spacing:0; color:#243447; cursor:pointer;
   }
-  .pg-tabela thead tr.pg-filtros select:focus, .pg-tabela thead tr.pg-filtros input:focus{ border-color:#1F6FC0; outline:none; }
+  .pg-filtbtn:hover{ border-color:#1F6FC0; }
+  .pg-filtbtn.pg-ativo{ border-color:#1F6FC0; background:#eaf3fc; color:#0a4d7c; font-weight:700; }
+  .pg-filtbtn-seta{ color:#8a97a6; font-size:10px; }
+  .pg-filtpop{
+    position:fixed; z-index:60; width:240px; max-height:320px; display:flex; flex-direction:column;
+    background:#fff; border:1px solid #c3ccd6; border-radius:10px; box-shadow:0 10px 30px rgba(20,35,60,.18);
+    padding:10px; gap:8px;
+  }
+  .pg-filtpop-search input{
+    width:100%; border:1px solid #c3ccd6; border-radius:7px; padding:6px 9px; font-size:12.5px; color:#243447; outline:none;
+  }
+  .pg-filtpop-search input:focus{ border-color:#1F6FC0; }
+  .pg-filtpop-all{ display:flex; align-items:center; gap:7px; font-size:12.5px; font-weight:700; color:#243447; padding-bottom:6px; border-bottom:1px solid #eef2f6; cursor:pointer; }
+  .pg-filtpop-list{ overflow-y:auto; display:flex; flex-direction:column; gap:2px; flex:1; min-height:40px; }
+  .pg-filtpop-list label{ display:flex; align-items:center; gap:7px; font-size:12.5px; color:#243447; padding:4px 3px; border-radius:5px; cursor:pointer; }
+  .pg-filtpop-list label:hover{ background:#f1f6fb; }
+  .pg-filtpop-list .pg-filt-vazio{ font-size:12px; color:#8a97a6; padding:6px 3px; font-style:italic; }
+  .pg-filtpop-actions{ display:flex; justify-content:flex-end; border-top:1px solid #eef2f6; padding-top:8px; }
+  .pg-filtpop-actions .pg-btn{ padding:6px 18px; font-size:12.5px; border-radius:7px; }
   .pg-tabela tfoot td{
     padding:12px 14px; border-top:2px solid #e4ebf2; background:#f7f9fc;
     font-weight:700; color:#0a4d7c; white-space:nowrap;
@@ -2878,12 +2910,12 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
       <button class="sb-link ativa" data-setor="social" data-alvo="panel-desp1-vist" onclick="trocarAba(this)">Ficha de Vistoria e Cadastro Socioeconômico (Anexo B)</button>
       <button class="sb-link" data-setor="social" data-alvo="panel-desp1-drl" onclick="trocarAba(this)">DRL — Declaração de Respeito de Limites</button>
       <button class="sb-link" data-setor="social" data-alvo="panel-desp1-rel" onclick="trocarAba(this)">Relatório Técnico de Caracterização Socioeconômica</button>
-      <button class="sb-link" data-setor="tecnica" data-alvo="panel-desp1-tecnica" onclick="trocarAba(this); BNF_moverParaTecnica(); if(window.D2IMG_moverParaTecnica) D2IMG_moverParaTecnica();">Técnica</button>
+      <button class="sb-link" data-setor="tecnica" data-alvo="panel-desp1-tecnica" onclick="trocarAba(this); BNF_moverParaTecnica(); if(window.D2IMG_moverParaTecnica) D2IMG_moverParaTecnica(); if(window.D2PLANTAS_moverParaTecnica) D2PLANTAS_moverParaTecnica(); if(window.D2REM_moverParaTecnica) D2REM_moverParaTecnica();">Técnica</button>
       <button class="sb-link" data-setor="juridico" data-alvo="panel-desp1-parecer" onclick="trocarAba(this)">Parecer para Regularização Fundiária e Documental</button>
     </div>
     <div class="sb-sub-grupo" data-grupo="desp2" style="display:none;">
       <div class="sb-grp">Documentação</div>
-      <button class="sb-link" data-alvo="panel-desp2-relatorio" onclick="trocarAba(this); if(window.D2IMG_moverParaDesp2) D2IMG_moverParaDesp2();">Relatório de Análise de Impacto e Transposição (DESP-2)</button>
+      <button class="sb-link" data-alvo="panel-desp2-relatorio" onclick="trocarAba(this); if(window.D2IMG_moverParaDesp2) D2IMG_moverParaDesp2(); if(window.D2PLANTAS_moverParaDesp2) D2PLANTAS_moverParaDesp2(); if(window.D2REM_moverParaDesp2) D2REM_moverParaDesp2();">Relatório de Análise de Impacto e Transposição (DESP-2)</button>
     </div>
     <div class="sb-sub-grupo" data-grupo="laudo" style="display:none;">
       <div class="sb-grp">Documentos</div>
@@ -4909,7 +4941,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 <h1>Técnica</h1>
 <p class="sub">Áreas de locação e área a desapropriar (preenchimento único, usado nos demais documentos) e as Benfeitorias da Avaliação (DESP 3) — o que for preenchido aqui ou lá aparece nos dois lugares.</p>
 <div class="vcard"><div class="vsub">Áreas de Locação</div><div class="rel-areas" id="rel_areas"></div><div class="vactions" style="margin-top:6px;"><button class="vbtn vbtn-ghost" type="button" onclick="REL_addArea()">+ Adicionar área</button></div></div>
-<div class="vcard"><div class="vrow"><div class="vfield"><label>Área Desap. (ha)</label><input type="text" id="fb_area_desap" class="num4" inputmode="decimal" placeholder="0,0000"></div></div></div>
+<div class="vcard"><div class="vrow"><div class="vfield"><label>Área Desap. (ha)</label><input type="text" id="fb_area_desap" class="num4" inputmode="decimal" placeholder="0,0000"></div><div id="remN_slot" style="display:contents"></div><div id="remS_slot" style="display:contents"></div></div></div>
 <div class="vsub" style="margin-top:22px;">Benfeitorias (itens 12 e 13 da Avaliação — DESP 3)</div>
 <p class="hint-inline" style="margin-top:0;">As tabelas abaixo são as mesmas da aba Avaliação (DESP 3 → Avaliação): editar aqui ou lá preenche o mesmo lugar.</p>
 <div id="bnf_item12_slot"></div>
@@ -4918,6 +4950,14 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 <p class="hint-inline" style="margin-top:0;">Idem — as mesmas Ressalvas e o mesmo Relatório Fotográfico da DESP 2 → Relatório de Análise de Impacto e Transposição.</p>
 <div id="d2_ressalvas_slot"></div>
 <div id="d2_fotos_slot"></div>
+<div class="vsub" style="margin-top:22px;">Plantas e Roteiro de Acesso (DESP 2)</div>
+<p class="hint-inline" style="margin-top:0;">Idem — os mesmos tópicos e imagens da DESP 2 → Relatório de Análise de Impacto e Transposição.</p>
+<div id="d2_row_roteiro_de_acesso_slot"></div>
+<div id="d2_row_planta_da_rea_total_do_im_ve_slot"></div>
+<div id="d2_row_planta_contendo_a_dimens_o_d_slot"></div>
+<div id="d2_row_planta_com_indica_o_das_font_slot"></div>
+<div id="d2_row_planta_contendo_a_disposi_o_slot"></div>
+<div id="d2_row_planta_de_localiza_o_das_rea_slot"></div>
 </div>
 </section>
 <section class="tab-panel" id="panel-desp1-parecer">
@@ -5161,6 +5201,40 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
     #panel-desp1-tecnica .d2-ress-img-row{ display:flex; align-items:flex-start; gap:10px; flex-wrap:wrap; margin-top:8px; }
     #panel-desp1-tecnica .d2-ress-img-row .img-drop{ flex:1; min-width:180px; }
     #panel-desp1-tecnica .d2-ress-thumb{ width:56px; height:56px; object-fit:cover; border-radius:8px; border:1px solid #bfe3c9; flex-shrink:0; }
+
+    /* --- Técnica (DESP 1): Roteiro de acesso + plantas (DESP 2) movidos via DOM-portal --- */
+    #panel-desp1-tecnica textarea{
+      width:100%; border:1px solid var(--borda-forte); border-radius:7px;
+      padding:8px 11px; font-size:13.5px; color:var(--texto); background:#fff;
+      font-family:inherit; outline:none; transition:border-color .15s, box-shadow .15s;
+      resize:vertical; line-height:1.45;
+    }
+    #panel-desp1-tecnica textarea:focus{ border-color:var(--azul); box-shadow:0 0 0 3px rgba(31,111,192,.12); }
+    #panel-desp1-tecnica .d2-figgrid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:12px; margin-top:10px; }
+    #panel-desp1-tecnica .d2-figwrap{ display:flex; flex-direction:column; gap:6px; }
+    #panel-desp1-tecnica .d2-figwrap .img-drop{ position:relative; min-height:88px; }
+    #panel-desp1-tecnica .d2-figwrap.tem-imagem .img-drop{
+      border-style:solid; border-color:#159a3c; background:#f0faf3; padding:10px; overflow:hidden;
+    }
+    #panel-desp1-tecnica .d2-figwrap.tem-imagem .img-drop:hover{ border-color:#0e7a2c; background:#e6f7ea; }
+    #panel-desp1-tecnica .d2-fig-thumb{ width:100%; max-height:84px; object-fit:cover; border-radius:8px; border:1px solid #bfe3c9; display:block; }
+    #panel-desp1-tecnica .d2-figwrap.tem-imagem .t{ color:#0e7a2c; }
+    #panel-desp1-tecnica .d2-fig-fname{ word-break:break-all; }
+    #panel-desp1-tecnica .d2-fhead{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px; }
+    #panel-desp1-tecnica .auto-tag{ font-size:10.5px; font-weight:700; letter-spacing:.4px; text-transform:uppercase; color:#159a3c; }
+    #panel-desp1-tecnica .d2-tools{ display:flex; gap:6px; flex-wrap:wrap; }
+    #panel-desp1-tecnica .d2b{ border:1px solid var(--borda-forte); background:#fff; color:var(--texto); border-radius:6px; padding:3px 10px; font-size:12px; font-weight:600; cursor:pointer; line-height:1.3; }
+    #panel-desp1-tecnica .d2b:hover{ background:#f0f5fb; }
+    #panel-desp1-tecnica .d2b-bold{ font-weight:800; min-width:30px; font-family:Georgia, "Times New Roman", serif; }
+    #panel-desp1-tecnica .d2b-edit.on{ background:var(--azul); color:#fff; border-color:var(--azul); }
+    #panel-desp1-tecnica .d2-view{ border:1px solid var(--borda); border-radius:8px; background:#fbfdff; padding:12px 15px; font-size:13px; line-height:1.6; color:#243447; text-align:justify; min-height:56px; }
+    #panel-desp1-tecnica .d2-view.editing{ background:#fff; border-color:var(--azul); box-shadow:0 0 0 2px rgba(31,111,192,.15); outline:none; text-align:left; }
+    #panel-desp1-tecnica .d2-view > div{ margin-bottom:8px; }
+    #panel-desp1-tecnica .d2-view > div:last-child{ margin-bottom:0; }
+    #panel-desp1-tecnica .d2-view .d2-li{ padding-left:16px; text-indent:-13px; }
+    #panel-desp1-tecnica .d2-view b{ color:#12203a; }
+    #panel-desp1-tecnica .d2-view:empty::before{ content:"(vazio)"; color:#9aa7b5; font-style:italic; }
+    #panel-desp1-tecnica .d2t-boilwrap{ margin-top:10px; }
 
     /* --- Técnica (DESP 1): itens 12/13 (Benfeitorias) movidos via DOM-portal --- */
 #panel-desp1-tecnica .vsec{
@@ -7605,6 +7679,8 @@ function SETOR_abrir(btn){
   if(primeiro) trocarAba(primeiro);
   if(setor === 'tecnica' && typeof BNF_moverParaTecnica === 'function') BNF_moverParaTecnica();
   if(setor === 'tecnica' && typeof D2IMG_moverParaTecnica === 'function') D2IMG_moverParaTecnica();
+  if(setor === 'tecnica' && typeof D2PLANTAS_moverParaTecnica === 'function') D2PLANTAS_moverParaTecnica();
+  if(setor === 'tecnica' && typeof D2REM_moverParaTecnica === 'function') D2REM_moverParaTecnica();
 }
 // estado inicial: filtra os sb-link pelo setor já marcado "ativo" no HTML,
 // sem trocar de painel (mantém o que já está "ativa" por padrão)
@@ -11275,6 +11351,34 @@ function AV_gerarDescSituacao(){
     if(mR && wR && wR.parentNode !== mR.parentNode) mR.after(wR);
     if(mF && wF && wF.parentNode !== mF.parentNode) mF.after(wF);
   };
+  // DOM-portal: tópicos com imagem (Roteiro de acesso + 5 plantas) da DESP 2 também na Técnica
+  var D2PLANTAS_IDS = ["roteiro_de_acesso","planta_da_rea_total_do_im_ve","planta_contendo_a_dimens_o_d",
+    "planta_com_indica_o_das_font","planta_contendo_a_disposi_o","planta_de_localiza_o_das_rea"];
+  window.D2PLANTAS_moverParaTecnica = function(){
+    D2PLANTAS_IDS.forEach(function(id){
+      var w = document.getElementById("d2_row_"+id), s = document.getElementById("d2_row_"+id+"_slot");
+      if(w && s && w.parentNode !== s) s.appendChild(w);
+    });
+  };
+  window.D2PLANTAS_moverParaDesp2 = function(){
+    D2PLANTAS_IDS.forEach(function(id){
+      var m = document.getElementById("d2_row_"+id+"_marca"), w = document.getElementById("d2_row_"+id);
+      if(m && w && w.parentNode !== m.parentNode) m.after(w);
+    });
+  };
+  // DOM-portal: Remanescente norte/sul (DESP 2, tópico "reman") ao lado de Área Desap. na Técnica
+  window.D2REM_moverParaTecnica = function(){
+    ["remN","remS"].forEach(function(k){
+      var w = document.getElementById(k+"_wrap"), s = document.getElementById(k+"_slot");
+      if(w && s && w.parentNode !== s) s.appendChild(w);
+    });
+  };
+  window.D2REM_moverParaDesp2 = function(){
+    ["remN","remS"].forEach(function(k){
+      var m = document.getElementById(k+"_marca"), w = document.getElementById(k+"_wrap");
+      if(m && w && w.parentNode !== m.parentNode) m.after(w);
+    });
+  };
   window.BNF_getLinhas = function(){
     var out = {};
     ["121","122","123","124","13"].forEach(function(g){ out[g] = window.BNF_lerLinhas(g); });
@@ -11684,6 +11788,8 @@ function AV_gerarDescSituacao(){
 
   var _pgItens = [];
   var _pgTimer = null;
+  var _pgSelLote = null; // null = "todos" (sem filtro); senão Set com os valores marcados
+  var _pgSelCad = null;
 
   window.PG_pesquisar = function(){
     clearTimeout(_pgTimer);
@@ -11711,42 +11817,129 @@ function AV_gerarDescSituacao(){
     });
   };
 
-  function PG_popularFiltroLote(){
-    var sel = document.getElementById("pgFiltroLote");
-    if(!sel) return;
-    var atual = sel.value;
+  // valores únicos (crus) de uma coluna filtrável, ordenados
+  function _pgValoresUnicos(campo){
     var vistos = {}, opcoes = [];
     _pgItens.forEach(function(it){
-      if(!it.lote || vistos[it.lote]) return;
-      vistos[it.lote] = true;
-      opcoes.push(it.lote);
+      var raw = campo === 'lote' ? (it.lote||"") : ctdFmt(it.ctd);
+      var chave = String(raw);
+      if(chave === "" || chave === "—" || vistos[chave]) return;
+      vistos[chave] = true;
+      opcoes.push(raw);
     });
     opcoes.sort(function(a,b){ return String(a).localeCompare(String(b), "pt-BR", {numeric:true}); });
-    sel.innerHTML = '<option value="">Todos</option>' + opcoes.map(function(l){
-      return '<option value="' + esc(l) + '">' + esc(loteFmt(l)) + '</option>';
-    }).join("");
-    if(opcoes.indexOf(atual) >= 0) sel.value = atual;
+    return opcoes;
+  }
+
+  // popover estilo Excel: lista de checkboxes com os valores únicos da coluna
+  function PG_popularListaFiltro(campo){
+    var host = document.getElementById(campo === 'lote' ? 'pgListaLote' : 'pgListaCad');
+    if(!host) return;
+    var opcoes = _pgValoresUnicos(campo);
+    var sel = campo === 'lote' ? _pgSelLote : _pgSelCad;
+    var fmt = campo === 'lote' ? loteFmt : function(v){ return v; };
+    host.innerHTML = opcoes.length ? opcoes.map(function(v){
+      var chave = String(v);
+      var marcado = !sel || sel.has(chave);
+      var chaveJs = chave.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      return '<label data-valor="' + esc(chave).toLowerCase() + '"><input type="checkbox" ' + (marcado?'checked ':'')
+        + 'onchange="PG_toggleValor(\'' + campo + '\',\'' + chaveJs + '\',this.checked)"> ' + esc(fmt(v)) + '</label>';
+    }).join("") : '<p class="pg-filt-vazio">Nenhum valor.</p>';
+    var todos = document.getElementById(campo === 'lote' ? 'pgSelAllLote' : 'pgSelAllCad');
+    if(todos) todos.checked = !sel;
+  }
+
+  window.PG_toggleValor = function(campo, valor, marcado){
+    var opcoes = _pgValoresUnicos(campo).map(String);
+    var atual = campo === 'lote' ? _pgSelLote : _pgSelCad;
+    if(atual === null) atual = new Set(opcoes);
+    if(marcado) atual.add(valor); else atual.delete(valor);
+    if(atual.size === opcoes.length) atual = null; // tudo marcado = sem filtro
+    if(campo === 'lote') _pgSelLote = atual; else _pgSelCad = atual;
+    var todos = document.getElementById(campo === 'lote' ? 'pgSelAllLote' : 'pgSelAllCad');
+    if(todos) todos.checked = !atual;
+    PG_renderizar();
+  };
+
+  window.PG_toggleTodos = function(campo, marcado){
+    if(campo === 'lote') _pgSelLote = marcado ? null : new Set();
+    else _pgSelCad = marcado ? null : new Set();
+    PG_popularListaFiltro(campo);
+    PG_renderizar();
+  };
+
+  window.PG_filtrarLista = function(campo, termo){
+    var host = document.getElementById(campo === 'lote' ? 'pgListaLote' : 'pgListaCad');
+    if(!host) return;
+    var t = (termo||"").trim().toLowerCase();
+    host.querySelectorAll('label[data-valor]').forEach(function(lbl){
+      lbl.style.display = (!t || lbl.dataset.valor.indexOf(t) >= 0) ? '' : 'none';
+    });
+  };
+
+  window.PG_toggleFiltro = function(ev, campo){
+    if(ev) ev.stopPropagation();
+    var pop = document.getElementById(campo === 'lote' ? 'pgPopLote' : 'pgPopCad');
+    var outro = document.getElementById(campo === 'lote' ? 'pgPopCad' : 'pgPopLote');
+    if(outro) outro.hidden = true;
+    if(!pop) return;
+    if(!pop.hidden){ pop.hidden = true; return; }
+    var btn = document.getElementById(campo === 'lote' ? 'pgFiltBtnLote' : 'pgFiltBtnCad');
+    if(btn){
+      var r = btn.getBoundingClientRect();
+      pop.style.left = Math.round(r.left) + 'px';
+      pop.style.top = Math.round(r.bottom + 4) + 'px';
+    }
+    PG_popularListaFiltro(campo);
+    pop.hidden = false;
+  };
+
+  window.PG_fecharFiltro = function(campo){
+    var pop = document.getElementById(campo === 'lote' ? 'pgPopLote' : 'pgPopCad');
+    if(pop) pop.hidden = true;
+  };
+
+  document.addEventListener('click', function(ev){
+    ['pgPopLote','pgPopCad'].forEach(function(id){
+      var pop = document.getElementById(id);
+      if(!pop || pop.hidden) return;
+      if(pop.contains(ev.target)) return;
+      if(ev.target.closest && ev.target.closest('.pg-filtbtn')) return;
+      pop.hidden = true;
+    });
+  });
+
+  function PG_atualizarBotaoFiltro(campo){
+    var btn = document.getElementById(campo === 'lote' ? 'pgFiltBtnLote' : 'pgFiltBtnCad');
+    if(!btn) return;
+    var sel = campo === 'lote' ? _pgSelLote : _pgSelCad;
+    var texto;
+    if(!sel) texto = 'Todos';
+    else if(sel.size === 0) texto = 'Nenhum';
+    else if(sel.size === 1) texto = esc(campo === 'lote' ? loteFmt(Array.from(sel)[0]) : Array.from(sel)[0]);
+    else texto = sel.size + ' selecionados';
+    btn.classList.toggle('pg-ativo', !!sel);
+    btn.innerHTML = texto + ' <span class="pg-filtbtn-seta">▾</span>';
   }
 
   function PG_renderizar(){
     var corpo = document.getElementById("pgCorpo");
     var rodape = document.getElementById("pgRodape");
     if(!corpo) return;
-    PG_popularFiltroLote();
-
-    var filtroLote = (document.getElementById("pgFiltroLote")||{}).value || "";
-    var filtroCad = ((document.getElementById("pgFiltroCadastro")||{}).value || "").trim().toLowerCase();
 
     var itens = _pgItens.filter(function(it){
-      if(filtroLote && String(it.lote||"") !== filtroLote) return false;
-      if(filtroCad && ctdFmt(it.ctd).toLowerCase().indexOf(filtroCad) < 0) return false;
+      if(_pgSelLote && !_pgSelLote.has(String(it.lote||""))) return false;
+      if(_pgSelCad && !_pgSelCad.has(ctdFmt(it.ctd))) return false;
       return true;
     }).sort(function(a,b){
       return String(b.atualizado_em||"").localeCompare(String(a.atualizado_em||""));
     });
 
+    PG_atualizarBotaoFiltro('lote');
+    PG_atualizarBotaoFiltro('cad');
+
     if(!itens.length){
-      corpo.innerHTML = '<tr><td colspan="8" class="pg-vazio">Nenhum cadastro encontrado' + ((filtroLote||filtroCad) ? " para este filtro." : ".") + '</td></tr>';
+      corpo.innerHTML = '<tr><td colspan="8" class="pg-vazio">Nenhum cadastro encontrado' + ((_pgSelLote||_pgSelCad) ? " para este filtro." : ".") + '</td></tr>';
       if(rodape) rodape.innerHTML = "";
       return;
     }
@@ -17823,6 +18016,71 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
             + '</div></div>';
         return;
       }
+      // tópicos com imagem replicados na aba Técnica (DESP 1) via DOM-portal — mesmo elemento, sem clonar
+      if(tp.id==="roteiro_de_acesso" || tp.id==="planta_contendo_a_disposi_o"){
+        html+='<div id="d2_row_'+tp.id+'_marca"></div><div id="d2_row_'+tp.id+'">'
+            + rowOpen(tp)
+            + '<div class="d2-fhead"><span class="auto-tag">texto padrão</span>'
+            + '<span class="d2-tools"><button type="button" class="d2b" id="d2_boilbtn_'+tp.id+'" aria-expanded="false" aria-controls="d2_boilwrap_'+tp.id+'" onclick="D2_toggleBoilTxt(\''+tp.id+'\',this)">✏️ Ver / editar texto padrão</button></span></div>'
+            + '<div class="d2t-boilwrap" id="d2_boilwrap_'+tp.id+'" style="display:none;">'
+              + '<div class="d2-field">'
+              + '<div class="d2-fhead"><span></span>'
+              + '<span class="d2-tools"><button type="button" class="d2b d2b-bold" title="Negrito — selecione o texto e clique (Ctrl+B)" onclick="D2_bold(\''+tp.id+'\')">N</button><button type="button" class="d2b d2b-edit" onclick="D2_toggleEdit(\''+tp.id+'\',this)">✏️ Ativar edição</button></span></div>'
+              + '<div class="d2-view" id="d2_view_'+tp.id+'" contenteditable="false" oninput="D2_syncFromView(\''+tp.id+'\')" onkeydown="D2_keydown(event,\''+tp.id+'\')"></div>'
+              + '</div>'
+            + '</div>'
+            + hiddenTA+figsHtml(tp)
+            + '</div></div>';
+        return;
+      }
+      if(tp.id==="planta_de_localiza_o_das_rea"){
+        var areasH_tec = '<div class="vsub" style="margin-top:10px;">Áreas atingidas (ha)</div>'
+          +'<div class="vrow">'+kfIn("past","Pastagem","0,0000",tp.id,'inputmode="decimal"')+kfIn("caat","Savânica (Caatinga)","0,0000",tp.id,'inputmode="decimal"')+kfIn("app","APP","0,0000",tp.id,'inputmode="decimal"')+kfIn("rl","Reserva Legal","0,0000",tp.id,'inputmode="decimal"')+'</div>';
+        html+='<div id="d2_row_'+tp.id+'_marca"></div><div id="d2_row_'+tp.id+'">'
+            + rowOpen(tp) + areasH_tec
+            + '<div class="d2-fhead"><span class="auto-tag">texto padrão</span>'
+            + '<span class="d2-tools"><button type="button" class="d2b" id="d2_boilbtn_'+tp.id+'" aria-expanded="false" aria-controls="d2_boilwrap_'+tp.id+'" onclick="D2_toggleBoilTxt(\''+tp.id+'\',this)">✏️ Ver / editar texto padrão</button></span></div>'
+            + '<div class="d2t-boilwrap" id="d2_boilwrap_'+tp.id+'" style="display:none;">'
+              + '<div class="d2-field">'
+              + '<div class="d2-fhead"><span></span>'
+              + '<span class="d2-tools"><button type="button" class="d2b d2b-bold" title="Negrito — selecione o texto e clique (Ctrl+B)" onclick="D2_bold(\''+tp.id+'\')">N</button><button type="button" class="d2b d2b-edit" onclick="D2_toggleEdit(\''+tp.id+'\',this)">✏️ Ativar edição</button></span></div>'
+              + '<div class="d2-view" id="d2_view_'+tp.id+'" contenteditable="false" oninput="D2_syncFromView(\''+tp.id+'\')" onkeydown="D2_keydown(event,\''+tp.id+'\')"></div>'
+              + '</div>'
+            + '</div>'
+            + hiddenTA+figsHtml(tp)
+            + '</div></div>';
+        return;
+      }
+      if(tp.id==="planta_da_rea_total_do_im_ve"){
+        html+='<div id="d2_row_'+tp.id+'_marca"></div><div id="d2_row_'+tp.id+'">'
+            + rowOpen(tp)
+            + '<p class="hint-auto" style="margin:0 0 8px;">📄 Texto padrão automático. Insira a imagem e, se desejar, um comentário.</p>'
+            + figsHtml(tp)
+            + '<div class="vactions" style="margin-top:8px;"><button class="vbtn vbtn-ghost" type="button" onclick="D2_togglePlantaCom()">💬 Comentário / descrição</button></div>'
+            + '<div class="vfield grow" id="d2_kf_planta_com_wrap" style="display:none;margin-top:8px;"><label>Comentário / descrição</label><textarea id="d2_kf_planta_com" data-d2topic="'+tp.id+'" rows="2" placeholder="Descrição adicional (opcional)"></textarea></div>'
+            + hiddenTA
+            + '</div></div>';
+        return;
+      }
+      if(tp.id==="planta_contendo_a_dimens_o_d"){
+        html+='<div id="d2_row_'+tp.id+'_marca"></div><div id="d2_row_'+tp.id+'">'
+            + rowOpen(tp)
+            + '<p class="hint-auto" style="margin:0 0 8px;">📄 Texto automático — a <b>área a ser desapropriada</b> é preenchida com o dado do cadastro (área a desapropriar). Insira a imagem e, se desejar, um comentário.</p>'
+            + figsHtml(tp)
+            + '<div class="vfield grow" style="margin-top:8px;"><label>Comentário / descrição (opcional)</label><textarea id="d2_kf_plantadim_com" data-d2topic="'+tp.id+'" rows="2" placeholder="Descrição adicional (opcional)"></textarea></div>'
+            + hiddenTA
+            + '</div></div>';
+        return;
+      }
+      if(tp.id==="planta_com_indica_o_das_font"){
+        html+='<div id="d2_row_'+tp.id+'_marca"></div><div id="d2_row_'+tp.id+'">'
+            + rowOpen(tp)
+            + '<p class="hint-auto" style="margin:0 0 8px;">📄 Há um texto padrão inicial (inserido no laudo). Complemente abaixo com a continuação.</p>'
+            + '<div class="vfield grow"><label>Continuação do texto (complemento)</label><textarea id="d2_kf_hidrica" data-d2topic="'+tp.id+'" rows="3" placeholder="Ex.: identificou-se a presença de um corpo hídrico..."></textarea></div>'
+            + hiddenTA+figsHtml(tp)
+            + '</div></div>';
+        return;
+      }
       var mode=D2_UI[tp.id]||'editable';
       // tópicos 100% automáticos (sem imagem) — nada a preencher; fica só o textarea oculto (alimenta o PDF), sem cartão na tela
       if(mode==='hidden' && !(tp.figs&&tp.figs.length)){
@@ -17858,7 +18116,10 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       }
       if(mode==='reman'){
         html+=rowOpen(tp)+'<p class="hint-auto" style="margin:0 0 8px;">Informe os dados; o texto é montado automaticamente no laudo.</p>'
-          +'<div class="vrow">'+kfIn("remkm","Trecho km (de → a)","KM ... ao KM ...",tp.id)+kfIn("remN","Remanescente norte (ha)","0,0000",tp.id,'inputmode="decimal"')+kfIn("remS","Remanescente sul / sede (ha)","0,0000",tp.id,'inputmode="decimal"')+'</div>'
+          +'<div class="vrow">'+kfIn("remkm","Trecho km (de → a)","KM ... ao KM ...",tp.id)
+          +'<div id="remN_marca" style="display:contents"></div><div id="remN_wrap" style="display:contents">'+kfIn("remN","Remanescente norte (ha)","0,0000",tp.id,'inputmode="decimal"')+'</div>'
+          +'<div id="remS_marca" style="display:contents"></div><div id="remS_wrap" style="display:contents">'+kfIn("remS","Remanescente sul / sede (ha)","0,0000",tp.id,'inputmode="decimal"')+'</div>'
+          +'</div>'
           +'<div class="vfield grow"><label>Comentário / observações (opcional)</label><textarea id="d2_kf_reman_com" data-d2topic="'+tp.id+'" rows="2" placeholder="Comentários adicionais..."></textarea></div>'
           +hiddenTA+figsHtml(tp)+'</div>'; return;
       }
