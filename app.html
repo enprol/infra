@@ -2776,10 +2776,16 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
             <th>R$ Benf. não reprodutivas</th>
             <th>R$ Total</th>
           </tr>
+          <tr class="pg-filtros">
+            <th><select id="pgFiltroLote" onchange="PG_renderizar()"><option value="">Todos</option></select></th>
+            <th><input type="text" id="pgFiltroCadastro" placeholder="Filtrar…" oninput="PG_renderizar()"></th>
+            <th></th><th></th><th></th><th></th><th></th><th></th>
+          </tr>
         </thead>
         <tbody id="pgCorpo">
           <tr><td colspan="8" class="pg-vazio">Carregando…</td></tr>
         </tbody>
+        <tfoot id="pgRodape"></tfoot>
       </table>
     </div>
   </div>
@@ -2832,6 +2838,17 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
   .pg-tabela td.pg-num{ text-align:right; font-variant-numeric:tabular-nums; }
   .pg-tabela td.pg-total{ font-weight:700; color:#0a4d7c; }
   .pg-vazio{ text-align:center; color:#8a97a6; padding:26px 14px !important; white-space:normal; }
+  .pg-tabela thead tr.pg-filtros th{ position:sticky; top:37px; background:#fff; padding:6px 14px 10px; border-bottom:2px solid #e4ebf2; }
+  .pg-tabela thead tr.pg-filtros select, .pg-tabela thead tr.pg-filtros input{
+    width:100%; border:1px solid #c3ccd6; border-radius:7px; padding:6px 9px;
+    font-size:12.5px; font-weight:400; text-transform:none; letter-spacing:0; color:#243447; background:#fff;
+  }
+  .pg-tabela thead tr.pg-filtros select:focus, .pg-tabela thead tr.pg-filtros input:focus{ border-color:#1F6FC0; outline:none; }
+  .pg-tabela tfoot td{
+    padding:12px 14px; border-top:2px solid #e4ebf2; background:#f7f9fc;
+    font-weight:700; color:#0a4d7c; white-space:nowrap;
+  }
+  .pg-tabela tfoot td.pg-num{ text-align:right; font-variant-numeric:tabular-nums; }
   @media (max-width:760px){
     .pg-wrap{ padding:16px 12px 40px; }
     .pg-busca{ flex:1 1 100%; min-width:0; }
@@ -2861,12 +2878,12 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
       <button class="sb-link ativa" data-setor="social" data-alvo="panel-desp1-vist" onclick="trocarAba(this)">Ficha de Vistoria e Cadastro Socioeconômico (Anexo B)</button>
       <button class="sb-link" data-setor="social" data-alvo="panel-desp1-drl" onclick="trocarAba(this)">DRL — Declaração de Respeito de Limites</button>
       <button class="sb-link" data-setor="social" data-alvo="panel-desp1-rel" onclick="trocarAba(this)">Relatório Técnico de Caracterização Socioeconômica</button>
-      <button class="sb-link" data-setor="tecnica" data-alvo="panel-desp1-tecnica" onclick="trocarAba(this); BNF_moverParaTecnica();">Técnica</button>
+      <button class="sb-link" data-setor="tecnica" data-alvo="panel-desp1-tecnica" onclick="trocarAba(this); BNF_moverParaTecnica(); if(window.D2IMG_moverParaTecnica) D2IMG_moverParaTecnica();">Técnica</button>
       <button class="sb-link" data-setor="juridico" data-alvo="panel-desp1-parecer" onclick="trocarAba(this)">Parecer para Regularização Fundiária e Documental</button>
     </div>
     <div class="sb-sub-grupo" data-grupo="desp2" style="display:none;">
       <div class="sb-grp">Documentação</div>
-      <button class="sb-link" data-alvo="panel-desp2-relatorio" onclick="trocarAba(this)">Relatório de Análise de Impacto e Transposição (DESP-2)</button>
+      <button class="sb-link" data-alvo="panel-desp2-relatorio" onclick="trocarAba(this); if(window.D2IMG_moverParaDesp2) D2IMG_moverParaDesp2();">Relatório de Análise de Impacto e Transposição (DESP-2)</button>
     </div>
     <div class="sb-sub-grupo" data-grupo="laudo" style="display:none;">
       <div class="sb-grp">Documentos</div>
@@ -4897,6 +4914,10 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 <p class="hint-inline" style="margin-top:0;">As tabelas abaixo são as mesmas da aba Avaliação (DESP 3 → Avaliação): editar aqui ou lá preenche o mesmo lugar.</p>
 <div id="bnf_item12_slot"></div>
 <div id="bnf_item13_slot"></div>
+<div class="vsub" style="margin-top:22px;">Imagens da Avaliação de Impacto (DESP 2)</div>
+<p class="hint-inline" style="margin-top:0;">Idem — as mesmas Ressalvas e o mesmo Relatório Fotográfico da DESP 2 → Relatório de Análise de Impacto e Transposição.</p>
+<div id="d2_ressalvas_slot"></div>
+<div id="d2_fotos_slot"></div>
 </div>
 </section>
 <section class="tab-panel" id="panel-desp1-parecer">
@@ -5112,6 +5133,35 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
     #panel-desp1-tecnica .hint-inline{display:block; font-size:11.5px; color:#7a8797; margin-top:6px; text-transform:none; letter-spacing:0; font-weight:400;}
     #panel-desp1-tecnica .hint-auto{font-weight:400; font-size:11px; color:#8a97a6; text-transform:none; letter-spacing:0;}
 
+    /* --- Técnica (DESP 1): Ressalvas + Relatório Fotográfico (DESP 2) movidos via DOM-portal --- */
+    #panel-desp1-tecnica .img-drop.over{border-color:var(--azul); background:#eaf3fc;}
+    #panel-desp1-tecnica .sr-only{
+      position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden;
+      clip:rect(0,0,0,0); white-space:nowrap; border:0;
+    }
+    #panel-desp1-tecnica .d2t-row{ background:var(--card); border:1px solid var(--borda); border-radius:10px;
+      padding:14px 18px 16px; margin-bottom:10px; box-shadow:0 3px 10px rgba(30,50,80,.05); }
+    #panel-desp1-tecnica .d2t-head{ display:flex; align-items:baseline; gap:8px; margin-bottom:10px; }
+    #panel-desp1-tecnica .d2t-title{ font-size:13px; font-weight:800; color:var(--azul-esc); letter-spacing:.2px; }
+    #panel-desp1-tecnica .d2-ress{ border:1px solid var(--borda); border-radius:8px; padding:10px 12px; margin-bottom:10px; background:#fff; }
+    #panel-desp1-tecnica .d2-ress-h{ display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
+    #panel-desp1-tecnica .d2-ress textarea{ width:100%; border:1px solid var(--borda-forte); border-radius:7px; padding:8px 10px; font-size:13px; font-family:inherit; resize:vertical; }
+    #panel-desp1-tecnica .d2-rm{ border:none; background:#f3d6d6; color:#a33; border-radius:6px; width:28px; height:28px; cursor:pointer; flex:0 0 auto; }
+    #panel-desp1-tecnica .d2-fig-badge{
+      display:inline-flex; align-items:center; gap:4px; align-self:center; font-size:11px; font-weight:800;
+      color:#0e7a2c; background:#dff5e4; border:1px solid #b6e6c2; border-radius:20px; padding:2px 10px; letter-spacing:.2px;
+    }
+    #panel-desp1-tecnica .d2-fig-rm{
+      align-self:center; border:1px solid var(--borda-forte); background:#fff; color:#c0392b;
+      font-size:11.5px; font-weight:700; padding:4px 12px; border-radius:8px; cursor:pointer;
+    }
+    #panel-desp1-tecnica .d2-fig-rm:hover{ background:#fdecec; border-color:#e6b3b3; }
+    #panel-desp1-tecnica .d2-ress .img-drop.tem-imagem{ border-style:solid; border-color:#159a3c; background:#f0faf3; }
+    #panel-desp1-tecnica .d2-ress .img-drop.tem-imagem .t{ color:#0e7a2c; }
+    #panel-desp1-tecnica .d2-ress-img-row{ display:flex; align-items:flex-start; gap:10px; flex-wrap:wrap; margin-top:8px; }
+    #panel-desp1-tecnica .d2-ress-img-row .img-drop{ flex:1; min-width:180px; }
+    #panel-desp1-tecnica .d2-ress-thumb{ width:56px; height:56px; object-fit:cover; border-radius:8px; border:1px solid #bfe3c9; flex-shrink:0; }
+
     /* --- Técnica (DESP 1): itens 12/13 (Benfeitorias) movidos via DOM-portal --- */
 #panel-desp1-tecnica .vsec{
     font-size:14px; font-weight:800; letter-spacing:.4px; text-transform:uppercase;
@@ -5126,6 +5176,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 #panel-desp1-tecnica .vsec.acc .acc-chevron{font-size:13px; transition:transform .2s;}
 #panel-desp1-tecnica .vsec.acc.fechado{border-radius:9px;}
 #panel-desp1-tecnica .vsec.acc.fechado .acc-chevron{transform:rotate(-90deg);}
+#panel-desp1-tecnica .vcard.oculto{display:none;}
 
   /* Itens 12 e 13 — Benfeitorias */
   #panel-desp1-tecnica .bnf-sub{font-weight:800; color:var(--azul-esc); margin:14px 0 6px; font-size:13px; border-left:4px solid var(--azul); padding-left:8px;}
@@ -7553,6 +7604,7 @@ function SETOR_abrir(btn){
   });
   if(primeiro) trocarAba(primeiro);
   if(setor === 'tecnica' && typeof BNF_moverParaTecnica === 'function') BNF_moverParaTecnica();
+  if(setor === 'tecnica' && typeof D2IMG_moverParaTecnica === 'function') D2IMG_moverParaTecnica();
 }
 // estado inicial: filtra os sb-link pelo setor já marcado "ativo" no HTML,
 // sem trocar de painel (mantém o que já está "ativa" por padrão)
@@ -11194,11 +11246,34 @@ function AV_gerarDescSituacao(){
     var w13 = document.getElementById("bnf_item13_wrap"), s13 = document.getElementById("bnf_item13_slot");
     if(w12 && s12 && w12.parentNode !== s12) s12.appendChild(w12);
     if(w13 && s13 && w13.parentNode !== s13) s13.appendChild(w13);
+    // por padrão, chegam retráteis (recolhidos) na aba Técnica, mesmo que tenham
+    // ficado abertos na Avaliação — o usuário ainda pode expandir se quiser.
+    [w12, w13].forEach(function(w){
+      if(!w) return;
+      var h2 = w.querySelector(".vsec.acc"), card = w.querySelector(".vcard");
+      if(h2 && !h2.classList.contains("fechado")) h2.classList.add("fechado");
+      if(card && !card.classList.contains("oculto")) card.classList.add("oculto");
+    });
   };
   window.BNF_moverParaAvaliacao = function(){
     var marca = document.getElementById("bnf_home_marca");
     var w12 = document.getElementById("bnf_item12_wrap"), w13 = document.getElementById("bnf_item13_wrap");
     if(marca && w12 && w13 && w12.parentNode !== marca.parentNode) marca.after(w12, w13);
+  };
+  // DOM-portal: mesmo esquema do BNF_moverPara* acima, agora para as imagens
+  // da DESP 2 (Ressalvas + 6.1 Relatório Fotográfico) — moram na DESP 2 por
+  // padrão e são deslocadas (não clonadas) pra Técnica quando essa aba abre.
+  window.D2IMG_moverParaTecnica = function(){
+    var wR = document.getElementById("d2_row_ressalvas"), sR = document.getElementById("d2_ressalvas_slot");
+    var wF = document.getElementById("d2_row_fotos"), sF = document.getElementById("d2_fotos_slot");
+    if(wR && sR && wR.parentNode !== sR) sR.appendChild(wR);
+    if(wF && sF && wF.parentNode !== sF) sF.appendChild(wF);
+  };
+  window.D2IMG_moverParaDesp2 = function(){
+    var mR = document.getElementById("d2_row_ressalvas_marca"), wR = document.getElementById("d2_row_ressalvas");
+    var mF = document.getElementById("d2_row_fotos_marca"), wF = document.getElementById("d2_row_fotos");
+    if(mR && wR && wR.parentNode !== mR.parentNode) mR.after(wR);
+    if(mF && wF && wF.parentNode !== mF.parentNode) mF.after(wF);
   };
   window.BNF_getLinhas = function(){
     var out = {};
@@ -11636,16 +11711,46 @@ function AV_gerarDescSituacao(){
     });
   };
 
+  function PG_popularFiltroLote(){
+    var sel = document.getElementById("pgFiltroLote");
+    if(!sel) return;
+    var atual = sel.value;
+    var vistos = {}, opcoes = [];
+    _pgItens.forEach(function(it){
+      if(!it.lote || vistos[it.lote]) return;
+      vistos[it.lote] = true;
+      opcoes.push(it.lote);
+    });
+    opcoes.sort(function(a,b){ return String(a).localeCompare(String(b), "pt-BR", {numeric:true}); });
+    sel.innerHTML = '<option value="">Todos</option>' + opcoes.map(function(l){
+      return '<option value="' + esc(l) + '">' + esc(loteFmt(l)) + '</option>';
+    }).join("");
+    if(opcoes.indexOf(atual) >= 0) sel.value = atual;
+  }
+
   function PG_renderizar(){
     var corpo = document.getElementById("pgCorpo");
+    var rodape = document.getElementById("pgRodape");
     if(!corpo) return;
-    if(!_pgItens.length){
-      corpo.innerHTML = '<tr><td colspan="8" class="pg-vazio">Nenhum cadastro encontrado.</td></tr>';
-      return;
-    }
-    var itens = _pgItens.slice().sort(function(a,b){
+    PG_popularFiltroLote();
+
+    var filtroLote = (document.getElementById("pgFiltroLote")||{}).value || "";
+    var filtroCad = ((document.getElementById("pgFiltroCadastro")||{}).value || "").trim().toLowerCase();
+
+    var itens = _pgItens.filter(function(it){
+      if(filtroLote && String(it.lote||"") !== filtroLote) return false;
+      if(filtroCad && ctdFmt(it.ctd).toLowerCase().indexOf(filtroCad) < 0) return false;
+      return true;
+    }).sort(function(a,b){
       return String(b.atualizado_em||"").localeCompare(String(a.atualizado_em||""));
     });
+
+    if(!itens.length){
+      corpo.innerHTML = '<tr><td colspan="8" class="pg-vazio">Nenhum cadastro encontrado' + ((filtroLote||filtroCad) ? " para este filtro." : ".") + '</td></tr>';
+      if(rodape) rodape.innerHTML = "";
+      return;
+    }
+
     corpo.innerHTML = itens.map(function(it){
       return '<tr onclick="PG_abrir(' + "'" + esc(it.ctd) + "'" + ',' + "'" + esc(it.secao) + "'" + ')">'
         + '<td>' + esc(loteFmt(it.lote)) + '</td>'
@@ -11658,7 +11763,25 @@ function AV_gerarDescSituacao(){
         + '<td class="pg-num pg-total">' + money(it.valor_total) + '</td>'
         + '</tr>';
     }).join("");
+
+    if(rodape){
+      function soma(campo){
+        var s = null;
+        itens.forEach(function(it){ if(it[campo] != null){ s = (s||0) + Number(it[campo]); } });
+        return s;
+      }
+      rodape.innerHTML = '<tr>'
+        + '<td></td>'
+        + '<td>' + itens.length + ' item(ns)</td>'
+        + '<td></td><td></td>'
+        + '<td class="pg-num">' + money(soma("valor_terra_nua")) + '</td>'
+        + '<td class="pg-num">' + money(soma("valor_benf_reprodutiva")) + '</td>'
+        + '<td class="pg-num">' + money(soma("valor_benf_nao_reprodutiva")) + '</td>'
+        + '<td class="pg-num">' + money(soma("valor_total")) + '</td>'
+        + '</tr>';
+    }
   }
+  window.PG_renderizar = PG_renderizar;
 
   window.PG_abrir = function(ctd, secao){
     if(window.CAD_abrirNuvem) window.CAD_abrirNuvem(ctd, secao);
@@ -17681,21 +17804,23 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       var hiddenTA='<textarea id="d2_tx_'+tp.id+'" class="d2-src" style="display:none"></textarea>';
       // 3.2 RESSALVAS — lista dinâmica auto-numerada, com imagens
       if(tp.id==="ressalvas_t_cnicas_e_observa"){
-        html+=rowOpen(tp)
+        html+='<div id="d2_row_ressalvas_marca"></div><div id="d2_row_ressalvas">'
+            + rowOpen(tp)
             + '<p class="hint-auto" style="margin:0 0 8px;">Adicione as ressalvas necessárias — a numeração (Ressalva 01, 02, ...) é automática. Cada ressalva permite texto livre e imagem.</p>'
             + '<div id="d2_ressalvas"></div>'
             + '<div class="vactions" style="margin-top:8px;"><button class="vbtn vbtn-ghost" type="button" onclick="D2_addRessalva()">+ Adicionar ressalva</button></div>'
-            + '</div>';
+            + '</div></div>';
         return;
       }
       // 6.1 ANEXO 1 - RELATÓRIO FOTOGRÁFICO — fotos + legenda (4 por página no PDF)
       if(tp.id==="anexo_2_relat_rio_fotogr_fic"){
-        html+=rowOpen(tp)
+        html+='<div id="d2_row_fotos_marca"></div><div id="d2_row_fotos">'
+            + rowOpen(tp)
             + '<p class="hint-auto" style="margin:0 0 8px;">Adicione as fotos do imóvel — a numeração (Foto 01, 02, ...) é automática e o laudo imprime <b>4 fotos por página</b>. A legenda é opcional.</p>'
             + '<div id="d2_fotos"></div>'
             + '<div class="vactions" style="margin-top:8px;"><button class="vbtn vbtn-ghost" type="button" onclick="D2_addFoto()">+ Adicionar foto</button></div>'
             + hiddenTA
-            + '</div>';
+            + '</div></div>';
         return;
       }
       var mode=D2_UI[tp.id]||'editable';
