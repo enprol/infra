@@ -1351,6 +1351,17 @@ window.REL_baixarConjunto = async function(){
   }
   .app-sidebar .sb-link:hover{ background:rgba(255,255,255,.07); color:#fff; }
   .app-sidebar .sb-link.ativa{ background:#1F6FC0; color:#fff; font-weight:600; }
+  .app-sidebar .sb-link[data-setor][style*="display:none"]{ display:none; }
+  .app-sidebar .sb-setores{
+    display:flex; flex-wrap:wrap; gap:6px; padding:2px 14px 12px;
+  }
+  .app-sidebar .sb-setor{
+    flex:1 1 calc(50% - 6px); border:1px solid rgba(255,255,255,.16); background:rgba(255,255,255,.05);
+    color:#c3d3e4; font-size:11.5px; font-weight:700; letter-spacing:.2px; padding:8px 6px;
+    border-radius:7px; cursor:pointer; text-align:center; transition:background .15s, color .15s, border-color .15s;
+  }
+  .app-sidebar .sb-setor:hover{ background:rgba(255,255,255,.12); color:#fff; }
+  .app-sidebar .sb-setor.ativo{ background:#1F6FC0; border-color:#1F6FC0; color:#fff; }
   .app-sidebar .sb-vazio{
     padding:12px 20px; margin:6px 8px; font-size:13px; line-height:1.5;
     color:#8ba0b5; background:rgba(255,255,255,.04); border-radius:8px;
@@ -2640,12 +2651,12 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
     <span class="sep"></span>
     <nav class="top-tabs" id="topTabs">
       <button class="top-tab ativa" data-secao="infra" onclick="TOP_abrir(this)">INFRA</button>
-      <button class="top-tab" data-secao="saneagua" onclick="TOP_abrir(this)">SANEAGO</button>
       <button class="top-tab" data-secao="utilitarios" onclick="TOP_abrir(this)">UTILITÁRIOS</button>
     </nav>
     <button class="btn-cad" id="btnSalvarCad" onclick="CAD_salvarNuvem()" title="Salvar cadastro no servidor da empresa">💾 Salvar</button>
     <button class="btn-cad" id="btnAbrirCad" onclick="CAD_abrirModal()" title="Abrir cadastro salvo no servidor da empresa">📂 Abrir</button>
     <button class="btn-cad" id="btnNovoCad" onclick="CAD_novoCadastro()" title="Limpar tudo e começar um cadastro novo">✨ Novo Cadastro</button>
+    <button class="btn-cad" id="btnPainelGeral" onclick="PG_voltar()" title="Voltar para a lista de todos os cadastros">🏠 Painel Geral</button>
     <div class="top-dl" id="topDlDrop">
       <button class="btn-cad" id="btnTopDownload" onclick="TOPDL_toggle(event)" title="Baixar PDFs e backup .json">⬇️ Download</button>
       <div class="top-dl-menu" id="topDlMenu" hidden>
@@ -2733,6 +2744,100 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
   <span class="txt">Unificar todo o material</span>
 </button>
 
+
+<!-- ===== Painel Geral — tela inicial após o login ===== -->
+<main id="painelGeral">
+  <div class="pg-wrap">
+    <div class="pg-topo">
+      <div>
+        <h1>Painel Geral</h1>
+        <p class="pg-sub">Todos os cadastros da INFRA. Clique numa linha para abrir.</p>
+      </div>
+      <input type="text" id="pgBusca" class="pg-busca" placeholder="Buscar por CTD, proprietário, processo, SEI…" oninput="PG_pesquisar()">
+    </div>
+
+    <div class="pg-acoes">
+      <button type="button" class="pg-btn pg-btn-primaria" onclick="CAD_novoCadastro()">Novo Cadastro</button>
+      <button type="button" class="pg-btn" id="pgBtnAtualizar" onclick="PG_atualizar()">Atualizar planilha</button>
+      <button type="button" class="pg-btn" onclick="PG_utilitarios()">Utilitários</button>
+      <span class="pg-status" id="pgStatus"></span>
+    </div>
+
+    <div class="pg-tabela-wrap">
+      <table class="pg-tabela">
+        <thead>
+          <tr>
+            <th>Lote (SPS)</th>
+            <th>Cadastro</th>
+            <th>Proprietário</th>
+            <th>Nº Processo SEI</th>
+            <th>R$ Terra nua</th>
+            <th>R$ Benf. reprodutivas</th>
+            <th>R$ Benf. não reprodutivas</th>
+            <th>R$ Total</th>
+          </tr>
+        </thead>
+        <tbody id="pgCorpo">
+          <tr><td colspan="8" class="pg-vazio">Carregando…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+
+<style>
+  /* ===== Painel Geral ===== */
+  body.modo-painel .app-shell, body.modo-painel .app-header .top-tabs,
+  body.modo-painel .app-header .btn-cad, body.modo-painel .app-header .top-dl,
+  body.modo-painel .fab-unir { display:none !important; }
+  body:not(.modo-painel) #painelGeral{ display:none; }
+  body.modo-painel #painelGeral{ display:block; }
+  #btnPainelGeral{ display:none; }
+  body:not(.modo-painel).logado #btnPainelGeral{ display:inline-flex; }
+
+  #painelGeral{ background:#eef2f6; min-height:calc(100vh - 64px); }
+  .pg-wrap{ max-width:1280px; margin:0 auto; padding:28px 24px 60px; }
+  .pg-topo{ display:flex; align-items:flex-end; justify-content:space-between; gap:20px; flex-wrap:wrap; margin-bottom:18px; }
+  .pg-topo h1{ margin:0 0 4px; font-size:24px; color:#0a4d7c; letter-spacing:.2px; }
+  .pg-sub{ margin:0; font-size:13.5px; color:#5a6b7c; }
+  .pg-busca{
+    min-width:280px; flex:0 0 320px; border:1px solid #c3ccd6; border-radius:9px;
+    padding:10px 14px; font-size:13.5px; background:#fff; color:#243447; outline:none;
+  }
+  .pg-busca:focus{ border-color:#1F6FC0; box-shadow:0 0 0 3px rgba(31,111,192,.15); }
+  .pg-acoes{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:16px; }
+  .pg-btn{
+    border:1px solid #c3ccd6; background:#fff; color:#243447; border-radius:9px;
+    padding:10px 20px; font-size:13.5px; font-weight:700; cursor:pointer;
+    transition:background .12s, border-color .12s, box-shadow .12s;
+  }
+  .pg-btn:hover{ border-color:#1F6FC0; box-shadow:0 2px 8px rgba(31,111,192,.15); }
+  .pg-btn-primaria{ background:#1F6FC0; border-color:#1F6FC0; color:#fff; }
+  .pg-btn-primaria:hover{ background:#175a9f; }
+  .pg-status{ font-size:12px; color:#8a97a6; margin-left:4px; }
+  .pg-tabela-wrap{
+    background:#fff; border:1px solid #d3dce5; border-radius:12px; overflow:auto;
+    box-shadow:0 8px 22px rgba(30,50,80,.06);
+  }
+  .pg-tabela{ width:100%; border-collapse:collapse; font-size:13px; white-space:nowrap; }
+  .pg-tabela th{
+    text-align:left; font-size:11px; font-weight:700; color:#5a6b7c; text-transform:uppercase;
+    letter-spacing:.3px; padding:12px 14px; border-bottom:2px solid #e4ebf2; background:#f7f9fc;
+    position:sticky; top:0;
+  }
+  .pg-tabela td{ padding:11px 14px; border-bottom:1px solid #eef2f6; color:#243447; }
+  .pg-tabela tbody tr{ cursor:pointer; }
+  .pg-tabela tbody tr:hover{ background:#f1f6fb; }
+  .pg-tabela td.pg-num{ text-align:right; font-variant-numeric:tabular-nums; }
+  .pg-tabela td.pg-total{ font-weight:700; color:#0a4d7c; }
+  .pg-vazio{ text-align:center; color:#8a97a6; padding:26px 14px !important; white-space:normal; }
+  @media (max-width:760px){
+    .pg-wrap{ padding:16px 12px 40px; }
+    .pg-busca{ flex:1 1 100%; min-width:0; }
+  }
+</style>
+
 <div class="app-shell">
 <aside class="app-sidebar" id="appSidebar">
   <div class="sb-main">
@@ -2744,12 +2849,20 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
   </div>
   <div class="sb-sub" id="sbSub">
     <div class="sb-sub-grupo" data-grupo="desp1">
+      <div class="sb-grp">Setor</div>
+      <div class="sb-setores" id="sbSetoresDesp1">
+        <button class="sb-setor" data-setor="campo" onclick="SETOR_abrir(this)">Campo</button>
+        <button class="sb-setor ativo" data-setor="social" onclick="SETOR_abrir(this)">Assistência Social</button>
+        <button class="sb-setor" data-setor="tecnica" onclick="SETOR_abrir(this)">Técnica</button>
+        <button class="sb-setor" data-setor="juridico" onclick="SETOR_abrir(this)">Jurídico</button>
+      </div>
       <div class="sb-grp">Documentação</div>
-      <button class="sb-link" data-alvo="panel-desp1-campo" onclick="trocarAba(this)">Coleta em campo (offline) — Ficha de Campo e Ficha Social</button>
-      <button class="sb-link ativa" data-alvo="panel-desp1-vist" onclick="trocarAba(this)">Ficha de Vistoria e Cadastro Socioeconômico (Anexo B)</button>
-      <button class="sb-link" data-alvo="panel-desp1-drl" onclick="trocarAba(this)">DRL — Declaração de Respeito de Limites</button>
-      <button class="sb-link" data-alvo="panel-desp1-rel" onclick="trocarAba(this)">Relatório Técnico de Caracterização Socioeconômica</button>
-      <button class="sb-link" data-alvo="panel-desp1-parecer" onclick="trocarAba(this)">Parecer para Regularização Fundiária e Documental</button>
+      <button class="sb-link" data-setor="campo" data-alvo="panel-desp1-campo" onclick="trocarAba(this)">Coleta em campo (offline) — Ficha de Campo e Ficha Social</button>
+      <button class="sb-link ativa" data-setor="social" data-alvo="panel-desp1-vist" onclick="trocarAba(this)">Ficha de Vistoria e Cadastro Socioeconômico (Anexo B)</button>
+      <button class="sb-link" data-setor="social" data-alvo="panel-desp1-drl" onclick="trocarAba(this)">DRL — Declaração de Respeito de Limites</button>
+      <button class="sb-link" data-setor="social" data-alvo="panel-desp1-rel" onclick="trocarAba(this)">Relatório Técnico de Caracterização Socioeconômica</button>
+      <button class="sb-link" data-setor="tecnica" data-alvo="panel-desp1-tecnica" onclick="trocarAba(this); BNF_moverParaTecnica();">Técnica</button>
+      <button class="sb-link" data-setor="juridico" data-alvo="panel-desp1-parecer" onclick="trocarAba(this)">Parecer para Regularização Fundiária e Documental</button>
     </div>
     <div class="sb-sub-grupo" data-grupo="desp2" style="display:none;">
       <div class="sb-grp">Documentação</div>
@@ -2758,7 +2871,7 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
     <div class="sb-sub-grupo" data-grupo="laudo" style="display:none;">
       <div class="sb-grp">Documentos</div>
       <button class="sb-link" data-alvo="panel-vistoria" onclick="trocarAba(this)">Ficha de Vistoria</button>
-      <button class="sb-link" data-alvo="panel-avaliacao" onclick="trocarAba(this)">Avaliação</button>
+      <button class="sb-link" data-alvo="panel-avaliacao" onclick="trocarAba(this); BNF_moverParaAvaliacao();">Avaliação</button>
       <div class="sb-grp">Anexos</div>
       <button class="sb-link" data-alvo="panel-ccu" onclick="trocarAba(this)">Tabela CCU</button>
       <button class="sb-link" data-alvo="panel-anexo" onclick="trocarAba(this)">Plantas e Memoriais</button>
@@ -4268,6 +4381,8 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
     </div>
   </div>
 
+  <div id="bnf_home_marca"></div>
+  <div id="bnf_item12_wrap">
   <!-- 12 BENFEITORIAS REPRODUTIVAS -->
   <h2 class="vsec acc" onclick="FV_toggleSec(this)"><span>12 — Benfeitorias Reprodutivas</span><span class="acc-chevron">▾</span></h2>
   <div class="vcard">
@@ -4325,7 +4440,9 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 
     <div class="bnf-total-geral">TOTAL 12 (12.1 + 12.2 + 12.3 + 12.4): <strong id="bnf_tot_12">R$ 0,00</strong></div>
   </div>
+  </div>
 
+  <div id="bnf_item13_wrap">
   <!-- 13 BENFEITORIAS NÃO REPRODUTIVAS -->
   <h2 class="vsec acc" onclick="FV_toggleSec(this)"><span>13 — Benfeitorias Não Reprodutivas</span><span class="acc-chevron">▾</span></h2>
   <div class="vcard">
@@ -4341,6 +4458,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
       <button type="button" class="bnf-add bnf-add-base" onclick="BENF_abrirPicker('13','nao_reprodutiva','BNF_addLinha')">📥 Puxar da base (Anexo 3)</button>
     </div>
     <p class="bnf-nota">A depreciação segue o método Ross-Heidecke: D = (100 − k) / 100. O Valor Total = Quantidade × Valor Unitário × Depreciação.</p>
+  </div>
   </div>
 
   <!-- 14 CÁLCULO TERRA NUA -->
@@ -4574,25 +4692,6 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 <h1>Coleta em campo (offline)</h1>
 <p class="sub">Dois aplicativos de celular que funcionam <b>sem internet</b>: o do <b>avaliador</b> (Ficha de Campo) e o da <b>assistente social</b> (Anexo B + Relatório Técnico). Eles preenchem em campo, mandam o arquivo, e aqui você importa.</p>
 
-<div class="vcard" style="border-left:4px solid #178a3a;">
-  <div class="vsub" style="color:#12782f;">👩‍💼 Aplicativo da assistente social — Anexo B + Relatório Técnico</div>
-  <p class="hint-inline" style="margin-top:0;">Preenche a <b>Ficha de Vistoria e Cadastro Socioeconômico (Anexo B)</b> inteira (itens 1 a 5, composição familiar, fotos, assinatura) e o <b>relato de campo</b> do Relatório Técnico. Ao importar, tudo cai direto nos campos das duas abas.</p>
-  <div class="vrow">
-    <div class="vfield grow"><label for="camposoc_url">Link do aplicativo</label>
-      <input type="text" id="camposoc_url" value="https://enprol.github.io/infra/campo-social.html" readonly class="bloqueado"></div>
-  </div>
-  <div class="vactions" style="margin-top:6px;">
-    <button class="vbtn vbtn-ghost vbtn-sm" type="button" onclick="CAMPO_copiarLink('https://enprol.github.io/infra/campo-social.html')">🔗 Copiar link</button>
-    <a class="vbtn vbtn-ghost vbtn-sm" href="https://enprol.github.io/infra/campo-social.html" target="_blank" rel="noopener" style="text-decoration:none;">↗ Abrir aplicativo</a>
-  </div>
-  <label class="img-drop" id="camposoc_drop" style="display:block;margin-top:12px;">
-    <span class="ic">📥</span>
-    <span class="t">Importar a Ficha Social que voltou do campo</span>
-    <span class="h">Arquivo .json ou .txt gerado pelo aplicativo da assistente social</span>
-    <input type="file" accept=".json,.txt,application/json,text/plain" id="camposoc_file" onchange="CAMPOSOC_importar(this)">
-  </label>
-</div>
-
 <div class="vcard">
   <div class="vsub">1 · Aplicativo de campo do avaliador (Ficha de Campo)</div>
   <p class="hint-inline" style="margin-top:0;">Mande este link no WhatsApp do técnico. Ele abre <b>uma vez com internet</b>; depois disso funciona offline, mesmo sem sinal nenhum.</p>
@@ -4653,7 +4752,26 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 <div class="wrap">
 <h1>Ficha de Vistoria e Cadastro Socioeconômico (Anexo B)</h1>
 <p class="sub">Preencha os campos abaixo. Você pode puxar os dados já preenchidos na DESP 3 ou optar por digitar manualmente.</p>
-<div class="vcard"><div class="vfield grow"><label>Puxar dados da DESP 3?</label><select id="fb_puxar" onchange="FB_togglePuxar(this.value)"><option value="nao" selected>NÃO — digitar manualmente</option><option value="sim">SIM — preencher automaticamente</option></select></div><input type="hidden" id="fb_processo" data-fb-from="processo"><div class="vsub">Montar Processo Nº automaticamente</div><div class="vrow"><div class="vfield grow"><label>Nº CTD</label><input type="text" id="fb_proc_ctd" oninput="FB_montarProcesso()" placeholder="Ex.: 001"></div><div class="vfield grow"><label>Nº Lote (SPS-__)</label><select id="fb_proc_lote" onchange="FB_montarProcesso()"><option value="">—</option><option>01</option><option>02</option><option>03</option><option>04</option><option>05</option><option>06</option><option>07</option><option>08</option><option>09</option></select></div><div class="vfield grow"><label>Ferrovia</label><select id="fb_proc_ferrovia" onchange="FB_montarProcesso()"><option value="FTN" selected>FTN</option><option value="FICO">FICO</option><option value="FIOL">FIOL</option></select></div></div><div class="vfield grow"><label>Processo (SEI)</label><input type="text" id="fb_proc_sei" inputmode="numeric" maxlength="20" oninput="FB_maskSEI(this);FB_montarProcesso();" placeholder="99999.999999/9999-99"></div><div class="vfield grow"><label>Resultado (Processo administrativo)</label><input type="text" id="fb_proc_preview" readonly class="bloqueado" placeholder="INFRA S.A. CTD ___ - SPS-__ – FTN"></div></div><div class="vcard"><div class="vsub">Áreas de Locação</div><div class="rel-areas" id="rel_areas"></div><div class="vactions" style="margin-top:6px;"><button class="vbtn vbtn-ghost" type="button" onclick="REL_addArea()">+ Adicionar área</button></div></div><div class="vcard"><div class="vrow"><div class="vfield grow"><label>Nome do Aplicador(a)</label><select id="fb_aplicador" onchange="FB_aplicarAssinatura()"><option value="" selected>Selecione…</option><option value="JAYLLA SAMYLLA PEREIRA DOS SANTOS MONTEIRO">JAYLLA SAMYLLA PEREIRA DOS SANTOS MONTEIRO</option><option value="Zaira Raquel Cordeiro Gonçalves">Zaira Raquel Cordeiro Gonçalves</option></select></div><div class="vfield grow"><label>Data</label><input type="text" id="fb_data" inputmode="numeric" maxlength="10" class="data-br" placeholder="dd/mm/aaaa"></div></div></div>
+<div class="vcard" style="border-left:4px solid #178a3a;">
+  <div class="vsub" style="color:#12782f;">👩‍💼 Aplicativo da assistente social — Anexo B + Relatório Técnico</div>
+  <p class="hint-inline" style="margin-top:0;">Preenche a <b>Ficha de Vistoria e Cadastro Socioeconômico (Anexo B)</b> inteira (itens 1 a 5, composição familiar, fotos, assinatura) e o <b>relato de campo</b> do Relatório Técnico. Ao importar, tudo cai direto nos campos das duas abas.</p>
+  <div class="vrow">
+    <div class="vfield grow"><label for="camposoc_url">Link do aplicativo</label>
+      <input type="text" id="camposoc_url" value="https://enprol.github.io/infra/campo-social.html" readonly class="bloqueado"></div>
+  </div>
+  <div class="vactions" style="margin-top:6px;">
+    <button class="vbtn vbtn-ghost vbtn-sm" type="button" onclick="CAMPO_copiarLink('https://enprol.github.io/infra/campo-social.html')">🔗 Copiar link</button>
+    <a class="vbtn vbtn-ghost vbtn-sm" href="https://enprol.github.io/infra/campo-social.html" target="_blank" rel="noopener" style="text-decoration:none;">↗ Abrir aplicativo</a>
+  </div>
+  <label class="img-drop" id="camposoc_drop" style="display:block;margin-top:12px;">
+    <span class="ic">📥</span>
+    <span class="t">Importar a Ficha Social que voltou do campo</span>
+    <span class="h">Arquivo .json ou .txt gerado pelo aplicativo da assistente social</span>
+    <input type="file" accept=".json,.txt,application/json,text/plain" id="camposoc_file" onchange="CAMPOSOC_importar(this)">
+  </label>
+</div>
+
+<div class="vcard"><div class="vfield grow"><label>Puxar dados da DESP 3?</label><select id="fb_puxar" onchange="FB_togglePuxar(this.value)"><option value="nao" selected>NÃO — digitar manualmente</option><option value="sim">SIM — preencher automaticamente</option></select></div><input type="hidden" id="fb_processo" data-fb-from="processo"><div class="vsub">Montar Processo Nº automaticamente</div><div class="vrow"><div class="vfield grow"><label>Nº CTD</label><input type="text" id="fb_proc_ctd" oninput="FB_montarProcesso()" placeholder="Ex.: 001"></div><div class="vfield grow"><label>Nº Lote (SPS-__)</label><select id="fb_proc_lote" onchange="FB_montarProcesso()"><option value="">—</option><option>01</option><option>02</option><option>03</option><option>04</option><option>05</option><option>06</option><option>07</option><option>08</option><option>09</option></select></div><div class="vfield grow"><label>Ferrovia</label><select id="fb_proc_ferrovia" onchange="FB_montarProcesso()"><option value="FTN" selected>FTN</option><option value="FICO">FICO</option><option value="FIOL">FIOL</option></select></div></div><div class="vfield grow"><label>Processo (SEI)</label><input type="text" id="fb_proc_sei" inputmode="numeric" maxlength="20" oninput="FB_maskSEI(this);FB_montarProcesso();" placeholder="99999.999999/9999-99"></div><div class="vfield grow"><label>Resultado (Processo administrativo)</label><input type="text" id="fb_proc_preview" readonly class="bloqueado" placeholder="INFRA S.A. CTD ___ - SPS-__ – FTN"></div></div><div class="vcard"><div class="vrow"><div class="vfield grow"><label>Nome do Aplicador(a)</label><select id="fb_aplicador" onchange="FB_aplicarAssinatura()"><option value="" selected>Selecione…</option><option value="JAYLLA SAMYLLA PEREIRA DOS SANTOS MONTEIRO">JAYLLA SAMYLLA PEREIRA DOS SANTOS MONTEIRO</option><option value="Zaira Raquel Cordeiro Gonçalves">Zaira Raquel Cordeiro Gonçalves</option></select></div><div class="vfield grow"><label>Data</label><input type="text" id="fb_data" inputmode="numeric" maxlength="10" class="data-br" placeholder="dd/mm/aaaa"></div></div></div>
 <h2 class="vsec acc" onclick="FV_toggleSec(this)"><span>1 — IDENTIFICAÇÃO</span><span class="acc-chevron">▾</span></h2>
   <div class="vcard">
     <div class="vrow">
@@ -4698,7 +4816,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
     </div>
     <div class="vrow">
       <div class="vfield grow"><label>Endereço</label><input type="text" id="fb_prop_end" placeholder="Endereço"></div>
-      <div class="vfield"><label>Área Desap. (ha)</label><input type="text" id="fb_area_desap" class="num4" inputmode="decimal" placeholder="0,0000"></div>
+      
     </div>
     <div class="vrow">
       <div class="vfield grow"><label>Município</label><input type="text" id="fb_prop_mun" placeholder="Município"></div>
@@ -4769,6 +4887,18 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 
 <section class="tab-panel" id="panel-desp1-rel"><div class="wrap"><h1>Relatório Técnico de Caracterização Socioeconômica</h1><p class="sub">Só os campos específicos deste caso. Os dados da Ficha de Vistoria (1.9) e os textos padrão entram automaticamente no PDF.</p><div class="vcard"><div class="vsub">3.4 Síntese — Relato de campo</div><div class="vfield grow"><label>Relato de campo<span class="hint-auto"> (complemento; o texto padrão da síntese entra automaticamente antes deste no PDF)</span></label><textarea data-rtf id="rel_34_relato" rows="8" placeholder="Descreva o relato da visita de campo..."></textarea></div></div><div class="vcard"><div class="vsub">Parecer Social — Critérios de Vulnerabilidade</div><div class="vsub" style="font-size:12px;color:#5a6b7c;">Tabela 1 — Critérios de Avaliação de Vulnerabilidade Socioeconômica (IVS/IPEA)</div><div class="rel-tabela" id="rel_tabela1"></div><div class="vactions" style="margin-top:6px;"><button class="vbtn vbtn-ghost" type="button" onclick="REL_addLinha(1)">+ Adicionar critério (Tabela 1)</button></div><div class="rel-ivs" id="rel_ivs"></div><div class="vsub" style="font-size:12px;color:#5a6b7c;margin-top:14px;">Tabela 2 — Critérios conforme Art. 3º da Resolução Normativa INFRASA nº 7/2023</div><div class="rel-tabela" id="rel_tabela2"></div><div class="vactions" style="margin-top:6px;"><button class="vbtn vbtn-ghost" type="button" onclick="REL_addLinha(2)">+ Adicionar critério (Tabela 2)</button></div></div><div class="vcard"><div class="vsub">Conclusão</div><div class="vrow"><div class="vfield grow"><label>Grau de vulnerabilidade</label><input type="text" id="rel_grau_vuln" placeholder="Ex.: moderada"></div><div class="vfield grow"><label>Local e data</label><input type="text" id="rel_local_data" placeholder="Ex.: Custódia-PE, 16 de agosto de 2026"></div></div></div><div id="rel_ocultos" style="display:none" aria-hidden="true"><input type="text" id="rel_processo" data-rel-from="processo" class="bloqueado" readonly data-lock="1"><input type="text" id="rel_sei" readonly class="bloqueado"><input type="text" id="rel_ferrovia" value="FERROVIA TRANSNORDESTINA EF-232 – FTN"><input type="text" id="rel_lote" class="bloqueado" readonly><input type="text" id="rel_subtrecho" value="Custódia/PE a Arcoverde/PE"><input type="text" id="rel_contrato" value="037/2024"><input type="text" id="rel_os" value="INFRA 33 (10665856), Despacho 275 Solicitação de OS - FTN (10643430), Despacho 04/2026 (10749193,) Despacho 13/2026 (10791872), Plano de Trabalho 4 TRANSNORDESTINA (10614462)"><input type="text" id="rel_mesano"><input type="text" id="rel_expropriado" data-rel-from="rel_nome_prop" class="bloqueado" readonly data-lock="1"><textarea id="rel_apresentacao"></textarea><textarea id="rel_premissas"></textarea><input type="text" id="rel_nome" data-rel-from="fb_nome" class="bloqueado" readonly data-lock="1"><input type="text" id="rel_estcivil" data-rel-from="fb_estcivil" class="bloqueado" readonly data-lock="1"><input type="text" id="rel_rg" data-rel-from="fb_rg" class="bloqueado" readonly data-lock="1"><input type="text" id="rel_cpf" data-rel-from="fb_cpf" class="bloqueado" readonly data-lock="1"><input type="text" id="rel_endereco" data-rel-from="fb_endereco" class="bloqueado" readonly data-lock="1"><input type="text" id="rel_municipio" data-rel-from="fb_municipio" class="bloqueado" readonly data-lock="1"><input type="text" id="rel_cep" data-rel-from="fb_cep" class="bloqueado" readonly data-lock="1"><input type="text" id="rel_prop_id" data-rel-from="fb_prop_id" class="bloqueado" readonly data-lock="1"><input type="text" id="rel_area_total" data-rel-from="fb_area_total" class="bloqueado" readonly data-lock="1"><input type="text" id="rel_area_desap" data-rel-from="fb_area_desap" class="bloqueado" readonly data-lock="1"><input type="text" id="rel_matricula" data-rel-from="fb_matricula" class="bloqueado" readonly data-lock="1"><input type="text" id="rel_cib" data-rel-from="fb_cib" class="bloqueado" readonly data-lock="1"><input type="text" id="rel_cartorio" data-rel-from="fb_cartorio" class="bloqueado" readonly data-lock="1"><textarea id="rel_qualificacao"></textarea><textarea id="rel_31_atividade"></textarea><textarea id="rel_32_objetivo"></textarea><textarea id="rel_33_metodologia"></textarea><textarea id="rel_34_sintese"></textarea><textarea id="rel_parecer_intro"></textarea><textarea id="rel_tab1_coment"></textarea><textarea id="rel_texto_normativo"></textarea><textarea id="rel_tab2_coment"></textarea><textarea id="rel_conclusao"></textarea><input type="text" id="rel_resp_nome" data-rel-from="fb_ass_nome" class="bloqueado" readonly data-lock="1"><input type="text" id="rel_resp_cargo" data-rel-from="fb_ass_cargo" class="bloqueado" readonly data-lock="1"><input type="text" id="rel_resp_reg" data-rel-from="fb_ass_reg" class="bloqueado" readonly data-lock="1"><label class="img-drop" id="rel_ass_img_drop"><input type="file" accept="image/*" id="rel_ass_img_file"></label><div id="rel_ass_img_prev"></div><label class="img-drop" id="rel_fotos_drop"><input type="file" accept="image/*" multiple id="rel_fotos_file"></label><div id="rel_fotos_aviso"></div><div class="fb-fotos-prev" id="rel_fotos_prev"></div></div></div></section>
 
+<section class="tab-panel" id="panel-desp1-tecnica">
+<div class="wrap">
+<h1>Técnica</h1>
+<p class="sub">Áreas de locação e área a desapropriar (preenchimento único, usado nos demais documentos) e as Benfeitorias da Avaliação (DESP 3) — o que for preenchido aqui ou lá aparece nos dois lugares.</p>
+<div class="vcard"><div class="vsub">Áreas de Locação</div><div class="rel-areas" id="rel_areas"></div><div class="vactions" style="margin-top:6px;"><button class="vbtn vbtn-ghost" type="button" onclick="REL_addArea()">+ Adicionar área</button></div></div>
+<div class="vcard"><div class="vrow"><div class="vfield"><label>Área Desap. (ha)</label><input type="text" id="fb_area_desap" class="num4" inputmode="decimal" placeholder="0,0000"></div></div></div>
+<div class="vsub" style="margin-top:22px;">Benfeitorias (itens 12 e 13 da Avaliação — DESP 3)</div>
+<p class="hint-inline" style="margin-top:0;">As tabelas abaixo são as mesmas da aba Avaliação (DESP 3 → Avaliação): editar aqui ou lá preenche o mesmo lugar.</p>
+<div id="bnf_item12_slot"></div>
+<div id="bnf_item13_slot"></div>
+</div>
+</section>
 <section class="tab-panel" id="panel-desp1-parecer">
   <style>
     #panel-desp1-parecer{
@@ -4924,6 +5054,103 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
     #panel-desp1-campo .img-drop .h{font-size:11.5px; color:var(--label);}
     #panel-desp1-campo .hint-inline{display:block; font-size:11.5px; color:#7a8797; margin-top:6px; text-transform:none; letter-spacing:0; font-weight:400;}
     #panel-desp1-campo .hint-auto{font-weight:400; font-size:11px; color:#8a97a6; text-transform:none; letter-spacing:0;}
+
+
+    /* --- Técnica (DESP 1): base visual (mesmo padrão das outras abas) --- */
+    #panel-desp1-tecnica{
+      --azul:#1F6FC0; --azul-esc:#175a9f; --azul-inf:#0a4d7c;
+      --borda:#d3dbe4; --borda-forte:#b3bfcc; --texto:#243447;
+      --bg:#eef2f6; --card:#ffffff; --label:#5a6b7c; --suave:#f7f9fc;
+      font-family:"Segoe UI", Arial, Helvetica, sans-serif;
+      background:var(--bg); color:var(--texto); padding:26px 20px 80px;
+    }
+    #panel-desp1-tecnica .wrap{max-width:1040px; margin:0 auto;}
+    #panel-desp1-tecnica h1{font-size:22px; margin:0 0 4px; color:var(--azul-esc); letter-spacing:.3px;}
+    #panel-desp1-tecnica .sub{font-size:14px; color:#5a6b7c; margin:0 0 24px;}
+    #panel-desp1-tecnica .vcard{
+      background:var(--card); border:1px solid var(--borda); border-radius:12px;
+      padding:18px 18px 20px; margin-bottom:14px; box-shadow:0 8px 22px rgba(30,50,80,.07);
+    }
+    #panel-desp1-tecnica .vsub{
+      font-size:12.5px; font-weight:700; color:var(--azul-esc); letter-spacing:.3px;
+      margin:16px 0 8px; padding-bottom:4px; border-bottom:1px solid var(--borda);
+      display:flex; align-items:center; justify-content:space-between;
+    }
+    #panel-desp1-tecnica .vsub:first-child{margin-top:0;}
+    #panel-desp1-tecnica .vrow{display:flex; gap:14px; flex-wrap:wrap; margin-bottom:13px;}
+    #panel-desp1-tecnica .vfield{display:flex; flex-direction:column; gap:4px; min-width:150px;}
+    #panel-desp1-tecnica .vfield.grow{flex:1; min-width:220px;}
+    #panel-desp1-tecnica .vfield>label{color:#6b7887; font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:.4px;}
+    #panel-desp1-tecnica input[type=text]{
+      width:100%; border:1px solid var(--borda-forte); border-radius:7px;
+      padding:8px 11px; font-size:13.5px; color:var(--texto); background:#fff;
+      font-family:inherit; outline:none; transition:border-color .15s, box-shadow .15s;
+    }
+    #panel-desp1-tecnica input.bloqueado{
+      background:#eef1f4 !important; color:#5a6b7c !important; cursor:not-allowed; border-color:#d3dbe4 !important;
+    }
+    #panel-desp1-tecnica input[type=file]{display:none;}
+    #panel-desp1-tecnica .vactions{margin-top:14px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;}
+    #panel-desp1-tecnica .vbtn{
+      border:none; padding:11px 22px; font-size:14px; font-weight:700; border-radius:9px; cursor:pointer;
+      display:inline-flex; align-items:center; gap:8px; background:var(--azul); color:#fff;
+      box-shadow:0 3px 10px rgba(31,111,192,.3);
+    }
+    #panel-desp1-tecnica .vbtn:hover{background:var(--azul-esc);}
+    #panel-desp1-tecnica .vbtn-ghost{background:#fff; color:var(--texto); border:1px solid var(--borda-forte); box-shadow:none;}
+    #panel-desp1-tecnica .vbtn-ghost:hover{background:#eaf3fc; border-color:var(--azul);}
+    #panel-desp1-tecnica .vbtn-sm{padding:6px 13px; font-size:12px; border-radius:7px;}
+    #panel-desp1-tecnica .img-drop{
+      display:flex; flex-direction:column; align-items:center; gap:5px;
+      border:2px dashed var(--borda-forte); border-radius:12px; padding:26px 16px;
+      cursor:pointer; background:var(--suave); transition:border-color .15s, background .15s; text-align:center;
+    }
+    #panel-desp1-tecnica .img-drop:hover{border-color:var(--azul); background:#eaf3fc;}
+    #panel-desp1-tecnica .img-drop .ic{font-size:30px;}
+    #panel-desp1-tecnica .img-drop .t{font-size:13.5px; font-weight:600; color:var(--texto);}
+    #panel-desp1-tecnica .img-drop .h{font-size:11.5px; color:var(--label);}
+    #panel-desp1-tecnica .hint-inline{display:block; font-size:11.5px; color:#7a8797; margin-top:6px; text-transform:none; letter-spacing:0; font-weight:400;}
+    #panel-desp1-tecnica .hint-auto{font-weight:400; font-size:11px; color:#8a97a6; text-transform:none; letter-spacing:0;}
+
+    /* --- Técnica (DESP 1): itens 12/13 (Benfeitorias) movidos via DOM-portal --- */
+#panel-desp1-tecnica .vsec{
+    font-size:14px; font-weight:800; letter-spacing:.4px; text-transform:uppercase;
+    color:#fff; background:linear-gradient(180deg,#2478c9,var(--azul));
+    padding:9px 16px; border-radius:9px 9px 0 0; margin:22px 0 0;
+    box-shadow:0 2px 8px rgba(31,111,192,.22);
+  }
+#panel-desp1-tecnica .vsec.acc{
+    display:flex; align-items:center; justify-content:space-between;
+    cursor:pointer; user-select:none;
+  }
+#panel-desp1-tecnica .vsec.acc .acc-chevron{font-size:13px; transition:transform .2s;}
+#panel-desp1-tecnica .vsec.acc.fechado{border-radius:9px;}
+#panel-desp1-tecnica .vsec.acc.fechado .acc-chevron{transform:rotate(-90deg);}
+
+  /* Itens 12 e 13 — Benfeitorias */
+  #panel-desp1-tecnica .bnf-sub{font-weight:800; color:var(--azul-esc); margin:14px 0 6px; font-size:13px; border-left:4px solid var(--azul); padding-left:8px;}
+  #panel-desp1-tecnica .bnf-tab-wrap{overflow-x:auto; margin-bottom:8px;}
+  #panel-desp1-tecnica table.bnf-tab{width:100%; border-collapse:collapse; font-size:11.5px; min-width:760px;}
+  #panel-desp1-tecnica table.bnf-tab th{background:var(--azul); color:#fff; padding:6px 7px; text-align:center; font-weight:700; border:1px solid #fff; line-height:1.2;}
+  #panel-desp1-tecnica table.bnf-tab td{border:1px solid var(--borda); padding:3px 5px; vertical-align:middle;}
+  #panel-desp1-tecnica table.bnf-tab textarea.bnf-disc{width:100%; min-width:200px; min-height:38px; border:1px solid var(--borda-forte); border-radius:5px; padding:5px; font-size:11px; resize:vertical; font-family:inherit;}
+  #panel-desp1-tecnica table.bnf-tab input{width:100%; border:1px solid var(--borda-forte); border-radius:5px; padding:5px 6px; font-size:11.5px; text-align:center;}
+  #panel-desp1-tecnica table.bnf-tab input:focus, #panel-desp1-tecnica table.bnf-tab textarea:focus{border-color:var(--azul); outline:none; box-shadow:0 0 0 2px rgba(31,111,192,.12);}
+  #panel-desp1-tecnica table.bnf-tab .bnf-vtotal{font-weight:700; color:var(--azul-esc); text-align:right; white-space:nowrap;}
+  #panel-desp1-tecnica table.bnf-tab tfoot .bnf-tot-lbl{text-align:right; font-weight:800; background:#eef4fa; color:var(--azul-esc);}
+  #panel-desp1-tecnica table.bnf-tab tfoot .bnf-tot{font-weight:800; background:#e3f0fc; color:var(--azul-esc); text-align:right; white-space:nowrap;}
+  #panel-desp1-tecnica .bnf-rm{border:none; background:#fbe9e9; color:#c0392b; border-radius:5px; width:26px; height:26px; cursor:pointer; font-weight:700;}
+  #panel-desp1-tecnica .bnf-rm:hover{background:#f5d5d5;}
+  #panel-desp1-tecnica .bnf-add{background:#eef4fa; border:1px dashed var(--azul); color:var(--azul-esc); border-radius:7px; padding:7px 14px; font-size:12px; font-weight:600; cursor:pointer; margin-top:4px;}
+  #panel-desp1-tecnica .bnf-add:hover{background:#e3f0fc;}
+  #panel-desp1-tecnica .bnf-total-geral{margin-top:16px; padding:12px 16px; background:#e3f0fc; border:2px solid var(--azul); border-radius:9px; font-size:14px; font-weight:700; color:var(--azul-esc); text-align:right;}
+  #panel-desp1-tecnica .bnf-fonte{font-size:10px;color:#159a3c;font-weight:700;margin-top:3px;}.bnf-nota{font-size:11px; color:var(--label); margin-top:8px; font-style:italic;}
+  #panel-desp1-tecnica .bnf-col-dep{width:110px;}
+  #panel-desp1-tecnica .bnf-col-un{width:70px;} #panel-desp1-tecnica .bnf-col-qtd{width:80px;} #panel-desp1-tecnica .bnf-col-vu{width:100px;}
+
+
+    /* item 12/13, movidos p/ cá via DOM-portal: mantêm o visual de acordeão (vsec + vcard colado embaixo) que já usam na Avaliação */
+    #bnf_item12_wrap .vcard, #bnf_item13_wrap .vcard{ border-radius:0 0 12px 12px !important; margin-bottom:8px !important; }
 
     /* --- Ficha de Campo (DESP 1): conteúdo importado --- */
     #panel-desp1-campo .campo-kv{display:flex; flex-direction:column; gap:0;}
@@ -7309,6 +7536,36 @@ function trocarAba(btn){
   const drop=document.getElementById('dropAnexos');
   if(drop) drop.classList.remove('aberto');
 }
+
+// DESP 1: filtro por setor (Campo / Assistência Social / Técnica / Jurídico) —
+// cada setor mostra só o(s) sb-link correspondente(s) e ativa o primeiro deles.
+function SETOR_abrir(btn){
+  const setor = btn.dataset.setor;
+  const wrap = btn.closest('.sb-sub-grupo');
+  if(!wrap) return;
+  wrap.querySelectorAll('.sb-setor').forEach(b=>b.classList.remove('ativo'));
+  btn.classList.add('ativo');
+  let primeiro = null;
+  wrap.querySelectorAll('.sb-link[data-setor]').forEach(link=>{
+    const mostra = (link.dataset.setor === setor);
+    link.style.display = mostra ? '' : 'none';
+    if(mostra && !primeiro) primeiro = link;
+  });
+  if(primeiro) trocarAba(primeiro);
+  if(setor === 'tecnica' && typeof BNF_moverParaTecnica === 'function') BNF_moverParaTecnica();
+}
+// estado inicial: filtra os sb-link pelo setor já marcado "ativo" no HTML,
+// sem trocar de painel (mantém o que já está "ativa" por padrão)
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.sb-setores').forEach(function(setores){
+    const ativo = setores.querySelector('.sb-setor.ativo');
+    const wrap = setores.closest('.sb-sub-grupo');
+    if(!ativo || !wrap) return;
+    wrap.querySelectorAll('.sb-link[data-setor]').forEach(function(link){
+      link.style.display = (link.dataset.setor === ativo.dataset.setor) ? '' : 'none';
+    });
+  });
+});
 function FIOL_toggleDrop(ev){
   ev.stopPropagation();
   document.getElementById('dropAnexos').classList.toggle('aberto');
@@ -10926,6 +11183,38 @@ function AV_gerarDescSituacao(){
     };
   };
 
+  // grava/repõe as linhas dos itens 12/13 no cadastro (12.1/12.2/12.3/12.4 e 13)
+  // DOM-portal: os itens 12/13 (Benfeitorias) moram fisicamente na Avaliação
+  // (DESP 3); ao abrir a aba Técnica (DESP 1) os MESMOS elementos (mesmos
+  // inputs, mesmos listeners) são deslocados pra lá, e voltam ao lugar de
+  // origem ao abrir a Avaliação de novo — por isso preencher em um lugar
+  // aparece automaticamente no outro (é, literalmente, o mesmo campo).
+  window.BNF_moverParaTecnica = function(){
+    var w12 = document.getElementById("bnf_item12_wrap"), s12 = document.getElementById("bnf_item12_slot");
+    var w13 = document.getElementById("bnf_item13_wrap"), s13 = document.getElementById("bnf_item13_slot");
+    if(w12 && s12 && w12.parentNode !== s12) s12.appendChild(w12);
+    if(w13 && s13 && w13.parentNode !== s13) s13.appendChild(w13);
+  };
+  window.BNF_moverParaAvaliacao = function(){
+    var marca = document.getElementById("bnf_home_marca");
+    var w12 = document.getElementById("bnf_item12_wrap"), w13 = document.getElementById("bnf_item13_wrap");
+    if(marca && w12 && w13 && w12.parentNode !== marca.parentNode) marca.after(w12, w13);
+  };
+  window.BNF_getLinhas = function(){
+    var out = {};
+    ["121","122","123","124","13"].forEach(function(g){ out[g] = window.BNF_lerLinhas(g); });
+    return out;
+  };
+  window.BNF_setLinhas = function(dados){
+    if(!dados) return;
+    ["121","122","123","124","13"].forEach(function(g){
+      var tab = document.querySelector('.bnf-tab[data-grupo="'+g+'"]');
+      if(!tab) return;
+      tab.querySelector("tbody").innerHTML = "";
+      (dados[g]||[]).forEach(function(lin){ window.BNF_addLinha(g, lin); });
+    });
+    window.BNF_recalc();
+  };
   // helper p/ o PDF: ler as linhas de um grupo
   window.BNF_lerLinhas = function(grupo){
     const tab=document.querySelector('.bnf-tab[data-grupo="'+grupo+'"]');
@@ -11283,6 +11572,102 @@ function AV_gerarDescSituacao(){
 })();
 </script>
 
+
+<script>
+/* ===== Painel Geral — lista de cadastros exibida logo após o login ===== */
+(function(){
+  "use strict";
+
+  window.__PG_aplicarModo = function(){
+    var modo = null;
+    try{ modo = sessionStorage.getItem("enprol_modo"); }catch(e){}
+    if(modo === "cadastro"){ document.body.classList.remove("modo-painel"); }
+    else { document.body.classList.add("modo-painel"); PG_atualizar(true); }
+  };
+
+  function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){ return ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]; }); }
+  function money(n){
+    return (n==null) ? "—" : "R$ " + Number(n).toLocaleString("pt-BR", {minimumFractionDigits:2, maximumFractionDigits:2});
+  }
+  function loteFmt(l){
+    if(!l) return "—";
+    var n = parseInt(l, 10);
+    return isFinite(n) ? String(n) : l;
+  }
+
+  var _pgItens = [];
+  var _pgTimer = null;
+
+  window.PG_pesquisar = function(){
+    clearTimeout(_pgTimer);
+    _pgTimer = setTimeout(function(){ PG_atualizar(true); }, 300);
+  };
+
+  window.PG_atualizar = function(silencioso){
+    var status = document.getElementById("pgStatus");
+    var corpo = document.getElementById("pgCorpo");
+    var termo = (document.getElementById("pgBusca")||{}).value || "";
+    if(status) status.textContent = "Atualizando…";
+    var q = "/api/cadastros?limite=500";
+    if(termo.trim()) q += "&termo=" + encodeURIComponent(termo.trim());
+    var _api = window.__CAD_api || null;
+    var p = (typeof window.CAD_pesquisar === "function")
+      ? window.CAD_pesquisar(termo)
+      : fetch(q).then(function(r){ return r.json(); });
+    Promise.resolve(p).then(function(itens){
+      _pgItens = Array.isArray(itens) ? itens : ((itens && itens.itens) || []);
+      PG_renderizar();
+      if(status) status.textContent = "Atualizado " + new Date().toLocaleTimeString("pt-BR");
+    }).catch(function(e){
+      if(corpo) corpo.innerHTML = '<tr><td colspan="8" class="pg-vazio">Não foi possível carregar: ' + esc(e && e.message || e) + '</td></tr>';
+      if(status) status.textContent = "";
+    });
+  };
+
+  function PG_renderizar(){
+    var corpo = document.getElementById("pgCorpo");
+    if(!corpo) return;
+    if(!_pgItens.length){
+      corpo.innerHTML = '<tr><td colspan="8" class="pg-vazio">Nenhum cadastro encontrado.</td></tr>';
+      return;
+    }
+    var itens = _pgItens.slice().sort(function(a,b){
+      return String(b.atualizado_em||"").localeCompare(String(a.atualizado_em||""));
+    });
+    corpo.innerHTML = itens.map(function(it){
+      return '<tr onclick="PG_abrir(' + "'" + esc(it.ctd) + "'" + ',' + "'" + esc(it.secao) + "'" + ')">'
+        + '<td>' + esc(loteFmt(it.lote)) + '</td>'
+        + '<td><b>' + esc(it.ctd||"") + '</b></td>'
+        + '<td>' + esc(it.proprietario||"—") + '</td>'
+        + '<td>' + esc(it.sei||"—") + '</td>'
+        + '<td class="pg-num">' + money(it.valor_terra_nua) + '</td>'
+        + '<td class="pg-num">' + money(it.valor_benf_reprodutiva) + '</td>'
+        + '<td class="pg-num">' + money(it.valor_benf_nao_reprodutiva) + '</td>'
+        + '<td class="pg-num pg-total">' + money(it.valor_total) + '</td>'
+        + '</tr>';
+    }).join("");
+  }
+
+  window.PG_abrir = function(ctd, secao){
+    if(window.CAD_abrirNuvem) window.CAD_abrirNuvem(ctd, secao);
+  };
+
+  window.PG_utilitarios = function(){
+    try{ sessionStorage.setItem("enprol_modo", "cadastro"); }catch(e){}
+    document.body.classList.remove("modo-painel");
+    var btn = document.querySelector('.top-tab[data-secao="utilitarios"]');
+    if(btn && typeof window.TOP_abrir === "function") window.TOP_abrir(btn);
+  };
+
+  window.PG_voltar = function(){
+    if(window.__CAD_ATUAL){
+      if(!confirm("Voltar ao Painel Geral?\n\nSe houver alterações não salvas neste cadastro, elas serão perdidas.")) return;
+    }
+    try{ sessionStorage.setItem("enprol_modo", "painel"); }catch(e){}
+    location.reload();
+  };
+})();
+</script>
 <script>
 /* ===== Login / Acesso Restrito ===== */
 (function(){
@@ -11298,8 +11683,12 @@ function AV_gerarDescSituacao(){
     // comparação de usuário sem diferenciar maiúsculas/minúsculas; senha exata
     if(user.toLowerCase() === USUARIO.toLowerCase() && pass === SENHA){
       document.body.classList.add("logado");
-      try{ sessionStorage.setItem("enprol_logado","1"); }catch(e){}
+      try{
+        sessionStorage.setItem("enprol_logado","1");
+        if(!sessionStorage.getItem("enprol_modo")) sessionStorage.setItem("enprol_modo","painel");
+      }catch(e){}
       if(erro) erro.textContent = "";
+      window.__PG_aplicarModo && window.__PG_aplicarModo();
     } else {
       if(erro) erro.textContent = "Usuário ou senha inválidos.";
       if(p){ p.value = ""; p.focus(); }
@@ -11308,7 +11697,13 @@ function AV_gerarDescSituacao(){
 
   function init(){
     // se já autenticado nesta sessão, libera direto
-    try{ if(sessionStorage.getItem("enprol_logado")==="1"){ document.body.classList.add("logado"); return; } }catch(e){}
+    try{
+      if(sessionStorage.getItem("enprol_logado")==="1"){
+        document.body.classList.add("logado");
+        window.__PG_aplicarModo && window.__PG_aplicarModo();
+        return;
+      }
+    }catch(e){}
     const btn = document.getElementById("login_btn");
     if(btn) btn.addEventListener("click", tentarLogin);
     // Enter em qualquer campo dispara o login
@@ -11611,7 +12006,10 @@ function AV_gerarDescSituacao(){
       parPendencias: (window.PAR_getPendencias?window.PAR_getPendencias():{}),
       parPendExtras: (window.PAR_getPendExtras?window.PAR_getPendExtras():[]),
       parPendExcluidas: (window.PAR_getPendExcluidas?window.PAR_getPendExcluidas():{}),
-      campoFicha: (window.CAMPO_getFicha?window.CAMPO_getFicha():null)
+      campoFicha: (window.CAMPO_getFicha?window.CAMPO_getFicha():null),
+      avBenf: (window.BNF_getLinhas?window.BNF_getLinhas():null),
+      avBenfTotais: (window.__AV_BENF__||null),
+      avAmostra: (window.__AV_AMOSTRA__||null)
     };
   }
 
@@ -11738,6 +12136,8 @@ function AV_gerarDescSituacao(){
     etapa("imagens", function(){ restaurarImagens(pacote.imagens); });
     etapa("fotografias", function(){ if(pacote.fotos && window.FB_setFotos) window.FB_setFotos(pacote.fotos); });
     etapa("figuras (DESP 2)", function(){ if(pacote.d2figs && window.D2_setFigs) window.D2_setFigs(pacote.d2figs); });
+    etapa("benfeitorias reprodutivas/não reprodutivas (itens 12/13)", function(){ if(pacote.avBenf && window.BNF_setLinhas) window.BNF_setLinhas(pacote.avBenf); });
+    etapa("amostra de mercado (Terra Nua)", function(){ if(pacote.avAmostra && window.AV_preencherAmostra) window.AV_preencherAmostra(pacote.avAmostra); });
     etapa("recálculo da avaliação", function(){ if(typeof window.AV_recalcular==="function") window.AV_recalcular(); });
     return falhas;
   }
@@ -11749,6 +12149,7 @@ function AV_gerarDescSituacao(){
     try{
       sessionStorage.setItem("enprol_cad_pendente", JSON.stringify(pendente));
       sessionStorage.setItem("enprol_logado", "1");   // não pedir login de novo
+      sessionStorage.setItem("enprol_modo", "cadastro");
     }catch(e){ return false; }
     location.reload();
     return true;
@@ -12077,7 +12478,10 @@ function AV_gerarDescSituacao(){
   window.CAD_novoCadastro = function(){
     if (!confirm("Começar um cadastro NOVO?\n\nTodos os dados preenchidos na tela serão limpos. O que não estiver salvo será perdido.")) return;
     try { window.__CAD_ATUAL = null; } catch(e){}
-    try { sessionStorage.setItem("enprol_logado", "1"); } catch(e){}   // não pedir login de novo
+    try {
+      sessionStorage.setItem("enprol_logado", "1");   // não pedir login de novo
+      sessionStorage.setItem("enprol_modo", "cadastro");
+    } catch(e){}
     location.reload();
   };
 
