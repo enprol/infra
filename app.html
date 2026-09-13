@@ -2654,11 +2654,11 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
       <button class="top-tab" data-secao="utilitarios" onclick="TOP_abrir(this)">UTILITÁRIOS</button>
     </nav>
     <button class="btn-cad" id="btnSalvarCad" onclick="CAD_salvarNuvem()" title="Salvar cadastro no servidor da empresa">💾 Salvar</button>
-    <button class="btn-cad" id="btnAbrirCad" onclick="CAD_abrirModal()" title="Abrir cadastro salvo no servidor da empresa">📂 Abrir</button>
-    <button class="btn-cad" id="btnNovoCad" onclick="CAD_novoCadastro()" title="Limpar tudo e começar um cadastro novo">✨ Novo Cadastro</button>
-    <button class="btn-cad" id="btnPainelGeral" onclick="PG_voltar()" title="Voltar para a lista de todos os cadastros">🏠 Painel Geral</button>
+    <button class="btn-cad" id="btnAbrirCad" onclick="CAD_abrirModal()" title="Abrir cadastro salvo no servidor da empresa">Abrir</button>
+    <button class="btn-cad" id="btnNovoCad" onclick="CAD_novoCadastro()" title="Limpar tudo e começar um cadastro novo">Novo Cadastro</button>
+    <button class="btn-cad" id="btnPainelGeral" onclick="PG_voltar()" title="Voltar para a lista de todos os cadastros">Painel Geral</button>
     <div class="top-dl" id="topDlDrop">
-      <button class="btn-cad" id="btnTopDownload" onclick="TOPDL_toggle(event)" title="Baixar PDFs e backup .json">⬇️ Download</button>
+      <button class="btn-cad" id="btnTopDownload" onclick="TOPDL_toggle(event)" title="Baixar PDFs e backup .json">Download</button>
       <div class="top-dl-menu" id="topDlMenu" hidden>
         <button type="button" onclick="TOPDL_item(event,'tudo')">📦 Baixar tudo (Ficha + Relatório + DRL + Parecer)</button>
         <div class="sep"></div>
@@ -11594,6 +11594,18 @@ function AV_gerarDescSituacao(){
     var n = parseInt(l, 10);
     return isFinite(n) ? String(n) : l;
   }
+  // "CTD 006A - SPS-04 – FTN - 50050..." -> "006A" (só o código do cadastro)
+  function ctdFmt(v){
+    if(!v) return "—";
+    var m = String(v).match(/CTD\s*([A-Za-z0-9]+)/i);
+    return m ? m[1] : v;
+  }
+  // só o primeiro e o segundo nome
+  function nomeFmt(v){
+    if(!v) return "—";
+    var partes = String(v).trim().split(/\s+/).filter(Boolean);
+    return partes.slice(0, 2).join(" ") || "—";
+  }
 
   var _pgItens = [];
   var _pgTimer = null;
@@ -11637,8 +11649,8 @@ function AV_gerarDescSituacao(){
     corpo.innerHTML = itens.map(function(it){
       return '<tr onclick="PG_abrir(' + "'" + esc(it.ctd) + "'" + ',' + "'" + esc(it.secao) + "'" + ')">'
         + '<td>' + esc(loteFmt(it.lote)) + '</td>'
-        + '<td><b>' + esc(it.ctd||"") + '</b></td>'
-        + '<td>' + esc(it.proprietario||"—") + '</td>'
+        + '<td><b>' + esc(ctdFmt(it.ctd)) + '</b></td>'
+        + '<td>' + esc(nomeFmt(it.proprietario)) + '</td>'
         + '<td>' + esc(it.sei||"—") + '</td>'
         + '<td class="pg-num">' + money(it.valor_terra_nua) + '</td>'
         + '<td class="pg-num">' + money(it.valor_benf_reprodutiva) + '</td>'
