@@ -2770,6 +2770,8 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
             <th>Lote (SPS)</th>
             <th>Cadastro</th>
             <th>Proprietário</th>
+            <th class="pg-status-th">DESP 1</th>
+            <th class="pg-status-th">DESP 2</th>
             <th>Nº Processo SEI</th>
             <th>R$ Terra nua</th>
             <th>R$ Benf. reprodutivas</th>
@@ -2779,16 +2781,18 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
           <tr class="pg-filtros">
             <th><button type="button" class="pg-filtbtn" id="pgFiltBtnLote" onclick="PG_toggleFiltro(event,'lote')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
             <th><button type="button" class="pg-filtbtn" id="pgFiltBtnCad" onclick="PG_toggleFiltro(event,'cad')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
-            <th></th><th></th><th></th><th></th><th></th><th></th>
+            <th></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th>
           </tr>
         </thead>
         <tbody id="pgCorpo">
-          <tr><td colspan="8" class="pg-vazio">Carregando…</td></tr>
+          <tr><td colspan="10" class="pg-vazio">Carregando…</td></tr>
         </tbody>
         <tfoot id="pgRodape"></tfoot>
       </table>
     </div>
   </div>
+
+  <div class="pg-status-tooltip" id="pgStatusTooltip"></div>
 
   <div class="pg-filtpop" id="pgPopLote" hidden>
     <div class="pg-filtpop-search"><input type="text" placeholder="Buscar…" oninput="PG_filtrarLista('lote',this.value)"></div>
@@ -2882,6 +2886,44 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
     font-weight:700; color:#0a4d7c; white-space:nowrap;
   }
   .pg-tabela tfoot td.pg-num{ text-align:right; font-variant-numeric:tabular-nums; }
+
+  /* ---- status de finalização (DESP 1/2/3) — termômetro por documento ---- */
+  .pg-tabela th.pg-status-th{ text-align:center; }
+  .pg-tabela td.pg-status-td{ text-align:center; }
+  @keyframes pg-pulso-ok{
+    0%,100%{ text-shadow:0 0 2px rgba(34,197,94,.5); opacity:.85; }
+    50%{ text-shadow:0 0 8px rgba(34,197,94,.9), 0 0 2px rgba(34,197,94,.9); opacity:1; }
+  }
+  @keyframes pg-pulso-falta{
+    0%,100%{ text-shadow:0 0 1px rgba(239,68,68,.35); opacity:.72; }
+    50%{ text-shadow:0 0 5px rgba(239,68,68,.55); opacity:.92; }
+  }
+  .pg-status-ico{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:22px; height:22px; cursor:default; position:relative;
+    font-size:15px; font-weight:800; line-height:1; user-select:none;
+  }
+  .pg-status-ok{
+    color:#22c55e;
+    animation:pg-pulso-ok 1.9s ease-in-out infinite;
+  }
+  .pg-status-falta{
+    color:#ef4444;
+    animation:pg-pulso-falta 2.7s ease-in-out infinite;
+  }
+  .pg-status-vazio{ color:#c3ccd6; font-size:12px; }
+  .pg-status-tooltip{
+    position:fixed; z-index:70; max-width:280px; display:none; flex-direction:column; gap:5px;
+    background:#12203a; color:#e7edf5; border-radius:9px; box-shadow:0 12px 32px rgba(10,20,40,.35);
+    padding:10px 13px; font-size:12px; line-height:1.5; pointer-events:none;
+  }
+  .pg-status-tooltip.show{ display:flex; }
+  .pg-status-tooltip b{ color:#fff; font-size:12.5px; }
+  .pg-status-tooltip .pg-tt-doc{ font-weight:700; color:#8fd3ff; margin-top:3px; }
+  .pg-status-tooltip .pg-tt-doc:first-of-type{ margin-top:0; }
+  .pg-status-tooltip ul{ margin:1px 0 0; padding-left:16px; }
+  .pg-status-tooltip li{ margin:0; }
+  .pg-status-tooltip .pg-tt-ok{ color:#7dffb0; font-weight:700; }
   @media (max-width:760px){
     .pg-wrap{ padding:16px 12px 40px; }
     .pg-busca{ flex:1 1 100%; min-width:0; }
@@ -4436,6 +4478,9 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
   <!-- 12 BENFEITORIAS REPRODUTIVAS -->
   <h2 class="vsec acc" onclick="FV_toggleSec(this)"><span>12 — Benfeitorias Reprodutivas</span><span class="acc-chevron">▾</span></h2>
   <div class="vcard">
+    <div class="vrow"><div class="vfield grow"><label>Este imóvel possui benfeitorias reprodutivas?</label>
+      <select id="av_possui_benf_reprod"><option value="">Selecione</option><option>Sim</option><option>Não</option></select>
+    </div></div>
     <div class="bnf-sub">12.1 — Culturas Permanentes</div>
     <div class="bnf-tab-wrap">
       <table class="bnf-tab" data-grupo="121">
@@ -4496,6 +4541,9 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
   <!-- 13 BENFEITORIAS NÃO REPRODUTIVAS -->
   <h2 class="vsec acc" onclick="FV_toggleSec(this)"><span>13 — Benfeitorias Não Reprodutivas</span><span class="acc-chevron">▾</span></h2>
   <div class="vcard">
+    <div class="vrow"><div class="vfield grow"><label>Este imóvel possui benfeitorias não reprodutivas?</label>
+      <select id="av_possui_benf_naoreprod"><option value="">Selecione</option><option>Sim</option><option>Não</option></select>
+    </div></div>
     <div class="bnf-tab-wrap">
       <table class="bnf-tab bnf-tab13" data-grupo="13">
         <thead>
@@ -11813,7 +11861,7 @@ function AV_gerarDescSituacao(){
       PG_renderizar();
       if(status) status.textContent = "Atualizado " + new Date().toLocaleTimeString("pt-BR");
     }).catch(function(e){
-      if(corpo) corpo.innerHTML = '<tr><td colspan="8" class="pg-vazio">Não foi possível carregar: ' + esc(e && e.message || e) + '</td></tr>';
+      if(corpo) corpo.innerHTML = '<tr><td colspan="10" class="pg-vazio">Não foi possível carregar: ' + esc(e && e.message || e) + '</td></tr>';
       if(status) status.textContent = "";
     });
   };
@@ -11942,7 +11990,7 @@ function AV_gerarDescSituacao(){
     PG_atualizarBotaoFiltro('cad');
 
     if(!itens.length){
-      corpo.innerHTML = '<tr><td colspan="8" class="pg-vazio">Nenhum cadastro encontrado' + ((_pgSelLote||_pgSelCad) ? " para este filtro." : ".") + '</td></tr>';
+      corpo.innerHTML = '<tr><td colspan="10" class="pg-vazio">Nenhum cadastro encontrado' + ((_pgSelLote||_pgSelCad) ? " para este filtro." : ".") + '</td></tr>';
       if(rodape) rodape.innerHTML = "";
       return;
     }
@@ -11952,6 +12000,8 @@ function AV_gerarDescSituacao(){
         + '<td>' + esc(loteFmt(it.lote)) + '</td>'
         + '<td><b>' + esc(ctdFmt(it.ctd)) + '</b></td>'
         + '<td>' + esc(nomeFmt(it.proprietario)) + '</td>'
+        + PG_statusCelHTML(it.completude && it.completude.desp1)
+        + PG_statusCelHTML(it.completude && it.completude.desp2)
         + '<td>' + esc(it.sei||"—") + '</td>'
         + '<td class="pg-num">' + money(it.valor_terra_nua) + '</td>'
         + '<td class="pg-num">' + money(it.valor_benf_reprodutiva) + '</td>'
@@ -11969,7 +12019,9 @@ function AV_gerarDescSituacao(){
       rodape.innerHTML = '<tr>'
         + '<td></td>'
         + '<td>' + itens.length + ' item(ns)</td>'
+        + '<td></td>'
         + '<td></td><td></td>'
+        + '<td></td>'
         + '<td class="pg-num">' + money(soma("valor_terra_nua")) + '</td>'
         + '<td class="pg-num">' + money(soma("valor_benf_reprodutiva")) + '</td>'
         + '<td class="pg-num">' + money(soma("valor_benf_nao_reprodutiva")) + '</td>'
@@ -11978,6 +12030,43 @@ function AV_gerarDescSituacao(){
     }
   }
   window.PG_renderizar = PG_renderizar;
+
+  // ---- status de finalização (DESP 1/2/3): ícone + balão de pendências ----
+  function PG_statusCelHTML(st){
+    if(!st){ return '<td class="pg-status-td"><span class="pg-status-vazio">—</span></td>'; }
+    var cls = st.ok ? 'pg-status-ok' : 'pg-status-falta';
+    var simbolo = st.ok ? '✓' : '✕';
+    return '<td class="pg-status-td"><span class="pg-status-ico ' + cls + '" data-pg-tt="' + esc(JSON.stringify(st)) + '">' + simbolo + '</span></td>';
+  }
+  function PG_tooltipConteudo(st){
+    if(st.ok) return '<b class="pg-tt-ok">✓ Completo</b><div>Nenhuma pendência encontrada.</div>';
+    var porDoc = {};
+    (st.faltando||[]).forEach(function(f){ (porDoc[f.doc] = porDoc[f.doc]||[]).push(f.rot); });
+    var h = '<b>Pendências para finalizar:</b>';
+    Object.keys(porDoc).forEach(function(d){
+      h += '<div class="pg-tt-doc">' + esc(d) + '</div><ul>' + porDoc[d].map(function(r){ return '<li>' + esc(r) + '</li>'; }).join('') + '</ul>';
+    });
+    return h;
+  }
+  document.addEventListener('mouseover', function(ev){
+    var el = ev.target.closest && ev.target.closest('.pg-status-ico');
+    if(!el) return;
+    var raw = el.getAttribute('data-pg-tt'); if(!raw) return;
+    var st; try{ st = JSON.parse(raw); }catch(e){ return; }
+    var tt = document.getElementById('pgStatusTooltip'); if(!tt) return;
+    tt.innerHTML = PG_tooltipConteudo(st);
+    var r = el.getBoundingClientRect();
+    var left = Math.max(6, Math.min(window.innerWidth - 292, r.left - 130));
+    tt.style.left = Math.round(left) + 'px';
+    tt.style.top = Math.round(r.bottom + 6) + 'px';
+    tt.classList.add('show');
+  });
+  document.addEventListener('mouseout', function(ev){
+    var el = ev.target.closest && ev.target.closest('.pg-status-ico');
+    if(!el) return;
+    var tt = document.getElementById('pgStatusTooltip'); if(!tt) return;
+    tt.classList.remove('show');
+  });
 
   window.PG_abrir = function(ctd, secao){
     if(window.CAD_abrirNuvem) window.CAD_abrirNuvem(ctd, secao);
