@@ -4792,7 +4792,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
     <button class="vbtn" type="button" onclick="CAMPO_pdfFotos()">📄 PDF — Relatório Fotográfico</button>
     <button class="vbtn vbtn-ghost" type="button" onclick="CAMPO_paraFicha()">↧ Enviar dados para a Ficha de Vistoria</button>
   </div>
-  <p class="hint-inline">O envio para a Ficha de Vistoria preenche proprietário, município/UF, data, o resumo das benfeitorias (3.1.1 e 3.2.1) e acrescenta as fotografias em 5.3 — mostrando antes o que vai ser escrito.</p>
+  <p class="hint-inline">O envio para a Ficha de Vistoria preenche proprietário, município/UF, data, o resumo das benfeitorias (3.1.1 e 3.2.1) e acrescenta as fotografias em 5.3 — e também substitui o Relatório Fotográfico da DESP 2 pelas mesmas fotos do relatório de campo — mostrando antes o que vai ser escrito.</p>
 </div>
 
 </div>
@@ -16890,7 +16890,8 @@ window.DRL_gerarPDF=async function(opts){
     var existentes = plano.filter(function(p){ var e = document.getElementById(p[0]); return e && (e.value||"").trim(); });
     var msg = "Vou preencher na Ficha de Vistoria:\n\n"
             + plano.map(function(p){ return "• " + p[1] + ": " + (p[2].length>60 ? p[2].slice(0,60)+"…" : p[2]); }).join("\n")
-            + "\n\n• " + fotos.length + " fotografia(s) → 5.3 Fotografias do imóvel";
+            + "\n\n• " + fotos.length + " fotografia(s) → 5.3 Fotografias do imóvel"
+            + "\n• " + fotos.length + " fotografia(s) → Relatório Fotográfico (DESP 2) — substitui as que já estiverem lá, viram as mesmas do relatório de campo";
     if(existentes.length) msg += "\n\nATENÇÃO: " + existentes.length + " campo(s) já preenchido(s) serão substituídos.";
     msg += "\n\nConfirma?";
     if(!confirm(msg)) return;
@@ -16907,7 +16908,11 @@ window.DRL_gerarPDF=async function(opts){
       var jaTem = (window.FB_getFotos ? window.FB_getFotos() : []) || [];
       window.FB_setFotos(jaTem.concat(fotos.map(function(o){ return o.p.src; })));
     }
-    alert("Pronto. Confira a aba “Ficha de Vistoria e Cadastro Socioeconômico (Anexo B)”.");
+    // Relatório Fotográfico da DESP 2 = as mesmas fotos do relatório de campo (substitui, não soma).
+    if(fotos.length && window.D2_setFotos){
+      window.D2_setFotos(fotos.map(function(o){ return {src:o.p.src, legenda:legenda(o)}; }));
+    }
+    alert("Pronto. Confira as abas “Ficha de Vistoria e Cadastro Socioeconômico (Anexo B)” e “Relatório de Análise de Impacto e Transposição (DESP-2)”.");
   };
 
   /* ---------------- Ficha Social (Anexo B) vinda do app das assistentes ----------- */

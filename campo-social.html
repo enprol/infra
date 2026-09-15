@@ -1654,7 +1654,6 @@ function galeriaHTML(cam, titulo, num){
     h += '</div>';
   }
   h += '<div class="cam">'
-     + '<label>📷 Câmera<input type="file" accept="image/*" capture="environment" multiple onchange="addFoto(this,\''+cam+'\')"></label>'
      + '<label>🖼️ Galeria<input type="file" accept="image/*" multiple onchange="addFoto(this,\''+cam+'\')"></label>'
      + '</div></div>';
   return h;
@@ -1715,7 +1714,7 @@ function render(){
   // trilha
   var tr = "";
   for(var k=0; k<TOTAL; k++){
-    tr += '<button type="button" class="pt'+(k<i?" feito":(k===i?" atual":""))+'" aria-label="Passo '+(k+1)+'" onclick="irPasso('+k+')"></button>';
+    tr += '<button type="button" class="pt'+(k<i?" feito":(k===i?" atual":""))+'" aria-label="Passo '+(k+1)+'" onclick="irPassoValidado('+k+')"></button>';
   }
   document.getElementById("passos").innerHTML =
     '<div class="tr">'+tr+'</div><span class="n">'+(i+1)+'/'+TOTAL+'</span>';
@@ -1804,8 +1803,63 @@ function revisaoHTML(){
 }
 
 function irPasso(i){ ST.passo = i; salvar(true); render(); window.scrollTo(0,0); }
-function avancar(){ irPasso((ST.passo||0) + 1); }
+
+// campos/tópicos em branco da seção `idx` — null se estiver tudo preenchido.
+// "fim" não bloqueia: a tela de revisão já avisa o que falta.
+function secaoIncompleta(idx){
+  var sec = SECOES[idx];
+  if(!sec || sec.fim) return null;
+  var f = atual(), faltando = [];
+  if(sec.campos){
+    sec.campos.forEach(function(c){
+      var v = getv(f, c.k);
+      var vazio = (c.t === "multi" || c.t === "chks") ? !(Array.isArray(v) && v.length) : (v==null || String(v).trim()==="");
+      if(vazio) faltando.push(c.l);
+    });
+  }
+  if(sec.galerias){
+    sec.galerias.forEach(function(g){
+      if(!(getv(f,g.k)||[]).length) faltando.push(g.l);
+    });
+  }
+  if(sec.rep){
+    var arr = getv(f, sec.rep.lista) || [];
+    arr.forEach(function(item, i){
+      sec.rep.campos.forEach(function(c){
+        var v = item[c.k];
+        if(v==null || String(v).trim()==="") faltando.push(sec.rep.rot+" "+(i+1)+": "+c.l);
+      });
+    });
+  }
+  if(sec.tabelas){
+    sec.tabelas.forEach(function(t){
+      linhasTab(t.n).forEach(function(lin){
+        if(!lin.resp) faltando.push(t.titulo+" — "+lin.crit);
+      });
+    });
+  }
+  return faltando.length ? faltando : null;
+}
+function avisarIncompleto(faltando){
+  alert("Preencha os campos abaixo antes de avançar:\n\n• " + faltando.join("\n• "));
+}
+function avancar(){
+  var faltando = secaoIncompleta(ST.passo||0);
+  if(faltando){ avisarIncompleto(faltando); return; }
+  irPasso((ST.passo||0) + 1);
+}
 function voltar(){  irPasso((ST.passo||0) - 1); }
+// usado pela trilha de passos: pra trás sempre livre; pra frente só se as
+// seções entre a atual e o alvo estiverem completas (para no 1º passo incompleto).
+function irPassoValidado(alvo){
+  var atual0 = ST.passo||0;
+  if(alvo <= atual0){ irPasso(alvo); return; }
+  for(var k = atual0; k < alvo; k++){
+    var faltando = secaoIncompleta(k);
+    if(faltando){ avisarIncompleto(faltando); irPasso(k); return; }
+  }
+  irPasso(alvo);
+}
 
 function dobra(id){ for(var i=0;i<SECOES.length;i++){ if(SECOES[i].id===id){ irPasso(i); return; } } }
 
@@ -1937,14 +1991,13 @@ function assinaturaHTML(){
      ? '<img src="'+f.assinatura+'" alt="Assinatura">'
      : '<div class="vazio">Nenhuma assinatura enviada ainda.</div>';
   h += '<div class="cam" style="margin-top:0">'
-     + '<label>📷 Fotografar<input type="file" accept="image/*" capture="environment" onchange="addAssinatura(this)"></label>'
      + '<label>🖼️ Da galeria<input type="file" accept="image/*" onchange="addAssinatura(this)"></label>'
      + '</div>';
   if(f.assinatura){
     h += '<button class="add" type="button" style="margin-top:8px;border-color:#eccac7;color:#b5382a" onclick="limparSig()">Remover assinatura</button>';
   }
   h += '</div><p style="font-size:12px;color:#5a6b7c;margin:7px 2px 0;">'
-     + 'Assine numa folha branca e fotografe, ou escolha uma imagem já salva no celular.</p></div>';
+     + 'Assine numa folha branca, fotografe pelo app da câmera e escolha a imagem salva na galeria.</p></div>';
   return h;
 }
 function addAssinatura(input){
