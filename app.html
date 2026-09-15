@@ -12396,17 +12396,24 @@ function AV_gerarDescSituacao(){
     na.forEach((v,i)=>{ if(inputs[i]){ inputs[i].value=v; inputs[i].dispatchEvent(new Event("input",{bubbles:true})); } });
   }
 
+  // BUG CORRIGIDO (15/09/2026): antes só PREENCHIA os slots presentes em `imgs`
+  // e nunca LIMPAVA os que faltavam — croqui/CCU/mapa de um cadastro aberto
+  // antes na mesma aba continuavam em window.__AV_IMAGENS__ (e na prévia da
+  // tela) mesmo depois de abrir um cadastro novo sem essas imagens. Agora
+  // sempre repõe os 3 slots (imagem OU null) e a prévia correspondente.
   function restaurarImagens(imgs){
-    if(!imgs || typeof imgs!=="object") return;
     const alvo = (window.__AV_IMAGENS__ = window.__AV_IMAGENS__ || {});
     ["croqui","ccu","mapa"].forEach(slot=>{
-      if(imgs[slot]){
-        alvo[slot]=imgs[slot];
-        // atualiza a prévia visual, se o elemento existir
-        const prev=document.getElementById("av_"+slot+"_prev");
-        if(prev){
-          prev.innerHTML='<img src="'+imgs[slot]+'" alt="prévia"><br><button type="button" class="rm-img" onclick="(function(b){var p=b.parentElement;window.__AV_IMAGENS__[\''+slot+'\']=null;p.innerHTML=\'\';p.classList.remove(\'show\');})(this)">Remover imagem</button>';
+      const novo = (imgs && typeof imgs==="object" && imgs[slot]) ? imgs[slot] : null;
+      alvo[slot]=novo;
+      const prev=document.getElementById("av_"+slot+"_prev");
+      if(prev){
+        if(novo){
+          prev.innerHTML='<img src="'+novo+'" alt="prévia"><br><button type="button" class="rm-img" onclick="(function(b){var p=b.parentElement;window.__AV_IMAGENS__[\''+slot+'\']=null;p.innerHTML=\'\';p.classList.remove(\'show\');})(this)">Remover imagem</button>';
           prev.classList.add("show");
+        } else {
+          prev.innerHTML='';
+          prev.classList.remove("show");
         }
       }
     });
@@ -18231,9 +18238,23 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
   };
   // usados pelo Salvar/Abrir (.json) para persistir e reinserir as imagens das figuras da DESP-2
   window.D2_getFigs=function(){ return figs; };
+  // BUG CORRIGIDO (15/09/2026): antes só ADICIONAVA/sobrescrevia as figuras
+  // presentes em `o`, nunca limpando as que já estavam em `figs`/`figNames` —
+  // se o cadastro anterior aberto na mesma aba tivesse figuras que o cadastro
+  // novo não tem, elas continuavam aparecendo (imagem do cadastro errado).
+  // Agora sempre zera tudo primeiro (igual a D2_setFotos/D2_setRessalvas, que
+  // já reatribuíam a variável inteira) e re-renderiza cada slot conhecido,
+  // com ou sem imagem, pra tela nunca ficar com uma prévia desatualizada.
   window.D2_setFigs=function(o){
-    if(!o || typeof o!=="object") return;
-    Object.keys(o).forEach(function(fid){ if(o[fid]) aplicarFig(fid,o[fid]); });
+    Object.keys(figs).forEach(function(fid){ delete figs[fid]; });
+    Object.keys(figNames).forEach(function(fid){ delete figNames[fid]; });
+    if(o && typeof o==="object"){
+      Object.keys(o).forEach(function(fid){ if(o[fid]) aplicarFig(fid,o[fid]); });
+    }
+    Object.keys(FIG_META).forEach(function(fid){
+      var wrap=document.getElementById("d2_figwrap_"+fid);
+      if(wrap && !(o && o[fid])) wrap.outerHTML=figSlotHtml(fid);
+    });
   };
 
   /* gera/atualiza os textos padrão (verbatim do Word + vínculos) */
