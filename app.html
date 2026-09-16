@@ -2955,12 +2955,12 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
       <button class="sb-link ativa" data-setor="social" data-alvo="panel-desp1-vist" onclick="trocarAba(this)">Ficha de Vistoria e Cadastro Socioeconômico (Anexo B)</button>
       <button class="sb-link" data-setor="social" data-alvo="panel-desp1-drl" onclick="trocarAba(this)">DRL — Declaração de Respeito de Limites</button>
       <button class="sb-link" data-setor="social" data-alvo="panel-desp1-rel" onclick="trocarAba(this)">Relatório Técnico de Caracterização Socioeconômica</button>
-      <button class="sb-link" data-setor="tecnica" data-alvo="panel-desp1-tecnica" onclick="trocarAba(this); BNF_moverParaTecnica(); if(window.D2IMG_moverParaTecnica) D2IMG_moverParaTecnica(); if(window.D2PLANTAS_moverParaTecnica) D2PLANTAS_moverParaTecnica(); if(window.D2REM_moverParaTecnica) D2REM_moverParaTecnica();">Técnica</button>
+      <button class="sb-link" data-setor="tecnica" data-alvo="panel-desp1-tecnica" onclick="trocarAba(this); BNF_moverParaTecnica(); if(window.D2PLANTAS_moverParaTecnica) D2PLANTAS_moverParaTecnica(); if(window.D2REM_moverParaTecnica) D2REM_moverParaTecnica();">Técnica</button>
       <button class="sb-link" data-setor="juridico" data-alvo="panel-desp1-parecer" onclick="trocarAba(this)">Parecer para Regularização Fundiária e Documental</button>
     </div>
     <div class="sb-sub-grupo" data-grupo="desp2" style="display:none;">
       <div class="sb-grp">Documentação</div>
-      <button class="sb-link" data-alvo="panel-desp2-relatorio" onclick="trocarAba(this); if(window.D2IMG_moverParaDesp2) D2IMG_moverParaDesp2(); if(window.D2PLANTAS_moverParaDesp2) D2PLANTAS_moverParaDesp2(); if(window.D2REM_moverParaDesp2) D2REM_moverParaDesp2();">Relatório de Análise de Impacto e Transposição (DESP-2)</button>
+      <button class="sb-link" data-alvo="panel-desp2-relatorio" onclick="trocarAba(this); if(window.D2PLANTAS_moverParaDesp2) D2PLANTAS_moverParaDesp2(); if(window.D2REM_moverParaDesp2) D2REM_moverParaDesp2();">Relatório de Análise de Impacto e Transposição (DESP-2)</button>
     </div>
     <div class="sb-sub-grupo" data-grupo="laudo" style="display:none;">
       <div class="sb-grp">Documentos</div>
@@ -4996,10 +4996,6 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 <p class="hint-inline" style="margin-top:0;">As tabelas abaixo são as mesmas da aba Avaliação (DESP 3 → Avaliação): editar aqui ou lá preenche o mesmo lugar.</p>
 <div id="bnf_item12_slot"></div>
 <div id="bnf_item13_slot"></div>
-<div class="vsub" style="margin-top:22px;">Imagens da Avaliação de Impacto (DESP 2)</div>
-<p class="hint-inline" style="margin-top:0;">Idem — as mesmas Ressalvas e o mesmo Relatório Fotográfico da DESP 2 → Relatório de Análise de Impacto e Transposição.</p>
-<div id="d2_ressalvas_slot"></div>
-<div id="d2_fotos_slot"></div>
 <div class="vsub" style="margin-top:22px;">Plantas e Roteiro de Acesso (DESP 2)</div>
 <p class="hint-inline" style="margin-top:0;">Idem — os mesmos tópicos e imagens da DESP 2 → Relatório de Análise de Impacto e Transposição.</p>
 <div id="d2_row_roteiro_de_acesso_slot"></div>
@@ -7728,7 +7724,6 @@ function SETOR_abrir(btn){
   });
   if(primeiro) trocarAba(primeiro);
   if(setor === 'tecnica' && typeof BNF_moverParaTecnica === 'function') BNF_moverParaTecnica();
-  if(setor === 'tecnica' && typeof D2IMG_moverParaTecnica === 'function') D2IMG_moverParaTecnica();
   if(setor === 'tecnica' && typeof D2PLANTAS_moverParaTecnica === 'function') D2PLANTAS_moverParaTecnica();
   if(setor === 'tecnica' && typeof D2REM_moverParaTecnica === 'function') D2REM_moverParaTecnica();
 }
@@ -11386,21 +11381,12 @@ function AV_gerarDescSituacao(){
     var w12 = document.getElementById("bnf_item12_wrap"), w13 = document.getElementById("bnf_item13_wrap");
     if(marca && w12 && w13 && w12.parentNode !== marca.parentNode) marca.after(w12, w13);
   };
-  // DOM-portal: mesmo esquema do BNF_moverPara* acima, agora para as imagens
-  // da DESP 2 (Ressalvas + 6.1 Relatório Fotográfico) — moram na DESP 2 por
-  // padrão e são deslocadas (não clonadas) pra Técnica quando essa aba abre.
-  window.D2IMG_moverParaTecnica = function(){
-    var wR = document.getElementById("d2_row_ressalvas"), sR = document.getElementById("d2_ressalvas_slot");
-    var wF = document.getElementById("d2_row_fotos"), sF = document.getElementById("d2_fotos_slot");
-    if(wR && sR && wR.parentNode !== sR) sR.appendChild(wR);
-    if(wF && sF && wF.parentNode !== sF) sF.appendChild(wF);
-  };
-  window.D2IMG_moverParaDesp2 = function(){
-    var mR = document.getElementById("d2_row_ressalvas_marca"), wR = document.getElementById("d2_row_ressalvas");
-    var mF = document.getElementById("d2_row_fotos_marca"), wF = document.getElementById("d2_row_fotos");
-    if(mR && wR && wR.parentNode !== mR.parentNode) mR.after(wR);
-    if(mF && wF && wF.parentNode !== mF.parentNode) mF.after(wF);
-  };
+  // 16/09/2026: Ressalvas (3.2) e Relatório Fotográfico (6.1) pararam de ser
+  // replicados na aba Técnica (pedido do usuário — Técnica só insere mapas,
+  // não relatório fotográfico) — voltaram a morar só na DESP 2, como antes do
+  // DOM-portal introduzido pra eles. Os marcadores "d2_row_ressalvas_marca"/
+  // "d2_row_fotos_marca" continuam sendo gerados por montarTopicos() (servem
+  // de âncora pro widget, sem uso agora que ele nunca sai de lá) — inofensivo.
   // DOM-portal: tópicos com imagem (Roteiro de acesso + 5 plantas) da DESP 2 também na Técnica
   var D2PLANTAS_IDS = ["roteiro_de_acesso","planta_da_rea_total_do_im_ve","planta_contendo_a_dimens_o_d",
     "planta_com_indica_o_das_font","planta_contendo_a_disposi_o","planta_de_localiza_o_das_rea"];
@@ -11826,7 +11812,10 @@ function AV_gerarDescSituacao(){
   // "CTD 006A - SPS-04 – FTN - 50050..." -> "006A" (só o código do cadastro)
   function ctdFmt(v){
     if(!v) return "—";
-    var m = String(v).match(/CTD\s*([A-Za-z0-9]+)/i);
+    // "CTD 002-CP - SPS-04 – FTN - 50050...." -> "002-CP"  (o hífen/ponto só conta
+    // quando está COLADO no código; " - " com espaços é o separador do lote/ferrovia,
+    // e é aí que a leitura para). Antes o [A-Za-z0-9]+ cortava o sufixo e mostrava "002".
+    var m = String(v).match(/CTD\s*([A-Za-z0-9]+(?:[-.\/][A-Za-z0-9]+)*)/i);
     return m ? m[1] : v;
   }
   // só o primeiro e o segundo nome
@@ -12789,18 +12778,42 @@ function AV_gerarDescSituacao(){
     try{
       _checarIdsDuplicados();
       var secao = _secaoAtual();
-      var ctd = _ctdAtual();
+      // 16/09/2026: o "nome da pasta" (ctd) vem do texto de "Processo administrativo"
+      // (fb_proc_preview). Se ESSE texto muda depois (ex.: o SEI é preenchido), o nome
+      // calculado muda junto — e salvar direto no nome novo criava uma pasta NOVA,
+      // deixando a antiga órfã (cadastro "duplicado" no Painel Geral).
+      // Agora: com um cadastro aberto, só troca de pasta se o texto REALMENTE mudou
+      // nesta sessão (compara o cálculo de agora com o de quando abriu/salvou —
+      // comparar com o nome da PASTA não serve, o servidor troca "/" por "-" ao
+      // sanitizar e daria diferença falsa em todo cadastro com SEI) — e aí manda
+      // `renomear_de`, pro servidor RENOMEAR a pasta em vez de criar outra.
+      var aberto = (window.__CAD_ATUAL && window.__CAD_ATUAL.secao === secao) ? window.__CAD_ATUAL : null;
+      var ctdCalc = _ctdAtual();
+      var ctd = aberto ? aberto.ctd : ctdCalc;
+      var renomearDe = null;
+      if (aberto && ctdCalc && aberto.ctdCalc && ctdCalc !== aberto.ctdCalc){
+        ctd = ctdCalc; renomearDe = aberto.ctd;
+      }
       var pacote = _preservarOrfaos(montarPacote());
       if (window.__comprimirImagensPacote){ if (btn) btn.textContent = "💾 Otimizando imagens…"; pacote = await window.__comprimirImagensPacote(pacote); }
       if (btn) btn.textContent = "💾 Salvando…";
       var processoSei = _rotuloProc();
-      await _api("PUT", "/api/cadastros/" + encodeURIComponent(secao) + "/" + encodeURIComponent(ctd), {
-        versao: VERSAO, processo_sei: processoSei || null, pacote: pacote
+      var resp = await _api("PUT", "/api/cadastros/" + encodeURIComponent(secao) + "/" + encodeURIComponent(ctd), {
+        versao: VERSAO, processo_sei: processoSei || null, pacote: pacote,
+        renomear_de: renomearDe || undefined
       });
-      window.__CAD_ATUAL = { secao: secao, ctd: ctd, pacote: pacote };
+      // o servidor devolve a pasta em que realmente gravou (pode ser a antiga, se o
+      // nome novo já pertencia a outro cadastro) — é ela que vale daqui pra frente.
+      var ctdFinal = (resp && resp.ctd) || ctd;
+      window.__CAD_ATUAL = { secao: secao, ctd: ctdFinal, ctdCalc: ctdCalc, pacote: pacote };
       var extra = (pacote._orfaos && Object.keys(pacote._orfaos).length)
         ? ("\n(" + Object.keys(pacote._orfaos).length + " campo(s) de layout antigo preservados no arquivo.)") : "";
-      alert('Cadastro "' + ctd + '" salvo no servidor da empresa (' + secao + ') com sucesso.' + extra);
+      if (renomearDe && resp && resp.renomeado){
+        extra += '\n\nO cadastro foi RENOMEADO de "' + renomearDe + '" para "' + ctdFinal + '" (é o mesmo cadastro, não foi criado outro).';
+      } else if (renomearDe && resp && resp.motivo_renome === "destino_existe"){
+        extra += '\n\nATENÇÃO: já existe outro cadastro chamado "' + ctd + '". Para não misturar os dois, este continuou salvo em "' + ctdFinal + '".';
+      }
+      alert('Cadastro "' + ctdFinal + '" salvo no servidor da empresa (' + secao + ') com sucesso.' + extra);
     }catch(e){
       alert("Não foi possível salvar no servidor da empresa: " + (e && e.message || e) +
             "\n\nVerifique a conexão (rede local ou VPN) e se o serviço de cadastros está ativo.");
@@ -12858,7 +12871,9 @@ function AV_gerarDescSituacao(){
 
     _checarIdsDuplicados();
     var falhas = restaurarPacote(pacote);
-    window.__CAD_ATUAL = { secao: secao, ctd: ctd, pacote: pacote };
+    // ctdCalc = nome calculado do texto identificador NO MOMENTO da abertura; é com ele
+    // que o save compara pra saber se o usuário mudou o texto (e precisa renomear a pasta).
+    window.__CAD_ATUAL = { secao: secao, ctd: ctd, ctdCalc: _ctdAtual(), pacote: pacote };
 
     var msg = 'Cadastro "' + ctd + '" carregado com sucesso.';
     if (falhas.length) msg = "Cadastro carregado, mas com " + falhas.length + " problema(s) em seções específicas:\n\n" + falhas.join("\n");
@@ -13114,9 +13129,20 @@ function AV_gerarDescSituacao(){
   const arquivos = {};
   IDS.forEach(id => arquivos[id] = []);
 
+  // 16/09/2026 — BUG: o tópico "1.1" vira o id "11", que É O MESMO do Anexo 11 (ART,
+  // em #panel-anx11). Como o ART aparece ANTES no documento, document.getElementById
+  // ("drop-11"/"file-11"/"lista-11"/"st-11"/"ger-11") devolvia os elementos do ART —
+  // ou seja, o 1.1 DUP ficava sem nenhum handler (arrastar/escolher PDF não fazia
+  // nada) e o que fosse anexado no ART respingava na lista do 1.1.
+  // Correção: procurar SEMPRE dentro do painel deste módulo, nunca no documento todo.
+  function _el(id){
+    const raiz = document.getElementById("panel-desp1-doc");
+    return raiz ? raiz.querySelector('[id="' + id + '"]') : document.getElementById(id);
+  }
+
   function bind(id){
-    const input = document.getElementById("file-"+id);
-    const drop  = document.getElementById("drop-"+id);
+    const input = _el("file-"+id);
+    const drop  = _el("drop-"+id);
     if(!input || !drop) return;
     input.addEventListener("change", e => addFiles(id, e.target.files));
     ["dragenter","dragover"].forEach(ev => drop.addEventListener(ev, e=>{e.preventDefault(); drop.classList.add("over");}));
@@ -13125,7 +13151,7 @@ function AV_gerarDescSituacao(){
   }
 
   async function addFiles(id, fileList){
-    const st = document.getElementById("st-"+id);
+    const st = _el("st-"+id);
     if(st){ st.className="status work"; st.textContent="Lendo arquivos..."; }
     for(const f of fileList){
       if(f.type !== "application/pdf" && !f.name.toLowerCase().endsWith(".pdf")) continue;
@@ -13140,12 +13166,12 @@ function AV_gerarDescSituacao(){
       }
     }
     render(id);
-    const inp=document.getElementById("file-"+id); if(inp) inp.value="";
+    const inp=_el("file-"+id); if(inp) inp.value="";
     if(arquivos[id].length && st){ st.className="status"; st.textContent=""; }
   }
 
   function render(id){
-    const ul = document.getElementById("lista-"+id);
+    const ul = _el("lista-"+id);
     if(!ul) return;
     ul.innerHTML="";
     arquivos[id].forEach((a, i)=>{
@@ -13160,7 +13186,7 @@ function AV_gerarDescSituacao(){
         '<button class="rm" title="Remover" onclick="DESP1_remover(\''+id+'\','+i+')">✕</button>';
       ul.appendChild(li);
     });
-    const btn=document.getElementById("ger-"+id);
+    const btn=_el("ger-"+id);
     if(btn) btn.disabled = arquivos[id].length===0;
   }
 
@@ -13173,12 +13199,12 @@ function AV_gerarDescSituacao(){
   function remover(id, i){ arquivos[id].splice(i,1); render(id); }
   function limpar(id){
     arquivos[id]=[]; render(id);
-    const st=document.getElementById("st-"+id); if(st){ st.className="status"; st.textContent=""; }
+    const st=_el("st-"+id); if(st){ st.className="status"; st.textContent=""; }
   }
 
   async function gerar(id){
-    const st = document.getElementById("st-"+id);
-    const btn = document.getElementById("ger-"+id);
+    const st = _el("st-"+id);
+    const btn = _el("ger-"+id);
     if(!arquivos[id] || !arquivos[id].length) return;
     if(btn) btn.disabled=true;
     if(st){ st.className="status work"; st.textContent="Unindo arquivos..."; }
