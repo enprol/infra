@@ -215,109 +215,108 @@ var SIM_NAO = ["Não", "Sim"];
 var FITO     = ["Ótimo", "Bom", "Regular", "Ruim"];
 
 /* --- esquema do formulário --- */
-/* 16/09/2026: numeração dos campos (n:) refeita p/ sequencial 1-70, só dentro
-   deste app — antes misturava a numeração da Ficha de Campo original (1-128,
-   com furos) com a da Ficha de Vistoria (1.1, 2.4.1, 4.6.1...), que ficam
-   registradas no TEXTO do rótulo de cada campo pra quem quiser conferir contra
-   o documento oficial. Campos dentro de listas repetíveis (benfeitorias/
-   pastagem/acessórias) não entram nessa sequência — são dinâmicos (o técnico
-   adiciona quantos quiser), sem posição fixa num formulário impresso. */
+/* 16/09/2026: numeração por CAMPO (o "n:" que virava um badge antes do rótulo)
+   removida — ficava uma mistura de 2 documentos-fonte diferentes (Ficha de
+   Campo 1-128 + Ficha de Vistoria 1.1/2.4.1/4.6.1...) e o usuário preferiu
+   numeração só no nível de TÓPICO (o "1 ·", "2 ·"... já existente no início
+   de cada `t:` de seção, ordem 1-11). O número do documento oficial (quando
+   existe) continua só no TEXTO do rótulo de cada campo, pra conferência. */
 var UF_SIGLAS = ["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"];
 var SECOES = [
   { id:"ident", t:"1 · Identificação e Caracterização do Imóvel", campos:[
-    {k:"processo",      n:1, l:"Nº CTD",                          t:"text", ph:"Ex.: 001"},
-    {k:"lote",          n:2, l:"Nº Lote (SPS-__)",                t:"sel",
+    {k:"processo",      l:"Nº CTD",                          t:"text", ph:"Ex.: 001"},
+    {k:"lote",          l:"Nº Lote (SPS-__)",                t:"sel",
       o:["01","02","03","04","05","06","07","08","09"]},
-    {k:"ferrovia",      n:3, l:"Ferrovia",                        t:"sel", o:["FTN","FICO","FIOL"]},
-    {k:"dataVistoria",  n:4, l:"Data da vistoria",                t:"date"},
+    {k:"ferrovia",      l:"Ferrovia",                        t:"sel", o:["FTN","FICO","FIOL"]},
+    {k:"dataVistoria",  l:"Data da vistoria",                t:"date"},
     // ---- 1.1-1.3 Identificação (espelha a Ficha de Vistoria, igual ao app da assistência social) ----
-    {k:"campos.fb_11_dom",    n:5,  l:"1.1 Documentos dominiais", t:"sel", o:["1 - Sim","2 - Não"]},
-    {k:"campos.fb_11_quais",  n:6,  l:"Quais?", t:"text"},
-    {k:"campos.fb_12_notif",  n:7,  l:"1.2 Notificação Proprietário", t:"sel", o:["1 - Sim","2 - Não"]},
-    {k:"campos.fb_12_quais",  n:8,  l:"Quais?", t:"text"},
-    {k:"campos.fb_nome",      n:9,  l:"1.3 Proprietário(a) — Nome", t:"text"},
-    {k:"campos.fb_rg",        n:10, l:"RG", t:"text"},
-    {k:"campos.fb_cpf",       n:11, l:"CPF", t:"text", m:"cpf", ph:"000.000.000-00"},
-    {k:"campos.fb_estcivil",  n:12, l:"Estado Civil", t:"sel", o:["SOLTEIRO(A)","CASADO(A)","DIVORCIADO(A)","VIÚVO(A)","UNIÃO ESTÁVEL"]},
-    {k:"campos.fb_conjuge",   n:13, l:"Cônjuge", t:"text"},
-    {k:"campos.fb_endereco",  n:14, l:"Endereço", t:"text"},
-    {k:"campos.fb_cep",       n:15, l:"CEP", t:"text", m:"cep", ph:"00000-000"},
-    {k:"campos.fb_municipio", n:16, l:"Município", t:"text"},
-    {k:"campos.fb_uf",        n:17, l:"UF", t:"sel", o:UF_SIGLAS},
-    {k:"campos.fb_telefone",  n:18, l:"Telefone", t:"text", m:"tel", ph:"(00) 00000-0000"},
+    {k:"campos.fb_11_dom",    l:"1.1 Documentos dominiais", t:"sel", o:["1 - Sim","2 - Não"]},
+    {k:"campos.fb_11_quais",  l:"Quais?", t:"text"},
+    {k:"campos.fb_12_notif",  l:"1.2 Notificação Proprietário", t:"sel", o:["1 - Sim","2 - Não"]},
+    {k:"campos.fb_12_quais",  l:"Quais?", t:"text"},
+    {k:"campos.fb_nome",      l:"1.3 Proprietário(a) — Nome", t:"text"},
+    {k:"campos.fb_rg",        l:"RG", t:"text"},
+    {k:"campos.fb_cpf",       l:"CPF", t:"text", m:"cpf", ph:"000.000.000-00"},
+    {k:"campos.fb_estcivil",  l:"Estado Civil", t:"sel", o:["SOLTEIRO(A)","CASADO(A)","DIVORCIADO(A)","VIÚVO(A)","UNIÃO ESTÁVEL"]},
+    {k:"campos.fb_conjuge",   l:"Cônjuge", t:"text"},
+    {k:"campos.fb_endereco",  l:"Endereço", t:"text"},
+    {k:"campos.fb_cep",       l:"CEP", t:"text", m:"cep", ph:"00000-000"},
+    {k:"campos.fb_municipio", l:"Município", t:"text"},
+    {k:"campos.fb_uf",        l:"UF", t:"sel", o:UF_SIGLAS},
+    {k:"campos.fb_telefone",  l:"Telefone", t:"text", m:"tel", ph:"(00) 00000-0000"},
     // ---- 1.4-1.6 Informante e Propriedade ----
-    {k:"campos.fb_inf_nome",  n:19, l:"1.4 Informante — Nome", t:"text"},
-    {k:"campos.fb_inf_dados", n:20, l:"Dados complementares", t:"text"},
-    {k:"campos.fb_prop_id",   n:21, l:"1.5 Propriedade — Identificação", t:"text"},
-    {k:"campos.fb_area_total",n:22, l:"Área Total (ha)", t:"text", m:"area", ph:"0,0000"},
-    {k:"campos.fb_prop_end",  n:23, l:"Endereço", t:"text"},
-    {k:"campos.fb_area_desap",n:24, l:"Área Desapropriada (ha)", t:"text", m:"area", ph:"0,0000"},
-    {k:"campos.fb_prop_mun",  n:25, l:"Município", t:"text"},
-    {k:"campos.fb_prop_uf",   n:26, l:"UF", t:"sel", o:UF_SIGLAS},
-    {k:"campos.fb_matricula", n:27, l:"Matrícula", t:"text"},
-    {k:"campos.fb_cartorio",  n:28, l:"Cartório / Registro", t:"text"},
-    {k:"campos.fb_cib",       n:29, l:"CIB/ITR", t:"text", q:["nax","np","nd"]},
-    {k:"campos.fb_ccir",      n:30, l:"CCIR", t:"text", q:["nax","np","nd"]},
-    {k:"campos.fb_georref",   n:31, l:"Possui georreferenciamento?", t:"sel", o:["Sim","Não"]},
-    {k:"campos.fb_sigef",     n:32, l:"SIGEF", t:"text", q:["nax","np","nd"]},
-    {k:"campos.fb_car",       n:33, l:"CAR", t:"text", q:["nax","np","nd"]},
-    {k:"campos.fb_15_obs",    n:34, l:"1.6 Observações", t:"ta", rows:10},
+    {k:"campos.fb_inf_nome",  l:"1.4 Informante — Nome", t:"text"},
+    {k:"campos.fb_inf_dados", l:"Dados complementares", t:"text"},
+    {k:"campos.fb_prop_id",   l:"1.5 Propriedade — Identificação", t:"text"},
+    {k:"campos.fb_area_total",l:"Área Total (ha)", t:"text", m:"area", ph:"0,0000"},
+    {k:"campos.fb_prop_end",  l:"Endereço", t:"text"},
+    {k:"campos.fb_area_desap",l:"Área Desapropriada (ha)", t:"text", m:"area", ph:"0,0000"},
+    {k:"campos.fb_prop_mun",  l:"Município", t:"text"},
+    {k:"campos.fb_prop_uf",   l:"UF", t:"sel", o:UF_SIGLAS},
+    {k:"campos.fb_matricula", l:"Matrícula", t:"text"},
+    {k:"campos.fb_cartorio",  l:"Cartório / Registro", t:"text"},
+    {k:"campos.fb_cib",       l:"CIB/ITR", t:"text", q:["nax","np","nd"]},
+    {k:"campos.fb_ccir",      l:"CCIR", t:"text", q:["nax","np","nd"]},
+    {k:"campos.fb_georref",   l:"Possui georreferenciamento?", t:"sel", o:["Sim","Não"]},
+    {k:"campos.fb_sigef",     l:"SIGEF", t:"text", q:["nax","np","nd"]},
+    {k:"campos.fb_car",       l:"CAR", t:"text", q:["nax","np","nd"]},
+    {k:"campos.fb_15_obs",    l:"1.6 Observações", t:"ta", rows:10},
     // ---- 2. Caracterização do imóvel ----
-    {k:"campos.fb_21_amb",    n:35, l:"2.1 Ambientais", t:"ta"},
-    {k:"campos.fb_22_loc",    n:36, l:"2.2 Localização", t:"ta"},
-    {k:"campos.fb_23_fis",    n:37, l:"2.3 Características Físicas", t:"ta"},
-    {k:"campos.fb_241_infra", n:38, l:"2.4.1 Rural — Infraestrutura", t:"ta", q:["na","aus"]},
-    {k:"campos.fb_242_terra", n:39, l:"2.4.2 Rural — Características da terra", t:"ta", q:["na","aus"]},
-    {k:"campos.fb_243_hidro", n:40, l:"2.4.3 Rural — Hidrografia / Vazão", t:"ta", q:["na","aus"]},
-    {k:"campos.fb_244_comp",  n:41, l:"2.4.4 Rural — Informações complementares", t:"ta", q:["na","aus"]},
-    {k:"campos.fb_251_infra", n:42, l:"2.5.1 Urbano — Infraestrutura", t:"text", q:["na","aus"]},
-    {k:"campos.fb_252_topo",  n:43, l:"2.5.2 Urbano — Topografia", t:"text", q:["na","aus"]},
-    {k:"campos.fb_253_dist",  n:44, l:"2.5.3 Urbano — Distância do centro", t:"text", q:["na","aus"]},
-    {k:"campos.fb_254_comp",  n:45, l:"2.5.4 Urbano — Informações complementares", t:"text", q:["na","aus"]}
+    {k:"campos.fb_21_amb",    l:"2.1 Ambientais", t:"ta"},
+    {k:"campos.fb_22_loc",    l:"2.2 Localização", t:"ta"},
+    {k:"campos.fb_23_fis",    l:"2.3 Características Físicas", t:"ta"},
+    {k:"campos.fb_241_infra", l:"2.4.1 Rural — Infraestrutura", t:"ta", q:["na","aus"]},
+    {k:"campos.fb_242_terra", l:"2.4.2 Rural — Características da terra", t:"ta", q:["na","aus"]},
+    {k:"campos.fb_243_hidro", l:"2.4.3 Rural — Hidrografia / Vazão", t:"ta", q:["na","aus"]},
+    {k:"campos.fb_244_comp",  l:"2.4.4 Rural — Informações complementares", t:"ta", q:["na","aus"]},
+    {k:"campos.fb_251_infra", l:"2.5.1 Urbano — Infraestrutura", t:"text", q:["na","aus"]},
+    {k:"campos.fb_252_topo",  l:"2.5.2 Urbano — Topografia", t:"text", q:["na","aus"]},
+    {k:"campos.fb_253_dist",  l:"2.5.3 Urbano — Distância do centro", t:"text", q:["na","aus"]},
+    {k:"campos.fb_254_comp",  l:"2.5.4 Urbano — Informações complementares", t:"text", q:["na","aus"]}
   ]},
   { id:"benfdesc", t:"2 · Descrição das Benfeitorias", campos:[
-    {k:"campos.fb_31_nrep", n:46, l:"3.1 Não reprodutivas", t:"ta", q:["aus"]},
-    {k:"campos.fb_311",     n:47, l:"3.1.1 Não reprodutivas da faixa não edificante", t:"text", q:["aus"]},
-    {k:"campos.fb_312",     n:48, l:"3.1.2 Informações complementares", t:"ta", q:["aus"]},
-    {k:"campos.fb_32_rep",  n:49, l:"3.2 Reprodutivas", t:"ta", q:["aus"]},
-    {k:"campos.fb_321",     n:50, l:"3.2.1 Reprodutivas da faixa não edificante", t:"text", q:["aus"]},
-    {k:"campos.fb_322",     n:51, l:"3.2.2 Informações complementares", t:"ta", q:["aus"]}
+    {k:"campos.fb_31_nrep", l:"3.1 Não reprodutivas", t:"ta", q:["aus"]},
+    {k:"campos.fb_311",     l:"3.1.1 Não reprodutivas da faixa não edificante", t:"text", q:["aus"]},
+    {k:"campos.fb_312",     l:"3.1.2 Informações complementares", t:"ta", q:["aus"]},
+    {k:"campos.fb_32_rep",  l:"3.2 Reprodutivas", t:"ta", q:["aus"]},
+    {k:"campos.fb_321",     l:"3.2.1 Reprodutivas da faixa não edificante", t:"text", q:["aus"]},
+    {k:"campos.fb_322",     l:"3.2.2 Informações complementares", t:"ta", q:["aus"]}
   ]},
   { id:"socioeco", t:"3 · Caracterização Socioeconômica (4.6-4.8)", campos:[
-    {k:"chk461", n:52, l:"4.6.1 Tipo", t:"chks",
+    {k:"chk461", l:"4.6.1 Tipo", t:"chks",
       ids:["fb_461_tipo_0","fb_461_tipo_1","fb_461_tipo_2","fb_461_tipo_3","fb_461_tipo_4"],
       o:["Terreno","Comércio","Casa residencial","Casa abandonada","Outros"]},
-    {k:"campos.fb_461_outros", n:53, l:"Outros (especificar)", t:"text"},
-    {k:"chk462", n:54, l:"4.6.2 Ocupação", t:"chks", ids:["fb_462_ocup_0","fb_462_ocup_1","fb_462_ocup_2"],
+    {k:"campos.fb_461_outros", l:"Outros (especificar)", t:"text"},
+    {k:"chk462", l:"4.6.2 Ocupação", t:"chks", ids:["fb_462_ocup_0","fb_462_ocup_1","fb_462_ocup_2"],
       o:["Própria","Alugada","Cedida"]},
-    {k:"chk463", n:55, l:"4.6.3 Famílias na moradia", t:"chks", ids:["fb_463_fam_0","fb_463_fam_1","fb_463_fam_2"],
+    {k:"chk463", l:"4.6.3 Famílias na moradia", t:"chks", ids:["fb_463_fam_0","fb_463_fam_1","fb_463_fam_2"],
       o:["Uma família","Duas famílias","Mais de duas famílias"]},
-    {k:"chk464", n:56, l:"4.6.4 Estado de conservação", t:"chks", ids:["fb_464_cons_0","fb_464_cons_1","fb_464_cons_2"],
+    {k:"chk464", l:"4.6.4 Estado de conservação", t:"chks", ids:["fb_464_cons_0","fb_464_cons_1","fb_464_cons_2"],
       o:["Bom","Regular","Ruim"]},
-    {k:"chk465", n:57, l:"4.6.5 Construção", t:"chks", ids:["fb_465_constr_0","fb_465_constr_1","fb_465_constr_2"],
+    {k:"chk465", l:"4.6.5 Construção", t:"chks", ids:["fb_465_constr_0","fb_465_constr_1","fb_465_constr_2"],
       o:["Alvenaria","Madeira","Misto"]},
-    {k:"campos.fb_466_comodos", n:58, l:"4.6.6 Número de cômodos", t:"text"},
-    {k:"chk467", n:59, l:"4.6.7 Situação do imóvel", t:"chks",
+    {k:"campos.fb_466_comodos", l:"4.6.6 Número de cômodos", t:"text"},
+    {k:"chk467", l:"4.6.7 Situação do imóvel", t:"chks",
       ids:["fb_467_sit_0","fb_467_sit_1","fb_467_sit_2","fb_467_sit_3","fb_467_sit_4"],
       o:["Com escritura","Sem escritura","Comprovante de compra e venda","Posseiro","Título de posse do INCRA"]},
-    {k:"campos.fb_46_obs", n:60, l:"Observações (4.6)", t:"ta"},
-    {k:"chk471", n:61, l:"4.7.1 Água", t:"chks",
+    {k:"campos.fb_46_obs", l:"Observações (4.6)", t:"ta"},
+    {k:"chk471", l:"4.7.1 Água", t:"chks",
       ids:["fb_471_agua_0","fb_471_agua_1","fb_471_agua_2","fb_471_agua_3","fb_471_agua_4"],
       o:["Rede pública","Poço","Fonte","Cedido por vizinho","Rio"]},
-    {k:"chk472", n:62, l:"4.7.2 Energia", t:"chks", ids:["fb_472_energia_0","fb_472_energia_1"],
+    {k:"chk472", l:"4.7.2 Energia", t:"chks", ids:["fb_472_energia_0","fb_472_energia_1"],
       o:["Com padrão","Sem padrão"]},
-    {k:"chk473", n:63, l:"4.7.3 Dejetos", t:"chks", ids:["fb_473_dejetos_0","fb_473_dejetos_1","fb_473_dejetos_2"],
+    {k:"chk473", l:"4.7.3 Dejetos", t:"chks", ids:["fb_473_dejetos_0","fb_473_dejetos_1","fb_473_dejetos_2"],
       o:["Rede de esgoto","Fossa séptica","Vala a céu aberto"]},
-    {k:"chk474", n:64, l:"4.7.4 Lixo", t:"chks",
+    {k:"chk474", l:"4.7.4 Lixo", t:"chks",
       ids:["fb_474_lixo_0","fb_474_lixo_1","fb_474_lixo_2","fb_474_lixo_3"],
       o:["Coleta pública","Queimado","Enterrado","Jogado em terreno baldio"]},
-    {k:"chk481", n:65, l:"4.8 Autorreconhecimento", t:"chks", ids:["fb_481_0","fb_481_1","fb_481_2","fb_481_3"],
+    {k:"chk481", l:"4.8 Autorreconhecimento", t:"chks", ids:["fb_481_0","fb_481_1","fb_481_2","fb_481_3"],
       o:["Quilombola – Liderança","Indígena – Liderança","Comunidade tradicional – Liderança","Outros"]}
   ]},
   { id:"fotosger", t:"4 · Fotos gerais e acesso", galerias:[
-    {k:"fotosImovel", n:66, l:"Fotos do imóvel (gerais)"},
-    {k:"fotosAcesso", n:67, l:"Fotos do acesso"},
-    {k:"fotosAreaDesap", n:68, l:"Fotos da área desapropriada"}
+    {k:"fotosImovel", l:"Fotos do imóvel (gerais)"},
+    {k:"fotosAcesso", l:"Fotos do acesso"},
+    {k:"fotosAreaDesap", l:"Fotos da área desapropriada"}
   ]},
   { id:"repro", t:"5 · Benfeitorias reprodutivas", rep:{
     lista:"reprodutivas", rot:"Item", campos:[
@@ -336,7 +335,7 @@ var SECOES = [
       {k:"falhasFormacao", l:"Falhas na formação", t:"sel", o:SIM_NAO}
     ]}},
   { id:"obs1", t:"7 · Observações (reprodutiva e pastagem)", campos:[
-    {k:"obsReprodutivas", n:69, l:"Observações", t:"ta"}
+    {k:"obsReprodutivas", l:"Observações", t:"ta"}
   ]},
   { id:"naorepro", t:"8 · Benfeitorias não reprodutivas", rep:{
     lista:"naoReprodutivas", rot:"Item", campos:[
@@ -355,7 +354,7 @@ var SECOES = [
       {k:"vidaUtil",      l:"Vida útil (anos)", t:"text"}
     ]}},
   { id:"obs2", t:"10 · Observações (não reprodutiva e acessórias)", campos:[
-    {k:"obsNaoReprodutivas", n:70, l:"Observações", t:"ta"}
+    {k:"obsNaoReprodutivas", l:"Observações", t:"ta"}
   ]},
   { id:"fim", t:"11 · Responsável e assinatura", fim:true }
 ];
