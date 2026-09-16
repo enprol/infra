@@ -258,7 +258,8 @@ var SECOES = [
   ]},
   { id:"fotosger", t:"3 · Fotos gerais e acesso", galerias:[
     {k:"fotosImovel", n:"23-25", l:"Fotos do imóvel (gerais)"},
-    {k:"fotosAcesso", n:"26-27", l:"Fotos do acesso"}
+    {k:"fotosAcesso", n:"26-27", l:"Fotos do acesso"},
+    {k:"fotosAreaDesap", n:"",l:"Fotos da área desapropriada"}
   ]},
   { id:"repro", t:"4 · Benfeitorias reprodutivas", rep:{
     lista:"reprodutivas", rot:"Item", n:"28-62", campos:[
@@ -309,7 +310,7 @@ function novaFicha(){
   return {
     id: "f" + Date.now() + Math.random().toString(36).slice(2,6),
     criadaEm: new Date().toISOString(),
-    geral: {}, fotosImovel: [], fotosAcesso: [],
+    geral: {}, fotosImovel: [], fotosAcesso: [], fotosAreaDesap: [],
     reprodutivas: [], pastagem: [], naoReprodutivas: [], acessorias: [],
     tecnico: { nome:"", documento:"" }, assinatura: "",
     gps: null
@@ -584,7 +585,7 @@ function render(){
 function revisaoHTML(){
   var f = atual(), g = f.geral || {};
   function n(lista){ return (f[lista]||[]).length; }
-  var fotos = (f.fotosImovel||[]).length + (f.fotosAcesso||[]).length;
+  var fotos = (f.fotosImovel||[]).length + (f.fotosAcesso||[]).length + (f.fotosAreaDesap||[]).length;
   ["reprodutivas","pastagem","naoReprodutivas","acessorias"].forEach(function(l){
     (f[l]||[]).forEach(function(it){ fotos += (it.fotos||[]).length; });
   });
@@ -873,7 +874,7 @@ function pacote(f){
     _geradoEm: new Date().toISOString(),
     id: f.id, criadaEm: f.criadaEm,
     geral: f.geral || {},
-    fotosImovel: f.fotosImovel || [], fotosAcesso: f.fotosAcesso || [],
+    fotosImovel: f.fotosImovel || [], fotosAcesso: f.fotosAcesso || [], fotosAreaDesap: f.fotosAreaDesap || [],
     reprodutivas: f.reprodutivas || [], pastagem: f.pastagem || [],
     naoReprodutivas: f.naoReprodutivas || [], acessorias: f.acessorias || [],
     tecnico: f.tecnico || {}, assinatura: f.assinatura || "", gps: f.gps || null
@@ -984,7 +985,7 @@ function impArquivo(input){
       var o = JSON.parse(fr.result);
       if(!o || o._app !== "ENPROL-FichaCampo") throw new Error("Não é uma ficha de campo.");
       var nf = novaFicha();
-      ["geral","fotosImovel","fotosAcesso","reprodutivas","pastagem","naoReprodutivas","acessorias","tecnico","assinatura","gps"]
+      ["geral","fotosImovel","fotosAcesso","fotosAreaDesap","reprodutivas","pastagem","naoReprodutivas","acessorias","tecnico","assinatura","gps"]
         .forEach(function(k){ if(o[k] != null) nf[k] = o[k]; });
       ST.fichas.push(nf); ST.atual = nf.id; salvar(true);
       document.getElementById("dlg").close(); render(); window.scrollTo(0,0);
@@ -996,7 +997,7 @@ function impArquivo(input){
 function apagarFicha(){
   var f = atual(); if(!f) return;
   var nome = (f.geral && f.geral.processo) ? ("CTD " + f.geral.processo) : "esta ficha (sem nº)";
-  var fotos = (f.fotosImovel||[]).length + (f.fotosAcesso||[]).length;
+  var fotos = (f.fotosImovel||[]).length + (f.fotosAcesso||[]).length + (f.fotosAreaDesap||[]).length;
   ["reprodutivas","pastagem","naoReprodutivas","acessorias"].forEach(function(l){
     (f[l]||[]).forEach(function(it){ fotos += (it.fotos||[]).length; });
   });
