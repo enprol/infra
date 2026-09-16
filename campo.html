@@ -95,6 +95,7 @@ select{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns=
   font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
 }
 .rapidos button:active{background:#dbe9f7;}
+.rapidos button.on{background:#1F6FC0;border-color:#1F6FC0;color:#fff;}
 .assin{border:1px solid #c3ccd6;border-radius:10px;background:#fff;padding:12px;text-align:center;}
 .assin img{max-width:100%;max-height:190px;display:block;margin:0 auto 10px;}
 .assin .vazio{color:#8494a4;font-size:13px;padding:26px 0 22px;}
@@ -221,16 +222,18 @@ var SECOES = [
       o:["01","02","03","04","05","06","07","08","09"]},
     {k:"ferrovia",      n:"",l:"Ferrovia",                        t:"sel", o:["FTN","FICO","FIOL"]},
     {k:"dataVistoria",  n:3, l:"Data da vistoria",                t:"date"},
-    {k:"propTipo",      n:4, l:"O ocupante é",                    t:"radio", o:["Proprietário","Posseiro"]},
+    {k:"propTipo",      n:4, l:"O ocupante é",                    t:"radio", o:["Proprietário","Posseiro"], q:["np"]},
     {k:"proprietarios", n:"",l:"Nome(s)",                         t:"ta", ph:"Nome completo. Se houver mais de um, um por linha."},
-    {k:"locacaoKm",     n:5, l:"Locação (km)",                    t:"text", ph:"Ex.: 05 km de Custódia-PE"},
-    {k:"municipio",     n:6, l:"Município",                       t:"text", ph:"Custódia-PE"},
-    {k:"localidade",    n:7, l:"Localidade",                      t:"text", ph:"Sítio Fazendinha"}
+    {k:"telefone",      n:"",l:"Telefone",                        t:"text", m:"tel", ph:"(00) 00000-0000", q:["np"]},
+    {k:"endereco",      n:"",l:"Endereço",                        t:"text", q:["np"]},
+    {k:"locacaoKm",     n:5, l:"Locação (km)",                    t:"text", ph:"Ex.: 05 km de Custódia-PE", q:["np"]},
+    {k:"municipio",     n:6, l:"Município",                       t:"text", ph:"Custódia-PE", q:["np"]},
+    {k:"localidade",    n:7, l:"Localidade",                      t:"text", ph:"Sítio Fazendinha", q:["np"]}
   ]},
   { id:"carac", t:"2 · Caracterização do imóvel", campos:[
-    {k:"descricaoImovel", n:8,  l:"Descrição do imóvel", t:"ta"},
+    {k:"descricaoImovel", n:8,  l:"Descrição do imóvel", t:"ta", q:["np"]},
     {k:"atividadePrincipal", n:9, l:"Atividade principal", t:"sel",
-      o:["Agrícola","Pecuária","Mista","Residencial","Extrativista","Sem atividade"]},
+      o:["Agrícola","Pecuária","Mista","Residencial","Extrativista","Sem atividade"], q:["np"]},
     {k:"hidrografia", n:10, l:"Hidrografia", t:"multi",
       o:["Açude","Barreiro","Cacimba","Córrego","Lagoa","Nascente","Poço artesiano","Riacho","Rio","Tanque","Não há"]},
     {k:"vazao", n:11, l:"Vazão", t:"text"},
@@ -444,7 +447,7 @@ function campoHTML(cam, c){
     h += '<div class="rapidos">';
     c.q.forEach(function(cod){
       var t = Q_TXT[cod]; if(!t) return;
-      h += '<button type="button" data-qcam="'+esc(cam)+'" data-qval="'+esc(t.v)+'">'+esc(t.r)+'</button>';
+      h += '<button type="button" class="'+(v===t.v?"on":"")+'" data-qcam="'+esc(cam)+'" data-qval="'+esc(t.v)+'">'+esc(t.r)+'</button>';
     });
     h += '</div>';
   }
@@ -465,9 +468,8 @@ document.addEventListener("click", function(ev){
   if(!b) return;
   var cam = b.dataset.qcam, val = b.dataset.qval;
   setv(atual(), cam, val);
-  var campo = b.parentNode.parentNode.querySelector("input,textarea,select");
-  if(campo) campo.value = val;
   salvar(true);
+  render();     // reflete o valor mesmo em radio/select, que não têm input pra atualizar direto
 });
 
 function galeriaHTML(cam, titulo, num){
