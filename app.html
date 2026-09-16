@@ -16776,28 +16776,40 @@ window.DRL_gerarPDF=async function(opts){
   /* --- rótulos dos itens 1 a 128, na ordem da ficha oficial --- */
   /* Campos gerais agrupados por tópico. O 3º elemento marca o campo como
      "largo": ocupa a linha inteira (texto corrido); os demais entram em 2 colunas. */
+  // 16/09/2026: "1 \u00b7 Identifica\u00e7\u00e3o e Caracteriza\u00e7\u00e3o do Im\u00f3vel" do campo.html passou a
+  // coletar com os MESMOS ids da Ficha de Vistoria (campos.fb_*, igual ao app da
+  // assist\u00eancia social) em vez de campos pr\u00f3prios \u2014 por isso a maioria das chaves
+  // abaixo usa o prefixo "campos." (resolvido por campoValorGeral). "processo"/"lote"/
+  // "dataVistoria" continuam campos pr\u00f3prios do campo.html (n\u00e3o t\u00eam equivalente na
+  // Ficha de Vistoria, s\u00e3o s\u00f3 identifica\u00e7\u00e3o da ficha em si).
   var GRUPOS = [
     { t:"Identifica\u00e7\u00e3o", campos:[
       ["N\u00ba do processo","processo"], ["Lote","lote"], ["Data da vistoria","dataVistoria"],
-      ["Propriet\u00e1rio(s)/Posseiro(s)","proprietarios", true],
-      ["Telefone","telefone"], ["Endere\u00e7o","endereco", true], ["Loca\u00e7\u00e3o (km)","locacaoKm"],
-      ["Munic\u00edpio","municipio"], ["Localidade","localidade"]
+      ["Propriet\u00e1rio(a) \u2014 Nome","campos.fb_nome", true],
+      ["CPF","campos.fb_cpf"], ["Telefone","campos.fb_telefone"], ["Endere\u00e7o","campos.fb_endereco", true],
+      ["Munic\u00edpio","campos.fb_municipio"], ["UF","campos.fb_uf"],
+      ["Matr\u00edcula","campos.fb_matricula"], ["\u00c1rea total (ha)","campos.fb_area_total"],
+      ["\u00c1rea desapropriada (ha)","campos.fb_area_desap"]
     ]},
     { t:"Caracteriza\u00e7\u00e3o do im\u00f3vel", campos:[
-      ["Descri\u00e7\u00e3o do im\u00f3vel","descricaoImovel", true],
-      ["Atividade principal","atividadePrincipal"], ["Hidrografia","hidrografia"],
-      ["Vaz\u00e3o","vazao"], ["Restri\u00e7\u00f5es ambientais","restricoesAmbientais"],
-      ["Risco de inunda\u00e7\u00e3o","riscoInundacao"], ["Eros\u00f5es","erosoes"],
-      ["Usos predominantes","usosPredominantes"], ["Infraestrutura dispon\u00edvel","infraestrutura"],
-      ["Servi\u00e7os p\u00fablicos e comunit\u00e1rios","servicosPublicos"],
-      ["Tipo de estrada","tipoEstrada"], ["Condi\u00e7\u00f5es de acesso","condicoesAcesso"],
-      ["Import\u00e2ncia das dist\u00e2ncias","importanciaDistancias"],
-      ["Praticabilidade durante o ano","praticabilidade"],
-      ["Informa\u00e7\u00f5es complementares","informacoesComplementares", true]
+      ["2.1 Ambientais","campos.fb_21_amb", true], ["2.2 Localiza\u00e7\u00e3o","campos.fb_22_loc", true],
+      ["2.3 Caracter\u00edsticas F\u00edsicas","campos.fb_23_fis", true]
+    ]},
+    { t:"Descri\u00e7\u00e3o das Benfeitorias", campos:[
+      ["3.1 N\u00e3o reprodutivas","campos.fb_31_nrep", true], ["3.2 Reprodutivas","campos.fb_32_rep", true]
     ]}
   ];
   var GERAIS = [];   // lista plana, para quem so precisa percorrer tudo
   GRUPOS.forEach(function(g){ g.campos.forEach(function(c){ GERAIS.push(c); }); });
+  // resolve o valor de uma chave de GRUPOS: "dataVistoria" (especial, formata data),
+  // "campos.fb_xxx" (novos campos que espelham a Ficha de Vistoria, em f.campos) ou
+  // uma chave simples (campos pr\u00f3prios do campo.html, em f.geral).
+  function campoValorGeral(f, g, key){
+    if(key === "dataVistoria") return dataBR(g[key]);
+    var m = /^campos\.(.+)$/.exec(key);
+    if(m) return val((f.campos||{})[m[1]]);
+    return val(g[key]);
+  }
 
   var CAMPOS_REP = {
     reprodutivas:   [["Benfeitoria (reprodutiva)","benfeitoria"],["Quantidade (reprodutiva)","quantidade"],
@@ -16901,7 +16913,7 @@ window.DRL_gerarPDF=async function(opts){
     GRUPOS.forEach(function(gr){
       h += '<div class="vcard"><div class="vsub">'+esc(gr.t)+'</div><div class="campo-cols">';
       gr.campos.forEach(function(it){
-        var v = it[1] === "dataVistoria" ? dataBR(g[it[1]]) : val(g[it[1]]);
+        var v = campoValorGeral(f, g, it[1]);
         var largo = it[2] || String(v).length > 90;
         h += '<div class="kvc'+(largo?" largo":"")+'"><span class="kl">'+esc(it[0])+'</span>'
            + '<span class="kvv">'+esc(v)+'</span></div>';
@@ -16961,40 +16973,35 @@ window.DRL_gerarPDF=async function(opts){
   window.CAMPO_render = CAMPO_render;
 
   /* ---------------- envio para a Ficha de Vistoria ---------------- */
-  function resumoBenf(arr, campos){
-    return (arr||[]).map(function(it){
-      var nome = (it.benfeitoria || it.variedade || "").trim();
-      if(!nome) return "";
-      var q = (it.quantidade || "").trim();
-      var u = (it.unidade || "").trim();
-      return nome + (q ? (" ("+q+(u?(" "+u):"")+")") : "");
-    }).filter(function(s){ return s; }).join("; ");
-  }
   window.CAMPO_paraFicha = function(){
     if(!CAMPO){ alert("Importe uma ficha de campo primeiro."); return; }
     var g = CAMPO.geral || {}, fotos = todasFotos(CAMPO);
-    var mun = (g.municipio||"").trim(), uf = "";
-    var mm = mun.match(/^(.*?)[\s\-\/]+([A-Z]{2})$/);
-    if(mm){ mun = mm[1].trim(); uf = mm[2]; }
 
     var plano = [
       ["fb_proc_ctd",  "Nº CTD",                                 (g.processo||"").trim()],
       ["fb_proc_lote", "Nº Lote (SPS-__)",                       (g.lote||"").trim()],
       ["fb_proc_ferrovia", "Ferrovia",                           (g.ferrovia||"").trim()],
-      ["fb_nome",      (g.propTipo || "Proprietário / Espólio"), (g.proprietarios||"").trim()],
-      ["fb_telefone",  "Telefone",                               (g.telefone||"").trim()],
-      ["fb_endereco",  "Endereço",                                (g.endereco||"").trim()],
-      ["fb_municipio", "Município",                              mun],
-      ["fb_uf",        "UF",                                     uf],
-      ["fb_data",      "Data",                                   dataBR(g.dataVistoria)],
-      ["fb_321",       "3.2.1 Benfeitorias reprodutivas",         resumoBenf(CAMPO.reprodutivas)],
-      ["fb_311",       "3.1.1 Benfeitorias não reprodutivas",     resumoBenf((CAMPO.naoReprodutivas||[]).concat(CAMPO.acessorias||[]))],
-      ["fb_15_obs",    "1.5 Observações",                        (g.informacoesComplementares||"").trim()]
+      ["fb_data",      "Data",                                   dataBR(g.dataVistoria)]
     ].filter(function(p){ return p[2]; });
+
+    // 16/09/2026: campos.fb_* — Identificação/Informante/Caracterização do imóvel/
+    // Descrição das benfeitorias/Situação da moradia/Infraestrutura, coletados
+    // direto com os MESMOS ids da Ficha de Vistoria (igual ao app da assistência
+    // social) — cópia genérica, sem lista curada. Texto vazio não apaga o que já
+    // estiver preenchido na Ficha; {__chk} (dos grupos de caixas 4.6-4.8) sempre
+    // aplica (falso é uma resposta válida, não "campo vazio").
+    var camposDiretos = CAMPO.campos || {};
+    var idsDiretos = Object.keys(camposDiretos);
+    var contDiretos = idsDiretos.filter(function(id){
+      var v = camposDiretos[id];
+      if(v && typeof v === "object" && "__chk" in v) return true;
+      return v != null && String(v).trim() !== "";
+    }).length;
 
     var existentes = plano.filter(function(p){ var e = document.getElementById(p[0]); return e && (e.value||"").trim(); });
     var msg = "Vou preencher na Ficha de Vistoria:\n\n"
             + plano.map(function(p){ return "• " + p[1] + ": " + (p[2].length>60 ? p[2].slice(0,60)+"…" : p[2]); }).join("\n")
+            + (contDiretos ? "\n• " + contDiretos + " campo(s) de Identificação/Caracterização do imóvel/Benfeitorias/Situação da moradia" : "")
             + "\n\n• " + fotos.length + " fotografia(s) → 5.3 Fotografias do imóvel"
             + "\n• " + fotos.length + " fotografia(s) → Relatório Fotográfico (DESP 2) — substitui as que já estiverem lá, viram as mesmas do relatório de campo";
     if(existentes.length) msg += "\n\nATENÇÃO: " + existentes.length + " campo(s) já preenchido(s) serão substituídos.";
@@ -17005,6 +17012,20 @@ window.DRL_gerarPDF=async function(opts){
       var e = document.getElementById(p[0]); if(!e) return;
       e.value = p[2];
       try{ if(e.hasAttribute("data-rtf") && window.RTF) window.RTF.render(p[0]); }catch(err){}
+      e.dispatchEvent(new Event("input", {bubbles:true}));
+      e.dispatchEvent(new Event("change", {bubbles:true}));
+    });
+    idsDiretos.forEach(function(id){
+      var e = document.getElementById(id); if(!e) return;
+      var v = camposDiretos[id];
+      if(v && typeof v === "object" && "__chk" in v){
+        if(e.type === "checkbox") e.checked = !!v.__chk; else return;
+      } else {
+        var texto = (v==null?"":String(v)).trim();
+        if(!texto) return;   // não apaga o que já estiver preenchido na Ficha
+        e.value = texto;
+      }
+      try{ if(e.hasAttribute("data-rtf") && window.RTF) window.RTF.render(id); }catch(err){}
       e.dispatchEvent(new Event("input", {bubbles:true}));
       e.dispatchEvent(new Event("change", {bubbles:true}));
     });
@@ -17231,7 +17252,7 @@ window.DRL_gerarPDF=async function(opts){
     GRUPOS.forEach(function(gr){
       titulo(gr.t);
       itens(gr.campos.map(function(cp){
-        return [cp[0], cp[1] === "dataVistoria" ? dataBR(g[cp[1]]) : g[cp[1]], cp[2]];
+        return [cp[0], campoValorGeral(f, g, cp[1]), cp[2]];
       }));
     });
 

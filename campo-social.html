@@ -1396,18 +1396,33 @@ function carregar(){
   if(typeof ST.passo !== "number") ST.passo = 0;
 }
 var _tSalvar = null;
+function _persistirAgora(quieto){
+  _tSalvar = null;
+  try{
+    localStorage.setItem(CHAVE, JSON.stringify(ST));
+    if(!quieto) flash("salvo no celular");
+  }catch(e){
+    flash("⚠ não consegui salvar — envie a ficha agora");
+  }
+  progresso();
+}
 function salvar(quieto){
   clearTimeout(_tSalvar);
-  _tSalvar = setTimeout(function(){
-    try{
-      localStorage.setItem(CHAVE, JSON.stringify(ST));
-      if(!quieto) flash("salvo no celular");
-    }catch(e){
-      flash("⚠ não consegui salvar — envie a ficha agora");
-    }
-    progresso();
-  }, 250);
+  _tSalvar = setTimeout(function(){ _persistirAgora(quieto); }, 250);
 }
+// grava JÁ, sem o atraso de 250ms do debounce acima — usado depois de mexer em
+// foto/assinatura (caro demais pra arriscar perder) e sempre que a página é
+// OCULTADA (troca de app, abrir a câmera/galeria nativa pra escolher a foto —
+// é exatamente esse o momento em que dava pra perder uma foto recém-tirada; o
+// beforeunload sozinho não é confiável pra isso no celular).
+function salvarJa(quieto){
+  clearTimeout(_tSalvar);
+  _persistirAgora(quieto);
+}
+document.addEventListener("visibilitychange", function(){
+  if(document.visibilityState === "hidden") salvarJa(true);
+});
+window.addEventListener("pagehide", function(){ salvarJa(true); });
 function flash(txt){
   var el = document.getElementById("salvo");
   el.textContent = txt; el.classList.add("on");
@@ -1959,18 +1974,18 @@ function addFoto(input, cam){
     .then(function(srcs){
       srcs.forEach(function(s){ if(s) arr.push({ src:s, leg:"", em:new Date().toISOString() }); });
       input.value = "";
-      salvar(); render();
+      salvarJa(); render();
     });
 }
 function rmFoto(cam, i){
   if(!confirm("Remover esta foto?")) return;
-  var arr = getv(atual(), cam); arr.splice(i,1); salvar(true); render();
+  var arr = getv(atual(), cam); arr.splice(i,1); salvarJa(true); render();
 }
 function legFoto(cam, i){
   var arr = getv(atual(), cam);
   var v = prompt("Legenda da foto (sai no Relatório Fotográfico):", arr[i].leg || "");
   if(v === null) return;
-  arr[i].leg = v.trim(); salvar(true); render();
+  arr[i].leg = v.trim(); salvarJa(true); render();
 }
 
 /* ---------------- assinatura (imagem) ---------------- */
@@ -1995,7 +2010,7 @@ function addAssinatura(input){
   flash("processando assinatura…");
   comprimir(file, 900, 0.85).then(function(src){
     atual().assinatura = src; input.value = "";
-    salvar(); render();
+    salvarJa(); render();
   }).catch(function(){ alert("Não consegui ler essa imagem."); });
 }
 
@@ -2020,7 +2035,7 @@ function montarSig(){
 }
 function limparSig(){
   if(!confirm("Remover a assinatura?")) return;
-  atual().assinatura = ""; salvar(true); render();
+  atual().assinatura = ""; salvarJa(true); render();
 }
 
 /* ---------------- GPS ---------------- */
@@ -2238,9 +2253,7 @@ if("serviceWorker" in navigator){
     navigator.serviceWorker.register("campo-social-sw.js").catch(function(e){ console.warn("SW:", e); });
   });
 }
-window.addEventListener("beforeunload", function(e){
-  try{ localStorage.setItem(CHAVE, JSON.stringify(ST)); }catch(err){}
-});
+window.addEventListener("beforeunload", function(e){ salvarJa(true); });
 
 /* ---------------- início ---------------- */
 carregar(); net(); render();
