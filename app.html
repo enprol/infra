@@ -14064,10 +14064,9 @@ function AV_gerarDescSituacao(){
     { const _al=pdf.splitTextToSize(String(apl||"").toUpperCase(), Math.max(RX-(mL+wa),20)); _aln=Math.max(1,_al.length); for(let i=0;i<_al.length;i++) pdf.text(_al[i], mL+wa, y+i*LH); }
     y+=_aln*LH+0.6;
     if(dtv){ F("normal"); C(BLK); pdf.text("Data: ", mL, y); let wd=pdf.getTextWidth("Data: "); F("bold"); pdf.text(dtv, mL+wd, y); y+=LH; }
-    y+=1.5;
 
     // ===================== 1 - IDENTIFICAÇÃO =====================
-    banda("1 - IDENTIFICAÇÃO");
+    banda("1 - IDENTIFICAÇÃO", -5);
     // 1.1 / 1.2 (navy) com valor SIM/NÃO + Quais?
     (function(){ garantir(LH+1); F("bold"); pdf.setFontSize(FS); C(NAVY); const l="1.1 Documentos dominiais (SIM/NÃO):"; pdf.text(l, mL, y); let x=mL+pdf.getTextWidth(l)+3;
       C(BLK); F("bold"); pdf.text(sn("fb_11_dom"), x, y);
@@ -14101,6 +14100,11 @@ function AV_gerarDescSituacao(){
     rv("Área de desapropriação (ha):", gv("fb_area_desap"), {navy2:true, valTab:49});
     rv("Matrícula:", gv("fb_matricula"), {navy2:true, valTab:49});
     rv("Cartório:", gv("fb_cartorio"), {navy2:true, valTab:49});
+    rv("CIB/ITR:", gv("fb_cib"), {navy2:true, valTab:49});
+    rv("CCIR:", gv("fb_ccir"), {navy2:true, valTab:49});
+    rv("Possui georreferenciamento?:", gv("fb_georref"), {navy2:true, valTab:49});
+    rv("SIGEF:", gv("fb_sigef"), {navy2:true, valTab:49});
+    rv("CAR:", gv("fb_car"), {navy2:true, valTab:49});
     y+=2;
     // 1.5 Observações
     h2("1.5 Observações:");
@@ -14192,9 +14196,9 @@ function AV_gerarDescSituacao(){
     h2("4.9 Aproveitamento da terra:", 4);
     paraReg("4.9.1  Uso das terras:", {navy:true});
     checks(["Seca","Chuva","Plantio","Criação de animais"], ["fb_491_uso_0","fb_491_uso_1","fb_491_uso_2","fb_491_uso_3"]);
-    (function(){ if(chk("fb_491_uso_2")){ garantir(LH+1); F("normal"); pdf.setFontSize(FS); C(BLK); pdf.text("Caracterizar (Plantio):", mL, y); y+=LH; para(gv("fb_491_plantio")); } })();
-    (function(){ if(chk("fb_491_uso_3")){ garantir(LH+1); F("normal"); pdf.setFontSize(FS); C(BLK); pdf.text("Caracterizar (Criação de animais):", mL, y); y+=LH; para(gv("fb_491_criacao")); } })();
-    (function(){ const v=gv("fb_491_desc"); if(v){ paraReg("Descrição do uso das terras:"); para(v); } })();
+    (function(){ if(chk("fb_491_uso_2")){ garantir(LH+1); F("normal"); pdf.setFontSize(FS); C(NAVY); pdf.text("Caracterizar (Plantio):", mL, y); C(BLK); y+=LH; para(gv("fb_491_plantio")); } })();
+    (function(){ if(chk("fb_491_uso_3")){ garantir(LH+1); F("normal"); pdf.setFontSize(FS); C(NAVY); pdf.text("Caracterizar (Criação de animais):", mL, y); C(BLK); y+=LH; para(gv("fb_491_criacao")); } })();
+    (function(){ const v=gv("fb_491_desc"); if(v){ paraReg("Descrição do uso das terras:", {navy:true}); para(v); } })();
     paraReg("4.9.2  O que é produzido na propriedade:", {navy:true});
     checks(["Extrativismo","Agricultura","Pecuária"], ["fb_492_prod_0","fb_492_prod_1","fb_492_prod_2"]);
     paraReg("4.9.3 Quais impactos concebidos pela comunidade sobre a construção da ferrovia, e qual a sua opinião?", {navy:true});
