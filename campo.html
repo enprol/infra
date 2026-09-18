@@ -232,8 +232,8 @@ var SECOES = [
     {k:"geral.papelPessoa",  l:"Proprietário(a) ou Posseiro(a)", t:"sel", o:["Proprietário(a)","Posseiro(a)"]},
     {k:"campos.fb_nome",     l:"Nome", t:"text"},
     {k:"campos.fb_rg",       l:"RG", t:"text"},
-    {k:"campos.fb_cpf",      l:"CPF", t:"text", m:"cpf", ph:"000.000.000-00", q:["np"]},
-    {k:"campos.fb_telefone", l:"Telefone", t:"text", m:"tel", ph:"(00) 00000-0000", q:["np"]},
+    {k:"campos.fb_cpf",      l:"CPF", t:"text", m:"cpf", ph:"000.000.000-00"},
+    {k:"campos.fb_telefone", l:"Telefone", t:"text", m:"tel", ph:"(00) 00000-0000"},
     {k:"campos.fb_15_obs",   l:"Observação", t:"ta", rows:6},
     {k:"geral.possuiSigef",  l:"Possui SIGEF?", t:"sel", o:["Sim","Não"]},
     {k:"geral.possuiCar",    l:"Possui CAR?", t:"sel", o:["Sim","Não"]}
@@ -248,8 +248,9 @@ var SECOES = [
     {k:"campos.fb_243_hidro", l:"2.4.3 Hidrografia / Vazão (m³ ou L/s)", t:"ta"}
   ]},
   { id:"benf", t:"3 · Descrição das Benfeitorias", campos:[
-    {k:"campos.fb_311", l:"3.1.1 Benfeitorias não reprodutivas da faixa não edificante", t:"snquais"},
+    {k:"campos.fb_311", l:"Possui benfeitorias não reprodutivas na faixa de domínio?", t:"snquais"},
     {k:"geral.cercaPossui",       l:"Possui cerca?", t:"sel", o:["Sim","Não"]},
+    {k:"geral.cercaPertenceInfra",l:"É pertencente à INFRA?", t:"sel", o:["Sim","Não"]},
     {k:"geral.cercaFios",         l:"Fios", t:"sel", o:["0","1","2","3","4","5","6","7","8","9","10"]},
     {k:"geral.cercaEspacamento",  l:"Espaçamento entre estacas (m)", t:"sel",
       o:["0,5","1","1,5","2","2,5","3","3,5","4","4,5","5","5,5","6","6,5","7","7,5","8","8,5","9","9,5","10"]},
@@ -260,7 +261,7 @@ var SECOES = [
     {k:"fotosAcesso", l:"Fotos do acesso"}
   ]},
   { id:"fotobenftotal", t:"5 · Fotos das benfeitorias (imóvel)", galerias:[
-    {k:"fotosBenfTotal", l:"Benfeitorias reprodutivas e não reprodutivas do imóvel (totalidade do imóvel)"}
+    {k:"fotosBenfTotal", l:"Benfeitorias reprodutivas e não reprodutivas (imóvel como um todo)", max:8}
   ]},
   { id:"fotobenffaixa", t:"6 · Fotos das benfeitorias (faixa de domínio)", galerias:[
     {k:"fotosBenfFaixa", l:"Benfeitorias na área da faixa de domínio"}
@@ -565,9 +566,10 @@ function regenerarCerca(){
   setv(f, "geral.cercaDesc", texto);
 }
 
-function galeriaHTML(cam, titulo, num){
+function galeriaHTML(cam, titulo, num, max){
   var f = atual(), arr = getv(f, cam) || [];
-  var h = '<div class="f"><label>'+(num?'<span class="num">'+num+'</span>':'')+esc(titulo)+' <span style="color:#8494a4;font-weight:600">('+arr.length+')</span></label>';
+  var contagem = max ? (arr.length + '/' + max) : String(arr.length);
+  var h = '<div class="f"><label>'+(num?'<span class="num">'+num+'</span>':'')+esc(titulo)+' <span style="color:#8494a4;font-weight:600">('+contagem+')</span></label>';
   if(arr.length){
     h += '<div class="fotos">';
     arr.forEach(function(p, i){
@@ -576,9 +578,13 @@ function galeriaHTML(cam, titulo, num){
     });
     h += '</div>';
   }
-  h += '<div class="cam">'
-     + '<label>🖼️ Galeria<input type="file" accept="image/*" multiple onchange="addFoto(this,\''+cam+'\')"></label>'
-     + '</div></div>';
+  if(max && arr.length >= max){
+    h += '<div style="font-size:12px;color:#a5651a;margin-top:6px;">Limite de '+max+' fotos atingido.</div></div>';
+  } else {
+    h += '<div class="cam">'
+       + '<label>🖼️ Galeria<input type="file" accept="image/*" multiple'+(max?' data-max="'+max+'"':'')+' onchange="addFoto(this,\''+cam+'\')"></label>'
+       + '</div></div>';
+  }
   return h;
 }
 
@@ -658,7 +664,7 @@ function render(){
     h = '<section class="sec" id="sec-'+sec.id+'">'
       + '<h2><span>'+esc(sec.t)+'</span>'+cnt+'</h2><div class="body">';
     if(sec.campos)   sec.campos.forEach(function(c){ h += campoHTML(_prefCampo(sec,c.k)+c.k, c); });
-    if(sec.galerias) sec.galerias.forEach(function(g){ h += galeriaHTML(g.k, g.l, g.n); });
+    if(sec.galerias) sec.galerias.forEach(function(g){ h += galeriaHTML(g.k, g.l, g.n, g.max); });
     if(sec.rep)      h += repHTML(sec);
     if(sec.fim)      h += fimHTML();
     h += '</div></section>';
@@ -846,8 +852,17 @@ function comprimir(file, maxLado, q){
 function addFoto(input, cam){
   var files = Array.prototype.slice.call(input.files || []);
   if(!files.length) return;
-  flash("processando " + files.length + " foto(s)…");
   var f = atual(), arr = getv(f, cam); if(!Array.isArray(arr)){ arr = []; setv(f, cam, arr); }
+  var max = input.dataset.max ? parseInt(input.dataset.max, 10) : null;
+  if(max){
+    var espaco = Math.max(0, max - arr.length);
+    if(files.length > espaco){
+      flash("limite de " + max + " fotos — só " + espaco + " adicionada(s)");
+      files = files.slice(0, espaco);
+    }
+  }
+  if(!files.length){ input.value = ""; return; }
+  flash("processando " + files.length + " foto(s)…");
   Promise.all(files.map(function(file){ return comprimir(file, 1280, 0.7).catch(function(){ return null; }); }))
     .then(function(srcs){
       srcs.forEach(function(s){ if(s) arr.push({ src:s, leg:"", em:new Date().toISOString() }); });
