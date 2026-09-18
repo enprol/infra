@@ -2763,7 +2763,7 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
       <span class="pg-status" id="pgStatus"></span>
     </div>
 
-    <div class="pg-tabela-wrap">
+    <div class="pg-tabela-wrap" id="pgTabelaWrap">
       <table class="pg-tabela">
         <thead>
           <tr>
@@ -2813,16 +2813,24 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
 
 <style>
   /* ===== Painel Geral ===== */
+  html.modo-painel{ height:100%; overflow:hidden; }
+  body.modo-painel{ height:100%; overflow:hidden; display:flex; flex-direction:column; }
+  body.modo-painel > .app-header{ flex:0 0 auto; }
   body.modo-painel .app-shell, body.modo-painel .app-header .top-tabs,
   body.modo-painel .app-header .btn-cad, body.modo-painel .app-header .top-dl,
   body.modo-painel .fab-unir { display:none !important; }
   body:not(.modo-painel) #painelGeral{ display:none; }
-  body.modo-painel #painelGeral{ display:block; }
+  body.modo-painel #painelGeral{ display:flex; flex-direction:column; flex:1 1 auto; min-height:0; overflow:hidden; }
   #btnPainelGeral{ display:none; }
   body:not(.modo-painel).logado #btnPainelGeral{ display:inline-flex; }
 
   #painelGeral{ background:#eef2f6; min-height:calc(100vh - 64px); }
-  .pg-wrap{ max-width:1280px; margin:0 auto; padding:28px 24px 60px; }
+  .pg-wrap{ max-width:1280px; margin:0 auto; padding:28px 24px 60px; box-sizing:border-box; }
+  body.modo-painel .pg-wrap{
+    display:flex; flex-direction:column; height:100%; min-height:0;
+    width:100%; padding:20px 24px 16px;
+  }
+  body.modo-painel .pg-topo, body.modo-painel .pg-acoes{ flex:0 0 auto; }
   .pg-topo{ display:flex; align-items:flex-end; justify-content:space-between; gap:20px; flex-wrap:wrap; margin-bottom:18px; }
   .pg-topo h1{ margin:0 0 4px; font-size:24px; color:#0a4d7c; letter-spacing:.2px; }
   .pg-sub{ margin:0; font-size:13.5px; color:#5a6b7c; }
@@ -2843,8 +2851,9 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
   .pg-status{ font-size:12px; color:#8a97a6; margin-left:4px; }
   .pg-tabela-wrap{
     background:#fff; border:1px solid #d3dce5; border-radius:12px; overflow:auto;
-    box-shadow:0 8px 22px rgba(30,50,80,.06);
+    box-shadow:0 8px 22px rgba(30,50,80,.06); position:relative;
   }
+  body.modo-painel .pg-tabela-wrap{ flex:1 1 auto; min-height:0; }
   .pg-tabela{ width:100%; border-collapse:collapse; font-size:13px; white-space:nowrap; }
   .pg-tabela th{
     text-align:left; font-size:11px; font-weight:700; color:#5a6b7c; text-transform:uppercase;
@@ -2888,6 +2897,21 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
     font-weight:700; color:#0a4d7c; white-space:nowrap;
   }
   .pg-tabela tfoot td.pg-num{ text-align:right; font-variant-numeric:tabular-nums; }
+
+  /* ---- colunas fixas (congeladas): Lote e Cadastro ---- */
+  .pg-tabela th:nth-child(1), .pg-tabela tbody td:nth-child(1):not([colspan]), .pg-tabela tfoot td:nth-child(1),
+  .pg-tabela th:nth-child(2), .pg-tabela tbody td:nth-child(2):not([colspan]), .pg-tabela tfoot td:nth-child(2){
+    position:sticky; left:0;
+  }
+  .pg-tabela th:nth-child(2), .pg-tabela tbody td:nth-child(2):not([colspan]), .pg-tabela tfoot td:nth-child(2){
+    left:var(--pg-col1-w, 90px);
+    border-right:2px solid #e4ebf2;
+  }
+  .pg-tabela thead th:nth-child(1), .pg-tabela thead th:nth-child(2){ z-index:3; }
+  .pg-tabela tbody td:nth-child(1):not([colspan]), .pg-tabela tbody td:nth-child(2):not([colspan]),
+  .pg-tabela tfoot td:nth-child(1), .pg-tabela tfoot td:nth-child(2){ z-index:2; }
+  .pg-tabela tbody td:nth-child(1):not([colspan]), .pg-tabela tbody td:nth-child(2):not([colspan]){ background:#fff; }
+  .pg-tabela tbody tr:hover td:nth-child(1):not([colspan]), .pg-tabela tbody tr:hover td:nth-child(2):not([colspan]){ background:#f1f6fb; }
 
   /* ---- status de finalização (DESP 1/2/3) — termômetro por documento ---- */
   .pg-tabela th.pg-status-th{ text-align:center; }
@@ -11796,8 +11820,15 @@ function AV_gerarDescSituacao(){
   window.__PG_aplicarModo = function(){
     var modo = null;
     try{ modo = sessionStorage.getItem("enprol_modo"); }catch(e){}
-    if(modo === "cadastro"){ document.body.classList.remove("modo-painel"); }
-    else { document.body.classList.add("modo-painel"); PG_atualizar(true); }
+    if(modo === "cadastro"){
+      document.body.classList.remove("modo-painel");
+      document.documentElement.classList.remove("modo-painel");
+    } else {
+      document.body.classList.add("modo-painel");
+      document.documentElement.classList.add("modo-painel");
+      PG_atualizar(true);
+      requestAnimationFrame(PG_ajustarLayoutTabela);
+    }
   };
 
   function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){ return ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]; }); }
@@ -11823,6 +11854,22 @@ function AV_gerarDescSituacao(){
     if(!v) return "—";
     var partes = String(v).trim().split(/\s+/).filter(Boolean);
     return partes.slice(0, 2).join(" ") || "—";
+  }
+
+  // mede a largura real da 1ª coluna (Lote) para posicionar a 2ª coluna
+  // fixa (Cadastro) exatamente depois dela, com sticky left
+  var _pgResizeOk = false;
+  function PG_ajustarLayoutTabela(){
+    var tabela = document.querySelector('#painelGeral .pg-tabela');
+    if(!tabela) return;
+    var ths = tabela.querySelectorAll('thead tr:first-child th');
+    if(ths.length >= 2){
+      tabela.style.setProperty('--pg-col1-w', ths[0].getBoundingClientRect().width + 'px');
+    }
+    if(!_pgResizeOk){
+      _pgResizeOk = true;
+      window.addEventListener('resize', PG_ajustarLayoutTabela);
+    }
   }
 
   var _pgItens = [];
@@ -12020,6 +12067,7 @@ function AV_gerarDescSituacao(){
         + '<td class="pg-num">' + money(soma("valor_total")) + '</td>'
         + '</tr>';
     }
+    requestAnimationFrame(PG_ajustarLayoutTabela);
   }
   window.PG_renderizar = PG_renderizar;
 
@@ -12067,6 +12115,7 @@ function AV_gerarDescSituacao(){
   window.PG_utilitarios = function(){
     try{ sessionStorage.setItem("enprol_modo", "cadastro"); }catch(e){}
     document.body.classList.remove("modo-painel");
+    document.documentElement.classList.remove("modo-painel");
     var btn = document.querySelector('.top-tab[data-secao="utilitarios"]');
     if(btn && typeof window.TOP_abrir === "function") window.TOP_abrir(btn);
   };
