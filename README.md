@@ -1,32 +1,58 @@
 # INFRA · Utilitários (ENPROL) — app HTML
 
-Aplicativo single-file para elaboração de anexos, laudos e cadastros de projetos
-de infraestrutura. Todo o app está em `index.html` (HTML + CSS + JS embutidos).
+Aplicativo single-file para cadastros, laudos e anexos de processos de
+desapropriação. Todo o app está em `app.html` (HTML + CSS + JS embutidos).
 
-## Armazenamento — servidor da empresa
+> Este repositório é **só o canal de publicação**. O código é editado em
+> `Pagina Infra\app-html\index.html`, na máquina da ENPROL.
 
-Os cadastros (DESP 1, 2 e 3) são gravados no **servidor offline da empresa**
-(`\\10.0.0.251\sala tecnica\INFRA I\#Banco_de_dados_CADASTROS`), em subpastas por
-seção. Não usa mais Supabase nem qualquer serviço de nuvem.
+## Como o app é usado
 
-O `index.html` fala com a API local (`/api/cadastros`) servida pelo
-`../servidor-cadastros/server.js`, que roda em cada máquina em
-`http://localhost:3000/` e é quem entrega a própria app (mesma origem — o Chrome
-não deixa a página `https://` do GitHub falar direto com `http://localhost`).
+O app **não** é aberto por este endereço. Em cada máquina ele abre por
+`http://localhost:3000/`, servido pelo programinha local
+(`servidor-cadastros/server.js`), que o baixa daqui e o entrega na mesma origem
+da API. O Chrome 152+ bloqueia página `https://` falando com `http://localhost`
+(*Local Network Access*), e o app chama a API por caminho relativo — aberto
+direto pelo GitHub Pages ele carrega mas **não salva**.
 
-- `CAD_salvarNuvem()` / `CAD_abrirNuvem()` → `PUT` / `GET` em `/api/cadastros/:secao/:ctd`
-- imagens vão embutidas em base64 no próprio `cadastro.json`
+Os cadastros são gravados no servidor offline da empresa
+(`\\10.0.0.251\sala tecnica\INFRA I\#Banco_de_dados_CADASTROS`), em subpastas
+por seção, com as imagens como arquivos separados em `imagens/`. Não usa
+Supabase nem nenhum serviço de nuvem.
+
+- `CAD_salvarNuvem()` / `CAD_abrirNuvem()` → `PUT` / `GET` em
+  `/api/cadastros/:secao/:ctd`
 - login validado só no cliente (`sessionStorage`)
 
-## Rodar / publicar
+## Arquivos
 
-- Dia a dia: abrir pelo atalho **"Cadastros ENPROL"** (`http://localhost:3000/`).
-- Publicar mudança de layout: `../servidor-cadastros/gerar-app.bat` copia este
-  `index.html` para `servidor-cadastros/app.html`; suba esse `app.html` no
-  repositório GitHub `enprol/infra`. As máquinas baixam a versão nova sozinhas.
-- Ver `../servidor-cadastros/README.md` para o fluxo completo e a instalação.
+| Arquivo | O que é |
+|---|---|
+| `app.html` | o app inteiro (~9 MB). É o que o servidor local baixa |
+| `index.html` | página de entrada (~2,5 KB): botão para `localhost:3000` + botões das fichas de campo + instruções de instalar o PWA. **Não é o app** — quase nunca muda |
+| `campo.html` | PWA de coleta em campo (técnico) |
+| `campo-social.html` | PWA da assistência social |
+| `campo*.webmanifest`, `campo*-sw.js` | manifesto e service worker dos PWAs |
 
-## Migração do Supabase antigo
+## Publicar uma mudança
 
-`../servidor-cadastros/migrar-supabase.js` — ferramenta de uso único para trazer
-os cadastros que ainda estavam no Supabase. Não faz parte da app.
+Rodar `Pagina Infra\servidor-cadastros\publicar.bat` — ele gera o app, copia
+as cópias para todos os lugares (inclusive para este clone, **só como
+`app.html`**) e imprime os comandos de git no final. Depois é só rodá-los de
+dentro de `Pagina Infra\github-enprol-infra\`:
+
+```
+git add -A
+git commit -m "..."
+git push origin main
+```
+
+**Nunca sobrescrever o `index.html` com o app.** Ele é a porta de entrada de
+quem trabalha em campo; se virar o app de 9 MB, o pessoal perde o acesso aos
+PWAs e recebe um app que não salva (fora do localhost).
+
+As máquinas pegam a versão nova sozinhas em até 5 minutos (o servidor local
+revalida a cada 5 min e guarda uma cópia para funcionar offline).
+
+Ver `Pagina Infra\servidor-cadastros\README.md` para o fluxo completo e a
+instalação.
