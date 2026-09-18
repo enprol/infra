@@ -211,152 +211,61 @@ dialog::backdrop{background:rgba(15,35,60,.55);}
    arquivo .json que a aba "Ficha de Campo" do site importa.
    ========================================================================= */
 
-var SIM_NAO = ["Não", "Sim"];
-var FITO     = ["Ótimo", "Bom", "Regular", "Ruim"];
-
 /* --- esquema do formulário --- */
-/* 16/09/2026: numeração por CAMPO (o "n:" que virava um badge antes do rótulo)
-   removida — ficava uma mistura de 2 documentos-fonte diferentes (Ficha de
-   Campo 1-128 + Ficha de Vistoria 1.1/2.4.1/4.6.1...) e o usuário preferiu
-   numeração só no nível de TÓPICO (o "1 ·", "2 ·"... já existente no início
-   de cada `t:` de seção, ordem 1-11). O número do documento oficial (quando
-   existe) continua só no TEXTO do rótulo de cada campo, pra conferência. */
+/* 17/09/2026: reforma completa — a app tinha ficado grande demais (11 abas,
+   ~90 campos, 4 listas repetíveis) depois da rodada 46, que transplantou
+   TODOS os campos oficiais da Ficha de Vistoria pra cá. Reduzido pro
+   essencial pra uso real em campo (pedido do usuário): só os itens abaixo,
+   as 6 abas de benfeitorias detalhadas viraram Sim/Não + "quais", e a
+   Caracterização Socioeconômica (4.6-4.8) saiu (já é levantada pela
+   Assistência Social em campo-social.html). Numeração só no nível de
+   TÓPICO ("1 ·", "2 ·"...); o número do documento oficial, quando existe,
+   fica só no TEXTO do rótulo de cada campo. */
 var UF_SIGLAS = ["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"];
 var SECOES = [
-  { id:"ident", t:"1 · Identificação e Caracterização do Imóvel", campos:[
+  { id:"ident", t:"1 · Identificação", campos:[
     {k:"processo",      l:"Nº CTD",                          t:"text", ph:"Ex.: 001"},
     {k:"lote",          l:"Nº Lote (SPS-__)",                t:"sel",
       o:["01","02","03","04","05","06","07","08","09"]},
     {k:"ferrovia",      l:"Ferrovia",                        t:"sel", o:["FTN","FICO","FIOL"]},
-    {k:"dataVistoria",  l:"Data da vistoria",                t:"date"},
-    // ---- 1.1-1.3 Identificação (espelha a Ficha de Vistoria, igual ao app da assistência social) ----
-    {k:"campos.fb_11_dom",    l:"1.1 Documentos dominiais", t:"sel", o:["1 - Sim","2 - Não"]},
-    {k:"campos.fb_11_quais",  l:"Quais?", t:"text"},
-    {k:"campos.fb_12_notif",  l:"1.2 Notificação Proprietário", t:"sel", o:["1 - Sim","2 - Não"]},
-    {k:"campos.fb_12_quais",  l:"Quais?", t:"text"},
-    {k:"campos.fb_nome",      l:"1.3 Proprietário(a) — Nome", t:"text"},
-    {k:"campos.fb_rg",        l:"RG", t:"text"},
-    {k:"campos.fb_cpf",       l:"CPF", t:"text", m:"cpf", ph:"000.000.000-00"},
-    {k:"campos.fb_estcivil",  l:"Estado Civil", t:"sel", o:["SOLTEIRO(A)","CASADO(A)","DIVORCIADO(A)","VIÚVO(A)","UNIÃO ESTÁVEL"]},
-    {k:"campos.fb_conjuge",   l:"Cônjuge", t:"text"},
-    {k:"campos.fb_endereco",  l:"Endereço", t:"text"},
-    {k:"campos.fb_cep",       l:"CEP", t:"text", m:"cep", ph:"00000-000"},
-    {k:"campos.fb_municipio", l:"Município", t:"text"},
-    {k:"campos.fb_uf",        l:"UF", t:"sel", o:UF_SIGLAS},
-    {k:"campos.fb_telefone",  l:"Telefone", t:"text", m:"tel", ph:"(00) 00000-0000"},
-    // ---- 1.4-1.6 Informante e Propriedade ----
-    {k:"campos.fb_inf_nome",  l:"1.4 Informante — Nome", t:"text"},
-    {k:"campos.fb_inf_dados", l:"Dados complementares", t:"text"},
-    {k:"campos.fb_prop_id",   l:"1.5 Propriedade — Identificação", t:"text"},
-    {k:"campos.fb_area_total",l:"Área Total (ha)", t:"text", m:"area", ph:"0,0000"},
-    {k:"campos.fb_prop_end",  l:"Endereço", t:"text"},
-    {k:"campos.fb_area_desap",l:"Área Desapropriada (ha)", t:"text", m:"area", ph:"0,0000"},
-    {k:"campos.fb_prop_mun",  l:"Município", t:"text"},
-    {k:"campos.fb_prop_uf",   l:"UF", t:"sel", o:UF_SIGLAS},
-    {k:"campos.fb_matricula", l:"Matrícula", t:"text"},
-    {k:"campos.fb_cartorio",  l:"Cartório / Registro", t:"text"},
-    {k:"campos.fb_cib",       l:"CIB/ITR", t:"text", q:["nax","np","nd"]},
-    {k:"campos.fb_ccir",      l:"CCIR", t:"text", q:["nax","np","nd"]},
-    {k:"campos.fb_georref",   l:"Possui georreferenciamento?", t:"sel", o:["Sim","Não"]},
-    {k:"campos.fb_sigef",     l:"SIGEF", t:"text", q:["nax","np","nd"]},
-    {k:"campos.fb_car",       l:"CAR", t:"text", q:["nax","np","nd"]},
-    {k:"campos.fb_15_obs",    l:"1.6 Observações", t:"ta", rows:10},
-    // ---- 2. Caracterização do imóvel ----
-    {k:"campos.fb_21_amb",    l:"2.1 Ambientais", t:"ta"},
-    {k:"campos.fb_22_loc",    l:"2.2 Localização", t:"ta"},
-    {k:"campos.fb_23_fis",    l:"2.3 Características Físicas", t:"ta"},
-    {k:"campos.fb_241_infra", l:"2.4.1 Rural — Infraestrutura", t:"ta", q:["na","aus"]},
-    {k:"campos.fb_242_terra", l:"2.4.2 Rural — Características da terra", t:"ta", q:["na","aus"]},
-    {k:"campos.fb_243_hidro", l:"2.4.3 Rural — Hidrografia / Vazão", t:"ta", q:["na","aus"]},
-    {k:"campos.fb_244_comp",  l:"2.4.4 Rural — Informações complementares", t:"ta", q:["na","aus"]},
-    {k:"campos.fb_251_infra", l:"2.5.1 Urbano — Infraestrutura", t:"text", q:["na","aus"]},
-    {k:"campos.fb_252_topo",  l:"2.5.2 Urbano — Topografia", t:"text", q:["na","aus"]},
-    {k:"campos.fb_253_dist",  l:"2.5.3 Urbano — Distância do centro", t:"text", q:["na","aus"]},
-    {k:"campos.fb_254_comp",  l:"2.5.4 Urbano — Informações complementares", t:"text", q:["na","aus"]}
+    {k:"dataVistoria",  l:"Data da visita a campo",          t:"date"},
+    {k:"geral.papelPessoa",  l:"Proprietário(a) ou Posseiro(a)", t:"sel", o:["Proprietário(a)","Posseiro(a)"]},
+    {k:"campos.fb_nome",     l:"Nome", t:"text"},
+    {k:"campos.fb_rg",       l:"RG", t:"text"},
+    {k:"campos.fb_cpf",      l:"CPF", t:"text", m:"cpf", ph:"000.000.000-00", q:["np"]},
+    {k:"campos.fb_telefone", l:"Telefone", t:"text", m:"tel", ph:"(00) 00000-0000", q:["np"]},
+    {k:"campos.fb_15_obs",   l:"Observação", t:"ta", rows:6},
+    {k:"geral.possuiSigef",  l:"Possui SIGEF?", t:"sel", o:["Sim","Não"]},
+    {k:"geral.possuiCar",    l:"Possui CAR?", t:"sel", o:["Sim","Não"]}
   ]},
-  { id:"benfdesc", t:"2 · Descrição das Benfeitorias", campos:[
-    {k:"campos.fb_31_nrep", l:"3.1 Não reprodutivas", t:"ta", q:["aus"]},
-    {k:"campos.fb_311",     l:"3.1.1 Não reprodutivas da faixa não edificante", t:"text", q:["aus"]},
-    {k:"campos.fb_312",     l:"3.1.2 Informações complementares", t:"ta", q:["aus"]},
-    {k:"campos.fb_32_rep",  l:"3.2 Reprodutivas", t:"ta", q:["aus"]},
-    {k:"campos.fb_321",     l:"3.2.1 Reprodutivas da faixa não edificante", t:"text", q:["aus"]},
-    {k:"campos.fb_322",     l:"3.2.2 Informações complementares", t:"ta", q:["aus"]}
+  { id:"carac", t:"2 · Caracterização do Imóvel", campos:[
+    {k:"campos.fb_23_fis",    l:"2.3 Características Físicas", t:"ta",
+      ph:"Ex.: Terreno com vegetação rasteira, pequena criação de animais e casa sede."},
+    {k:"campos.fb_241_infra", l:"2.4.1 Infraestrutura", t:"chkfrase",
+      o: ["Água","Energia","Esgoto","Iluminação pública","Pavimentação/calçamento","Telefonia/sinal de celular","Coleta de lixo"],
+      fr:["rede de abastecimento de água","energia","rede de esgoto","iluminação pública","pavimentação","sinal de telefonia","coleta de lixo"]},
+    {k:"campos.fb_242_terra", l:"2.4.2 Características da terra", t:"ta"},
+    {k:"campos.fb_243_hidro", l:"2.4.3 Hidrografia / Vazão (m³ ou L/s)", t:"ta"}
   ]},
-  { id:"socioeco", t:"3 · Caracterização Socioeconômica (4.6-4.8)", campos:[
-    {k:"chk461", l:"4.6.1 Tipo", t:"chks",
-      ids:["fb_461_tipo_0","fb_461_tipo_1","fb_461_tipo_2","fb_461_tipo_3","fb_461_tipo_4"],
-      o:["Terreno","Comércio","Casa residencial","Casa abandonada","Outros"]},
-    {k:"campos.fb_461_outros", l:"Outros (especificar)", t:"text"},
-    {k:"chk462", l:"4.6.2 Ocupação", t:"chks", ids:["fb_462_ocup_0","fb_462_ocup_1","fb_462_ocup_2"],
-      o:["Própria","Alugada","Cedida"]},
-    {k:"chk463", l:"4.6.3 Famílias na moradia", t:"chks", ids:["fb_463_fam_0","fb_463_fam_1","fb_463_fam_2"],
-      o:["Uma família","Duas famílias","Mais de duas famílias"]},
-    {k:"chk464", l:"4.6.4 Estado de conservação", t:"chks", ids:["fb_464_cons_0","fb_464_cons_1","fb_464_cons_2"],
-      o:["Bom","Regular","Ruim"]},
-    {k:"chk465", l:"4.6.5 Construção", t:"chks", ids:["fb_465_constr_0","fb_465_constr_1","fb_465_constr_2"],
-      o:["Alvenaria","Madeira","Misto"]},
-    {k:"campos.fb_466_comodos", l:"4.6.6 Número de cômodos", t:"text"},
-    {k:"chk467", l:"4.6.7 Situação do imóvel", t:"chks",
-      ids:["fb_467_sit_0","fb_467_sit_1","fb_467_sit_2","fb_467_sit_3","fb_467_sit_4"],
-      o:["Com escritura","Sem escritura","Comprovante de compra e venda","Posseiro","Título de posse do INCRA"]},
-    {k:"campos.fb_46_obs", l:"Observações (4.6)", t:"ta"},
-    {k:"chk471", l:"4.7.1 Água", t:"chks",
-      ids:["fb_471_agua_0","fb_471_agua_1","fb_471_agua_2","fb_471_agua_3","fb_471_agua_4"],
-      o:["Rede pública","Poço","Fonte","Cedido por vizinho","Rio"]},
-    {k:"chk472", l:"4.7.2 Energia", t:"chks", ids:["fb_472_energia_0","fb_472_energia_1"],
-      o:["Com padrão","Sem padrão"]},
-    {k:"chk473", l:"4.7.3 Dejetos", t:"chks", ids:["fb_473_dejetos_0","fb_473_dejetos_1","fb_473_dejetos_2"],
-      o:["Rede de esgoto","Fossa séptica","Vala a céu aberto"]},
-    {k:"chk474", l:"4.7.4 Lixo", t:"chks",
-      ids:["fb_474_lixo_0","fb_474_lixo_1","fb_474_lixo_2","fb_474_lixo_3"],
-      o:["Coleta pública","Queimado","Enterrado","Jogado em terreno baldio"]},
-    {k:"chk481", l:"4.8 Autorreconhecimento", t:"chks", ids:["fb_481_0","fb_481_1","fb_481_2","fb_481_3"],
-      o:["Quilombola – Liderança","Indígena – Liderança","Comunidade tradicional – Liderança","Outros"]}
+  { id:"benf", t:"3 · Descrição das Benfeitorias", campos:[
+    {k:"campos.fb_311", l:"3.1.1 Benfeitorias não reprodutivas da faixa não edificante", t:"snquais"},
+    {k:"geral.cercaPossui",       l:"Possui cerca?", t:"sel", o:["Sim","Não"]},
+    {k:"geral.cercaFios",         l:"Fios", t:"sel", o:["0","1","2","3","4","5","6","7","8","9","10"]},
+    {k:"geral.cercaEspacamento",  l:"Espaçamento entre estacas (m)", t:"sel",
+      o:["0,5","1","1,5","2","2,5","3","3,5","4","4,5","5","5,5","6","6,5","7","7,5","8","8,5","9","9,5","10"]},
+    {k:"geral.cercaDesc",         l:"Descrição da cerca", t:"ta", rows:2},
+    {k:"campos.fb_321", l:"3.2.1 Benfeitorias reprodutivas da faixa não edificante", t:"snquais"}
   ]},
-  { id:"fotosger", t:"4 · Fotos gerais e acesso", galerias:[
-    {k:"fotosImovel", l:"Fotos do imóvel (gerais)"},
-    {k:"fotosAcesso", l:"Fotos do acesso"},
-    {k:"fotosAreaDesap", l:"Fotos da área desapropriada"}
+  { id:"fotoacesso", t:"4 · Fotos do acesso", galerias:[
+    {k:"fotosAcesso", l:"Fotos do acesso"}
   ]},
-  { id:"repro", t:"5 · Benfeitorias reprodutivas", rep:{
-    lista:"reprodutivas", rot:"Item", campos:[
-      {k:"benfeitoria",    l:"Benfeitoria (reprodutiva)", t:"text", ph:"Ex.: Imbuzeiro"},
-      {k:"quantidade",     l:"Quantidade", t:"text"},
-      {k:"fitossanitario", l:"Estado fitossanitário", t:"sel", o:FITO},
-      {k:"idade",          l:"Idade (anos)", t:"text"},
-      {k:"produtividade",  l:"Condição de produtividade", t:"sel", o:["Produtiva","Improdutiva","Em formação"]}
-    ]}},
-  { id:"past", t:"6 · Pastagem", rep:{
-    lista:"pastagem", rot:"Pastagem", campos:[
-      {k:"variedade",      l:"Variedade", t:"ta"},
-      {k:"ervasInvasoras", l:"Ervas invasoras", t:"sel", o:SIM_NAO},
-      {k:"fitossanitario", l:"Fitossanitário", t:"sel", o:FITO},
-      {k:"erosao",         l:"Erosão", t:"sel", o:SIM_NAO},
-      {k:"falhasFormacao", l:"Falhas na formação", t:"sel", o:SIM_NAO}
-    ]}},
-  { id:"obs1", t:"7 · Observações (reprodutiva e pastagem)", campos:[
-    {k:"obsReprodutivas", l:"Observações", t:"ta"}
+  { id:"fotobenftotal", t:"5 · Fotos das benfeitorias (imóvel)", galerias:[
+    {k:"fotosBenfTotal", l:"Benfeitorias reprodutivas e não reprodutivas do imóvel (totalidade do imóvel)"}
   ]},
-  { id:"naorepro", t:"8 · Benfeitorias não reprodutivas", rep:{
-    lista:"naoReprodutivas", rot:"Item", campos:[
-      {k:"benfeitoria",   l:"Benfeitoria (não reprodutiva)", t:"text", ph:"Ex.: Casa / depósito"},
-      {k:"quantidade",    l:"Quantidade", t:"text"},
-      {k:"unidade",       l:"Unidade", t:"ta", ph:"Ex.: Casa · m² · metros lineares"},
-      {k:"idadeAparente", l:"Idade aparente (anos)", t:"text"},
-      {k:"vidaUtil",      l:"Vida útil (anos)", t:"text"}
-    ]}},
-  { id:"acess", t:"9 · Benfeitorias acessórias", rep:{
-    lista:"acessorias", rot:"Acessória", campos:[
-      {k:"benfeitoria",   l:"Benfeitoria", t:"text"},
-      {k:"quantidade",    l:"Quantidade", t:"text"},
-      {k:"unidade",       l:"Unidade", t:"ta"},
-      {k:"idadeAparente", l:"Idade aparente (anos)", t:"text"},
-      {k:"vidaUtil",      l:"Vida útil (anos)", t:"text"}
-    ]}},
-  { id:"obs2", t:"10 · Observações (não reprodutiva e acessórias)", campos:[
-    {k:"obsNaoReprodutivas", l:"Observações", t:"ta"}
+  { id:"fotobenffaixa", t:"6 · Fotos das benfeitorias (faixa de domínio)", galerias:[
+    {k:"fotosBenfFaixa", l:"Benfeitorias na área da faixa de domínio"}
   ]},
-  { id:"fim", t:"11 · Responsável e assinatura", fim:true }
+  { id:"fim", t:"7 · Responsável e assinatura", fim:true }
 ];
 
 /* ---------------- estado ---------------- */
@@ -368,8 +277,7 @@ function novaFicha(){
     id: "f" + Date.now() + Math.random().toString(36).slice(2,6),
     criadaEm: new Date().toISOString(),
     geral: {}, campos: {},   // campos: ids iguais aos da web (fb_*) — espelha a Ficha de Vistoria
-    fotosImovel: [], fotosAcesso: [], fotosAreaDesap: [],
-    reprodutivas: [], pastagem: [], naoReprodutivas: [], acessorias: [],
+    fotosAcesso: [], fotosBenfTotal: [], fotosBenfFaixa: [],
     tecnico: { nome:"", documento:"" }, assinatura: "",
     gps: null
   };
@@ -475,7 +383,7 @@ function aplicaMascara(el, tipo){
 /* ---------------- helpers ---------------- */
 function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){ return ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]; }); }
 function porCaminho(f, cam){
-  // cam: "geral.municipio" | "reprodutivas.2.benfeitoria" | "tecnico.nome"
+  // cam: "geral.processo" | "campos.fb_nome" | "tecnico.nome"
   var p = cam.split("."), o = f;
   for(var i=0;i<p.length-1;i++){ if(o[p[i]]==null) o[p[i]] = /^\d+$/.test(p[i+1]) ? [] : {}; o = o[p[i]]; }
   return { o:o, ult:p[p.length-1] };
@@ -532,6 +440,33 @@ function campoHTML(cam, c){
          + ' data-cam="'+esc(cam)+'" data-op="'+esc(op)+'" class="cbx"><span>'+esc(op)+'</span></label>';
     });
     h += '</div>';
+  } else if(c.t === "chkfrase"){
+    // checkboxes que, ao marcar/desmarcar, REESCREVEM o próprio campo (cam) com
+    // uma frase corrida juntando os fragmentos marcados — diferente do "chks"
+    // (que gera ids separados). Quais estão marcadas fica guardado à parte, em
+    // "<cam>_marcas", só pra repopular os checkboxes ao reabrir a ficha.
+    var marcFr = getv(f, cam + "_marcas"); if(!Array.isArray(marcFr)) marcFr = [];
+    h = '<div class="chips">';
+    c.o.forEach(function(op, i){
+      var on = marcFr.indexOf(op) >= 0;
+      h += '<label class="'+(on?"on":"")+'"><input type="checkbox"'+(on?" checked":"")
+         + ' data-frcam="'+esc(cam)+'" data-frop="'+esc(op)+'" data-frtxt="'+esc(c.fr[i])+'" class="cbxfr"><span>'+esc(op)+'</span></label>';
+    });
+    h += '</div>';
+    h += '<textarea placeholder="'+esc(c.ph||"")+'" oninput="upd(this,\''+cam+'\')">'+esc(v||"")+'</textarea>';
+  } else if(c.t === "snquais"){
+    // Sim/Não + "Quais?" — grava um valor DERIVADO no próprio campo (cam):
+    // "Ausentes" se Não, o texto de "quais" se Sim. Estado dos 2 sub-campos
+    // fica em "<cam>_sn"/"<cam>_quais" (privados, só pra repopular a UI).
+    var sn = getv(f, cam + "_sn") || "";
+    var quaisV = getv(f, cam + "_quais") || "";
+    h = '<div class="segs">';
+    ["Sim","Não"].forEach(function(op){
+      var on = sn === op;
+      h += '<button type="button" class="seg'+(on?" on":"")+'" data-sncam="'+esc(cam)+'" data-snop="'+esc(op)+'">'+esc(op)+'</button>';
+    });
+    h += '</div>';
+    h += '<div class="outro" style="display:block;margin-top:8px;"><input type="text" placeholder="Quais?" value="'+esc(quaisV)+'" oninput="updSnQuais(this,\''+cam+'\')"></div>';
   }
   if(c.q && c.q.length){
     h += '<div class="rapidos">';
@@ -573,6 +508,62 @@ document.addEventListener("change", function(ev){
   el.parentNode.classList.toggle("on", el.checked);
   salvar(true);
 });
+
+// junta fragmentos de frase com vírgula, "e" antes do último (ex.: "água, energia e esgoto")
+function juntarFrases(arr){
+  if(arr.length <= 1) return arr[0] || "";
+  return arr.slice(0, -1).join(", ") + " e " + arr[arr.length - 1];
+}
+document.addEventListener("change", function(ev){
+  var el = ev.target;
+  if(!el.classList || !el.classList.contains("cbxfr")) return;
+  var f = atual(), cam = el.dataset.frcam, op = el.dataset.frop;
+  var marcKey = cam + "_marcas";
+  var marc = getv(f, marcKey); if(!Array.isArray(marc)) marc = [];
+  var i = marc.indexOf(op);
+  if(el.checked && i < 0) marc.push(op);
+  if(!el.checked && i >= 0) marc.splice(i, 1);
+  setv(f, marcKey, marc);
+  el.parentNode.classList.toggle("on", el.checked);
+  var grupo = el.closest(".chips");
+  var frases = [];
+  grupo.querySelectorAll("input.cbxfr:checked").forEach(function(cb){ frases.push(cb.dataset.frtxt); });
+  var texto = frases.length ? ("Verificado que possui " + juntarFrases(frases) + ".") : "";
+  setv(f, cam, texto);
+  var ta = grupo.parentNode.querySelector("textarea");
+  if(ta) ta.value = texto;
+  salvar(true);
+});
+
+function regenerarSnQuais(f, cam){
+  var sn = getv(f, cam + "_sn") || "";
+  var quais = String(getv(f, cam + "_quais") || "").trim();
+  setv(f, cam, sn === "Não" ? "Ausentes" : (sn === "Sim" ? (quais || "Sim") : ""));
+}
+document.addEventListener("click", function(ev){
+  var btn = ev.target.closest ? ev.target.closest("[data-sncam]") : null;
+  if(!btn) return;
+  var f = atual(), cam = btn.dataset.sncam, op = btn.dataset.snop, snKey = cam + "_sn";
+  setv(f, snKey, getv(f, snKey) === op ? "" : op);   // tocar de novo desmarca
+  regenerarSnQuais(f, cam);
+  salvar(true);
+  render();   // Sim/Não muda o texto derivado — render simples garante consistência
+});
+function updSnQuais(el, cam){
+  var f = atual();
+  setv(f, cam + "_quais", el.value);
+  regenerarSnQuais(f, cam);
+  salvar(true);
+}
+
+function regenerarCerca(){
+  var f = atual();
+  var fios = getv(f, "geral.cercaFios"), esp = getv(f, "geral.cercaEspacamento");
+  var texto = (fios != null && fios !== "" && esp != null && esp !== "")
+    ? ("Cerca com espaçamento de " + esp + " m entre estacas, " + fios + " fio(s).")
+    : "";
+  setv(f, "geral.cercaDesc", texto);
+}
 
 function galeriaHTML(cam, titulo, num){
   var f = atual(), arr = getv(f, cam) || [];
@@ -685,34 +676,22 @@ function render(){
 
 function revisaoHTML(){
   var f = atual(), g = f.geral || {}, c = f.campos || {};
-  function n(lista){ return (f[lista]||[]).length; }
-  var fotos = (f.fotosImovel||[]).length + (f.fotosAcesso||[]).length + (f.fotosAreaDesap||[]).length;
-  ["reprodutivas","pastagem","naoReprodutivas","acessorias"].forEach(function(l){
-    (f[l]||[]).forEach(function(it){ fotos += (it.fotos||[]).length; });
-  });
-  var falta = [];
-  if(!g.processo)      falta.push("Nº CTD");
-  if(!g.lote)          falta.push("Nº Lote");
-  if(!g.dataVistoria)  falta.push("Data da vistoria");
-  if(!c.fb_nome)        falta.push("1.3 Proprietário(a) — Nome");
-  if(!c.fb_municipio)   falta.push("Município");
-  if(!fotos)           falta.push("nenhuma foto");
+  var fotos = (f.fotosAcesso||[]).length + (f.fotosBenfTotal||[]).length + (f.fotosBenfFaixa||[]).length;
+  var pendencias = todasPendencias();
 
-  var h = '<div class="fimcard"><div class="ok">'+(falta.length?"📝":"✅")+'</div>'
-        + '<h3>'+(falta.length?"Quase lá":"Ficha completa")+'</h3>'
-        + '<p>'+(falta.length ? "Dá para enviar assim, mas confira o que ficou em branco."
+  var h = '<div class="fimcard"><div class="ok">'+(pendencias.length?"📝":"✅")+'</div>'
+        + '<h3>'+(pendencias.length?"Quase lá":"Ficha completa")+'</h3>'
+        + '<p>'+(pendencias.length ? "Dá para enviar assim, mas confira o que ficou em branco."
                               : "Confira o resumo e envie para o escritório.")+'</p>'
         + '<div class="resumo">'
         + '<div><span>Nº CTD</span><b>'+esc(g.processo||"—")+'</b></div>'
         + '<div><span>Lote</span><b>'+esc(g.lote?("SPS-"+g.lote):"—")+'</b></div>'
-        + '<div><span>Município</span><b>'+esc(c.fb_municipio||"—")+'</b></div>'
-        + '<div><span>Proprietário(a)</span><b>'+esc(c.fb_nome||"—")+'</b></div>'
-        + '<div><span>Benfeitorias</span><b>'+(n("reprodutivas")+n("naoReprodutivas")+n("acessorias")+n("pastagem"))+'</b></div>'
+        + '<div><span>Proprietário(a)/Posseiro(a)</span><b>'+esc(c.fb_nome||"—")+'</b></div>'
         + '<div><span>Fotos</span><b>'+fotos+'</b></div>'
         + '<div><span>Assinatura</span><b>'+(f.assinatura?"sim":"—")+'</b></div>'
         + '</div>';
-  if(falta.length){
-    h += '<p style="margin-top:12px;color:#a5651a;font-size:12.5px;"><b>Em branco:</b> '+esc(falta.join(", "))+'</p>';
+  if(pendencias.length){
+    h += '<p style="margin-top:12px;color:#a5651a;font-size:12.5px;"><b>Pendências:</b> '+esc(pendencias.join("; "))+'</p>';
   }
   h += '<p style="margin-top:14px;font-size:12.5px;">Toque em <b>Enviar ficha</b> e escolha o WhatsApp do escritório.</p>';
   var pend = ST.fichas.filter(function(x){ return x.id !== f.id && !x.enviadaEm; }).length;
@@ -756,25 +735,24 @@ function secaoIncompleta(idx){
   }
   return faltando.length ? faltando : null;
 }
-function avisarIncompleto(faltando){
-  alert("Preencha os campos abaixo antes de avançar:\n\n• " + faltando.join("\n• "));
-}
-function avancar(){
-  var faltando = secaoIncompleta(ST.passo||0);
-  if(faltando){ avisarIncompleto(faltando); return; }
-  irPasso((ST.passo||0) + 1);
-}
+// 17/09/2026: navegação entre abas deixou de ser bloqueada por campo em
+// branco (pedido do usuário) — `secaoIncompleta()` continua existindo, só
+// não trava mais "Avançar"/a trilha de passos; passa a alimentar só
+// `todasPendencias()`, usada na confirmação final antes de enviar.
+function avancar(){ irPasso((ST.passo||0) + 1); }
 function voltar(){  irPasso((ST.passo||0) - 1); }
-// usado pela trilha de passos: pra trás sempre livre; pra frente só se as
-// seções entre a atual e o alvo estiverem completas (para no 1º passo incompleto).
-function irPassoValidado(alvo){
-  var atual0 = ST.passo||0;
-  if(alvo <= atual0){ irPasso(alvo); return; }
-  for(var k = atual0; k < alvo; k++){
-    var faltando = secaoIncompleta(k);
-    if(faltando){ avisarIncompleto(faltando); irPasso(k); return; }
-  }
-  irPasso(alvo);
+function irPassoValidado(alvo){ irPasso(alvo); }
+
+// pendências de TODAS as seções (exceto "fim"), com o nome da seção na frente —
+// usada só informativamente na revisão final e na confirmação de "Enviar".
+function todasPendencias(){
+  var lista = [];
+  SECOES.forEach(function(sec, i){
+    if(sec.fim) return;
+    var faltando = secaoIncompleta(i);
+    if(faltando) faltando.forEach(function(item){ lista.push(sec.t + ": " + item); });
+  });
+  return lista;
 }
 
 function dobra(id){ for(var i=0;i<SECOES.length;i++){ if(SECOES[i].id===id){ irPasso(i); return; } } }
@@ -794,6 +772,10 @@ function updSel(el, cam){
   if(el.value === "__o"){ box.style.display = ""; setv(atual(), cam, box.querySelector("input").value || ""); box.querySelector("input").focus(); }
   else { box.style.display = "none"; setv(atual(), cam, el.value); }
   salvar(true);
+  if(cam === "geral.cercaFios" || cam === "geral.cercaEspacamento"){
+    regenerarCerca();
+    render();
+  }
 }
 document.addEventListener("click", function(ev){
   var btn = ev.target.closest ? ev.target.closest(".seg") : null;
@@ -954,16 +936,17 @@ function progresso(){
   var f = atual(); if(!f) return;
   var total = 0, ok = 0;
   SECOES.forEach(function(s){
+    if(s.id === "fim") return;
     if(s.campos) s.campos.forEach(function(c){
-      if(s.id === "fim") return;
       total++;
       var v = getv(f, _prefCampo(s,c.k)+c.k);
       if(Array.isArray(v) ? v.length : (v!=null && String(v).trim())) ok++;
     });
+    if(s.galerias) s.galerias.forEach(function(g){
+      total++;
+      if((getv(f,g.k)||[]).length) ok++;
+    });
   });
-  total += 2;
-  if((f.fotosImovel||[]).length) ok++;
-  if((f.reprodutivas||[]).length + (f.naoReprodutivas||[]).length) ok++;
   var pc = total ? Math.round(ok/total*100) : 0;
   document.getElementById("progbar").style.width = pc + "%";
 }
@@ -986,9 +969,7 @@ function pacote(f){
     _geradoEm: new Date().toISOString(),
     id: f.id, criadaEm: f.criadaEm,
     geral: f.geral || {}, campos: campos,
-    fotosImovel: f.fotosImovel || [], fotosAcesso: f.fotosAcesso || [], fotosAreaDesap: f.fotosAreaDesap || [],
-    reprodutivas: f.reprodutivas || [], pastagem: f.pastagem || [],
-    naoReprodutivas: f.naoReprodutivas || [], acessorias: f.acessorias || [],
+    fotosAcesso: f.fotosAcesso || [], fotosBenfTotal: f.fotosBenfTotal || [], fotosBenfFaixa: f.fotosBenfFaixa || [],
     tecnico: f.tecnico || {}, assinatura: f.assinatura || "", gps: f.gps || null
   };
 }
@@ -997,8 +978,35 @@ function nomeArq(f){
   var d = (f.geral && f.geral.dataVistoria) || new Date().toISOString().slice(0,10);
   return "FichaCampo_CTD_" + p + "_" + d + ".json";
 }
+// 17/09/2026: antes de enviar de verdade, checa TODAS as pendências (mesma
+// lista de `todasPendencias()` usada na revisão) e pede confirmação — a
+// navegação entre abas não bloqueia mais, então este é o único ponto que
+// ainda avisa o técnico do que ficou em branco, sem impedir o envio.
 function enviar(){
   var f = atual(); if(!f) return;
+  var pendencias = todasPendencias();
+  if(pendencias.length){
+    document.getElementById("dlgH").textContent = "Concluir com pendências?";
+    document.getElementById("dlgB").innerHTML =
+        '<p style="margin:0 0 10px;font-size:13.5px;line-height:1.5;color:#5a6b7c;">Ainda faltam <b>'
+      + pendencias.length + '</b> item(ns):</p>'
+      + '<ul style="margin:0 0 14px;padding-left:18px;font-size:13px;line-height:1.5;color:#5a6b7c;">'
+      + pendencias.map(function(p){ return '<li>'+esc(p)+'</li>'; }).join('')
+      + '</ul>'
+      + '<p style="margin:0 0 14px;font-size:13.5px;">Tem certeza que deseja concluir mesmo assim?</p>'
+      + '<button class="add" type="button" id="btConcluirMesmoAssim" '
+      + 'style="background:#178a3a;color:#fff;border:none;padding:15px;font-size:15px;">✅ Concluir mesmo assim</button>';
+    var dlgP = document.getElementById("dlg");
+    document.getElementById("btConcluirMesmoAssim").onclick = function(){
+      dlgP.close();
+      enviarChecagemFichas(f);
+    };
+    dlgP.showModal();
+    return;
+  }
+  enviarChecagemFichas(f);
+}
+function enviarChecagemFichas(f){
   var pendentes = ST.fichas.filter(function(x){ return x.id !== f.id && !x.enviadaEm; }).length;
   if(!pendentes){ enviarAgora(f); return; }
 
@@ -1083,7 +1091,7 @@ function menuMais(){
       '<p style="margin:0 0 12px;font-size:13.5px;color:#5a6b7c;">Ficha atual: <b>'
       + esc((f.geral&&f.geral.processo)?("CTD "+f.geral.processo):"sem nº") + '</b> · ' + tam + ' · ' + nf + ' ficha(s) no celular.</p>'
     + '<button class="add" type="button" style="margin-bottom:8px" onclick="abrirArquivo()">📂 Abrir ficha de um arquivo</button>'
-    + '<button class="add" type="button" style="margin-bottom:8px" onclick="document.getElementById(&quot;dlg&quot;).close(); enviarAgora(atual());">📤 Enviar / salvar esta ficha</button>'
+    + '<button class="add" type="button" style="margin-bottom:8px" onclick="document.getElementById(&quot;dlg&quot;).close(); enviar();">📤 Enviar / salvar esta ficha</button>'
     + '<button class="add" type="button" style="margin-bottom:8px;border-color:#eccac7;color:#b5382a" onclick="apagarFicha()">🗑️ Apagar esta ficha do celular</button>'
     + '<input type="file" accept=".json,.txt,application/json,text/plain" id="impFile" style="display:none" onchange="impArquivo(this)">';
   document.getElementById("dlg").showModal();
@@ -1097,7 +1105,7 @@ function impArquivo(input){
       var o = JSON.parse(fr.result);
       if(!o || o._app !== "ENPROL-FichaCampo") throw new Error("Não é uma ficha de campo.");
       var nf = novaFicha();
-      ["geral","campos","fotosImovel","fotosAcesso","fotosAreaDesap","reprodutivas","pastagem","naoReprodutivas","acessorias","tecnico","assinatura","gps"]
+      ["geral","campos","fotosAcesso","fotosBenfTotal","fotosBenfFaixa","tecnico","assinatura","gps"]
         .forEach(function(k){ if(o[k] != null) nf[k] = o[k]; });
       ST.fichas.push(nf); ST.atual = nf.id; salvar(true);
       document.getElementById("dlg").close(); render(); window.scrollTo(0,0);
@@ -1109,10 +1117,7 @@ function impArquivo(input){
 function apagarFicha(){
   var f = atual(); if(!f) return;
   var nome = (f.geral && f.geral.processo) ? ("CTD " + f.geral.processo) : "esta ficha (sem nº)";
-  var fotos = (f.fotosImovel||[]).length + (f.fotosAcesso||[]).length + (f.fotosAreaDesap||[]).length;
-  ["reprodutivas","pastagem","naoReprodutivas","acessorias"].forEach(function(l){
-    (f[l]||[]).forEach(function(it){ fotos += (it.fotos||[]).length; });
-  });
+  var fotos = (f.fotosAcesso||[]).length + (f.fotosBenfTotal||[]).length + (f.fotosBenfFaixa||[]).length;
   var msg;
   if(f.enviadaEm){
     msg = "Apagar " + nome + " do celular?\n\nEla já foi enviada em "
