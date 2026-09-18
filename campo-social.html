@@ -1593,7 +1593,15 @@ function tabelasIniciais(){
 function linhasTab(n){
   var f = atual();
   if(!f.relTabelas) f.relTabelas = tabelasIniciais();
-  if(!f.relTabelas[n]) f.relTabelas[n] = [];
+  if(!f.relTabelas[n]){
+    // ficha criada ANTES de uma tabela nova existir (ex.: as do Jurídico,
+    // rodada 62, numa ficha salva antes disso) — sem isso ficava um array
+    // vazio pra sempre (0 linhas, "sem tabela nenhuma" na tela). Autocura:
+    // busca os critérios de verdade no SECOES em vez de deixar em branco.
+    var tabDef = null;
+    SECOES.forEach(function(s){ (s.tabelas||[]).forEach(function(t){ if(t.n === n) tabDef = t; }); });
+    f.relTabelas[n] = tabDef ? tabDef.criterios.map(function(c){ return { crit:c, resp:"", obs:"" }; }) : [];
+  }
   return f.relTabelas[n];
 }
 function contaSim(){
