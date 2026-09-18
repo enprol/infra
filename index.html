@@ -16673,13 +16673,22 @@ window.DLM_run=function(btn,fn){ var m=btn.closest('.dl-drop'); if(m) m.classLis
 document.addEventListener('click',function(e){ if(!e.target.closest('.dl-menu')) document.querySelectorAll('.dl-drop.open').forEach(function(x){x.classList.remove('open');}); });
 
 /* ===== Geração do DRL — Declaração de Respeito de Limites (itens 3 e 4) ===== */
+// Identificação + Endereço do imóvel — "1.5 Propriedade" da Ficha de Vistoria
+// (fb_prop_id/fb_prop_end). Usado no lugar do "denom" que antes era digitado
+// à parte (17/09/2026, pedido do usuário).
+function DRL_identEndereco(){
+  var idEl=document.getElementById('fb_prop_id'), endEl=document.getElementById('fb_prop_end');
+  var id=(idEl?(idEl.value||''):'').trim(), end=(endEl?(endEl.value||''):'').trim();
+  if(id && end) return id+' – '+end;
+  return id || end || '';
+}
 window.DRL_dados=function(){
   function v(){ for(var i=0;i<arguments.length;i++){ var e=document.getElementById(arguments[i]); if(e){ var val=((e.value!=null?e.value:e.textContent)||"").trim(); if(val) return val; } } return ""; }
   function ano(){ var d=v('rel_local_data','fb_data'); var m=d&&d.match(/(19|20)\d{2}/); return m?m[0]:""; }
   return {
     nome: v('rel_nome','fb_nome'),
     cpf: v('fb_cpf','rel_cpf'),
-    denom: v('rel_prop_id','av_denom'),
+    denom: DRL_identEndereco() || v('rel_prop_id','av_denom'),
     matricula: v('fb_matricula','rel_matricula'),
     municipio: v('fb_prop_mun','fb_municipio','rel_municipio','av_comarca'),
     uf: v('fb_prop_uf','fb_uf'),
@@ -16691,7 +16700,7 @@ function DRL_bl(x){ return (x&&(''+x).trim())?(''+x).trim():'____________'; }
 function DRL_paragrafo(d){
   return 'Eu, '+DRL_bl(d.nome)+', inscrito(a) no Cadastro de Pessoa Física – CPF nº '+DRL_bl(d.cpf)+
     ', proprietário(a) e/ou possuidor(a) do imóvel denominado '+DRL_bl(d.denom)+', matrícula(s) nº(s) '+DRL_bl(d.matricula)+
-    ' da comarca de '+DRL_bl(d.municipio)+'- '+DRL_bl(d.uf)+' cadastrado no INCRA sob o código nº '+DRL_bl(d.incra)+
+    ' da comarca de '+DRL_bl(d.municipio)+'- '+DRL_bl(d.uf)+
     ', declaro, sob as penas da lei, que foram respeitados os limites das divisas in loco com os confrontantes abaixo relacionados durante a execução dos trabalhos técnicos na citada propriedade, não havendo qualquer litígio entre as partes.';
 }
 // valores editáveis da aba DRL (fallback ao automático)
@@ -17480,7 +17489,7 @@ window.DRL_gerarWord=async function(opts){
     K.push(new Paragraph({alignment:AlignmentType.JUSTIFIED,spacing:{after:220,line:288},children:[
       R("Eu, "),R(val(d.nome),{bold:true}),R(", inscrito(a) no Cadastro de Pessoa Física – CPF nº "),R(val(d.cpf),{bold:true}),
       R(", proprietário(a) e/ou possuidor(a) do imóvel denominado "),R(val(d.denom),{bold:true}),R(", matrícula(s) nº(s) "),R(val(d.matricula),{bold:true}),
-      R(" da comarca de "),R(val(d.municipio),{bold:true}),R("- "),R(val(d.uf,"____"),{bold:true}),R(" cadastrado no INCRA sob o código nº "),R(val(d.incra,"____________"),{bold:true}),
+      R(" da comarca de "),R(val(d.municipio),{bold:true}),R("- "),R(val(d.uf,"____"),{bold:true}),
       R(", declaro, sob as penas da lei, que foram respeitados os limites das divisas in loco com os confrontantes abaixo relacionados durante a execução dos trabalhos técnicos na citada propriedade, não havendo qualquer litígio entre as partes.")]}));
   }
   K.push(new Paragraph({spacing:{before:180,after:0},children:[R("Confrontantes da Área Abrangida:",{bold:true})]}));
