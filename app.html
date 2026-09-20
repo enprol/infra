@@ -12532,6 +12532,7 @@ function AV_gerarDescSituacao(){
 
   window.CAD_salvar = async function(opts){
     try{
+      if (window.PAR_gerarTexto){ try{ window.PAR_gerarTexto("titularidade"); }catch(e){} }
       let pacote = montarPacote();
       if(!(opts&&opts.semCompressao) && window.__comprimirImagensPacote){ pacote = await window.__comprimirImagensPacote(pacote); }
       const nomeArq = (window.__CTDsuf?window.__CTDsuf():"CTD 000") + ".json";
@@ -12952,6 +12953,11 @@ function AV_gerarDescSituacao(){
           }
         }
       }
+      // Titularidade e Registro do Imóvel (Parecer Jurídico) é gerada sozinha a partir da
+      // matrícula/processo da Assistência Social e o campo ficou oculto na tela — por
+      // garantia, recalcula agora, no momento de salvar, pra nunca ir vazia pro pacote
+      // mesmo que o usuário não tenha passado pela aba Parecer nesta sessão.
+      if (window.PAR_gerarTexto){ try{ window.PAR_gerarTexto("titularidade"); }catch(e){} }
       var pacote = _preservarOrfaos(montarPacote());
       if (window.__comprimirImagensPacote){ if (btn) btn.textContent = "💾 Otimizando imagens…"; pacote = await window.__comprimirImagensPacote(pacote); }
       if (btn) btn.textContent = "💾 Salvando…";
