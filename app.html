@@ -2979,7 +2979,7 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
       <button class="sb-link ativa" data-setor="social" data-alvo="panel-desp1-vist" onclick="trocarAba(this)">Ficha de Vistoria e Cadastro Socioeconômico (Anexo B)</button>
       <button class="sb-link" data-setor="social" data-alvo="panel-desp1-drl" onclick="trocarAba(this)">DRL — Declaração de Respeito de Limites</button>
       <button class="sb-link" data-setor="social" data-alvo="panel-desp1-rel" onclick="trocarAba(this)">Relatório Técnico de Caracterização Socioeconômica</button>
-      <button class="sb-link" data-setor="tecnica" data-alvo="panel-desp1-tecnica" onclick="trocarAba(this); BNF_moverParaTecnica(); if(window.D2PLANTAS_moverParaTecnica) D2PLANTAS_moverParaTecnica(); if(window.D2REM_moverParaTecnica) D2REM_moverParaTecnica();">Técnica</button>
+      <button class="sb-link" data-setor="tecnica" data-alvo="panel-desp1-tecnica" onclick="trocarAba(this); BNF_moverParaTecnica(); if(window.D2PLANTAS_moverParaTecnica) D2PLANTAS_moverParaTecnica(); if(window.D2REM_moverParaTecnica) D2REM_moverParaTecnica(); if(window.GEO_moverParaTecnica) GEO_moverParaTecnica();">Técnica</button>
       <button class="sb-link" data-setor="juridico" data-alvo="panel-desp1-parecer" onclick="trocarAba(this)">Parecer para Regularização Fundiária e Documental</button>
     </div>
     <div class="sb-sub-grupo" data-grupo="desp2" style="display:none;">
@@ -4953,7 +4953,8 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
       <div class="vfield grow" style="flex:1"><label>CIB/ITR</label><input type="text" id="fb_cib" placeholder="Ex.: 0.000.000-0"></div>
       <div class="vfield grow" style="flex:1"><label>CCIR</label><input type="text" id="fb_ccir" placeholder="Ex.: 000.000.000.000-0"></div>
     </div>
-    <div class="vrow">
+    <span id="geo_row_marca" style="display:none"></span>
+    <div class="vrow" id="geo_row_wrap">
       <div class="vfield grow" style="flex:1"><label>Possui georreferenciamento?</label><select id="fb_georref"><option value="">Selecione</option><option>Sim</option><option>Não</option></select></div>
       <div class="vfield grow" style="flex:1.3"><label>SIGEF</label><input type="text" id="fb_sigef" placeholder="Ex.: código/certificação SIGEF"></div>
       <div class="vfield grow" style="flex:1.3"><label>CAR</label><input type="text" id="fb_car" placeholder="Ex.: PE-0000000-00000000..."></div>
@@ -5017,6 +5018,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 <p class="sub">Áreas de locação e área a desapropriar (preenchimento único, usado nos demais documentos) e as Benfeitorias da Avaliação (DESP 3) — o que for preenchido aqui ou lá aparece nos dois lugares.</p>
 <div class="vcard"><div class="vsub">Áreas de Locação</div><div class="rel-areas" id="rel_areas"></div><div class="vactions" style="margin-top:6px;"><button class="vbtn vbtn-ghost" type="button" onclick="REL_addArea()">+ Adicionar área</button></div></div>
 <div class="vcard"><div class="vrow"><div class="vfield"><label>Área Desap. (ha)</label><input type="text" id="fb_area_desap" class="num4" inputmode="decimal" placeholder="0,0000"></div><div id="remN_slot" style="display:contents"></div><div id="remS_slot" style="display:contents"></div></div></div>
+<div class="vcard"><div class="vsub">Georreferenciamento (Anexo B — Ficha de Vistoria)</div><div id="geo_row_slot"></div></div>
 <div class="vsub" style="margin-top:22px;">Benfeitorias (itens 12 e 13 da Avaliação — DESP 3)</div>
 <p class="hint-inline" style="margin-top:0;">As tabelas abaixo são as mesmas da aba Avaliação (DESP 3 → Avaliação): editar aqui ou lá preenche o mesmo lugar.</p>
 <div id="bnf_item12_slot"></div>
@@ -7791,6 +7793,8 @@ function SETOR_abrir(btn){
   if(setor === 'tecnica' && typeof BNF_moverParaTecnica === 'function') BNF_moverParaTecnica();
   if(setor === 'tecnica' && typeof D2PLANTAS_moverParaTecnica === 'function') D2PLANTAS_moverParaTecnica();
   if(setor === 'tecnica' && typeof D2REM_moverParaTecnica === 'function') D2REM_moverParaTecnica();
+  if(setor === 'tecnica' && typeof GEO_moverParaTecnica === 'function') GEO_moverParaTecnica();
+  if(setor === 'social' && typeof GEO_moverParaVist === 'function') GEO_moverParaVist();
 }
 // estado inicial: filtra os sb-link pelo setor já marcado "ativo" no HTML,
 // sem trocar de painel (mantém o que já está "ativa" por padrão)
@@ -11473,6 +11477,15 @@ function AV_gerarDescSituacao(){
       var w = document.getElementById(k+"_wrap"), s = document.getElementById(k+"_slot");
       if(w && s && w.parentNode !== s) s.appendChild(w);
     });
+  };
+  // DOM-portal: Georreferenciamento / SIGEF / CAR (Ficha de Vistoria, 1.5 Propriedade) na Técnica
+  window.GEO_moverParaTecnica = function(){
+    var w = document.getElementById("geo_row_wrap"), s = document.getElementById("geo_row_slot");
+    if(w && s && w.parentNode !== s) s.appendChild(w);
+  };
+  window.GEO_moverParaVist = function(){
+    var m = document.getElementById("geo_row_marca"), w = document.getElementById("geo_row_wrap");
+    if(m && w && w.parentNode !== m.parentNode) m.after(w);
   };
   window.D2REM_moverParaDesp2 = function(){
     ["remN","remS"].forEach(function(k){
