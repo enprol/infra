@@ -2783,7 +2783,12 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
           <tr class="pg-filtros">
             <th><button type="button" class="pg-filtbtn" id="pgFiltBtnLote" onclick="PG_toggleFiltro(event,'lote')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
             <th><button type="button" class="pg-filtbtn" id="pgFiltBtnCad" onclick="PG_toggleFiltro(event,'cad')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
-            <th></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th>
+            <th></th>
+            <th><button type="button" class="pg-filtbtn" id="pgFiltBtnCampo" onclick="PG_toggleFiltro(event,'campo')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
+            <th><button type="button" class="pg-filtbtn" id="pgFiltBtnSocial" onclick="PG_toggleFiltro(event,'social')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
+            <th><button type="button" class="pg-filtbtn" id="pgFiltBtnTecnica" onclick="PG_toggleFiltro(event,'tecnica')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
+            <th><button type="button" class="pg-filtbtn" id="pgFiltBtnJuridica" onclick="PG_toggleFiltro(event,'juridica')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
+            <th></th><th></th><th></th><th></th><th></th>
           </tr>
         </thead>
         <tbody id="pgCorpo">
@@ -2807,6 +2812,26 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
     <label class="pg-filtpop-all"><input type="checkbox" id="pgSelAllCad" checked onchange="PG_toggleTodos('cad',this.checked)"> Selecionar todos</label>
     <div class="pg-filtpop-list" id="pgListaCad"></div>
     <div class="pg-filtpop-actions"><button type="button" class="pg-btn pg-btn-primaria" onclick="PG_fecharFiltro('cad')">OK</button></div>
+  </div>
+  <div class="pg-filtpop" id="pgPopCampo" hidden>
+    <label class="pg-filtpop-all"><input type="checkbox" id="pgSelAllCampo" checked onchange="PG_toggleTodos('campo',this.checked)"> Selecionar todos</label>
+    <div class="pg-filtpop-list" id="pgListaCampo"></div>
+    <div class="pg-filtpop-actions"><button type="button" class="pg-btn pg-btn-primaria" onclick="PG_fecharFiltro('campo')">OK</button></div>
+  </div>
+  <div class="pg-filtpop" id="pgPopSocial" hidden>
+    <label class="pg-filtpop-all"><input type="checkbox" id="pgSelAllSocial" checked onchange="PG_toggleTodos('social',this.checked)"> Selecionar todos</label>
+    <div class="pg-filtpop-list" id="pgListaSocial"></div>
+    <div class="pg-filtpop-actions"><button type="button" class="pg-btn pg-btn-primaria" onclick="PG_fecharFiltro('social')">OK</button></div>
+  </div>
+  <div class="pg-filtpop" id="pgPopTecnica" hidden>
+    <label class="pg-filtpop-all"><input type="checkbox" id="pgSelAllTecnica" checked onchange="PG_toggleTodos('tecnica',this.checked)"> Selecionar todos</label>
+    <div class="pg-filtpop-list" id="pgListaTecnica"></div>
+    <div class="pg-filtpop-actions"><button type="button" class="pg-btn pg-btn-primaria" onclick="PG_fecharFiltro('tecnica')">OK</button></div>
+  </div>
+  <div class="pg-filtpop" id="pgPopJuridica" hidden>
+    <label class="pg-filtpop-all"><input type="checkbox" id="pgSelAllJuridica" checked onchange="PG_toggleTodos('juridica',this.checked)"> Selecionar todos</label>
+    <div class="pg-filtpop-list" id="pgListaJuridica"></div>
+    <div class="pg-filtpop-actions"><button type="button" class="pg-btn pg-btn-primaria" onclick="PG_fecharFiltro('juridica')">OK</button></div>
   </div>
 </main>
 
@@ -11930,8 +11955,26 @@ function AV_gerarDescSituacao(){
 
   var _pgItens = [];
   var _pgTimer = null;
-  var _pgSelLote = null; // null = "todos" (sem filtro); senão Set com os valores marcados
-  var _pgSelCad = null;
+  var _PG_CAMPOS = ['lote','cad','campo','social','tecnica','juridica'];
+  var _PG_STATUS_CAMPOS = ['campo','social','tecnica','juridica'];
+  var _PG_SUFIXOS = {lote:'Lote', cad:'Cad', campo:'Campo', social:'Social', tecnica:'Tecnica', juridica:'Juridica'};
+  var _pgSel = {lote:null, cad:null, campo:null, social:null, tecnica:null, juridica:null}; // null = "todos" (sem filtro); senão Set com os valores marcados
+
+  // valor cru de uma coluna filtrável para um item (usado p/ montar as opções e aplicar o filtro)
+  function _pgRawValor(it, campo){
+    if (_PG_STATUS_CAMPOS.indexOf(campo) >= 0){
+      var st = it.completude && it.completude[campo];
+      return st ? (st.ok ? 'concluido' : 'pendente') : 'pendente';
+    }
+    return campo === 'lote' ? (it.lote||"") : ctdFmt(it.ctd);
+  }
+
+  // rótulo exibido para um valor cru da coluna
+  function _pgFmt(campo, v){
+    if (campo === 'lote') return loteFmt(v);
+    if (_PG_STATUS_CAMPOS.indexOf(campo) >= 0) return v === 'concluido' ? 'Concluído' : 'Pendente';
+    return v;
+  }
 
   window.PG_pesquisar = function(){
     clearTimeout(_pgTimer);
@@ -11963,55 +12006,58 @@ function AV_gerarDescSituacao(){
   function _pgValoresUnicos(campo){
     var vistos = {}, opcoes = [];
     _pgItens.forEach(function(it){
-      var raw = campo === 'lote' ? (it.lote||"") : ctdFmt(it.ctd);
+      var raw = _pgRawValor(it, campo);
       var chave = String(raw);
       if(chave === "" || chave === "—" || vistos[chave]) return;
       vistos[chave] = true;
       opcoes.push(raw);
     });
-    opcoes.sort(function(a,b){ return String(a).localeCompare(String(b), "pt-BR", {numeric:true}); });
+    if (_PG_STATUS_CAMPOS.indexOf(campo) >= 0){
+      var ordem = {pendente:0, concluido:1};
+      opcoes.sort(function(a,b){ return (ordem[a]||0) - (ordem[b]||0); });
+    } else {
+      opcoes.sort(function(a,b){ return String(a).localeCompare(String(b), "pt-BR", {numeric:true}); });
+    }
     return opcoes;
   }
 
   // popover estilo Excel: lista de checkboxes com os valores únicos da coluna
   function PG_popularListaFiltro(campo){
-    var host = document.getElementById(campo === 'lote' ? 'pgListaLote' : 'pgListaCad');
+    var host = document.getElementById('pgLista' + _PG_SUFIXOS[campo]);
     if(!host) return;
     var opcoes = _pgValoresUnicos(campo);
-    var sel = campo === 'lote' ? _pgSelLote : _pgSelCad;
-    var fmt = campo === 'lote' ? loteFmt : function(v){ return v; };
+    var sel = _pgSel[campo];
     host.innerHTML = opcoes.length ? opcoes.map(function(v){
       var chave = String(v);
       var marcado = !sel || sel.has(chave);
       var chaveJs = chave.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
       return '<label data-valor="' + esc(chave).toLowerCase() + '"><input type="checkbox" ' + (marcado?'checked ':'')
-        + 'onchange="PG_toggleValor(\'' + campo + '\',\'' + chaveJs + '\',this.checked)"> ' + esc(fmt(v)) + '</label>';
+        + 'onchange="PG_toggleValor(\'' + campo + '\',\'' + chaveJs + '\',this.checked)"> ' + esc(_pgFmt(campo, v)) + '</label>';
     }).join("") : '<p class="pg-filt-vazio">Nenhum valor.</p>';
-    var todos = document.getElementById(campo === 'lote' ? 'pgSelAllLote' : 'pgSelAllCad');
+    var todos = document.getElementById('pgSelAll' + _PG_SUFIXOS[campo]);
     if(todos) todos.checked = !sel;
   }
 
   window.PG_toggleValor = function(campo, valor, marcado){
     var opcoes = _pgValoresUnicos(campo).map(String);
-    var atual = campo === 'lote' ? _pgSelLote : _pgSelCad;
+    var atual = _pgSel[campo];
     if(atual === null) atual = new Set(opcoes);
     if(marcado) atual.add(valor); else atual.delete(valor);
     if(atual.size === opcoes.length) atual = null; // tudo marcado = sem filtro
-    if(campo === 'lote') _pgSelLote = atual; else _pgSelCad = atual;
-    var todos = document.getElementById(campo === 'lote' ? 'pgSelAllLote' : 'pgSelAllCad');
+    _pgSel[campo] = atual;
+    var todos = document.getElementById('pgSelAll' + _PG_SUFIXOS[campo]);
     if(todos) todos.checked = !atual;
     PG_renderizar();
   };
 
   window.PG_toggleTodos = function(campo, marcado){
-    if(campo === 'lote') _pgSelLote = marcado ? null : new Set();
-    else _pgSelCad = marcado ? null : new Set();
+    _pgSel[campo] = marcado ? null : new Set();
     PG_popularListaFiltro(campo);
     PG_renderizar();
   };
 
   window.PG_filtrarLista = function(campo, termo){
-    var host = document.getElementById(campo === 'lote' ? 'pgListaLote' : 'pgListaCad');
+    var host = document.getElementById('pgLista' + _PG_SUFIXOS[campo]);
     if(!host) return;
     var t = (termo||"").trim().toLowerCase();
     host.querySelectorAll('label[data-valor]').forEach(function(lbl){
@@ -12021,12 +12067,15 @@ function AV_gerarDescSituacao(){
 
   window.PG_toggleFiltro = function(ev, campo){
     if(ev) ev.stopPropagation();
-    var pop = document.getElementById(campo === 'lote' ? 'pgPopLote' : 'pgPopCad');
-    var outro = document.getElementById(campo === 'lote' ? 'pgPopCad' : 'pgPopLote');
-    if(outro) outro.hidden = true;
+    var pop = document.getElementById('pgPop' + _PG_SUFIXOS[campo]);
     if(!pop) return;
+    _PG_CAMPOS.forEach(function(c){
+      if(c === campo) return;
+      var outro = document.getElementById('pgPop' + _PG_SUFIXOS[c]);
+      if(outro) outro.hidden = true;
+    });
     if(!pop.hidden){ pop.hidden = true; return; }
-    var btn = document.getElementById(campo === 'lote' ? 'pgFiltBtnLote' : 'pgFiltBtnCad');
+    var btn = document.getElementById('pgFiltBtn' + _PG_SUFIXOS[campo]);
     if(btn){
       var r = btn.getBoundingClientRect();
       pop.style.left = Math.round(r.left) + 'px';
@@ -12037,13 +12086,13 @@ function AV_gerarDescSituacao(){
   };
 
   window.PG_fecharFiltro = function(campo){
-    var pop = document.getElementById(campo === 'lote' ? 'pgPopLote' : 'pgPopCad');
+    var pop = document.getElementById('pgPop' + _PG_SUFIXOS[campo]);
     if(pop) pop.hidden = true;
   };
 
   document.addEventListener('click', function(ev){
-    ['pgPopLote','pgPopCad'].forEach(function(id){
-      var pop = document.getElementById(id);
+    _PG_CAMPOS.forEach(function(campo){
+      var pop = document.getElementById('pgPop' + _PG_SUFIXOS[campo]);
       if(!pop || pop.hidden) return;
       if(pop.contains(ev.target)) return;
       if(ev.target.closest && ev.target.closest('.pg-filtbtn')) return;
@@ -12052,13 +12101,13 @@ function AV_gerarDescSituacao(){
   });
 
   function PG_atualizarBotaoFiltro(campo){
-    var btn = document.getElementById(campo === 'lote' ? 'pgFiltBtnLote' : 'pgFiltBtnCad');
+    var btn = document.getElementById('pgFiltBtn' + _PG_SUFIXOS[campo]);
     if(!btn) return;
-    var sel = campo === 'lote' ? _pgSelLote : _pgSelCad;
+    var sel = _pgSel[campo];
     var texto;
     if(!sel) texto = 'Todos';
     else if(sel.size === 0) texto = 'Nenhum';
-    else if(sel.size === 1) texto = esc(campo === 'lote' ? loteFmt(Array.from(sel)[0]) : Array.from(sel)[0]);
+    else if(sel.size === 1) texto = esc(_pgFmt(campo, Array.from(sel)[0]));
     else texto = sel.size + ' selecionados';
     btn.classList.toggle('pg-ativo', !!sel);
     btn.innerHTML = texto + ' <span class="pg-filtbtn-seta">▾</span>';
@@ -12070,20 +12119,21 @@ function AV_gerarDescSituacao(){
     if(!corpo) return;
 
     var itens = _pgItens.filter(function(it){
-      if(_pgSelLote && !_pgSelLote.has(String(it.lote||""))) return false;
-      if(_pgSelCad && !_pgSelCad.has(ctdFmt(it.ctd))) return false;
-      return true;
+      return _PG_CAMPOS.every(function(campo){
+        var sel = _pgSel[campo];
+        return !sel || sel.has(_pgRawValor(it, campo));
+      });
     }).sort(function(a,b){
       var cLote = String(a.lote||"").localeCompare(String(b.lote||""), "pt-BR", {numeric:true});
       if(cLote) return cLote;
       return ctdFmt(a.ctd).localeCompare(ctdFmt(b.ctd), "pt-BR", {numeric:true});
     });
 
-    PG_atualizarBotaoFiltro('lote');
-    PG_atualizarBotaoFiltro('cad');
+    _PG_CAMPOS.forEach(PG_atualizarBotaoFiltro);
 
     if(!itens.length){
-      corpo.innerHTML = '<tr><td colspan="12" class="pg-vazio">Nenhum cadastro encontrado' + ((_pgSelLote||_pgSelCad) ? " para este filtro." : ".") + '</td></tr>';
+      var temFiltro = _PG_CAMPOS.some(function(campo){ return !!_pgSel[campo]; });
+      corpo.innerHTML = '<tr><td colspan="12" class="pg-vazio">Nenhum cadastro encontrado' + (temFiltro ? " para este filtro." : ".") + '</td></tr>';
       if(rodape) rodape.innerHTML = "";
       return;
     }
