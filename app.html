@@ -18300,18 +18300,21 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
   };
   window.D2_setResp=function(k){ var p=D2_RESP[k]||{nome:"",crea:""}; var r=document.getElementById("d2_responsavel"); if(r) r.value=p.nome; var c=document.getElementById("d2_crea"); if(c) c.value=p.crea; };
 
-  /* ---- Situação fundiária da gleba (SIGEF + pendências) ---- */
-  var D2_fund={ sigef:"Sim", pend:"Não", pendDesc:"" };
+  /* ---- Situação fundiária da gleba (SIGEF + pendências) ----
+     "Possui SIGEF?" não é mais perguntado aqui: é a mesma resposta do campo
+     "Possui georreferenciamento?" do tópico Georreferenciamento (Ficha de
+     Vistoria / Anexo B, aba Técnica em DESP-1) — lida ao vivo desse campo. */
+  var D2_fund={ pend:"Não", pendDesc:"" };
+  function D2_fundSigef(){ return gid("fb_georref")==="Não" ? "Não" : "Sim"; }
   window.D2_getFund=function(){ return D2_fund; };
-  window.D2_setFund=function(o){ D2_fund={ sigef:(o&&o.sigef)||"Sim", pend:(o&&o.pend)||"Não", pendDesc:(o&&o.pendDesc)||"" }; if(window.D2_syncFundUI) window.D2_syncFundUI(); D2_rebuild("situa_o_fundi_ria_da_gleba_d"); };
-  window.D2_fundSigef=function(v){ D2_fund.sigef=v; D2_rebuild("situa_o_fundi_ria_da_gleba_d"); };
+  window.D2_setFund=function(o){ D2_fund={ pend:(o&&o.pend)||"Não", pendDesc:(o&&o.pendDesc)||"" }; if(window.D2_syncFundUI) window.D2_syncFundUI(); D2_rebuild("situa_o_fundi_ria_da_gleba_d"); };
   window.D2_fundPend=function(v){ D2_fund.pend=v; var w=document.getElementById("d2_fund_penddesc_wrap"); if(w) w.style.display=(v==="Sim"?"":"none"); D2_rebuild("situa_o_fundi_ria_da_gleba_d"); };
   window.D2_fundPendDesc=function(v){ D2_fund.pendDesc=v; D2_rebuild("situa_o_fundi_ria_da_gleba_d"); };
-  window.D2_syncFundUI=function(){ var a=document.getElementById("d2_fund_sigef"); if(a) a.value=D2_fund.sigef; var b=document.getElementById("d2_fund_pend"); if(b) b.value=D2_fund.pend; var w=document.getElementById("d2_fund_penddesc_wrap"); if(w) w.style.display=(D2_fund.pend==="Sim"?"":"none"); var d=document.getElementById("d2_fund_penddesc"); if(d) d.value=D2_fund.pendDesc; };
+  window.D2_syncFundUI=function(){ var b=document.getElementById("d2_fund_pend"); if(b) b.value=D2_fund.pend; var w=document.getElementById("d2_fund_penddesc_wrap"); if(w) w.style.display=(D2_fund.pend==="Sim"?"":"none"); var d=document.getElementById("d2_fund_penddesc"); if(d) d.value=D2_fund.pendDesc; };
   function buildFundiaria(){
     var intro="A área objeto da desapropriação integra a propriedade rural foi delimitada com base no levantamento planimétrico georreferenciado certificado pelo SIGEF/INCRA e na poligonal de projeto da nova Faixa de Domínio da Ferrovia Transnordestina (EF-232).";
     var t=intro;
-    if(D2_fund.sigef==="Sim"){
+    if(D2_fundSigef()==="Sim"){
       var cc=(C("ccir")||"").trim();
       t+="\nO imóvel possui certificação aprovada pelo SIGEF e cadastro ativo sob código INCRA/SNCR nº "+(cc||"[INCRA/SNCR]")+".";
     }
@@ -18631,6 +18634,15 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
           +hiddenTA+figsHtml(tp)+'</div>'; return;
       }
       if(mode==='atividade'){
+        // 100% automático a partir da Ficha de Vistoria (item 4.9.1 — Uso das terras,
+        // aba Técnica em DESP-1): nada a preencher aqui, então fica oculto do card
+        // (mesmo tratamento dos tópicos 'hidden' sem imagem) — o texto continua
+        // sendo gerado por buildAtividade() e entra no laudo normalmente.
+        if(!(tp.figs&&tp.figs.length)){
+          html+=hiddenTA;
+          autoOnly++;
+          return;
+        }
         html+=rowOpen(tp)+'<p class="hint-auto" style="margin:0 0 8px;">📄 Texto automático conforme o item <b>4.9.1 (Uso das terras)</b> da Ficha de Vistoria (DESP-1): marque lá <b>Plantio</b> e/ou <b>Criação de animais</b> e preencha a caracterização. Se nenhum estiver marcado, o laudo registra que não há atividade ou exploração agrícola. As <b>áreas atingidas (ha)</b> foram movidas para o item <b>h)</b>.</p>'
           +hiddenTA+figsHtml(tp)+'</div>'; return;
       }
@@ -18662,10 +18674,8 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
           +hiddenTA+'</div>'; return;
       }
       if(mode==='fundiaria'){
-        html+=rowOpen(tp)+'<p class="hint-auto" style="margin:0 0 8px;">📄 Texto automático conforme as opções abaixo. O código INCRA/SNCR é puxado da identificação (vínculo DESP-1).</p>'
-          +'<div class="vrow"><div class="vfield grow"><label>Possui SIGEF?</label>'
-          +'<select id="d2_fund_sigef" onchange="D2_fundSigef(this.value)"><option value="Sim">Sim</option><option value="Não">Não</option></select></div>'
-          +'<div class="vfield grow"><label>Identificada pendência?</label>'
+        html+=rowOpen(tp)+'<p class="hint-auto" style="margin:0 0 8px;">📄 Texto automático conforme as opções abaixo. O código INCRA/SNCR é puxado da identificação (vínculo DESP-1). "Possui SIGEF?" segue automaticamente a resposta de "Possui georreferenciamento?" da Ficha de Vistoria (aba Técnica).</p>'
+          +'<div class="vrow"><div class="vfield grow"><label>Identificada pendência?</label>'
           +'<select id="d2_fund_pend" onchange="D2_fundPend(this.value)"><option value="Não">Não</option><option value="Sim">Sim</option></select></div></div>'
           +'<div class="vfield grow" id="d2_fund_penddesc_wrap" style="display:none;margin-top:6px;"><label>Descrição das pendências</label><textarea id="d2_fund_penddesc" rows="3" placeholder="Descreva as pendências identificadas..." oninput="D2_fundPendDesc(this.value)"></textarea></div>'
           +hiddenTA+figsHtml(tp)+'</div>'; return;
@@ -19172,6 +19182,12 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     if(linkBtn){ linkBtn.addEventListener("click", function(){ setTimeout(function(){ window.D2_puxar(false); D2_atualizarAuto(); }, 60); }); }
     // recalcula remanescente ao editar áreas
     ["areaTotal","areaDesap"].forEach(function(k){ const e=document.getElementById("d2_"+k); if(e) e.addEventListener("input", function(){ const rem=num(C("areaTotal"))-num(C("areaDesap")); setC("areaRem", isNaN(rem)?"":ha(rem)); D2_rebuild("planta_contendo_a_dimens_o_d"); D2_rebuild("descri_o_dos_prov_veis_impac"); }); });
+    // "Possui SIGEF?" (Situação fundiária) espelha ao vivo "Possui georreferenciamento?"
+    // da Ficha de Vistoria (Anexo B, aba Técnica em DESP-1) — atualiza o texto se mudar depois de gerado.
+    (function(){
+      const georref=document.getElementById("fb_georref");
+      if(georref) georref.addEventListener("change", function(){ D2_rebuild("situa_o_fundi_ria_da_gleba_d"); });
+    })();
     // espelha o "Trecho km (de → a)" da Identificação (vínculo com a DESP 1) no tópico "Descritivo das áreas remanescentes"
     (function(){
       function syncKm(){
