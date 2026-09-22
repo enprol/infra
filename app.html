@@ -2978,6 +2978,7 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
     color:#ef4444;
     animation:pg-pulso-falta 2.7s ease-in-out infinite;
   }
+  .pg-status-naoiniciado{ color:#94a3b8; font-size:17px; font-weight:700; }
   .pg-status-vazio{ color:#c3ccd6; font-size:12px; }
   .pg-status-tooltip{
     position:fixed; z-index:70; max-width:280px; display:none; flex-direction:column; gap:5px;
@@ -2991,6 +2992,7 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
   .pg-status-tooltip ul{ margin:1px 0 0; padding-left:16px; }
   .pg-status-tooltip li{ margin:0; }
   .pg-status-tooltip .pg-tt-ok{ color:#7dffb0; font-weight:700; }
+  .pg-status-tooltip .pg-tt-naoiniciado{ color:#c3ccd6; font-weight:700; }
   @media (max-width:760px){
     .pg-wrap{ padding:16px 12px 40px; }
     .pg-busca{ flex:1 1 100%; min-width:0; }
@@ -4945,6 +4947,9 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 
     <div class="vsub">1.3 Proprietário(a)</div>
     <div class="vrow">
+      <div class="vfield grow"><label>O ocupante é o(a) proprietário(a)?</label><select id="fb_ocup_e_prop"><option value="">Selecione</option><option>1 - Sim</option><option>2 - Não</option></select></div>
+    </div>
+    <div class="vrow">
       <div class="vfield grow"><label>Nome</label><input type="text" id="fb_nome" placeholder="Nome"></div>
       <div class="vfield"><label>RG</label><input type="text" id="fb_rg" placeholder="RG"></div>
       <div class="vfield"><label>CPF</label><input type="text" id="fb_cpf" class="mask-cpf" inputmode="numeric" maxlength="14" placeholder="000.000.000-00"></div>
@@ -4961,6 +4966,28 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
       <div class="vfield grow"><label>Município</label><input type="text" id="fb_municipio" placeholder="Município"></div>
       <div class="vfield"><label>UF</label><select id="fb_uf"><option value="">UF</option><option>AC</option><option>AL</option><option>AP</option><option>AM</option><option>BA</option><option>CE</option><option>DF</option><option>ES</option><option>GO</option><option>MA</option><option>MT</option><option>MS</option><option>MG</option><option>PA</option><option>PB</option><option>PR</option><option>PE</option><option>PI</option><option>RJ</option><option>RN</option><option>RS</option><option>RO</option><option>RR</option><option>SC</option><option>SP</option><option>SE</option><option>TO</option></select></div>
       <div class="vfield"><label>Telefone</label><input type="text" id="fb_telefone" class="mask-tel" inputmode="numeric" maxlength="15" placeholder="(00) 00000-0000"></div>
+    </div>
+
+    <div id="fb_ocup_wrap" style="display:none;">
+      <div class="vsub">Ocupante (já que não é o(a) proprietário(a))</div>
+      <div class="vrow">
+        <div class="vfield grow"><label>Nome</label><input type="text" id="fb_ocup_nome" placeholder="Nome"></div>
+        <div class="vfield"><label>RG</label><input type="text" id="fb_ocup_rg" placeholder="RG"></div>
+        <div class="vfield"><label>CPF</label><input type="text" id="fb_ocup_cpf" class="mask-cpf" inputmode="numeric" maxlength="14" placeholder="000.000.000-00"></div>
+      </div>
+      <div class="vrow">
+        <div class="vfield"><label>Estado Civil</label><select id="fb_ocup_estcivil"><option value="">Selecione</option><option>SOLTEIRO(A)</option><option>CASADO(A)</option><option>DIVORCIADO(A)</option><option>VIÚVO(A)</option><option>UNIÃO ESTÁVEL</option></select></div>
+        <div class="vfield grow"><label>Cônjuge</label><input type="text" id="fb_ocup_conjuge" placeholder="Cônjuge"></div>
+      </div>
+      <div class="vrow">
+        <div class="vfield grow"><label>Endereço</label><input type="text" id="fb_ocup_endereco" placeholder="Endereço"></div>
+        <div class="vfield"><label>CEP</label><input type="text" id="fb_ocup_cep" class="mask-cep" inputmode="numeric" maxlength="10" placeholder="00.000-000"></div>
+      </div>
+      <div class="vrow">
+        <div class="vfield grow"><label>Município</label><input type="text" id="fb_ocup_municipio" placeholder="Município"></div>
+        <div class="vfield"><label>UF</label><select id="fb_ocup_uf"><option value="">UF</option><option>AC</option><option>AL</option><option>AP</option><option>AM</option><option>BA</option><option>CE</option><option>DF</option><option>ES</option><option>GO</option><option>MA</option><option>MT</option><option>MS</option><option>MG</option><option>PA</option><option>PB</option><option>PR</option><option>PE</option><option>PI</option><option>RJ</option><option>RN</option><option>RS</option><option>RO</option><option>RR</option><option>SC</option><option>SP</option><option>SE</option><option>TO</option></select></div>
+        <div class="vfield"><label>Telefone</label><input type="text" id="fb_ocup_telefone" class="mask-tel" inputmode="numeric" maxlength="15" placeholder="(00) 00000-0000"></div>
+      </div>
     </div>
 
     <div class="vsub">1.4 Informante</div>
@@ -11971,7 +11998,9 @@ function AV_gerarDescSituacao(){
   function _pgRawValor(it, campo){
     if (_PG_STATUS_CAMPOS.indexOf(campo) >= 0){
       var st = it.completude && it.completude[campo];
-      return st ? (st.ok ? 'concluido' : 'pendente') : 'pendente';
+      if (!st) return 'nao_iniciado';
+      if (st.ok) return 'concluido';
+      return st.iniciado ? 'pendente' : 'nao_iniciado';
     }
     return campo === 'lote' ? (it.lote||"") : ctdFmt(it.ctd);
   }
@@ -11979,7 +12008,11 @@ function AV_gerarDescSituacao(){
   // rótulo exibido para um valor cru da coluna
   function _pgFmt(campo, v){
     if (campo === 'lote') return loteFmt(v);
-    if (_PG_STATUS_CAMPOS.indexOf(campo) >= 0) return v === 'concluido' ? 'Concluído' : 'Pendente';
+    if (_PG_STATUS_CAMPOS.indexOf(campo) >= 0){
+      if (v === 'concluido') return 'Concluído';
+      if (v === 'pendente') return 'Pendente';
+      return 'Não iniciado';
+    }
     return v;
   }
 
@@ -12020,7 +12053,7 @@ function AV_gerarDescSituacao(){
       opcoes.push(raw);
     });
     if (_PG_STATUS_CAMPOS.indexOf(campo) >= 0){
-      var ordem = {pendente:0, concluido:1};
+      var ordem = {nao_iniciado:0, pendente:1, concluido:2};
       opcoes.sort(function(a,b){ return (ordem[a]||0) - (ordem[b]||0); });
     } else {
       opcoes.sort(function(a,b){ return String(a).localeCompare(String(b), "pt-BR", {numeric:true}); });
@@ -12225,12 +12258,15 @@ function AV_gerarDescSituacao(){
   // ---- status de finalização (DESP 1/2/3): ícone + balão de pendências ----
   function PG_statusCelHTML(st){
     if(!st){ return '<td class="pg-status-td"><span class="pg-status-vazio">—</span></td>'; }
-    var cls = st.ok ? 'pg-status-ok' : 'pg-status-falta';
-    var simbolo = st.ok ? '✓' : '✕';
+    var cls, simbolo;
+    if(st.ok){ cls='pg-status-ok'; simbolo='✓'; }
+    else if(st.iniciado){ cls='pg-status-falta'; simbolo='✕'; }
+    else { cls='pg-status-naoiniciado'; simbolo='–'; }
     return '<td class="pg-status-td"><span class="pg-status-ico ' + cls + '" data-pg-tt="' + esc(JSON.stringify(st)) + '">' + simbolo + '</span></td>';
   }
   function PG_tooltipConteudo(st){
     if(st.ok) return '<b class="pg-tt-ok">✓ Completo</b><div>Nenhuma pendência encontrada.</div>';
+    if(!st.iniciado) return '<b class="pg-tt-naoiniciado">– Não iniciado</b><div>Nada foi preenchido ainda nesta aba.</div>';
     var porDoc = {};
     (st.faltando||[]).forEach(function(f){ (porDoc[f.doc] = porDoc[f.doc]||[]).push(f.rot); });
     var h = '<b>Pendências para finalizar:</b>';
@@ -13969,6 +14005,13 @@ function AV_gerarDescSituacao(){
 
   // ---- Caixas de texto condicionais (aparecem ao marcar certos checkboxes) ----
   function ligarCondicionais(){
+    // 1.3 Proprietário(a) — se o ocupante NÃO é o(a) proprietário(a), mostra o
+    // bloco de dados do ocupante (mesmos campos do 1.3), antes do 1.4 Informante
+    const ocupSel = document.getElementById("fb_ocup_e_prop");
+    const ocupWrap = document.getElementById("fb_ocup_wrap");
+    if(ocupSel && ocupWrap){
+      ocupSel.addEventListener("change", ()=>{ ocupWrap.style.display = (ocupSel.value === "2 - Não") ? "" : "none"; });
+    }
     // 4.8.1 D) Outros → especificar
     const outros = document.getElementById("fb_481_3"); // índice 3 = "Outros"
     const outrosWrap = document.getElementById("fb_481_esp_wrap");
