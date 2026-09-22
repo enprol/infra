@@ -12052,6 +12052,11 @@ function AV_gerarDescSituacao(){
       var st = it.completude && it.completude[campo];
       if (!st) return 'nao_iniciado';
       if (st.ok) return 'concluido';
+      // Maquina com server.js anterior a 22/09 nao manda "iniciado". Sem esse
+      // campo nao da pra saber se e "nao iniciado" ou "pendente" — entao cai no
+      // comportamento antigo (2 estados) em vez de mentir dizendo que um
+      // cadastro cheio de trabalho nao foi nem comecado.
+      if (st.iniciado === undefined) return 'pendente';
       return st.iniciado ? 'pendente' : 'nao_iniciado';
     }
     return campo === 'lote' ? (it.lote||"") : ctdFmt(it.ctd);
@@ -12312,13 +12317,13 @@ function AV_gerarDescSituacao(){
     if(!st){ return '<td class="pg-status-td"><span class="pg-status-vazio">—</span></td>'; }
     var cls, simbolo;
     if(st.ok){ cls='pg-status-ok'; simbolo='✓'; }
-    else if(st.iniciado){ cls='pg-status-falta'; simbolo='✕'; }
+    else if(st.iniciado || st.iniciado === undefined){ cls='pg-status-falta'; simbolo='✕'; }   // undefined = server.js antigo
     else { cls='pg-status-naoiniciado'; simbolo='–'; }
     return '<td class="pg-status-td"><span class="pg-status-ico ' + cls + '" data-pg-tt="' + esc(JSON.stringify(st)) + '">' + simbolo + '</span></td>';
   }
   function PG_tooltipConteudo(st){
     if(st.ok) return '<b class="pg-tt-ok">✓ Completo</b><div>Nenhuma pendência encontrada.</div>';
-    if(!st.iniciado) return '<b class="pg-tt-naoiniciado">– Não iniciado</b><div>Nada foi preenchido ainda nesta aba.</div>';
+    if(!st.iniciado && st.iniciado !== undefined) return '<b class="pg-tt-naoiniciado">– Não iniciado</b><div>Nada foi preenchido ainda nesta aba.</div>';
     var porDoc = {};
     (st.faltando||[]).forEach(function(f){ (porDoc[f.doc] = porDoc[f.doc]||[]).push(f.rot); });
     var h = '<b>Pendências para finalizar:</b>';
