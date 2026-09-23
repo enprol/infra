@@ -12099,10 +12099,26 @@ function AV_gerarDescSituacao(){
     });
   };
 
-  // valores únicos (crus) de uma coluna filtrável, ordenados
+  // Itens que passam pelos filtros ativos. `exceto` deixa UMA coluna de fora —
+  // usado pra montar a lista de opções dela: se o próprio filtro da coluna
+  // contasse, desmarcar um valor o faria desaparecer da lista e não daria pra
+  // marcar de volta. É a mesma regra do Excel.
+  function _pgItensFiltrados(exceto){
+    return _pgItens.filter(function(it){
+      return _PG_CAMPOS.every(function(campo){
+        if (campo === exceto) return true;
+        var sel = _pgSel[campo];
+        return !sel || sel.has(_pgRawValor(it, campo));
+      });
+    });
+  }
+
+  // valores únicos (crus) de uma coluna filtrável, ordenados. Encadeado
+  // (23/09/2026): filtrar Lote = 4 faz a lista de Cadastro mostrar só os
+  // cadastros do lote 4 — antes mostrava os de todos os lotes.
   function _pgValoresUnicos(campo){
     var vistos = {}, opcoes = [];
-    _pgItens.forEach(function(it){
+    _pgItensFiltrados(campo).forEach(function(it){
       var raw = _pgRawValor(it, campo);
       var chave = String(raw);
       if(chave === "" || chave === "—" || vistos[chave]) return;
@@ -12252,12 +12268,7 @@ function AV_gerarDescSituacao(){
     var rodape = document.getElementById("pgRodape");
     if(!corpo) return;
 
-    var itens = _pgItens.filter(function(it){
-      return _PG_CAMPOS.every(function(campo){
-        var sel = _pgSel[campo];
-        return !sel || sel.has(_pgRawValor(it, campo));
-      });
-    }).sort(function(a,b){
+    var itens = _pgItensFiltrados(null).sort(function(a,b){
       var cLote = String(a.lote||"").localeCompare(String(b.lote||""), "pt-BR", {numeric:true});
       if(cLote) return cLote;
       return ctdFmt(a.ctd).localeCompare(ctdFmt(b.ctd), "pt-BR", {numeric:true});
