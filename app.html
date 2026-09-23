@@ -2767,6 +2767,7 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
       <table class="pg-tabela">
         <thead>
           <tr>
+            <th>Medição</th>
             <th>Lote (SPS)</th>
             <th>Cadastro</th>
             <th>Proprietário</th>
@@ -2781,6 +2782,7 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
             <th>R$ Total</th>
           </tr>
           <tr class="pg-filtros">
+            <th><button type="button" class="pg-filtbtn" id="pgFiltBtnMedicao" onclick="PG_toggleFiltro(event,'medicao')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
             <th><button type="button" class="pg-filtbtn" id="pgFiltBtnLote" onclick="PG_toggleFiltro(event,'lote')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
             <th><button type="button" class="pg-filtbtn" id="pgFiltBtnCad" onclick="PG_toggleFiltro(event,'cad')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
             <th></th>
@@ -2792,7 +2794,7 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
           </tr>
         </thead>
         <tbody id="pgCorpo">
-          <tr><td colspan="12" class="pg-vazio">Carregando…</td></tr>
+          <tr><td colspan="13" class="pg-vazio">Carregando…</td></tr>
         </tbody>
         <tfoot id="pgRodape"></tfoot>
       </table>
@@ -2801,6 +2803,12 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
 
   <div class="pg-status-tooltip" id="pgStatusTooltip"></div>
 
+  <div class="pg-filtpop" id="pgPopMedicao" hidden>
+    <div class="pg-filtpop-search"><input type="text" placeholder="Buscar…" oninput="PG_filtrarLista('medicao',this.value)"></div>
+    <label class="pg-filtpop-all"><input type="checkbox" id="pgSelAllMedicao" checked onchange="PG_toggleTodos('medicao',this.checked)"> Selecionar todos</label>
+    <div class="pg-filtpop-list" id="pgListaMedicao"></div>
+    <div class="pg-filtpop-actions"><button type="button" class="pg-btn pg-btn-primaria" onclick="PG_fecharFiltro('medicao')">OK</button></div>
+  </div>
   <div class="pg-filtpop" id="pgPopLote" hidden>
     <div class="pg-filtpop-search"><input type="text" placeholder="Buscar…" oninput="PG_filtrarLista('lote',this.value)"></div>
     <label class="pg-filtpop-all"><input type="checkbox" id="pgSelAllLote" checked onchange="PG_toggleTodos('lote',this.checked)"> Selecionar todos</label>
@@ -2939,20 +2947,38 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
   }
   .pg-tabela tfoot td.pg-num{ text-align:right; font-variant-numeric:tabular-nums; }
 
-  /* ---- colunas fixas (congeladas): Lote e Cadastro ---- */
+  /* ---- colunas fixas (congeladas): Medição, Lote e Cadastro ----
+     23/09/2026: eram 2 (Lote/Cadastro); com a Medição entrando como 1ª coluna
+     passaram a 3. As larguras da 1ª e da 2ª viram variáveis (--pg-col1-w /
+     --pg-col2-w), medidas em PG_ajustarLayoutTabela, pra cada uma saber onde
+     encostar. */
   .pg-tabela th:nth-child(1), .pg-tabela tbody td:nth-child(1):not([colspan]), .pg-tabela tfoot td:nth-child(1),
-  .pg-tabela th:nth-child(2), .pg-tabela tbody td:nth-child(2):not([colspan]), .pg-tabela tfoot td:nth-child(2){
+  .pg-tabela th:nth-child(2), .pg-tabela tbody td:nth-child(2):not([colspan]), .pg-tabela tfoot td:nth-child(2),
+  .pg-tabela th:nth-child(3), .pg-tabela tbody td:nth-child(3):not([colspan]), .pg-tabela tfoot td:nth-child(3){
     position:sticky; left:0;
   }
   .pg-tabela th:nth-child(2), .pg-tabela tbody td:nth-child(2):not([colspan]), .pg-tabela tfoot td:nth-child(2){
-    left:var(--pg-col1-w, 90px);
+    left:var(--pg-col1-w, 110px);
+  }
+  .pg-tabela th:nth-child(3), .pg-tabela tbody td:nth-child(3):not([colspan]), .pg-tabela tfoot td:nth-child(3){
+    left:calc(var(--pg-col1-w, 110px) + var(--pg-col2-w, 90px));
     border-right:2px solid #e4ebf2;
   }
-  .pg-tabela thead th:nth-child(1), .pg-tabela thead th:nth-child(2){ z-index:3; }
-  .pg-tabela tbody td:nth-child(1):not([colspan]), .pg-tabela tbody td:nth-child(2):not([colspan]),
-  .pg-tabela tfoot td:nth-child(1), .pg-tabela tfoot td:nth-child(2){ z-index:2; }
-  .pg-tabela tbody td:nth-child(1):not([colspan]), .pg-tabela tbody td:nth-child(2):not([colspan]){ background:#fff; }
-  .pg-tabela tbody tr:hover td:nth-child(1):not([colspan]), .pg-tabela tbody tr:hover td:nth-child(2):not([colspan]){ background:#f1f6fb; }
+  .pg-tabela thead th:nth-child(1), .pg-tabela thead th:nth-child(2), .pg-tabela thead th:nth-child(3){ z-index:3; }
+  .pg-tabela tbody td:nth-child(1):not([colspan]), .pg-tabela tbody td:nth-child(2):not([colspan]), .pg-tabela tbody td:nth-child(3):not([colspan]),
+  .pg-tabela tfoot td:nth-child(1), .pg-tabela tfoot td:nth-child(2), .pg-tabela tfoot td:nth-child(3){ z-index:2; }
+  .pg-tabela tbody td:nth-child(1):not([colspan]), .pg-tabela tbody td:nth-child(2):not([colspan]), .pg-tabela tbody td:nth-child(3):not([colspan]){ background:#fff; }
+  .pg-tabela tbody tr:hover td:nth-child(1):not([colspan]), .pg-tabela tbody tr:hover td:nth-child(2):not([colspan]), .pg-tabela tbody tr:hover td:nth-child(3):not([colspan]){ background:#f1f6fb; }
+
+  /* seletor da Medição (só existe no Painel Geral) */
+  .pg-medicao{
+    border:1px solid #cfd9e4; border-radius:6px; background:#fff; color:#243447;
+    font-family:inherit; font-size:12.5px; padding:4px 6px; cursor:pointer; width:100%;
+    max-width:104px; outline:none;
+  }
+  .pg-medicao:focus{ border-color:#1F6FC0; box-shadow:0 0 0 2px rgba(31,111,192,.15); }
+  .pg-medicao.tem-valor{ font-weight:700; color:#0a4d7c; border-color:#b7cbe4; background:#f4f8fd; }
+  .pg-medicao:disabled{ opacity:.55; cursor:wait; }
 
   /* ---- status de finalização (DESP 1/2/3) — termômetro por documento ---- */
   .pg-tabela th.pg-status-th{ text-align:center; }
@@ -12029,8 +12055,9 @@ function AV_gerarDescSituacao(){
     var tabela = document.querySelector('#painelGeral .pg-tabela');
     if(!tabela) return;
     var ths = tabela.querySelectorAll('thead tr:first-child th');
-    if(ths.length >= 2){
+    if(ths.length >= 3){
       tabela.style.setProperty('--pg-col1-w', ths[0].getBoundingClientRect().width + 'px');
+      tabela.style.setProperty('--pg-col2-w', ths[1].getBoundingClientRect().width + 'px');
     }
     if(!_pgResizeOk){
       _pgResizeOk = true;
@@ -12040,14 +12067,29 @@ function AV_gerarDescSituacao(){
 
   var _pgItens = [];
   var _pgTimer = null;
-  var _PG_CAMPOS = ['lote','cad','campo','social','tecnica','juridica'];
+  var _PG_CAMPOS = ['medicao','lote','cad','campo','social','tecnica','juridica'];
   var _PG_STATUS_CAMPOS = ['campo','social','tecnica','juridica'];
-  var _PG_SUFIXOS = {lote:'Lote', cad:'Cad', campo:'Campo', social:'Social', tecnica:'Tecnica', juridica:'Juridica'};
-  var _pgSel = {lote:null, cad:null, campo:null, social:null, tecnica:null, juridica:null}; // null = "todos" (sem filtro); senão Set com os valores marcados
+  var _PG_SUFIXOS = {medicao:'Medicao', lote:'Lote', cad:'Cad', campo:'Campo', social:'Social', tecnica:'Tecnica', juridica:'Juridica'};
+  var _pgSel = {medicao:null, lote:null, cad:null, campo:null, social:null, tecnica:null, juridica:null}; // null = "todos" (sem filtro); senão Set com os valores marcados
   var _pgCtxAlvo = null; // {ctd, secao} do cadastro clicado com o botão direito
+
+  // Medição — coluna que só existe no Painel Geral (não é campo de cadastro e
+  // não entra em documento). Ago/26 até Dez/27; "-" = sem medição atribuída.
+  var PG_MEDICAO_VAZIO = '-';
+  var PG_MEDICAO_OPCOES = (function(){
+    var meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    var out = [PG_MEDICAO_VAZIO];
+    for (var ano = 26; ano <= 27; ano++){
+      for (var m = (ano === 26 ? 7 : 0); m < 12; m++){   // 2026 começa em Ago (índice 7)
+        out.push(meses[m] + '/' + ano);
+      }
+    }
+    return out;
+  })();
 
   // valor cru de uma coluna filtrável para um item (usado p/ montar as opções e aplicar o filtro)
   function _pgRawValor(it, campo){
+    if (campo === 'medicao') return it.medicao || PG_MEDICAO_VAZIO;
     if (_PG_STATUS_CAMPOS.indexOf(campo) >= 0){
       var st = it.completude && it.completude[campo];
       if (!st) return 'nao_iniciado';
@@ -12065,6 +12107,7 @@ function AV_gerarDescSituacao(){
   // rótulo exibido para um valor cru da coluna
   function _pgFmt(campo, v){
     if (campo === 'lote') return loteFmt(v);
+    if (campo === 'medicao') return v === PG_MEDICAO_VAZIO ? '(sem medição)' : v;
     if (_PG_STATUS_CAMPOS.indexOf(campo) >= 0){
       if (v === 'concluido') return 'Concluído';
       if (v === 'pendente') return 'Pendente';
@@ -12125,7 +12168,10 @@ function AV_gerarDescSituacao(){
       vistos[chave] = true;
       opcoes.push(raw);
     });
-    if (_PG_STATUS_CAMPOS.indexOf(campo) >= 0){
+    if (campo === 'medicao'){
+      // ordem cronológica, não alfabética ("Ago/26" antes de "Set/26")
+      opcoes.sort(function(a,b){ return PG_MEDICAO_OPCOES.indexOf(a) - PG_MEDICAO_OPCOES.indexOf(b); });
+    } else if (_PG_STATUS_CAMPOS.indexOf(campo) >= 0){
       var ordem = {nao_iniciado:0, pendente:1, concluido:2};
       opcoes.sort(function(a,b){ return (ordem[a]||0) - (ordem[b]||0); });
     } else {
@@ -12250,6 +12296,47 @@ function AV_gerarDescSituacao(){
     window.CAD_excluir(alvo.ctd, rotulo, alvo.secao);
   };
 
+  // ---- Medição: seletor na própria linha do Painel Geral ----
+  // O clique não pode abrir o cadastro (a <tr> tem onclick), daí o stopPropagation.
+  function PG_medicaoCelHTML(it){
+    var atual = it.medicao || PG_MEDICAO_VAZIO;
+    var op = PG_MEDICAO_OPCOES.map(function(v){
+      return '<option value="' + esc(v) + '"' + (v === atual ? ' selected' : '') + '>' + esc(v) + '</option>';
+    }).join('');
+    return '<td onclick="event.stopPropagation()">'
+      + '<select class="pg-medicao' + (atual !== PG_MEDICAO_VAZIO ? ' tem-valor' : '') + '"'
+      + ' data-anterior="' + esc(atual) + '"'
+      + ' title="Medição — preenchido só aqui no Painel Geral"'
+      + ' onchange="PG_setMedicao(this,' + "'" + esc(it.ctd) + "'" + ',' + "'" + esc(it.secao) + "'" + ')">'
+      + op + '</select></td>';
+  }
+
+  window.PG_setMedicao = async function(sel, ctd, secao){
+    var valor = sel.value;
+    var anterior = sel.getAttribute('data-anterior');
+    sel.disabled = true;
+    try{
+      var r = await fetch('/api/medicao/' + encodeURIComponent(secao) + '/' + encodeURIComponent(ctd), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ valor: valor })
+      });
+      if(!r.ok) throw new Error('HTTP ' + r.status);
+      // guarda no item em memória pra não precisar recarregar a lista inteira
+      // (e pro filtro da coluna já considerar o valor novo)
+      var it = _pgItens.filter(function(x){ return String(x.ctd) === String(ctd) && String(x.secao) === String(secao); })[0];
+      if(it) it.medicao = (valor && valor !== PG_MEDICAO_VAZIO) ? valor : null;
+      sel.setAttribute('data-anterior', valor);
+      sel.classList.toggle('tem-valor', valor !== PG_MEDICAO_VAZIO);
+      PG_atualizarBotaoFiltro('medicao');
+    }catch(e){
+      alert('Não foi possível salvar a medição: ' + (e && e.message || e));
+      if(anterior != null) sel.value = anterior;   // desfaz na tela
+    }finally{
+      sel.disabled = false;
+    }
+  };
+
   function PG_atualizarBotaoFiltro(campo){
     var btn = document.getElementById('pgFiltBtn' + _PG_SUFIXOS[campo]);
     if(!btn) return;
@@ -12278,7 +12365,7 @@ function AV_gerarDescSituacao(){
 
     if(!itens.length){
       var temFiltro = _PG_CAMPOS.some(function(campo){ return !!_pgSel[campo]; });
-      corpo.innerHTML = '<tr><td colspan="12" class="pg-vazio">Nenhum cadastro encontrado' + (temFiltro ? " para este filtro." : ".") + '</td></tr>';
+      corpo.innerHTML = '<tr><td colspan="13" class="pg-vazio">Nenhum cadastro encontrado' + (temFiltro ? " para este filtro." : ".") + '</td></tr>';
       if(rodape) rodape.innerHTML = "";
       return;
     }
@@ -12286,6 +12373,7 @@ function AV_gerarDescSituacao(){
     corpo.innerHTML = itens.map(function(it){
       return '<tr onclick="PG_abrir(' + "'" + esc(it.ctd) + "'" + ',' + "'" + esc(it.secao) + "'" + ')"'
         + ' oncontextmenu="return PG_menuContexto(event,' + "'" + esc(it.ctd) + "'" + ',' + "'" + esc(it.secao) + "'" + ')">'
+        + PG_medicaoCelHTML(it)
         + '<td>' + esc(loteFmt(it.lote)) + '</td>'
         + '<td><b>' + esc(ctdFmt(it.ctd)) + '</b></td>'
         + '<td>' + esc(nomeFmt(it.proprietario)) + '</td>'
@@ -12308,6 +12396,7 @@ function AV_gerarDescSituacao(){
         return s;
       }
       rodape.innerHTML = '<tr>'
+        + '<td></td>'
         + '<td></td>'
         + '<td>' + itens.length + ' item(ns)</td>'
         + '<td></td>'
