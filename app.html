@@ -5031,7 +5031,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
     </div>
     <div class="vrow">
       <div class="vfield grow"><label>Endereço</label><input type="text" id="fb_prop_end" placeholder="Endereço"></div>
-      
+      <div class="vfield"><label>CEP</label><input type="text" id="fb_prop_cep" class="mask-cep" inputmode="numeric" maxlength="10" placeholder="00.000-000"></div>
     </div>
     <div class="vrow">
       <div class="vfield grow"><label>Município</label><input type="text" id="fb_prop_mun" placeholder="Município"></div>
@@ -13944,7 +13944,7 @@ function AV_gerarDescSituacao(){
     h2("1.4 Propriedade");
     rv("Identificação:",gvW("fb_prop_id"),{tab:TW(30)});
     rv("Endereço:",gvW("fb_prop_end"),{tab:TW(30)});
-    rv("Município:",gvW("fb_prop_mun"),{tab:TW(30)});
+    line2("CEP:",gvW("fb_prop_cep"),"Município:",gvW("fb_prop_mun"),TW(30),TW(60));
     line2("Área Total (ha):",gvW("fb_area_total"),"Matrícula:",gvW("fb_matricula"),TW(30),TW(100));
     line2("Área de desapropriação (ha):",gvW("fb_area_desap"),"Cartório:",gvW("fb_cartorio"),TW(52),TW(100));
     K.push(new Paragraph({spacing:{after:40},children:[R("")]}));
@@ -14601,6 +14601,7 @@ function AV_gerarDescSituacao(){
     h2("1.4 Propriedade");
     rv("Identificação:", gv("fb_prop_id"), {navy2:true, valTab:49});
     rv("Endereço:", gv("fb_prop_end"), {navy2:true, valTab:49});
+    rv("CEP:", gv("fb_prop_cep"), {navy2:true, valTab:49});
     rv2("Município:", gv("fb_prop_mun"), "UF:", gv("fb_prop_uf"), {navy:true, valTab:49});
     rv("Área Total (ha):", gv("fb_area_total"), {navy2:true, valTab:49});
     rv("Área de desapropriação (ha):", gv("fb_area_desap"), {navy2:true, valTab:49});
@@ -18804,7 +18805,20 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
         return;
       }
       // tópicos com imagem replicados na aba Técnica (DESP 1) via DOM-portal — mesmo elemento, sem clonar
-      if(tp.id==="roteiro_de_acesso" || tp.id==="planta_contendo_a_disposi_o"){
+      if(tp.id==="roteiro_de_acesso"){
+        html+='<div id="d2_row_'+tp.id+'_marca"></div><div id="d2_row_'+tp.id+'">'
+            + rowOpen(tp)
+            + '<p class="hint-auto" style="margin:0 0 8px;">Texto do roteiro de acesso — impresso no relatório junto com a imagem abaixo.</p>'
+            + '<div class="d2-field">'
+              + '<div class="d2-fhead"><span></span>'
+              + '<span class="d2-tools"><button type="button" class="d2b d2b-bold" title="Negrito — selecione o texto e clique (Ctrl+B)" onclick="D2_bold(\''+tp.id+'\')">N</button><button type="button" class="d2b d2b-edit" onclick="D2_toggleEdit(\''+tp.id+'\',this)">✏️ Ativar edição</button></span></div>'
+              + '<div class="d2-view" id="d2_view_'+tp.id+'" contenteditable="false" oninput="D2_syncFromView(\''+tp.id+'\')" onkeydown="D2_keydown(event,\''+tp.id+'\')"></div>'
+            + '</div>'
+            + hiddenTA+figsHtml(tp)
+            + '</div></div>';
+        return;
+      }
+      if(tp.id==="planta_contendo_a_disposi_o"){
         html+='<div id="d2_row_'+tp.id+'_marca"></div><div id="d2_row_'+tp.id+'">'
             + rowOpen(tp)
             + '<div class="d2-fhead"><span class="auto-tag">texto padrão</span>'
@@ -19160,7 +19174,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     // linha em branco antes do próximo título — sem essa folga, isso não contava
     // como "colado" e entrava o respiro de 10mm inteiro entre o título e o
     // subtítulo seguinte (23/09/2026, pedido do usuário: "4." e "4.1" muito longe).
-    function gapTopico(){ if(yc<=topY+0.5) return; yc += (Math.abs(yc-_headEndY)<3 ? 3 : 10); }
+    function gapTopico(farGap){ if(yc<=topY+0.5) return; yc += (Math.abs(yc-_headEndY)<3 ? 3 : (farGap!==undefined?farGap:10)); }
     function titulo(t){ gapTopico(); ensure(20); pdf.setFont(FONT,"bold"); pdf.setFontSize(13.5); pdf.setTextColor(0,0,0);
       const m=String(t).match(/^(\d+)\.\s*(.*)$/);
       if(m){ pdf.text(m[1]+".", mL, yc); pdf.text(m[2].toUpperCase(), mL+11, yc); } else { pdf.text(String(t).toUpperCase(), mL, yc); }
@@ -19179,12 +19193,12 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     }
     /* cabeçalho com letra (a, b, c...): "x)  TÍTULO EM CAIXA ALTA" — quebras de linha
        alinham sob o início do título (recuo suspenso), igual ao modelo Word. */
-    function letraHead(letra,t){
+    function letraHead(letra,t,opts){
       const xLet=mL, xTit=mL+7;
       pdf.setFont(FONT,"bold"); pdf.setFontSize(10.5);
       const tit=String(t).toUpperCase();
       const ls=pdf.splitTextToSize(tit, cw-7);
-      gapTopico(); ensure(ls.length*5+3.5); yc+=1;
+      gapTopico(opts&&opts.gap); ensure(ls.length*5+3.5); yc+=1;
       pdf.setFont(FONT,"normal"); pdf.setTextColor(0,0,0); pdf.text(String(letra)+")", xLet, yc);
       pdf.setFont(FONT,"bold"); pdf.setTextColor(20,41,74);
       ls.forEach(function(l){ pdf.text(l, xTit, yc); yc+=5; });
@@ -19375,7 +19389,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     function figImg(src){ if(!src) return; var iw=cw*0.86, ih=iw*0.6; try{var pr=pdf.getImageProperties(src); if(pr&&pr.width){ih=iw*(pr.height/pr.width); if(ih>120){ih=120; iw=ih*(pr.width/pr.height);}}}catch(e){} ensure(ih+6); try{ pdf.addImage(src,/^data:image\/png/i.test(src)?"PNG":"JPEG",mL+(cw-iw)/2,yc,iw,ih); }catch(e){} yc+=ih+5; }
     // grupos que devem começar em página nova para permanecerem juntos numa única
     // página: [3.1+a)] [b)+c)] [d)+e)] [f)+g)] [h)] [i)+j)+3.2]
-    const QUEBRA_ANTES=new Set(["caracteriza_o_do_im_vel","diagn_stico_produtivo_e_ambi","planta_contendo_a_dimens_o_d","planta_com_indica_o_das_font","planta_contendo_a_disposi_o","planta_de_localiza_o_das_rea","descri_o_dos_prov_veis_impac","conclus_o","anexos"]);
+    const QUEBRA_ANTES=new Set(["caracteriza_o_do_im_vel","diagn_stico_produtivo_e_ambi","planta_contendo_a_dimens_o_d","planta_com_indica_o_das_font","planta_contendo_a_disposi_o","planta_de_localiza_o_das_rea","conclus_o","anexos"]);
     DESP2_TOPICOS.forEach(function(tp){
       if(QUEBRA_ANTES.has(tp.id) && yc>topY+0.01){ rod(); nova(); }
       // "Roteiro de acesso": não separar o título da imagem que vem logo abaixo
@@ -19383,7 +19397,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       const label=(tp.num?(tp.num+" "):"")+tp.head;
       if(tp.level===1) titulo(label);
       else if(tp.level===2) subt(label);
-      else if(tp.letra) letraHead(tp.letra, tp.head);
+      else if(tp.letra) letraHead(tp.letra, tp.head, {gap: tp.id==="planta_da_rea_total_do_im_ve"?4:undefined});
       else h4b(tp.head);
       // 3.2 RESSALVAS — lista dinâmica numerada
       if(tp.id==="ressalvas_t_cnicas_e_observa"){
