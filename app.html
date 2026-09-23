@@ -19440,11 +19440,15 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       }
       // assinatura do responsável após a CONCLUSÃO
       if(tp.id==="conclus_o"){
-        yc+=6; ensure(38);
         var _respKeySel=(document.getElementById("d2_resp_sel")||{}).value;
-        if(_respKeySel==="antonio" && window.__ASSINATURA_CELITO__){
+        var _temAssinaturaImg=(_respKeySel==="antonio" && window.__ASSINATURA_CELITO__);
+        var _aw=55, _ah=_aw*144/1208;
+        // altura real do bloco (imagem opcional + linha + nome + crea + rótulo),
+        // sem folga artificial — antes reservava 44mm fixos e forçava o bloco
+        // pra pagina seguinte mesmo quando cabia no espaco restante da atual.
+        ensure((_temAssinaturaImg?(_ah+1):0)+4.5+5+5+8+1);
+        if(_temAssinaturaImg){
           try{
-            var _aw=55, _ah=_aw*144/1208;
             pdf.addImage(window.__ASSINATURA_CELITO__,"PNG",W/2-_aw/2,yc,_aw,_ah);
             yc+=_ah+1;
           }catch(e){}
