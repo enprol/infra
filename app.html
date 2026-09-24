@@ -2799,7 +2799,7 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
           <tr class="pg-filtros">
             <th><button type="button" class="pg-filtbtn" id="pgFiltBtnMedicao" onclick="PG_toggleFiltro(event,'medicao')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
             <th><button type="button" class="pg-filtbtn" id="pgFiltBtnLote" onclick="PG_toggleFiltro(event,'lote')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
-            <th></th>
+            <th><button type="button" class="pg-filtbtn" id="pgFiltBtnSei" onclick="PG_toggleFiltro(event,'sei')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
             <th><button type="button" class="pg-filtbtn" id="pgFiltBtnCad" onclick="PG_toggleFiltro(event,'cad')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
             <th></th>
             <th><button type="button" class="pg-filtbtn" id="pgFiltBtnPosseiro" onclick="PG_toggleFiltro(event,'posseiro')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
@@ -2822,7 +2822,7 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
   <div class="pg-status-tooltip" id="pgStatusTooltip"></div>
   <style>
     /* ===== Mapa Geral: painel lateral direito do Painel Geral ===== */
-    #painelGeral{ position:relative; --pgm-w:min(48vw, 760px); }
+    #painelGeral{ position:relative; --pgm-w:max(56vw, calc(100% - 540px)); }   /* o mapa/gráficos ficam com a maior parte da tela; a tabela (4 colunas) com ~540px ou 44% */
     #painelGeral.pgm-aberto .pg-wrap{ width:calc(100% - var(--pgm-w)); margin:0; }
     .pgm{
       position:absolute; top:0; right:0; bottom:0; width:var(--pgm-w); z-index:40; display:flex; flex-direction:column;
@@ -2832,6 +2832,11 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
     .pgm-topo{ flex:0 0 auto; display:flex; align-items:center; gap:10px; padding:10px 12px; flex-wrap:wrap; background:#0a1b20; border-bottom:1px solid #16333b; }
     .pgm-tit{ font-size:14px; font-weight:800; letter-spacing:.3px; color:#fff; }
     .pgm-resumo{ font-size:11.5px; color:#9cb7bd; flex:1 1 100%; order:5; }
+    .pgm-fs{ margin-left:auto; border:1px solid #2a4a53; background:#12303a; color:#cfe0e3; border-radius:7px; font-size:12px; font-weight:700; line-height:1; cursor:pointer; padding:5px 9px; display:inline-flex; align-items:center; gap:6px; }
+    .pgm-fs:hover{ color:#fff; border-color:#00e5ff; }
+    .pgm-fs + .pgm-x{ margin-left:0; }
+    .pgm.pgm-fs-css{ position:fixed; inset:0; width:100%; z-index:5000; box-shadow:none; }
+    .pgm:fullscreen{ box-shadow:none; border:none; }
     .pgm-x{ margin-left:auto; border:none; background:none; color:#cfe0e3; font-size:22px; line-height:1; cursor:pointer; padding:0 4px; }
     .pgm-x:hover{ color:#fff; }
     .pgm-corpo{ position:relative; flex:1 1 auto; min-height:0; }
@@ -2903,6 +2908,7 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
     .pgm-pop dd.pgm-longo{ text-align:left; grid-column:1 / -1; font-weight:500; color:#243447; margin-bottom:2px; }
     .pgm-pop button{ margin-top:8px; padding:5px 10px; border:1px solid #1F6FC0; background:#1F6FC0; color:#fff; border-radius:7px; font:700 12px/1 inherit; cursor:pointer; }
     /* ===== Gráficos: painel lateral (mesmo encaixe do Mapa Geral) ===== */
+    .pgg{ container-type:inline-size; container-name:pgg; }
     .pgg-corpo{ flex:1 1 auto; min-height:0; overflow-y:auto; padding:14px; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; align-content:start; grid-auto-rows:max-content; position:relative; }
     .pgg-card{
       background:linear-gradient(160deg,#12303a 0%,#0f2830 100%); border:1px solid #1e414a; border-radius:14px; padding:14px 15px 15px;
@@ -2958,12 +2964,13 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
     @keyframes pggIn{ from{ opacity:0; transform:translateY(12px); } to{ opacity:1; transform:none; } }
     .pgg-anim .pgg-card{ animation:pggIn .5s cubic-bezier(.2,.8,.2,1) both; animation-delay:calc(var(--i,0) * 70ms); }
     @media (prefers-reduced-motion: reduce){ .pgg-anim .pgg-card{ animation:none; } .pgg-bar > i, .pgg-lin-b > i, .pgg-ring .val{ transition:none; } }
-    @media (max-width: 1200px){ .pgg-corpo{ grid-template-columns:1fr; } }
+    @container pgg (max-width: 620px){ .pgg-corpo{ grid-template-columns:1fr; } }
     @media (max-width: 900px){ #painelGeral{ --pgm-w:100%; } #painelGeral.pgm-aberto .pg-wrap{ display:none; } }
   </style>
   <aside class="pgm" id="pgMapaPainel" hidden aria-label="Mapa Geral">
     <div class="pgm-topo">
       <span class="pgm-tit">🗺️ Mapa Geral</span>
+      <button type="button" class="pgm-fs" onclick="PG_telaCheia('pgMapaPainel')" title="Tela cheia (Esc sai)" aria-label="Tela cheia">⛶ Tela cheia</button>
       <button type="button" class="pgm-x" onclick="PG_mapaFechar()" title="Fechar o mapa" aria-label="Fechar o mapa">×</button>
       <div class="pgm-resumo" id="pgmResumo">Abrindo…</div>
     </div>
@@ -2994,6 +3001,7 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
   <aside class="pgm pgg" id="pgGrafPainel" hidden aria-label="Gráficos dos cadastros filtrados">
     <div class="pgm-topo">
       <span class="pgm-tit">📊 Gráficos</span>
+      <button type="button" class="pgm-fs" onclick="PG_telaCheia('pgGrafPainel')" title="Tela cheia (Esc sai)" aria-label="Tela cheia">⛶ Tela cheia</button>
       <button type="button" class="pgm-x" onclick="PG_grafFechar()" title="Fechar os gráficos" aria-label="Fechar os gráficos">×</button>
       <div class="pgm-resumo" id="pggResumo">Abrindo…</div>
     </div>
@@ -3093,6 +3101,12 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
     <div class="pg-filtpop-actions"><button type="button" class="pg-btn pg-btn-primaria" onclick="PG_fecharFiltro('juridica')">OK</button></div>
   </div>
 
+  <div class="pg-filtpop" id="pgPopSei" hidden>
+    <div class="pg-filtpop-search"><input type="text" placeholder="Buscar…" oninput="PG_filtrarLista('sei',this.value)"></div>
+    <label class="pg-filtpop-all"><input type="checkbox" id="pgSelAllSei" checked onchange="PG_toggleTodos('sei',this.checked)"> Selecionar todos</label>
+    <div class="pg-filtpop-list" id="pgListaSei"></div>
+    <div class="pg-filtpop-actions"><button type="button" class="pg-btn pg-btn-primaria" onclick="PG_fecharFiltro('sei')">OK</button></div>
+  </div>
   <div class="pg-filtpop" id="pgPopPosseiro" hidden>
     <div class="pg-filtpop-search"><input type="text" placeholder="Buscar…" oninput="PG_filtrarLista('posseiro',this.value)"></div>
     <label class="pg-filtpop-all"><input type="checkbox" id="pgSelAllPosseiro" checked onchange="PG_toggleTodos('posseiro',this.checked)"> Selecionar todos</label>
@@ -3273,7 +3287,7 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
   .pg-tabela tbody td:nth-child(-n+4):not([colspan]){ background:#fff; }
   .pg-tabela tbody tr:hover td:nth-child(-n+4):not([colspan]){ background:#f1f6fb; }
 
-  /* Mapa Geral aberto: só Medição, Lote, Nº Processo SEI e Cadastro (o resto fica no painel do mapa/balão) */
+  /* Mapa Geral ou Gráficos abertos: só Medição, Lote, Nº Processo SEI e Cadastro */
   #painelGeral.pgm-modo-mapa .pg-tabela tr > :nth-child(n+5){ display:none !important; }
   /* cadastro selecionado (clique na linha com o mapa aberto, ou clique no mapa) */
   .pg-tabela tbody tr.pg-sel > td{ background:#dff5fb !important; }
@@ -12484,10 +12498,10 @@ function AV_gerarDescSituacao(){
 
   var _pgItens = [];
   var _pgTimer = null;
-  var _PG_CAMPOS = ['medicao','lote','cad','posseiro','campo','social','tecnica','juridica','melhorias'];
+  var _PG_CAMPOS = ['medicao','lote','sei','cad','posseiro','campo','social','tecnica','juridica','melhorias'];
   var _PG_STATUS_CAMPOS = ['campo','social','tecnica','juridica'];
-  var _PG_SUFIXOS = {medicao:'Medicao', lote:'Lote', cad:'Cad', posseiro:'Posseiro', campo:'Campo', social:'Social', tecnica:'Tecnica', juridica:'Juridica', melhorias:'Melhorias'};
-  var _pgSel = {medicao:null, lote:null, cad:null, posseiro:null, campo:null, social:null, tecnica:null, juridica:null, melhorias:null}; // null = "todos" (sem filtro); senão Set com os valores marcados
+  var _PG_SUFIXOS = {medicao:'Medicao', lote:'Lote', sei:'Sei', cad:'Cad', posseiro:'Posseiro', campo:'Campo', social:'Social', tecnica:'Tecnica', juridica:'Juridica', melhorias:'Melhorias'};
+  var _pgSel = {medicao:null, lote:null, sei:null, cad:null, posseiro:null, campo:null, social:null, tecnica:null, juridica:null, melhorias:null}; // null = "todos" (sem filtro); senão Set com os valores marcados
   var _pgCtxAlvo = null; // {ctd, secao} do cadastro clicado com o botão direito
 
   // Medição — coluna que só existe no Painel Geral (não é campo de cadastro e
@@ -12531,6 +12545,10 @@ function AV_gerarDescSituacao(){
   // Valores crus de um item numa coluna, sempre como lista: Melhorias é a única em que um
   // cadastro pode ter vários (marcar "Passagem de Gado" mostra quem tem PG, mesmo com outras).
   function _pgValores(it, campo){
+    if (campo === 'sei'){
+      var sei = it.sei ? String(it.sei).trim() : '';
+      return [sei || '__sem'];
+    }
     if (campo === 'posseiro'){
       if (it.posseiro === undefined) return ['__nd'];       // servidor sem o campo
       return [it.posseiro ? String(it.posseiro) : '__sem'];
@@ -12551,8 +12569,8 @@ function AV_gerarDescSituacao(){
 
   // rótulo exibido para um valor cru da coluna
   function _pgFmt(campo, v){
-    if (campo === 'posseiro' || campo === 'melhorias'){
-      if (v === '__sem') return campo === 'posseiro' ? '(sem posseiro)' : '(nenhuma)';
+    if (campo === 'posseiro' || campo === 'melhorias' || campo === 'sei'){
+      if (v === '__sem') return campo === 'posseiro' ? '(sem posseiro)' : (campo === 'sei' ? '(sem processo)' : '(nenhuma)');
       if (v === '__nd') return '(sem dado — servidor desatualizado)';
       return v;
     }
@@ -12626,7 +12644,7 @@ function AV_gerarDescSituacao(){
     if (campo === 'medicao'){
       // ordem cronológica, não alfabética ("Ago/26" antes de "Set/26")
       opcoes.sort(function(a,b){ return PG_MEDICAO_OPCOES.indexOf(a) - PG_MEDICAO_OPCOES.indexOf(b); });
-    } else if (campo === 'posseiro' || campo === 'melhorias'){
+    } else if (campo === 'posseiro' || campo === 'melhorias' || campo === 'sei'){
       // "(sem …)" primeiro, depois alfabético; "Outras" por último nas melhorias
       var pos = function(v){ return v === '__sem' ? 0 : (v === '__nd' ? 1 : (v === PG_MELH_OUTRAS ? 9 : 5)); };
       opcoes.sort(function(a,b){ return (pos(a) - pos(b)) || String(a).localeCompare(String(b), "pt-BR"); });
@@ -13171,7 +13189,11 @@ function AV_gerarDescSituacao(){
     par('R$ Benf. reprodutivas', brl(it.valor_benf_reprodutiva));
     box.innerHTML = '<div class="pgm-ctd">' + escH(rotuloCtd(it)) + '</div><dl>' + linhas.join('') + '</dl>';
     var b = document.createElement('button'); b.type = 'button'; b.textContent = 'Abrir cadastro';
-    b.addEventListener('click', function(){ if(window.PG_abrirCadastro) window.PG_abrirCadastro(it.ctd, it.secao); });
+    b.addEventListener('click', function(){
+      if(fsEl() && document.exitFullscreen) document.exitFullscreen();
+      var pm = $('pgMapaPainel'); if(pm) pm.classList.remove('pgm-fs-css');
+      if(window.PG_abrirCadastro) window.PG_abrirCadastro(it.ctd, it.secao);
+    });
     box.appendChild(b);
     return box;
   }
@@ -13732,6 +13754,36 @@ function AV_gerarDescSituacao(){
     });
   }
 
+  // ---------- tela cheia (Mapa e Gráficos) ----------
+  // Fullscreen API no próprio painel; se o navegador não deixar (ou não tiver), cai num "tela cheia" só de CSS.
+  function fsEl(){ return document.fullscreenElement || document.webkitFullscreenElement || null; }
+  function fsAtualizarBotoes(){
+    var pf = fsEl(); if(pf) pf.classList.remove('pgm-fs-css');      // o nativo assumiu: não precisa do modo CSS
+    Array.prototype.forEach.call(document.querySelectorAll('.pgm-fs'), function(b){
+      var p = b.closest('.pgm'); var on = !!p && (fsEl() === p || p.classList.contains('pgm-fs-css'));
+      b.textContent = on ? '⤡ Sair da tela cheia' : '⛶ Tela cheia';
+      b.title = on ? 'Sair da tela cheia (Esc)' : 'Tela cheia (Esc sai)';
+    });
+    setTimeout(function(){ if(mapa) mapa.invalidateSize(); window.dispatchEvent(new Event('resize')); }, 120);
+  }
+  window.PG_telaCheia = function(id){
+    var p = document.getElementById(id); if(!p) return;
+    if(fsEl() === p){ p.classList.remove('pgm-fs-css'); (document.exitFullscreen || document.webkitExitFullscreen).call(document); return; }
+    if(p.classList.contains('pgm-fs-css')){ p.classList.remove('pgm-fs-css'); fsAtualizarBotoes(); return; }
+    var rq = p.requestFullscreen || p.webkitRequestFullscreen;
+    var css = function(){ p.classList.add('pgm-fs-css'); fsAtualizarBotoes(); };
+    if(!rq) return css();
+    try{ var pr = rq.call(p); if(pr && pr.catch) pr.catch(css); }catch(e){ css(); }
+    // alguns navegadores embutidos nem aceitam nem recusam o pedido: se não entrou em tela cheia, usa o modo CSS
+    setTimeout(function(){ if(fsEl() !== p && !p.classList.contains('pgm-fs-css')) css(); }, 450);
+  };
+  document.addEventListener('keydown', function(ev){          // Esc também sai do modo CSS
+    if(ev.key !== 'Escape') return;
+    var c = document.querySelector('.pgm.pgm-fs-css'); if(c){ c.classList.remove('pgm-fs-css'); fsAtualizarBotoes(); }
+  });
+  document.addEventListener('fullscreenchange', fsAtualizarBotoes);
+  document.addEventListener('webkitfullscreenchange', fsAtualizarBotoes);
+
   // ---------- abrir / fechar ----------
   window.PG_mapaAlternar = function(){ aberto ? window.PG_mapaFechar() : abrir(); };
   function abrir(){
@@ -13754,8 +13806,10 @@ function AV_gerarDescSituacao(){
   window.PG_mapaFechar = function(){
     var pg = $('painelGeral'), painel = $('pgMapaPainel'), btn = $('pgBtnMapa');
     aberto = false; geracao++; hoverKey = null; selKey = null;
+    if(fsEl() === painel && document.exitFullscreen) document.exitFullscreen();
+    if(painel){ painel.classList.remove('pgm-fs-css'); }
     if(painel) painel.hidden = true;
-    if(pg){ pg.classList.remove('pgm-modo-mapa'); if(!(window.PG_grafAberto && window.PG_grafAberto())) pg.classList.remove('pgm-aberto'); }
+    if(pg && !(window.PG_grafAberto && window.PG_grafAberto())) pg.classList.remove('pgm-modo-mapa', 'pgm-aberto');
     if(btn){ btn.setAttribute('aria-expanded', 'false'); btn.classList.remove('pg-btn-primaria'); }
     sincronizarLinha();
     setTimeout(function(){ window.dispatchEvent(new Event('resize')); }, 30);
@@ -13914,7 +13968,7 @@ function AV_gerarDescSituacao(){
     var pg = $('painelGeral'), painel = $('pgGrafPainel'), btn = $('pgBtnGraf');
     if(!painel) return;
     if(window.PG_mapaFechar && window.PG_mapaAberto && window.PG_mapaAberto()) window.PG_mapaFechar();   // um painel por vez
-    aberto = true; painel.hidden = false; pg.classList.add('pgm-aberto', 'pgg-aberto');
+    aberto = true; painel.hidden = false; pg.classList.add('pgm-aberto', 'pgg-aberto', 'pgm-modo-mapa');
     painel.classList.remove('pgg-anim'); void painel.offsetWidth; painel.classList.add('pgg-anim');
     if(btn){ btn.setAttribute('aria-expanded', 'true'); btn.classList.add('pg-btn-primaria'); }
     render();
@@ -13925,7 +13979,9 @@ function AV_gerarDescSituacao(){
     aberto = false;
     if(painel) painel.hidden = true;
     if(pg) pg.classList.remove('pgg-aberto');
-    if(pg && !(window.PG_mapaAberto && window.PG_mapaAberto())) pg.classList.remove('pgm-aberto');
+    if(pg && !(window.PG_mapaAberto && window.PG_mapaAberto())) pg.classList.remove('pgm-aberto', 'pgm-modo-mapa');
+    if(document.fullscreenElement === painel && document.exitFullscreen) document.exitFullscreen();
+    if(painel) painel.classList.remove('pgm-fs-css');
     if(btn){ btn.setAttribute('aria-expanded', 'false'); btn.classList.remove('pg-btn-primaria'); }
     setTimeout(function(){ window.dispatchEvent(new Event('resize')); }, 30);
   };
