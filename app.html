@@ -2786,7 +2786,7 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
             <th class="pg-status-th pg-col-st">SOCIAL</th>
             <th class="pg-status-th pg-col-st">TÉCNICA</th>
             <th class="pg-status-th pg-col-st">JURÍDICA</th>
-            <th class="pg-status-th pg-col-resumo" title="Campo · Social · Técnica · Jurídica">C · S · T · J</th>
+            <th class="pg-col-resumo" aria-hidden="true"></th>
             <th>Nº Processo SEI</th>
             <th class="pg-status-th">Melhorias</th>
             <th>R$ Terra nua</th>
@@ -2918,15 +2918,19 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
   .pg-tabela td.pg-num{ text-align:right; font-variant-numeric:tabular-nums; }
   .pg-tabela td.pg-total{ font-weight:700; color:#0a4d7c; }
   .pg-vazio{ text-align:center; color:#8a97a6; padding:26px 14px !important; white-space:normal; }
-  /* 3 linhas de cabeçalho fixas (grupo / títulos / filtros): a altura das duas de cima é
-     medida em PG_ajustarLayoutTabela (--pg-h-grupo / --pg-h-cab) pra cada uma encostar na anterior */
-  .pg-tabela thead tr.pg-grupos th{ top:0; padding:5px 14px; height:auto; font-size:10.5px; border-bottom:none; background:#fff; }
+  /* 3 linhas de cabeçalho fixas: grupo (26px) / títulos (40px) / filtros (48px) */
+  /* alturas FIXAS das 3 linhas de título (26 + 40 + filtros a 66px): antes eram medidas por JS e,
+     medidas com a tabela oculta ou antes das fontes, saíam erradas e os títulos se empilhavam */
+  .pg-tabela thead tr.pg-grupos th{ top:0; height:26px; box-sizing:border-box; padding:0 14px; line-height:24px; font-size:10.5px; border-bottom:none; background:#fff; z-index:5; }
   .pg-tabela thead tr.pg-grupos th.pg-grupo-th{
     text-align:center; color:#0a4d7c; letter-spacing:.6px; background:#eaf3fc;
     border-radius:8px 8px 0 0; border-bottom:2px solid #1F6FC0;
   }
-  .pg-tabela thead tr.pg-cabecalho th{ top:var(--pg-h-grupo, 26px); }
-  .pg-tabela thead tr.pg-filtros th{ position:sticky; top:calc(var(--pg-h-grupo, 26px) + var(--pg-h-cab, 37px)); background:#fff; padding:6px 14px 10px; border-bottom:2px solid #e4ebf2; }
+  /* cada linha fixa começa 1px ANTES do fim da anterior: em zoom/DPR não inteiro sobrava uma fresta
+     de subpixel entre elas e o conteúdo das linhas aparecia por ali */
+  .pg-tabela thead tr.pg-cabecalho th{ top:25px; height:40px; box-sizing:border-box; padding:0 14px; z-index:5; }
+  .pg-tabela thead tr.pg-filtros th{ position:sticky; top:64px; height:48px; box-sizing:border-box; background:#fff; padding:6px 14px 8px; border-bottom:2px solid #e4ebf2; z-index:5; }
+  .pg-tabela thead tr th:nth-child(-n+3){ z-index:7 !important; }   /* colunas fixas passam POR CIMA dos títulos que rolam por baixo */
   /* moldura do grupo "Andamento por etapa" (CAMPO..JURÍDICA = colunas 6 a 9): faixa suave ao redor */
   .pg-tabela tr:not(.pg-grupos) > :nth-child(6):not([colspan]){ border-left:1px solid #d3e2f3; }
   .pg-tabela tr:not(.pg-grupos) > :nth-child(9):not([colspan]){ border-right:1px solid #d3e2f3; }
@@ -2938,19 +2942,13 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
   .pg-tabela.pg-grupo-fechado .pg-col-st{ display:none; }
   .pg-tabela.pg-grupo-fechado .pg-col-resumo{ display:table-cell; }
   .pg-tabela tr:not(.pg-grupos) > .pg-col-resumo{ border-left:1px solid #d3e2f3; border-right:1px solid #d3e2f3; }
-  .pg-tabela tbody td.pg-col-resumo{ background-color:rgba(234,243,252,.35); text-align:center; }
+  .pg-tabela .pg-col-resumo{ width:34px; min-width:34px; max-width:34px; padding:0 !important; }
+  .pg-tabela tbody td.pg-col-resumo{ background-color:rgba(234,243,252,.35); }
   .pg-tabela thead tr.pg-cabecalho th.pg-col-resumo{ background-color:#f0f6fc; }
   .pg-tabela thead tr.pg-grupos th.pg-grupo-th{ cursor:pointer; user-select:none; }
   .pg-tabela thead tr.pg-grupos th.pg-grupo-th:hover{ background:#dcebfa; }
   .pg-tabela thead tr.pg-grupos th.pg-grupo-th:focus-visible{ outline:2px solid #1F6FC0; outline-offset:-2px; }
-  .pg-dots{ display:inline-flex; gap:3px; vertical-align:middle; }
-  .pg-dot{
-    display:inline-flex; align-items:center; justify-content:center; width:17px; height:17px; border-radius:50%;
-    font-size:9.5px; font-weight:800; color:#fff; cursor:default; line-height:1;
-  }
-  .pg-dot-ok{ background:#22c55e; }
-  .pg-dot-falta{ background:#ef4444; }
-  .pg-dot-ni{ background:#c3ccd6; }
+  /* recolhido: coluna fina e VAZIA (sem dado nenhum); a seta no título do grupo reabre */
   .pg-tabela td.pg-posseiro{ color:#243447; }
   .pg-tabela td.pg-posseiro.pg-sem{ color:#a7b2bf; text-align:center; }
   /* coluna Melhorias: número + balão com a lista */
@@ -12215,12 +12213,13 @@ function AV_gerarDescSituacao(){
     if(!tabela) return;
     var ths = tabela.querySelectorAll('thead tr.pg-cabecalho th');
     if(ths.length >= 3){
-      tabela.style.setProperty('--pg-col1-w', ths[0].getBoundingClientRect().width + 'px');
-      tabela.style.setProperty('--pg-col2-w', ths[1].getBoundingClientRect().width + 'px');
+      var w1 = ths[0].getBoundingClientRect().width, w2 = ths[1].getBoundingClientRect().width;
+      if(w1 > 0 && w2 > 0){   // tabela oculta mede 0: não aplica, senão as colunas fixas se sobrepõem
+        tabela.style.setProperty('--pg-col1-w', w1 + 'px');
+        tabela.style.setProperty('--pg-col2-w', w2 + 'px');
+      }
     }
-    var trGrupo = tabela.querySelector('thead tr.pg-grupos'), trCab = tabela.querySelector('thead tr.pg-cabecalho');
-    if(trGrupo) tabela.style.setProperty('--pg-h-grupo', trGrupo.getBoundingClientRect().height + 'px');
-    if(trCab) tabela.style.setProperty('--pg-h-cab', trCab.getBoundingClientRect().height + 'px');
+
     if(!_pgResizeOk){
       _pgResizeOk = true;
       window.addEventListener('resize', PG_ajustarLayoutTabela);
@@ -12582,8 +12581,8 @@ function AV_gerarDescSituacao(){
   window.PG_renderizar = PG_renderizar;
 
   // ---- Grupo "Andamento por etapa" retrátil ----
-  // Expandido: as 4 colunas (CAMPO/SOCIAL/TÉCNICA/JURÍDICA). Recolhido: some tudo e entra
-  // uma coluna-resumo com 4 bolinhas (C/S/T/J) coloridas pelo status. O estado fica salvo
+  // Expandido: as 4 colunas (CAMPO/SOCIAL/TÉCNICA/JURÍDICA). Recolhido: somem as 4, sem
+  // mostrar dado nenhum — sobra só uma coluna fina com a seta pra reabrir. O estado fica salvo
   // no navegador (localStorage) — só uma conveniência de tela, não vai pro cadastro.
   var _pgGrupoFechado = false;
   try{ _pgGrupoFechado = localStorage.getItem('pg_grupo_etapas_fechado') === '1'; }catch(e){}
@@ -12598,8 +12597,10 @@ function AV_gerarDescSituacao(){
       th.setAttribute('aria-expanded', String(!_pgGrupoFechado));
       // filtro ativo numa coluna escondida não pode passar despercebido
       var filtrado = _pgGrupoFechado && _PG_STATUS_CAMPOS.some(function(c){ return !!_pgSel[c]; });
-      if(txt) txt.textContent = (_pgGrupoFechado ? '▸ Etapas' : '▾ Andamento por etapa') + (filtrado ? ' • filtrado' : '');
-      th.title = _pgGrupoFechado ? 'Clique para expandir CAMPO / SOCIAL / TÉCNICA / JURÍDICA' : 'Clique para recolher as 4 colunas num resumo';
+      if(txt) txt.textContent = _pgGrupoFechado ? ('▸' + (filtrado ? '•' : '')) : '▾ Andamento por etapa';
+      th.title = _pgGrupoFechado
+        ? 'CAMPO / SOCIAL / TÉCNICA / JURÍDICA recolhidas' + (filtrado ? ' (há filtro ativo nelas)' : '') + ' — clique para expandir'
+        : 'Clique para recolher CAMPO / SOCIAL / TÉCNICA / JURÍDICA';
     }
     requestAnimationFrame(PG_ajustarLayoutTabela);
   }
@@ -12609,16 +12610,8 @@ function AV_gerarDescSituacao(){
     PG_aplicarGrupo();
   };
 
-  // coluna-resumo: uma bolinha por etapa (C/S/T/J), cor = status; nome completo no title
-  function PG_resumoEtapasCelHTML(it){
-    var etapas = [['campo','C','Campo'],['social','S','Social'],['tecnica','T','Técnica'],['juridica','J','Jurídica']];
-    var dots = etapas.map(function(e){
-      var v = _pgRawValor(it, e[0]);
-      var cls = v === 'concluido' ? 'pg-dot-ok' : (v === 'pendente' ? 'pg-dot-falta' : 'pg-dot-ni');
-      return '<span class="pg-dot ' + cls + '" title="' + e[2] + ': ' + esc(_pgFmt(e[0], v)) + '">' + e[1] + '</span>';
-    }).join('');
-    return '<td class="pg-col-resumo"><span class="pg-dots">' + dots + '</span></td>';
-  }
+  // coluna que sobra quando o grupo está recolhido: fina e vazia de propósito
+  function PG_resumoEtapasCelHTML(){ return '<td class="pg-col-resumo"></td>'; }
 
   // ---- Posseiro: preenchido quando o ocupante do imóvel não é o(a) proprietário(a) ----
   // (Ficha de Vistoria 1.3 / 1.3.2). Sem posseiro = traço. `undefined` = server.js
