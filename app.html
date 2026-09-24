@@ -13154,11 +13154,12 @@ function AV_gerarDescSituacao(){
     ctx.putImageData(img, 0, 0);
   }
 
-  // intervalo das curvas conforme o zoom (equidistância): regional 200 m … detalhe 10 m
-  function intervaloCurvas(z){ return z <= 9 ? 200 : z <= 11 ? 100 : z <= 13 ? 50 : z <= 15 ? 20 : 10; }
+  // equidistância fixa: curvas de 1 em 1 m e mestras de 5 em 5 m. Em zoom afastado 1 m vira mancha,
+  // então as curvas só aparecem a partir de CURVAS_ZOOM_MIN.
+  var CURVAS_INT = 1, CURVAS_MESTRA = 5, CURVAS_ZOOM_MIN = 14;
   function atualizarIntervaloCurvas(){
     var el = $('pgmCurvasInt'); if(!el || !mapa) return;
-    el.textContent = demCurvas ? '(' + intervaloCurvas(Math.round(mapa.getZoom())) + ' m)' : '';
+    el.textContent = !demCurvas ? '' : (mapa.getZoom() >= CURVAS_ZOOM_MIN ? '(1 m / 5 m)' : '(aproxime o zoom)');
   }
   // curvas de nível por "marching squares" no próprio tile; fininhas e brancas (a cada 5ª, mais firme)
   function pintarCurvas(canvas, tl, z){
@@ -13172,7 +13173,7 @@ function AV_gerarDescSituacao(){
       }
       e[y * W + x] = s0 / nn;
     }
-    var ctx = canvas.getContext('2d'), esc = 256 / W, INT = intervaloCurvas(z), GRANDE = INT * 5;
+    var ctx = canvas.getContext('2d'), esc = 256 / W, INT = CURVAS_INT, GRANDE = CURVAS_MESTRA;
     var pMenor = new Path2D(), pMaior = new Path2D();
     var ponto = function(a, b, va, vb, L){ var t = (L - va) / (vb - va); return a + (b - a) * t; };
     for(var cy = 0; cy < H - 1; cy++){
@@ -13221,7 +13222,7 @@ function AV_gerarDescSituacao(){
         return tile;
       }
     });
-    return new Cls({ pane:'curvasPane', tileSize:256, maxNativeZoom:15, minZoom:8, maxZoom:21 });
+    return new Cls({ pane:'curvasPane', tileSize:256, maxNativeZoom:15, minZoom:CURVAS_ZOOM_MIN, maxZoom:21 });
   }
   // cota (m) num ponto — só usada pra leitura ao passar o mouse com o DEM ligado
   function cota(lat, lon){
