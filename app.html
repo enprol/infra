@@ -2764,6 +2764,7 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
       <button type="button" class="pg-btn pg-btn-primaria" onclick="CAD_novoCadastro()">Novo Cadastro</button>
       <button type="button" class="pg-btn" id="pgBtnAtualizar" onclick="PG_atualizar()">Atualizar planilha</button>
       <button type="button" class="pg-btn" onclick="PG_utilitarios()">Utilitários</button>
+      <button type="button" class="pg-btn" id="pgBtnMapa" onclick="PG_mapaAlternar()" aria-expanded="false">🗺️ Mapa Geral</button>
       <span class="pg-status" id="pgStatus"></span>
     </div>
 
@@ -2817,6 +2818,67 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
   </div>
 
   <div class="pg-status-tooltip" id="pgStatusTooltip"></div>
+  <style>
+    /* ===== Mapa Geral: painel lateral direito do Painel Geral ===== */
+    #painelGeral{ position:relative; --pgm-w:min(48vw, 760px); }
+    #painelGeral.pgm-aberto .pg-wrap{ width:calc(100% - var(--pgm-w)); margin:0; }
+    .pgm{
+      position:absolute; top:0; right:0; bottom:0; width:var(--pgm-w); z-index:40; display:flex; flex-direction:column;
+      background:#0e2329; color:#e8f1f3; border-left:1px solid #08161a; box-shadow:-10px 0 30px rgba(10,30,45,.28);
+    }
+    .pgm[hidden]{ display:none; }
+    .pgm-topo{ flex:0 0 auto; display:flex; align-items:center; gap:10px; padding:10px 12px; flex-wrap:wrap; background:#0a1b20; border-bottom:1px solid #16333b; }
+    .pgm-tit{ font-size:14px; font-weight:800; letter-spacing:.3px; color:#fff; }
+    .pgm-resumo{ font-size:11.5px; color:#9cb7bd; flex:1 1 100%; order:5; }
+    .pgm-x{ margin-left:auto; border:none; background:none; color:#cfe0e3; font-size:22px; line-height:1; cursor:pointer; padding:0 4px; }
+    .pgm-x:hover{ color:#fff; }
+    .pgm-bases{ display:flex; gap:5px; flex-wrap:wrap; }
+    .pgm-chip{
+      height:26px; padding:0 11px; border-radius:14px; font:600 11.5px/1 inherit; cursor:pointer; white-space:nowrap;
+      border:1px solid #2a4a53; background:#12303a; color:#c8dde1; transition:all .15s;
+    }
+    .pgm-chip:hover{ border-color:#7fa3ab; }
+    .pgm-chip.on{ background:#e8f1f3; color:#0e2329; border-color:#e8f1f3; }
+    .pgm-corpo{ position:relative; flex:1 1 auto; min-height:0; }
+    .pgm-mapa{ position:absolute; inset:0; background:#0e2329; }
+    .pgm-msg{
+      position:absolute; z-index:1100; left:50%; top:12px; transform:translateX(-50%); max-width:88%; padding:8px 14px; border-radius:18px;
+      background:rgba(217,71,47,.94); color:#fff; font-size:12px; font-weight:600; text-align:center; box-shadow:0 8px 24px rgba(0,0,0,.4); display:none;
+    }
+    .pgm-msg.show{ display:block; }
+    .pgm-msg.info{ background:rgba(20,60,75,.94); }
+    .pgm-camadas{
+      position:absolute; z-index:1000; left:10px; bottom:10px; width:min(290px, calc(100% - 20px)); max-height:52%; overflow:auto;
+      background:rgba(10,27,32,.92); border:1px solid #23444d; border-radius:10px; padding:9px 11px; font-size:12px; backdrop-filter:blur(3px);
+    }
+    .pgm-camadas label{ display:flex; align-items:center; gap:8px; padding:3px 0; cursor:pointer; color:#e8f1f3; }
+    .pgm-camadas .pgm-sw{ flex:0 0 26px; height:0; border-top:3px solid; }
+    .pgm-camadas .pgm-sw-fixo{ border-top-color:#ef2b2d; border-top-style:dotted; border-top-width:4px; }
+    .pgm-camadas .pgm-sw-cad{ border-top-color:#00e5ff; }
+    .pgm-camadas details{ margin-top:6px; color:#9cb7bd; }
+    .pgm-camadas summary{ cursor:pointer; font-size:11.5px; }
+    .pgm-camadas details ul{ margin:4px 0 0; padding-left:16px; max-height:120px; overflow:auto; }
+    .pgm-camadas .pgm-t{ font-size:10.5px; font-weight:800; letter-spacing:.5px; text-transform:uppercase; color:#7fa3ab; margin-bottom:4px; }
+    .pgm .leaflet-container{ background:#0e2329; font-family:inherit; }
+    .pgm .tiles-sat{ filter:saturate(1.06) contrast(1.04) brightness(.98); }
+    .pgm .leaflet-control-scale-line{ background:rgba(255,255,255,.85); }
+    .pgm-pop b{ color:#0a4d7c; }
+    .pgm-pop button{ margin-top:6px; padding:5px 10px; border:1px solid #1F6FC0; background:#1F6FC0; color:#fff; border-radius:7px; font:700 12px/1 inherit; cursor:pointer; }
+    @media (max-width: 900px){ #painelGeral{ --pgm-w:100%; } #painelGeral.pgm-aberto .pg-wrap{ display:none; } }
+  </style>
+  <aside class="pgm" id="pgMapaPainel" hidden aria-label="Mapa Geral">
+    <div class="pgm-topo">
+      <span class="pgm-tit">🗺️ Mapa Geral</span>
+      <div class="pgm-bases" id="pgmBases"></div>
+      <button type="button" class="pgm-x" onclick="PG_mapaFechar()" title="Fechar o mapa" aria-label="Fechar o mapa">×</button>
+      <div class="pgm-resumo" id="pgmResumo">Abrindo…</div>
+    </div>
+    <div class="pgm-corpo">
+      <div class="pgm-mapa" id="pgmMapa"></div>
+      <div class="pgm-msg" id="pgmMsg"></div>
+      <div class="pgm-camadas" id="pgmCamadas"></div>
+    </div>
+  </aside>
 
   <div class="pg-filtpop" id="pgPopMedicao" hidden>
     <div class="pg-filtpop-search"><input type="text" placeholder="Buscar…" oninput="PG_filtrarLista('medicao',this.value)"></div>
@@ -12323,6 +12385,9 @@ function AV_gerarDescSituacao(){
     return v;
   }
 
+  // itens que passam pelos filtros ativos — o Mapa Geral desenha exatamente esses
+  window.PG_getItensFiltrados = function(){ return _pgItensFiltrados(null); };
+
   window.PG_pesquisar = function(){
     clearTimeout(_pgTimer);
     _pgTimer = setTimeout(function(){ PG_atualizar(true); }, 300);
@@ -12578,6 +12643,7 @@ function AV_gerarDescSituacao(){
 
     _PG_CAMPOS.forEach(PG_atualizarBotaoFiltro);
     PG_aplicarGrupo();
+    if(window.PG_mapaAtualizar) window.PG_mapaAtualizar();   // Mapa Geral acompanha os filtros
 
     if(!itens.length){
       var temFiltro = _PG_CAMPOS.some(function(campo){ return !!_pgSel[campo]; });
@@ -12763,6 +12829,353 @@ function AV_gerarDescSituacao(){
     }
     try{ sessionStorage.setItem("enprol_modo", "painel"); }catch(e){}
     location.reload();
+  };
+})();
+</script>
+<script>
+/* ===== Painel Geral » Mapa Geral =====
+   Painel lateral direito com o georreferenciamento dos cadastros que passam pelos filtros
+   da tabela. Desenha (1) o KML de cada cadastro (aba Técnica » Áreas de Locação » KML,
+   guardado pelo servidor em <cadastro>/kml/) e (2) o KML FIXO da faixa de domínio de cada
+   SPS presente na seleção (<BASE>/_MAPA-FIXOS/SPS-NN.kml), em linha vermelha pontilhada.
+   Leaflet vem do cdnjs, só na primeira vez que o mapa abre. Bases de satélite Esri (grátis),
+   mesma linguagem do mapa da apresentação AMBEV. O DEM/relevo 3D fica para a próxima etapa
+   (MapLibre + tiles Terrarium, como naquela apresentação). */
+(function(){
+  var LEAFLET_JS  = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
+  var LEAFLET_CSS = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';
+  var ESRI = 'https://server.arcgisonline.com/ArcGIS/rest/services/';
+  var ATTR_ESRI = 'Imagens © Esri, Maxar, Earthstar Geographics e comunidade de usuários GIS';
+  var ESTILO_FIXO = { color:'#ef2b2d', weight:2.4, opacity:.95, dashArray:'1 7', lineCap:'round', fill:false, interactive:false };
+  var ESTILO_CAD  = { color:'#00e5ff', weight:2.6, opacity:1, fillColor:'#00e5ff', fillOpacity:.14 };
+
+  var $ = function(id){ return document.getElementById(id); };
+  var escH = function(t){ return String(t == null ? '' : t).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); };
+
+  var aberto = false, mapa = null, baseKey = 'sat', baseLayers = [];
+  var paneOk = false, rFix = null, rCad = null;
+  var grupoCad = null, fixoLayers = {};             // fixoLayers[sps] = L.FeatureGroup (construído uma vez)
+  var visCad = true, visFixo = {};                   // visibilidade escolhida nas caixas
+  var cache = {};                                    // geometrias já baixadas/lidas (chave inclui atualizado_em)
+  var fixosLista = null, fixosErro = null;
+  var ultimaAssinatura = null, timer = null, geracao = 0;
+
+  var BASES = {
+    sat:   { n:'Satélite', make:function(){ return [ L.tileLayer(ESRI+'World_Imagery/MapServer/tile/{z}/{y}/{x}', {maxNativeZoom:18, maxZoom:21, attribution:ATTR_ESRI, className:'tiles-sat'}) ]; } },
+    hyb:   { n:'Híbrido', make:function(){ return [
+              L.tileLayer(ESRI+'World_Imagery/MapServer/tile/{z}/{y}/{x}', {maxNativeZoom:18, maxZoom:21, attribution:ATTR_ESRI, className:'tiles-sat'}),
+              L.tileLayer(ESRI+'Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}', {maxNativeZoom:18, maxZoom:21, pane:'labelPane', opacity:.95}),
+              L.tileLayer(ESRI+'Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {maxNativeZoom:18, maxZoom:21, pane:'labelPane'}) ]; } },
+    topo:  { n:'Topográfico', make:function(){ return [ L.tileLayer(ESRI+'World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {maxNativeZoom:18, maxZoom:21, attribution:'Mapa © Esri, HERE, Garmin, OpenStreetMap e colaboradores'}) ]; } },
+    light: { n:'Claro', make:function(){ return [ L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {subdomains:'abcd', maxNativeZoom:19, maxZoom:21, attribution:'© OpenStreetMap · © CARTO'}) ]; } }
+  };
+  try{ var salvo = localStorage.getItem('pg_mapa_base'); if(salvo && ['sat','hyb','topo','light'].indexOf(salvo) >= 0) baseKey = salvo; }catch(e){}
+
+  // ---------- carregar o Leaflet só quando precisa ----------
+  var _leafletP = null;
+  function carregarLeaflet(){
+    if(window.L && window.L.map) return Promise.resolve();
+    if(_leafletP) return _leafletP;
+    _leafletP = new Promise(function(ok, falha){
+      var css = document.createElement('link'); css.rel = 'stylesheet'; css.href = LEAFLET_CSS; document.head.appendChild(css);
+      var sc = document.createElement('script'); sc.src = LEAFLET_JS;
+      sc.onload = function(){ ok(); };
+      sc.onerror = function(){ _leafletP = null; falha(new Error('sem internet (não consegui baixar o Leaflet)')); };
+      document.head.appendChild(sc);
+    });
+    return _leafletP;
+  }
+
+  function msg(texto, tipo){
+    var m = $('pgmMsg'); if(!m) return;
+    if(!texto){ m.classList.remove('show'); return; }
+    m.textContent = texto; m.className = 'pgm-msg show' + (tipo === 'info' ? ' info' : '');
+  }
+
+  // ---------- KML -> geometrias ----------
+  function coords(txt){
+    var out = [];
+    String(txt || '').trim().split(/\s+/).forEach(function(t){
+      var q = t.split(','); if(q.length < 2) return;
+      var lo = +q[0], la = +q[1];
+      if(isFinite(lo) && isFinite(la)) out.push([la, lo]);
+    });
+    return out;
+  }
+  function primeiraCoord(el){ var c = el.getElementsByTagNameNS('*','coordinates')[0]; return c ? coords(c.textContent) : []; }
+  function lerKml(texto){
+    var doc = new DOMParser().parseFromString(texto, 'application/xml');
+    if(doc.getElementsByTagName('parsererror').length) throw new Error('KML inválido');
+    var g = { poligonos:[], linhas:[], pontos:[] };
+    Array.prototype.forEach.call(doc.getElementsByTagNameNS('*','Polygon'), function(pg){
+      var ext = pg.getElementsByTagNameNS('*','outerBoundaryIs')[0];
+      var aneis = [];
+      if(ext) aneis.push(primeiraCoord(ext));
+      Array.prototype.forEach.call(pg.getElementsByTagNameNS('*','innerBoundaryIs'), function(i){ aneis.push(primeiraCoord(i)); });
+      aneis = aneis.filter(function(a){ return a.length >= 3; });
+      if(aneis.length) g.poligonos.push(aneis);
+    });
+    Array.prototype.forEach.call(doc.getElementsByTagNameNS('*','LineString'), function(ls){
+      var c = primeiraCoord(ls); if(c.length >= 2) g.linhas.push(c);
+    });
+    Array.prototype.forEach.call(doc.getElementsByTagNameNS('*','Point'), function(pt){
+      var c = primeiraCoord(pt); if(c.length) g.pontos.push(c[0]);
+    });
+    return g;
+  }
+
+  // ---------- geometrias -> camadas Leaflet ----------
+  function camadaFixo(g){
+    var grp = L.featureGroup();
+    g.poligonos.forEach(function(aneis){ aneis.forEach(function(a){ L.polyline(a.concat([a[0]]), Object.assign({renderer:rFix}, ESTILO_FIXO)).addTo(grp); }); });
+    g.linhas.forEach(function(l){ L.polyline(l, Object.assign({renderer:rFix}, ESTILO_FIXO)).addTo(grp); });
+    return grp;
+  }
+  function camadaCadastro(g, it){
+    var grp = L.featureGroup();
+    var rotulo = rotuloCtd(it) + (it.proprietario ? ' — ' + it.proprietario : '');
+    var ligar = function(l){
+      l.bindTooltip(escH(rotulo), {sticky:true});
+      l.on('mouseover', function(){ if(l.setStyle && l.getLatLngs) l.setStyle({weight:4.4}); });
+      l.on('mouseout',  function(){ if(l.setStyle && l.getLatLngs) l.setStyle({weight:ESTILO_CAD.weight}); });
+      l.on('click', function(e){
+        var box = document.createElement('div'); box.className = 'pgm-pop';
+        box.innerHTML = '<b>' + escH(rotuloCtd(it)) + '</b><br>' + escH(it.proprietario || '') + '<br><span style="color:#5a6b7c;font-size:11px">' + escH(it.kml_nome || '') + '</span><br>';
+        var b = document.createElement('button'); b.type = 'button'; b.textContent = 'Abrir cadastro';
+        b.addEventListener('click', function(){ if(window.PG_abrir) window.PG_abrir(it.ctd, it.secao); });
+        box.appendChild(b);
+        L.popup().setLatLng(e.latlng).setContent(box).openOn(mapa);
+      });
+      l.addTo(grp);
+    };
+    g.poligonos.forEach(function(aneis){ ligar(L.polygon(aneis, Object.assign({renderer:rCad, pane:'cadPane'}, ESTILO_CAD))); });
+    g.linhas.forEach(function(l){ ligar(L.polyline(l, Object.assign({renderer:rCad, pane:'cadPane'}, ESTILO_CAD, {fill:false}))); });
+    g.pontos.forEach(function(pt){ ligar(L.circleMarker(pt, Object.assign({renderer:rCad, pane:'cadPane', radius:5}, ESTILO_CAD, {fillOpacity:.7}))); });
+    return grp;
+  }
+  function rotuloCtd(it){
+    var m = String(it.ctd || '').match(/CTD\s+([0-9A-Za-z-]+)/i);
+    return 'CTD ' + (m ? m[1] : it.ctd);
+  }
+  function sps2(lote){ var d = String(lote == null ? '' : lote).replace(/\D/g,''); return d ? ('0' + d).slice(-2) : ''; }
+
+  // ---------- rede ----------
+  function baixarTexto(url){
+    return fetch(url, {cache:'no-cache'}).then(function(r){
+      if(!r.ok){ var e = new Error('HTTP ' + r.status); e.status = r.status; throw e; }
+      return r.text();
+    });
+  }
+  function emParalelo(tarefas, n, aoProgredir){
+    var i = 0, feitas = 0;
+    return new Promise(function(ok){
+      if(!tarefas.length) return ok();
+      function prox(){
+        if(i >= tarefas.length) return;
+        var t = tarefas[i++];
+        t().then(function(){}, function(){}).then(function(){
+          feitas++; if(aoProgredir) aoProgredir(feitas, tarefas.length);
+          if(feitas === tarefas.length) ok(); else prox();
+        });
+      }
+      for(var k = 0; k < Math.min(n, tarefas.length); k++) prox();
+    });
+  }
+
+  // ---------- mapa ----------
+  function criarMapa(){
+    mapa = L.map($('pgmMapa'), { zoomControl:false, attributionControl:true, zoomSnap:.25, zoomDelta:.5, wheelPxPerZoomLevel:110,
+      maxZoom:21, minZoom:4, preferCanvas:true });
+    mapa.attributionControl.setPrefix('<a href="https://leafletjs.com" target="_blank" rel="noopener">Leaflet</a>');
+    [['labelPane',320,true],['fixosPane',390,true],['cadPane',410,false]].forEach(function(d){
+      var pn = mapa.createPane(d[0]); pn.style.zIndex = d[1]; if(d[2]) pn.style.pointerEvents = 'none';
+    });
+    rFix = L.canvas({pane:'fixosPane', padding:.4});
+    rCad = L.canvas({pane:'cadPane', padding:.4});
+    L.control.scale({metric:true, imperial:false, position:'bottomright', maxWidth:110}).addTo(mapa);
+    L.control.zoom({position:'bottomright', zoomInTitle:'Aproximar', zoomOutTitle:'Afastar'}).addTo(mapa);
+    grupoCad = L.featureGroup().addTo(mapa);
+    mapa.setView([-8.3, -37.3], 8, {animate:false});
+    montarChipsBase();
+    aplicarBase(baseKey);
+    if(window.ResizeObserver){ new ResizeObserver(function(){ if(mapa) mapa.invalidateSize(); }).observe($('pgmMapa')); }
+  }
+  function montarChipsBase(){
+    var host = $('pgmBases'); host.innerHTML = '';
+    Object.keys(BASES).forEach(function(k){
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'pgm-chip' + (k === baseKey ? ' on' : ''); b.textContent = BASES[k].n; b.dataset.base = k;
+      b.addEventListener('click', function(){
+        aplicarBase(k);
+        try{ localStorage.setItem('pg_mapa_base', k); }catch(e){}
+        Array.prototype.forEach.call(host.children, function(c){ c.classList.toggle('on', c === b); });
+      });
+      host.appendChild(b);
+    });
+  }
+  function aplicarBase(k){
+    baseLayers.forEach(function(l){ mapa.removeLayer(l); });
+    baseLayers = BASES[k].make(); baseKey = k;
+    var ok = 0, err = 0;
+    baseLayers.forEach(function(l){
+      l.addTo(mapa); l.bringToBack && l.bringToBack();
+      l.on('tileload', function(){ ok++; if(ok === 1) msg(''); });
+      l.on('tileerror', function(){ err++; if(err > 6 && !ok) msg('Sem imagens de satélite: sem internet ou o servidor de mapas está bloqueado nesta rede. Os KMLs continuam desenhados.'); });
+    });
+  }
+
+  // ---------- atualização (chamada a cada mudança de filtro) ----------
+  window.PG_mapaAtualizar = function(){
+    if(!aberto) return;
+    clearTimeout(timer);
+    timer = setTimeout(atualizar, 250);
+  };
+
+  function atualizar(){
+    if(!aberto || !mapa) return;
+    var minha = ++geracao;
+    var itens = (window.PG_getItensFiltrados ? window.PG_getItensFiltrados() : []) || [];
+    var semInfo = itens.some(function(it){ return it.tem_kml === undefined; });
+    var comKml = itens.filter(function(it){ return it.tem_kml; });
+    var semKml = itens.filter(function(it){ return it.tem_kml === false; });
+    var spsSel = {};
+    itens.forEach(function(it){ var q = sps2(it.lote); if(q) spsSel[q] = true; });
+    var spsLista = Object.keys(spsSel).sort();
+
+    $('pgmResumo').textContent = itens.length + ' cadastro(s) nos filtros'
+      + (semInfo ? ' · servidor desatualizado (sem dado de KML)' : ' · ' + comKml.length + ' com KML · ' + semKml.length + ' sem KML');
+    if(semInfo){
+      msg('Este servidor ainda é a versão antiga e não informa quais cadastros têm KML. Rode o instalador do servidor (servidor-cadastros-INSTALADOR.zip) para ativar o Mapa Geral.', 'info');
+    }
+
+    var tarefas = [], total = 0;
+    // 1) lista dos KMLs fixos (uma vez)
+    var pFixos = (fixosLista || fixosErro) ? Promise.resolve() : fetch('/api/mapa/fixos', {cache:'no-cache'}).then(function(r){
+      if(!r.ok) throw new Error('HTTP ' + r.status); return r.json();
+    }).then(function(l){ fixosLista = Array.isArray(l) ? l : []; }).catch(function(){ fixosErro = true; fixosLista = []; });
+
+    pFixos.then(function(){
+      if(minha !== geracao) return;
+      if(fixosErro && !semInfo) msg('O servidor não tem a rota de KML fixo (versão antiga). Rode o instalador do servidor para ver a faixa de domínio dos SPS.', 'info');
+      // 2) baixar o que falta: fixos das SPS selecionadas + KML de cada cadastro
+      var fixosUsados = (fixosLista || []).filter(function(f){ return spsSel[f.sps]; });
+      fixosUsados.forEach(function(f){
+        var chave = 'fixo|' + f.arquivo + '|' + f.atualizado_em;
+        if(cache[chave]) return;
+        tarefas.push(function(){ return baixarTexto('/api/mapa/fixo/' + encodeURIComponent(f.arquivo)).then(function(t){ cache[chave] = lerKml(t); }); });
+      });
+      comKml.forEach(function(it){
+        var chave = 'cad|' + it.secao + '|' + it.ctd + '|' + it.atualizado_em;
+        if(cache[chave]) return;
+        tarefas.push(function(){
+          return baixarTexto('/api/kml/' + encodeURIComponent(it.secao) + '/' + encodeURIComponent(it.ctd)).then(function(t){ cache[chave] = lerKml(t); })
+            .catch(function(e){ cache[chave] = {erro:String(e && e.message || e), poligonos:[], linhas:[], pontos:[]}; });
+        });
+      });
+      total = tarefas.length;
+      if(total) msg('Carregando KMLs… 0/' + total, 'info');
+      return emParalelo(tarefas, 4, function(f, t){ if(minha === geracao) msg(f < t ? 'Carregando KMLs… ' + f + '/' + t : '', 'info'); });
+    }).then(function(){
+      if(minha !== geracao) return;
+      desenhar(itens, comKml, semKml, spsLista);
+    }).catch(function(e){
+      if(minha === geracao) msg('Não foi possível montar o mapa: ' + (e && e.message || e));
+    });
+  }
+
+  function desenhar(itens, comKml, semKml, spsLista){
+    // cadastros
+    grupoCad.clearLayers();
+    var limites = null, usados = 0, comErro = [];
+    comKml.forEach(function(it){
+      var g = cache['cad|' + it.secao + '|' + it.ctd + '|' + it.atualizado_em];
+      if(!g) return;
+      if(g.erro){ comErro.push(rotuloCtd(it)); return; }
+      var lyr = camadaCadastro(g, it); usados++;
+      lyr.addTo(grupoCad);
+    });
+    if(usados) limites = grupoCad.getBounds();
+    if(visCad){ if(!mapa.hasLayer(grupoCad)) grupoCad.addTo(mapa); } else mapa.removeLayer(grupoCad);
+
+    // fixos por SPS
+    var fixosPorSps = {};
+    (fixosLista || []).forEach(function(f){ fixosPorSps[f.sps] = f; });
+    Object.keys(fixoLayers).forEach(function(q){ if(spsLista.indexOf(q) < 0) mapa.removeLayer(fixoLayers[q]); });
+    var fixosVisiveis = [];
+    spsLista.forEach(function(q){
+      var f = fixosPorSps[q]; if(!f) return;
+      var g = cache['fixo|' + f.arquivo + '|' + f.atualizado_em]; if(!g) return;
+      var chave = q + '|' + f.atualizado_em;
+      if(!fixoLayers[q] || fixoLayers[q]._chave !== chave){
+        if(fixoLayers[q]) mapa.removeLayer(fixoLayers[q]);
+        fixoLayers[q] = camadaFixo(g); fixoLayers[q]._chave = chave;
+      }
+      if(visFixo[q] === undefined) visFixo[q] = true;
+      if(visFixo[q]){ if(!mapa.hasLayer(fixoLayers[q])) fixoLayers[q].addTo(mapa); } else mapa.removeLayer(fixoLayers[q]);
+      fixosVisiveis.push(q);
+    });
+
+    painelCamadas(usados, semKml, comErro, fixosVisiveis, spsLista, fixosPorSps);
+
+    // enquadra: nos cadastros; se nenhum tem KML, na faixa de domínio
+    var assinatura = comKml.map(function(it){ return it.secao + '/' + it.ctd; }).sort().join('|') + '#' + fixosVisiveis.join(',');
+    if(assinatura !== ultimaAssinatura){
+      ultimaAssinatura = assinatura;
+      var alvo = limites;
+      if(!alvo){ fixosVisiveis.forEach(function(q){ if(fixoLayers[q]) alvo = alvo ? alvo.extend(fixoLayers[q].getBounds()) : L.latLngBounds(fixoLayers[q].getBounds().getSouthWest(), fixoLayers[q].getBounds().getNorthEast()); }); }
+      if(alvo && alvo.isValid()) mapa.flyToBounds(alvo, {padding:[36,36], maxZoom:17, duration:1.4});
+    }
+    if(!usados && !fixosVisiveis.length && !document.querySelector('#pgmMsg.show')) msg('Nenhum KML para mostrar nos cadastros filtrados.', 'info');
+  }
+
+  function painelCamadas(usados, semKml, comErro, fixosVisiveis, spsLista, fixosPorSps){
+    var h = '<div class="pgm-t">Camadas</div>';
+    h += '<label><input type="checkbox" data-cam="cad"' + (visCad ? ' checked' : '') + '><span class="pgm-sw pgm-sw-cad"></span> Cadastros (' + usados + ' com KML)</label>';
+    spsLista.forEach(function(q){
+      if(fixosPorSps[q]){
+        h += '<label><input type="checkbox" data-cam="fixo" data-sps="' + q + '"' + (visFixo[q] !== false ? ' checked' : '') + '><span class="pgm-sw pgm-sw-fixo"></span> Faixa de domínio SPS ' + q + '</label>';
+      } else {
+        h += '<label style="opacity:.6" title="Não há KML fixo cadastrado para este SPS em _MAPA-FIXOS"><span class="pgm-sw"></span> SPS ' + q + ' — sem KML fixo</label>';
+      }
+    });
+    if(semKml.length){
+      h += '<details><summary>' + semKml.length + ' cadastro(s) sem KML</summary><ul>'
+        + semKml.map(function(it){ return '<li>' + escH(rotuloCtd(it)) + (it.proprietario ? ' — ' + escH(it.proprietario) : '') + '</li>'; }).join('') + '</ul></details>';
+    }
+    if(comErro.length) h += '<div style="color:#ffb4a8;margin-top:6px">Falha ao ler o KML de: ' + escH(comErro.join(', ')) + '</div>';
+    var host = $('pgmCamadas'); host.innerHTML = h;
+    Array.prototype.forEach.call(host.querySelectorAll('input[data-cam]'), function(cb){
+      cb.addEventListener('change', function(){
+        if(cb.dataset.cam === 'cad'){ visCad = cb.checked; if(visCad) grupoCad.addTo(mapa); else mapa.removeLayer(grupoCad); }
+        else { var q = cb.dataset.sps; visFixo[q] = cb.checked; var l = fixoLayers[q]; if(l){ if(cb.checked) l.addTo(mapa); else mapa.removeLayer(l); } }
+      });
+    });
+  }
+
+  // ---------- abrir / fechar ----------
+  window.PG_mapaAlternar = function(){ aberto ? window.PG_mapaFechar() : abrir(); };
+  function abrir(){
+    var pg = $('painelGeral'), painel = $('pgMapaPainel'), btn = $('pgBtnMapa');
+    if(!painel) return;
+    aberto = true; painel.hidden = false; pg.classList.add('pgm-aberto');
+    if(btn){ btn.setAttribute('aria-expanded', 'true'); btn.classList.add('pg-btn-primaria'); }
+    $('pgmResumo').textContent = 'Carregando o mapa…';
+    carregarLeaflet().then(function(){
+      if(!aberto) return;
+      if(!mapa) criarMapa();
+      setTimeout(function(){ mapa.invalidateSize(); ultimaAssinatura = null; atualizar(); }, 60);
+    }).catch(function(e){
+      $('pgmResumo').textContent = 'Mapa indisponível';
+      msg('Não foi possível carregar o mapa: ' + (e && e.message || e));
+    });
+  }
+  window.PG_mapaFechar = function(){
+    var pg = $('painelGeral'), painel = $('pgMapaPainel'), btn = $('pgBtnMapa');
+    aberto = false; geracao++;
+    if(painel) painel.hidden = true;
+    if(pg) pg.classList.remove('pgm-aberto');
+    if(btn){ btn.setAttribute('aria-expanded', 'false'); btn.classList.remove('pg-btn-primaria'); }
+    // a tabela voltou a ter a largura toda: o layout das colunas fixas precisa ser reavaliado
+    setTimeout(function(){ window.dispatchEvent(new Event('resize')); }, 30);
   };
 })();
 </script>
