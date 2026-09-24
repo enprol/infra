@@ -2848,6 +2848,7 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
     .pgm-camadas .pgm-sw{ flex:0 0 26px; height:0; border-top:3px solid; }
     .pgm-camadas .pgm-sw-fixo{ border-top-color:#ef2b2d; border-top-style:dotted; border-top-width:4px; }
     .pgm-camadas .pgm-sw-cad{ border-top-color:#00e5ff; }
+    .pgm-camadas .pgm-sw-eixo{ border-top-color:#ffe600; border-top-width:3px; }
     .pgm-camadas details{ margin-top:6px; color:#9cb7bd; }
     .pgm-camadas summary{ cursor:pointer; font-size:11.5px; }
     .pgm-camadas details ul{ margin:4px 0 0; padding-left:16px; max-height:120px; overflow:auto; }
@@ -2868,6 +2869,8 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
     .pgm-dem-ajustes .pgm-l{ display:flex; justify-content:space-between; color:#c8dde1; margin-top:5px; }
     .pgm-dem-ajustes input[type=range]{ width:100%; margin:2px 0; accent-color:#00e5ff; }
     .pgm-dem-ajustes select{ width:100%; margin-top:3px; padding:4px 6px; border-radius:6px; border:1px solid #2a4a53; background:#12303a; color:#e8f1f3; font-size:12px; }
+    .pgm-dem-box label.pgm-lin2{ font-weight:600; margin-top:6px; }
+    .pgm-int{ color:#9cb7bd; font-weight:500; font-size:11px; }
     .pgm-leg{ margin-top:7px; }
     .pgm-leg[hidden]{ display:none; }
     .pgm-leg .pgm-barra{ height:9px; border-radius:5px; border:1px solid rgba(255,255,255,.25); }
@@ -2901,10 +2904,11 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
           <input type="range" id="pgmDemOp" min="0" max="100" value="40" aria-label="Opacidade do DEM">
           <div class="pgm-l"><span>Estilo</span></div>
           <select id="pgmDemEstilo" aria-label="Estilo do DEM">
-            <option value="sombra">Relevo sombreado</option>
             <option value="alt">Altitude (cores)</option>
+            <option value="sombra">Relevo sombreado</option>
           </select>
-          <div class="pgm-leg" id="pgmDemLeg" hidden>
+          <label class="pgm-lin pgm-lin2"><input type="checkbox" id="pgmCurvas" checked> Curvas de nível <span id="pgmCurvasInt" class="pgm-int"></span></label>
+          <div class="pgm-leg" id="pgmDemLeg">
             <div class="pgm-barra" id="pgmDemBarra"></div>
             <div class="pgm-ticks" id="pgmDemTicks"></div>
           </div>
@@ -12688,7 +12692,7 @@ function AV_gerarDescSituacao(){
     }
 
     corpo.innerHTML = itens.map(function(it){
-      return '<tr onclick="PG_abrir(' + "'" + esc(it.ctd) + "'" + ',' + "'" + esc(it.secao) + "'" + ')"'
+      return '<tr data-ctd="' + esc(it.ctd) + '" data-secao="' + esc(it.secao) + '" onclick="PG_abrir(' + "'" + esc(it.ctd) + "'" + ',' + "'" + esc(it.secao) + "'" + ')"'
         + ' oncontextmenu="return PG_menuContexto(event,' + "'" + esc(it.ctd) + "'" + ',' + "'" + esc(it.secao) + "'" + ')">'
         + PG_medicaoCelHTML(it)
         + '<td>' + esc(loteFmt(it.lote)) + '</td>'
@@ -12885,8 +12889,14 @@ function AV_gerarDescSituacao(){
   var DEM_ATTR = 'Elevação: Mapzen / AWS Terrain Tiles (SRTM)';
   var ESTILO_FIXO = { color:'#ef2b2d', weight:2.4, opacity:.95, dashArray:'1 7', lineCap:'round', fill:false, interactive:false };
   var ESTILO_CAD  = { color:'#00e5ff', weight:2.6, opacity:1, fillColor:'#00e5ff', fillOpacity:.14 };
-  // rampa de altitude (m) do estilo "Altitude": do vale ao topo
-  var RAMPA = [[0,[43,131,186]],[250,[102,194,165]],[450,[171,221,164]],[650,[255,255,191]],[900,[253,174,97]],[1200,[215,25,28]]];
+  // Rampa hipsométrica — as mesmas 13 cores da apresentação AMBEV (azul-arroxeado → azul → verde →
+  // creme → marrom → cinza → branco), distribuídas de 0 a RAMPA_MAX metros (faixa típica da região).
+  var RAMPA_MAX = 1200;
+  var RAMPA_CORES = [[0,'#333399'],[.083,'#176bd1'],[.167,'#00a0e8'],[.25,'#01cc66'],[.333,'#55dd77'],[.417,'#a8ed87'],
+    [.5,'#fefd98'],[.583,'#d3c781'],[.667,'#aa926b'],[.75,'#815d56'],[.833,'#ab938e'],[.917,'#d4c9c6'],[1,'#ffffff']];
+  var RAMPA = RAMPA_CORES.map(function(c){ return [c[0] * RAMPA_MAX, [1,3,5].map(function(i){ return parseInt(c[1].substr(i,2), 16); })]; });
+  var ESTILO_EIXO = { color:'#ffe600', weight:2.2, opacity:1, lineCap:'round', lineJoin:'round', fill:false, interactive:false };
+  var ESTILO_EIXO_BASE = { color:'#000000', weight:4.6, opacity:.45, lineCap:'round', lineJoin:'round', fill:false, interactive:false };
 
   var $ = function(id){ return document.getElementById(id); };
   var escH = function(t){ return String(t == null ? '' : t).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); };
@@ -12897,7 +12907,9 @@ function AV_gerarDescSituacao(){
   var cache = {};
   var fixosLista = null, fixosErro = null;
   var ultimaAssinatura = null, timer = null, geracao = 0;
-  var demLayer = null, demOn = false, demOp = .6, demEstilo = 'sombra';
+  var demLayer = null, contLayer = null, demOn = false, demOp = .6, demEstilo = 'alt', demCurvas = true;
+  var regCad = {};                                   // regCad[chave] = {layers:[...]} — para destacar o selecionado
+  var selKey = null, hoverKey = null;
 
   // ---------- carregar o Leaflet só quando precisa ----------
   var _leafletP = null;
@@ -12931,10 +12943,10 @@ function AV_gerarDescSituacao(){
     return out;
   }
   function primeiraCoord(el){ var c = el.getElementsByTagNameNS('*','coordinates')[0]; return c ? coords(c.textContent) : []; }
-  function lerKml(texto){
+  function lerKml(texto, fixo){
     var doc = new DOMParser().parseFromString(texto, 'application/xml');
     if(doc.getElementsByTagName('parsererror').length) throw new Error('KML inválido');
-    var g = { poligonos:[], linhas:[], pontos:[] };
+    var g = { poligonos:[], linhas:[], eixos:[], pontos:[] };
     Array.prototype.forEach.call(doc.getElementsByTagNameNS('*','Polygon'), function(pg){
       var ext = pg.getElementsByTagNameNS('*','outerBoundaryIs')[0];
       var aneis = [];
@@ -12943,8 +12955,22 @@ function AV_gerarDescSituacao(){
       aneis = aneis.filter(function(a){ return a.length >= 3; });
       if(aneis.length) g.poligonos.push(aneis);
     });
-    Array.prototype.forEach.call(doc.getElementsByTagNameNS('*','LineString'), function(ls){
-      var c = primeiraCoord(ls); if(c.length >= 2) g.linhas.push(c);
+    // linhas por Placemark (nome + estilo), para reconhecer o EIXO da faixa de domínio
+    var lp = [];
+    Array.prototype.forEach.call(doc.getElementsByTagNameNS('*','Placemark'), function(pm){
+      var nm = pm.getElementsByTagNameNS('*','name')[0], st = pm.getElementsByTagNameNS('*','styleUrl')[0];
+      Array.prototype.forEach.call(pm.getElementsByTagNameNS('*','LineString'), function(ls){
+        var c = primeiraCoord(ls);
+        if(c.length >= 2) lp.push({ c:c, nome: nm ? nm.textContent : '', estilo: st ? st.textContent.trim() : '' });
+      });
+    });
+    // KML fixo: eixo = linha cujo nome tem "eixo" OU (3+ linhas, 2 estilos) a única com estilo diferente
+    // das demais — no SPS 04 são PLINHA-1 (eixo, laranja) entre PLINHA-2/3 (limites, verdes).
+    var contaEst = {}; lp.forEach(function(l){ contaEst[l.estilo] = (contaEst[l.estilo] || 0) + 1; });
+    var nEst = Object.keys(contaEst).length;
+    lp.forEach(function(l){
+      var eixo = fixo && (/eixo/i.test(l.nome) || (lp.length >= 3 && nEst === 2 && l.estilo && contaEst[l.estilo] === 1));
+      (eixo ? g.eixos : g.linhas).push(l.c);
     });
     Array.prototype.forEach.call(doc.getElementsByTagNameNS('*','Point'), function(pt){
       var c = primeiraCoord(pt); if(c.length) g.pontos.push(c[0]);
@@ -12994,16 +13020,43 @@ function AV_gerarDescSituacao(){
     var grp = L.featureGroup();
     g.poligonos.forEach(function(aneis){ aneis.forEach(function(a){ L.polyline(a.concat([a[0]]), Object.assign({renderer:rFix}, ESTILO_FIXO)).addTo(grp); }); });
     g.linhas.forEach(function(l){ L.polyline(l, Object.assign({renderer:rFix}, ESTILO_FIXO)).addTo(grp); });
+    // eixo: linha CONTÍNUA (amarela, com contorno escuro pra destacar do satélite e do DEM)
+    g.eixos.forEach(function(l){
+      L.polyline(l, Object.assign({renderer:rFix}, ESTILO_EIXO_BASE)).addTo(grp);
+      L.polyline(l, Object.assign({renderer:rFix}, ESTILO_EIXO)).addTo(grp);
+    });
     return grp;
+  }
+  var chaveCad = function(it){ return it.secao + '/' + it.ctd; };
+  // Destaque: com um cadastro selecionado (clique no mapa) ou sob o mouse na tabela, ele fica
+  // com contorno branco grosso e preenchimento forte; os demais recuam (linha fina e apagada).
+  var EST_NORMAL = { color:ESTILO_CAD.color, weight:ESTILO_CAD.weight, opacity:1, fillColor:'#00e5ff', fillOpacity:.14 };
+  var EST_DESTAQUE = { color:'#ffffff', weight:4.4, opacity:1, fillColor:'#00e5ff', fillOpacity:.40 };
+  var EST_APAGADO = { color:'#00e5ff', weight:1.4, opacity:.38, fillColor:'#00e5ff', fillOpacity:.03 };
+  function aplicarDestaque(){
+    var alvo = hoverKey || selKey;
+    Object.keys(regCad).forEach(function(k){
+      var est = !alvo ? EST_NORMAL : (k === alvo ? EST_DESTAQUE : EST_APAGADO);
+      regCad[k].layers.forEach(function(l){
+        if(l.setStyle) l.setStyle(l instanceof L.CircleMarker ? Object.assign({}, est, {fillOpacity: alvo ? (k === alvo ? .9 : .15) : .7}) : (l.getLatLngs && !(l instanceof L.Polygon) ? Object.assign({}, est, {fill:false}) : est));
+        if(alvo && k === alvo && l.bringToFront) l.bringToFront();
+      });
+    });
   }
   function camadaCadastro(g, it){
     var grp = L.featureGroup();
     var rotulo = rotuloCtd(it) + (it.proprietario ? ' — ' + it.proprietario : '');
+    var chave = chaveCad(it);
+    regCad[chave] = { layers: [] };
     var ligar = function(l){
+      regCad[chave].layers.push(l);
       l.bindTooltip(escH(rotulo), {sticky:true});
-      l.on('mouseover', function(){ if(l.setStyle && l.getLatLngs) l.setStyle({weight:4.4}); });
-      l.on('mouseout',  function(){ if(l.setStyle && l.getLatLngs) l.setStyle({weight:ESTILO_CAD.weight}); });
-      l.on('click', function(e){ L.popup({maxWidth:340, autoPanPaddingTopLeft:[12, 90], autoPanPaddingBottomRight:[12, 12]}).setLatLng(e.latlng).setContent(baloCadastro(it)).openOn(mapa); });
+      l.on('click', function(e){
+        var pop = L.popup({maxWidth:340, autoPanPaddingTopLeft:[12, 90], autoPanPaddingBottomRight:[12, 12]}).setLatLng(e.latlng).setContent(baloCadastro(it));
+        pop._chaveCad = chave;
+        pop.openOn(mapa);                       // (fecha o balão anterior, o que dispara popupclose)
+        selKey = chave; aplicarDestaque();      // por isso a seleção é marcada DEPOIS
+      });
       l.addTo(grp);
     };
     g.poligonos.forEach(function(aneis){ ligar(L.polygon(aneis, Object.assign({renderer:rCad, pane:'cadPane'}, ESTILO_CAD))); });
@@ -13065,11 +13118,16 @@ function AV_gerarDescSituacao(){
     }
     return RAMPA[RAMPA.length - 1][1];
   }
-  // pinta um tile do DEM: sombreado (preto/branco com alfa — terreno plano fica transparente)
-  // ou altitude (cores da rampa × sombreado)
-  function pintarDem(canvas, tl, z, y){
+  // elevação (m) de um tile Terrarium
+  function elevTile(tl){
     var W = tl.w, H = tl.h, d = tl.d, e = new Float32Array(W * H);
     for(var i = 0; i < W * H; i++) e[i] = d[i * 4] * 256 + d[i * 4 + 1] + d[i * 4 + 2] / 256 - 32768;
+    return e;
+  }
+  // pinta a superfície do DEM. "alt": rampa hipsométrica (cores AMBEV) × sombreado suave;
+  // "sombra": só sombreado (preto/branco com alfa — terreno plano fica transparente)
+  function pintarDem(canvas, tl, z, y){
+    var W = tl.w, H = tl.h, e = elevTile(tl);
     var n = Math.pow(2, z), lat = Math.atan(Math.sinh(Math.PI * (1 - 2 * (y + .5) / n)));
     var cel = 156543.03392 * Math.cos(lat) / n * (256 / W);       // metros por pixel
     var zf = 2.6, az = 315 * Math.PI / 180, alt = 45 * Math.PI / 180;
@@ -13087,16 +13145,60 @@ function AV_gerarDescSituacao(){
         var v = Math.max(0, Math.min(1, .5 + (sh - .7071) * 1.9));      // .5 = neutro
         var k = (py * 256 + px) * 4;
         if(cores){
-          var col = rampa(e[sy * W + sx]), fator = .55 + .9 * v;
+          var col = rampa(e[sy * W + sx]), fator = .62 + .76 * v;       // sombreado discreto sobre as cores
           o[k] = Math.min(255, col[0] * fator); o[k + 1] = Math.min(255, col[1] * fator); o[k + 2] = Math.min(255, col[2] * fator); o[k + 3] = 255;
         } else {
-          var forca = Math.abs(v - .5) * 2;                             // 0..1
-          var c8 = v < .5 ? 0 : 255;
+          var forca = Math.abs(v - .5) * 2, c8 = v < .5 ? 0 : 255;
           o[k] = o[k + 1] = o[k + 2] = c8; o[k + 3] = Math.round(forca * 255);
         }
       }
     }
     ctx.putImageData(img, 0, 0);
+  }
+
+  // intervalo das curvas conforme o zoom (equidistância): regional 200 m … detalhe 10 m
+  function intervaloCurvas(z){ return z <= 9 ? 200 : z <= 11 ? 100 : z <= 13 ? 50 : z <= 15 ? 20 : 10; }
+  function atualizarIntervaloCurvas(){
+    var el = $('pgmCurvasInt'); if(!el || !mapa) return;
+    el.textContent = demCurvas ? '(' + intervaloCurvas(Math.round(mapa.getZoom())) + ' m)' : '';
+  }
+  // curvas de nível por "marching squares" no próprio tile; fininhas e brancas (a cada 5ª, mais firme)
+  function pintarCurvas(canvas, tl, z){
+    var W = tl.w, H = tl.h, e0 = elevTile(tl), e = new Float32Array(W * H);
+    // suaviza o ruído do SRTM (média 3×3) pra curva não sair serrilhada
+    for(var y = 0; y < H; y++) for(var x = 0; x < W; x++){
+      var s0 = 0, nn = 0;
+      for(var j = -1; j <= 1; j++) for(var i = -1; i <= 1; i++){
+        var xx = x + i, yy = y + j; if(xx < 0 || yy < 0 || xx >= W || yy >= H) continue;
+        s0 += e0[yy * W + xx]; nn++;
+      }
+      e[y * W + x] = s0 / nn;
+    }
+    var ctx = canvas.getContext('2d'), esc = 256 / W, INT = intervaloCurvas(z), GRANDE = INT * 5;
+    var pMenor = new Path2D(), pMaior = new Path2D();
+    var ponto = function(a, b, va, vb, L){ var t = (L - va) / (vb - va); return a + (b - a) * t; };
+    for(var cy = 0; cy < H - 1; cy++){
+      for(var cx = 0; cx < W - 1; cx++){
+        var tl0 = e[cy * W + cx], tr = e[cy * W + cx + 1], bl = e[(cy + 1) * W + cx], br = e[(cy + 1) * W + cx + 1];
+        var mn = Math.min(tl0, tr, bl, br), mx = Math.max(tl0, tr, bl, br);
+        if(mn === mx) continue;
+        for(var L = Math.ceil(mn / INT) * INT; L <= mx; L += INT){
+          if(L <= mn) continue;
+          var pts = [];
+          if((tl0 < L) !== (tr < L)) pts.push([ponto(cx, cx + 1, tl0, tr, L), cy]);          // topo
+          if((tr < L) !== (br < L))  pts.push([cx + 1, ponto(cy, cy + 1, tr, br, L)]);        // direita
+          if((bl < L) !== (br < L))  pts.push([ponto(cx, cx + 1, bl, br, L), cy + 1]);        // base
+          if((tl0 < L) !== (bl < L)) pts.push([cx, ponto(cy, cy + 1, tl0, bl, L)]);           // esquerda
+          if(pts.length < 2) continue;
+          var path = (L % GRANDE === 0) ? pMaior : pMenor;
+          path.moveTo(pts[0][0] * esc, pts[0][1] * esc); path.lineTo(pts[1][0] * esc, pts[1][1] * esc);
+          if(pts.length === 4){ path.moveTo(pts[2][0] * esc, pts[2][1] * esc); path.lineTo(pts[3][0] * esc, pts[3][1] * esc); }
+        }
+      }
+    }
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = 'rgba(255,255,255,.32)'; ctx.lineWidth = .7; ctx.stroke(pMenor);       // discretas
+    ctx.strokeStyle = 'rgba(255,255,255,.62)'; ctx.lineWidth = 1.1; ctx.stroke(pMaior);
   }
   function criarDemLayer(){
     var Cls = L.GridLayer.extend({
@@ -13109,6 +13211,19 @@ function AV_gerarDescSituacao(){
       }
     });
     return new Cls({ pane:'demPane', tileSize:256, maxNativeZoom:15, minZoom:3, maxZoom:21, opacity:demOp, attribution:DEM_ATTR });
+  }
+  // camada separada das curvas: a transparência do DEM não apaga as linhas
+  function criarCurvasLayer(){
+    var Cls = L.GridLayer.extend({
+      createTile: function(coords, done){
+        var tile = document.createElement('canvas'); tile.width = tile.height = 256;
+        carregarTileDem(coords.z, coords.x, coords.y)
+          .then(function(tl){ pintarCurvas(tile, tl, coords.z); done(null, tile); })
+          .catch(function(err){ done(err, tile); });
+        return tile;
+      }
+    });
+    return new Cls({ pane:'curvasPane', tileSize:256, maxNativeZoom:15, minZoom:8, maxZoom:21 });
   }
   // cota (m) num ponto — só usada pra leitura ao passar o mouse com o DEM ligado
   function cota(lat, lon){
@@ -13144,7 +13259,7 @@ function AV_gerarDescSituacao(){
     $('pgmDemBarra').style.background = 'linear-gradient(90deg,' + RAMPA.map(function(p){
       return 'rgb(' + p[1].map(Math.round).join(',') + ') ' + (p[0] / max * 100).toFixed(1) + '%';
     }).join(',') + ')';
-    $('pgmDemTicks').innerHTML = '<span>0 m</span><span>400</span><span>800</span><span>' + max + '+ m</span>';
+    $('pgmDemTicks').innerHTML = '<span>0 m</span><span>300</span><span>600</span><span>900</span><span>' + max + '+ m</span>';
   }
 
   // ---------- mapa ----------
@@ -13152,7 +13267,7 @@ function AV_gerarDescSituacao(){
     mapa = L.map($('pgmMapa'), { zoomControl:false, attributionControl:true, zoomSnap:.25, zoomDelta:.5, wheelPxPerZoomLevel:110,
       maxZoom:21, minZoom:4, preferCanvas:true });
     mapa.attributionControl.setPrefix('<a href="https://leafletjs.com" target="_blank" rel="noopener">Leaflet</a>');
-    [['demPane',250,true],['fixosPane',390,true],['cadPane',410,false]].forEach(function(d){
+    [['demPane',250,true],['curvasPane',270,true],['fixosPane',390,true],['cadPane',410,false]].forEach(function(d){
       var pn = mapa.createPane(d[0]); pn.style.zIndex = d[1]; if(d[2]) pn.style.pointerEvents = 'none';
     });
     rFix = L.canvas({pane:'fixosPane', padding:.4});
@@ -13162,6 +13277,19 @@ function AV_gerarDescSituacao(){
     grupoCad = L.featureGroup().addTo(mapa);
     mapa.setView([-8.3, -37.3], 8, {animate:false});
     mapa.on('mousemove', function(e){ lerCotaHover(e.latlng.lat, e.latlng.lng); });
+    mapa.on('popupclose', function(e){ if(e.popup && e.popup._chaveCad && selKey === e.popup._chaveCad){ selKey = null; aplicarDestaque(); } });
+    mapa.on('zoomend', atualizarIntervaloCurvas);
+    // passar o mouse numa linha da tabela destaca o cadastro no mapa (só enquanto o mapa está aberto)
+    var corpo = document.getElementById('pgCorpo');
+    if(corpo && !corpo._pgmLigado){
+      corpo._pgmLigado = true;
+      corpo.addEventListener('mouseover', function(ev){
+        var tr = ev.target.closest && ev.target.closest('tr[data-ctd]');
+        var k = tr ? tr.getAttribute('data-secao') + '/' + tr.getAttribute('data-ctd') : null;
+        if(k !== hoverKey){ hoverKey = (k && regCad[k]) ? k : null; if(aberto) aplicarDestaque(); }
+      });
+      corpo.addEventListener('mouseleave', function(){ if(hoverKey){ hoverKey = null; if(aberto) aplicarDestaque(); } });
+    }
     // base: satélite Esri
     var ok = 0, err = 0;
     var sat = L.tileLayer(ESRI + 'World_Imagery/MapServer/tile/{z}/{y}/{x}', {maxNativeZoom:18, maxZoom:21, attribution:ATTR_ESRI, className:'tiles-sat'}).addTo(mapa);
@@ -13179,8 +13307,20 @@ function AV_gerarDescSituacao(){
       if(demOn){
         if(!demLayer) demLayer = criarDemLayer();
         demLayer.setOpacity(demOp); demLayer.addTo(mapa);
-        atualizarLegendaDem();
-      } else if(demLayer){ mapa.removeLayer(demLayer); }
+        if(demCurvas){ if(!contLayer) contLayer = criarCurvasLayer(); contLayer.addTo(mapa); }
+        atualizarLegendaDem(); atualizarIntervaloCurvas();
+      } else {
+        if(demLayer) mapa.removeLayer(demLayer);
+        if(contLayer) mapa.removeLayer(contLayer);
+      }
+    });
+    $('pgmCurvas').addEventListener('change', function(){
+      demCurvas = this.checked;
+      if(demOn){
+        if(demCurvas){ if(!contLayer) contLayer = criarCurvasLayer(); contLayer.addTo(mapa); }
+        else if(contLayer){ mapa.removeLayer(contLayer); }
+      }
+      atualizarIntervaloCurvas();
     });
     // "Transparência": 0% = totalmente visível, 100% = invisível
     $('pgmDemOp').addEventListener('input', function(){
@@ -13231,7 +13371,7 @@ function AV_gerarDescSituacao(){
       fixosUsados.forEach(function(f){
         var chave = 'fixo|' + f.arquivo + '|' + f.atualizado_em;
         if(cache[chave]) return;
-        tarefas.push(function(){ return baixarTexto('/api/mapa/fixo/' + encodeURIComponent(f.arquivo)).then(function(t){ cache[chave] = lerKml(t); }); });
+        tarefas.push(function(){ return baixarTexto('/api/mapa/fixo/' + encodeURIComponent(f.arquivo)).then(function(t){ cache[chave] = lerKml(t, true); }); });
       });
       comKml.forEach(function(it){
         var chave = 'cad|' + it.secao + '|' + it.ctd + '|' + it.atualizado_em;
@@ -13253,7 +13393,7 @@ function AV_gerarDescSituacao(){
   }
 
   function desenhar(itens, comKml, semKml, spsLista){
-    grupoCad.clearLayers();
+    grupoCad.clearLayers(); regCad = {};
     var limites = null, usados = 0, comErro = [];
     comKml.forEach(function(it){
       var g = cache['cad|' + it.secao + '|' + it.ctd + '|' + it.atualizado_em];
@@ -13261,6 +13401,8 @@ function AV_gerarDescSituacao(){
       if(g.erro){ comErro.push(rotuloCtd(it)); return; }
       camadaCadastro(g, it).addTo(grupoCad); usados++;
     });
+    if(selKey && !regCad[selKey]) selKey = null;      // o selecionado saiu dos filtros
+    aplicarDestaque();
     if(usados) limites = grupoCad.getBounds();
     if(visCad){ if(!mapa.hasLayer(grupoCad)) grupoCad.addTo(mapa); } else mapa.removeLayer(grupoCad);
 
@@ -13274,7 +13416,7 @@ function AV_gerarDescSituacao(){
       var chave = q + '|' + f.atualizado_em;
       if(!fixoLayers[q] || fixoLayers[q]._chave !== chave){
         if(fixoLayers[q]) mapa.removeLayer(fixoLayers[q]);
-        fixoLayers[q] = camadaFixo(g); fixoLayers[q]._chave = chave;
+        fixoLayers[q] = camadaFixo(g); fixoLayers[q]._chave = chave; fixoLayers[q]._temEixo = g.eixos.length > 0;
       }
       if(visFixo[q] === undefined) visFixo[q] = true;
       if(visFixo[q]){ if(!mapa.hasLayer(fixoLayers[q])) fixoLayers[q].addTo(mapa); } else mapa.removeLayer(fixoLayers[q]);
@@ -13299,7 +13441,9 @@ function AV_gerarDescSituacao(){
     h += '<label><input type="checkbox" data-cam="cad"' + (visCad ? ' checked' : '') + '><span class="pgm-sw pgm-sw-cad"></span> Cadastros (' + usados + ' com KML)</label>';
     spsLista.forEach(function(q){
       if(fixosPorSps[q]){
-        h += '<label><input type="checkbox" data-cam="fixo" data-sps="' + q + '"' + (visFixo[q] !== false ? ' checked' : '') + '><span class="pgm-sw pgm-sw-fixo"></span> Faixa de domínio SPS ' + q + '</label>';
+        var temEixo = fixoLayers[q] && fixoLayers[q]._temEixo;
+        h += '<label><input type="checkbox" data-cam="fixo" data-sps="' + q + '"' + (visFixo[q] !== false ? ' checked' : '') + '><span class="pgm-sw pgm-sw-fixo"></span> Faixa de domínio SPS ' + q + (temEixo ? ' <span style="color:#9cb7bd">(limites)</span>' : '') + '</label>';
+        if(temEixo) h += '<label style="padding-left:24px;cursor:default"><span class="pgm-sw pgm-sw-eixo"></span> Eixo SPS ' + q + ' <span style="color:#9cb7bd">(contínua)</span></label>';
       } else {
         h += '<label style="opacity:.6" title="Não há KML fixo cadastrado para este SPS em _MAPA-FIXOS"><span class="pgm-sw"></span> SPS ' + q + ' — sem KML fixo</label>';
       }
@@ -13337,7 +13481,7 @@ function AV_gerarDescSituacao(){
   }
   window.PG_mapaFechar = function(){
     var pg = $('painelGeral'), painel = $('pgMapaPainel'), btn = $('pgBtnMapa');
-    aberto = false; geracao++;
+    aberto = false; geracao++; hoverKey = null; selKey = null;
     if(painel) painel.hidden = true;
     if(pg) pg.classList.remove('pgm-aberto');
     if(btn){ btn.setAttribute('aria-expanded', 'false'); btn.classList.remove('pg-btn-primaria'); }
