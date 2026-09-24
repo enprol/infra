@@ -2862,6 +2862,23 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
     .pgm .leaflet-container{ background:#0e2329; font-family:inherit; }
     .pgm .tiles-sat{ filter:saturate(1.06) contrast(1.04) brightness(.98); }
     .pgm .leaflet-control-scale-line{ background:rgba(255,255,255,.85); }
+    .pgm-mapa[hidden]{ display:none; }
+    .pgm-cota{
+      position:absolute; z-index:1000; left:10px; top:10px; padding:5px 10px; border-radius:8px; font-size:11.5px; font-weight:600;
+      background:rgba(10,27,32,.88); border:1px solid #23444d; color:#dff0f3; pointer-events:none; max-width:70%;
+    }
+    .pgm-3d{
+      position:absolute; z-index:1000; right:10px; top:10px; width:200px; padding:9px 11px; font-size:12px;
+      background:rgba(10,27,32,.92); border:1px solid #23444d; border-radius:10px; backdrop-filter:blur(3px);
+    }
+    .pgm-3d[hidden]{ display:none; }
+    .pgm-3d .pgm-t{ font-size:10.5px; font-weight:800; letter-spacing:.5px; text-transform:uppercase; color:#7fa3ab; margin-bottom:5px; }
+    .pgm-3d .pgm-lin{ display:flex; align-items:center; justify-content:space-between; gap:6px; padding:3px 0; color:#e8f1f3; cursor:pointer; }
+    .pgm-3d input[type=range]{ width:100%; margin:2px 0 6px; accent-color:#00e5ff; }
+    .pgm-vistas{ display:flex; gap:5px; flex-wrap:wrap; margin-top:6px; }
+    .pgm .maplibregl-ctrl-scale{ background:rgba(255,255,255,.85); }
+    .pgm-pop .pgm-dem{ margin-top:5px; color:#243447; font-size:11.5px; }
+    .pgm-pop{ color:#243447; font-size:12.5px; line-height:1.4; }
     .pgm-pop b{ color:#0a4d7c; }
     .pgm-pop button{ margin-top:6px; padding:5px 10px; border:1px solid #1F6FC0; background:#1F6FC0; color:#fff; border-radius:7px; font:700 12px/1 inherit; cursor:pointer; }
     @media (max-width: 900px){ #painelGeral{ --pgm-w:100%; } #painelGeral.pgm-aberto .pg-wrap{ display:none; } }
@@ -2869,12 +2886,25 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
   <aside class="pgm" id="pgMapaPainel" hidden aria-label="Mapa Geral">
     <div class="pgm-topo">
       <span class="pgm-tit">🗺️ Mapa Geral</span>
+      <div class="pgm-bases" id="pgmModo" role="group" aria-label="Modo do mapa"></div>
       <div class="pgm-bases" id="pgmBases"></div>
       <button type="button" class="pgm-x" onclick="PG_mapaFechar()" title="Fechar o mapa" aria-label="Fechar o mapa">×</button>
       <div class="pgm-resumo" id="pgmResumo">Abrindo…</div>
     </div>
     <div class="pgm-corpo">
       <div class="pgm-mapa" id="pgmMapa"></div>
+      <div class="pgm-mapa" id="pgmMapa3d" hidden></div>
+      <div class="pgm-cota" id="pgmCota">Passe o mouse no mapa para consultar a cota (DEM)</div>
+      <div class="pgm-3d" id="pgm3dCtl" hidden>
+        <div class="pgm-t">Relevo 3D (DEM)</div>
+        <label class="pgm-lin">Exagero vertical <b id="pgmExV">1,5×</b></label>
+        <input type="range" id="pgmEx" min="10" max="50" value="15" aria-label="Exagero vertical do relevo">
+        <label class="pgm-lin"><input type="checkbox" id="pgmSombra" checked> Relevo sombreado</label>
+        <div class="pgm-vistas">
+          <button type="button" class="pgm-chip" data-vista="topo">Vista superior</button>
+          <button type="button" class="pgm-chip" data-vista="incl">Vista inclinada</button>
+        </div>
+      </div>
       <div class="pgm-msg" id="pgmMsg"></div>
       <div class="pgm-camadas" id="pgmCamadas"></div>
     </div>
@@ -12849,6 +12879,12 @@ function AV_gerarDescSituacao(){
   var ESTILO_FIXO = { color:'#ef2b2d', weight:2.4, opacity:.95, dashArray:'1 7', lineCap:'round', fill:false, interactive:false };
   var ESTILO_CAD  = { color:'#00e5ff', weight:2.6, opacity:1, fillColor:'#00e5ff', fillOpacity:.14 };
 
+  var MAPLIBRE_JS  = 'https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.js';
+  var MAPLIBRE_CSS = 'https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.css';
+  // DEM: AWS/Mapzen Terrain Tiles (SRTM ≈ 30 m), codificação Terrarium — mesma fonte da apresentação AMBEV
+  var DEM_URL = 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
+  var DEM_Z = 13;   // zoom usado na consulta de cota (≈ 19 m/pixel; o dado real é ~30 m)
+
   var $ = function(id){ return document.getElementById(id); };
   var escH = function(t){ return String(t == null ? '' : t).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); };
 
@@ -12859,6 +12895,7 @@ function AV_gerarDescSituacao(){
   var cache = {};                                    // geometrias já baixadas/lidas (chave inclui atualizado_em)
   var fixosLista = null, fixosErro = null;
   var ultimaAssinatura = null, timer = null, geracao = 0;
+  var modo3d = false, mapa3 = null, ex3 = 1.5, sombra3 = true, ultimo = null, popup3 = null;
 
   var BASES = {
     sat:   { n:'Satélite', make:function(){ return [ L.tileLayer(ESRI+'World_Imagery/MapServer/tile/{z}/{y}/{x}', {maxNativeZoom:18, maxZoom:21, attribution:ATTR_ESRI, className:'tiles-sat'}) ]; } },
@@ -12944,6 +12981,7 @@ function AV_gerarDescSituacao(){
         var b = document.createElement('button'); b.type = 'button'; b.textContent = 'Abrir cadastro';
         b.addEventListener('click', function(){ if(window.PG_abrir) window.PG_abrir(it.ctd, it.secao); });
         box.appendChild(b);
+        preencherDemPopup(box, e.latlng.lat, e.latlng.lng, g);
         L.popup().setLatLng(e.latlng).setContent(box).openOn(mapa);
       });
       l.addTo(grp);
@@ -12996,6 +13034,9 @@ function AV_gerarDescSituacao(){
     L.control.zoom({position:'bottomright', zoomInTitle:'Aproximar', zoomOutTitle:'Afastar'}).addTo(mapa);
     grupoCad = L.featureGroup().addTo(mapa);
     mapa.setView([-8.3, -37.3], 8, {animate:false});
+    mapa.on('mousemove', function(e){ consultarCotaHover(e.latlng.lat, e.latlng.lng); });
+    mapa.on('mouseout', function(){ $('pgmCota').textContent = 'Passe o mouse no mapa para consultar a cota (DEM)'; });
+    montarChipsModo();
     montarChipsBase();
     aplicarBase(baseKey);
     if(window.ResizeObserver){ new ResizeObserver(function(){ if(mapa) mapa.invalidateSize(); }).observe($('pgmMapa')); }
@@ -13013,8 +13054,10 @@ function AV_gerarDescSituacao(){
     });
   }
   function aplicarBase(k){
+    baseKey = k;
+    if(mapa3) aplicarBase3(k);   // o 3D usa a mesma escolha de base
     baseLayers.forEach(function(l){ mapa.removeLayer(l); });
-    baseLayers = BASES[k].make(); baseKey = k;
+    baseLayers = BASES[k].make();
     var ok = 0, err = 0;
     baseLayers.forEach(function(l){
       l.addTo(mapa); l.bringToBack && l.bringToBack();
@@ -13122,9 +13165,24 @@ function AV_gerarDescSituacao(){
       ultimaAssinatura = assinatura;
       var alvo = limites;
       if(!alvo){ fixosVisiveis.forEach(function(q){ if(fixoLayers[q]) alvo = alvo ? alvo.extend(fixoLayers[q].getBounds()) : L.latLngBounds(fixoLayers[q].getBounds().getSouthWest(), fixoLayers[q].getBounds().getNorthEast()); }); }
-      if(alvo && alvo.isValid()) mapa.flyToBounds(alvo, {padding:[36,36], maxZoom:17, duration:1.4});
+      if(alvo && alvo.isValid()) enquadrar(alvo, true);
     }
+    ultimo = { comKml: comKml, spsVisiveis: fixosVisiveis };
+    if(modo3d && mapa3) atualizar3D();
     if(!usados && !fixosVisiveis.length && !document.querySelector('#pgmMsg.show')) msg('Nenhum KML para mostrar nos cadastros filtrados.', 'info');
+  }
+
+  // enquadra os limites no mapa que estiver ativo (2D Leaflet ou 3D MapLibre)
+  var _limitesAtuais = null;
+  function enquadrar(bounds, animar){
+    _limitesAtuais = bounds;
+    if(modo3d && mapa3){
+      mapa3.fitBounds([[bounds.getWest(), bounds.getSouth()], [bounds.getEast(), bounds.getNorth()]],
+        {padding:44, maxZoom:16.5, pitch:55, bearing:0, duration: animar ? 1600 : 0});
+    } else if(mapa){
+      if(animar) mapa.flyToBounds(bounds, {padding:[36,36], maxZoom:17, duration:1.4});
+      else mapa.fitBounds(bounds, {padding:[36,36], maxZoom:17, animate:false});
+    }
   }
 
   function painelCamadas(usados, semKml, comErro, fixosVisiveis, spsLista, fixosPorSps){
@@ -13147,8 +13205,273 @@ function AV_gerarDescSituacao(){
       cb.addEventListener('change', function(){
         if(cb.dataset.cam === 'cad'){ visCad = cb.checked; if(visCad) grupoCad.addTo(mapa); else mapa.removeLayer(grupoCad); }
         else { var q = cb.dataset.sps; visFixo[q] = cb.checked; var l = fixoLayers[q]; if(l){ if(cb.checked) l.addTo(mapa); else mapa.removeLayer(l); } }
+        if(modo3d && mapa3) atualizar3D();
       });
     });
+  }
+
+  // ================= DEM: consulta de cota (Terrarium: elev = R*256 + G + B/256 - 32768) =================
+  var demCache = {}, demOrdem = [];
+  function tileDe(lat, lon, z){
+    var n = Math.pow(2, z), la = lat * Math.PI / 180;
+    return [ (lon + 180) / 360 * n, (1 - Math.log(Math.tan(la) + 1 / Math.cos(la)) / Math.PI) / 2 * n ];
+  }
+  function carregarTileDem(z, x, y){
+    var k = z + '/' + x + '/' + y;
+    if(demCache[k]) return demCache[k];
+    demCache[k] = fetch(DEM_URL.replace('{z}', z).replace('{x}', x).replace('{y}', y))
+      .then(function(r){ if(!r.ok) throw new Error('HTTP ' + r.status); return r.blob(); })
+      .then(function(b){ return createImageBitmap(b); })
+      .then(function(bmp){
+        var c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height;
+        var cx = c.getContext('2d', {willReadFrequently:true}); cx.drawImage(bmp, 0, 0);
+        return { w: bmp.width, h: bmp.height, d: cx.getImageData(0, 0, bmp.width, bmp.height).data };
+      });
+    demOrdem.push(k);
+    if(demOrdem.length > 80){ delete demCache[demOrdem.shift()]; }   // não deixa a memória crescer
+    demCache[k].catch(function(){ delete demCache[k]; });
+    return demCache[k];
+  }
+  // cota em metros (interpolação bilinear) ou null se o DEM não respondeu
+  function cota(lat, lon){
+    var t = tileDe(lat, lon, DEM_Z), ix = Math.floor(t[0]), iy = Math.floor(t[1]);
+    return carregarTileDem(DEM_Z, ix, iy).then(function(tl){
+      var px = (t[0] - ix) * tl.w - .5, py = (t[1] - iy) * tl.h - .5;
+      var x0 = Math.max(0, Math.min(tl.w - 1, Math.floor(px))), y0 = Math.max(0, Math.min(tl.h - 1, Math.floor(py)));
+      var x1 = Math.min(tl.w - 1, x0 + 1), y1 = Math.min(tl.h - 1, y0 + 1);
+      var fx = Math.max(0, Math.min(1, px - x0)), fy = Math.max(0, Math.min(1, py - y0));
+      var el = function(x, y){ var i = (y * tl.w + x) * 4; return tl.d[i] * 256 + tl.d[i + 1] + tl.d[i + 2] / 256 - 32768; };
+      return (el(x0, y0) * (1 - fx) + el(x1, y0) * fx) * (1 - fy) + (el(x0, y1) * (1 - fx) + el(x1, y1) * fx) * fy;
+    }).catch(function(){ return null; });
+  }
+  var fmtM = function(v){ return v == null ? '—' : Math.round(v).toLocaleString('pt-BR') + ' m'; };
+  var fmtCoord = function(lat, lon){ return lat.toFixed(5).replace('.', ',') + ', ' + lon.toFixed(5).replace('.', ','); };
+
+  // leitura ao passar o mouse (no máximo uma consulta por vez; guarda só a mais recente)
+  var cotaOcupada = false, cotaPend = null;
+  function consultarCotaHover(lat, lon){
+    cotaPend = [lat, lon];
+    if(cotaOcupada) return;
+    cotaOcupada = true;
+    var alvo = cotaPend; cotaPend = null;
+    cota(alvo[0], alvo[1]).then(function(v){
+      $('pgmCota').textContent = 'Cota ' + fmtM(v) + '  ·  ' + fmtCoord(alvo[0], alvo[1]) + (v == null ? '  (DEM indisponível)' : '');
+    }).then(function(){
+      cotaOcupada = false;
+      if(cotaPend) consultarCotaHover(cotaPend[0], cotaPend[1]);
+    });
+  }
+
+  // vértices de uma geometria, no máximo n (espaçados) — amostra pra cota mín/máx do perímetro
+  function amostraVertices(g, n){
+    var v = [];
+    g.poligonos.forEach(function(aneis){ aneis[0].forEach(function(q){ v.push(q); }); });
+    g.linhas.forEach(function(l){ l.forEach(function(q){ v.push(q); }); });
+    g.pontos.forEach(function(q){ v.push(q); });
+    if(v.length <= n) return v;
+    var out = [], passo = v.length / n;
+    for(var i = 0; i < n; i++) out.push(v[Math.floor(i * passo)]);
+    return out;
+  }
+  // texto de cota para o popup: no ponto clicado + mín/máx do perímetro do KML
+  function preencherDemPopup(box, lat, lon, g){
+    var d = document.createElement('div'); d.className = 'pgm-dem'; d.textContent = 'Consultando o DEM…';
+    box.insertBefore(d, box.lastChild);   // antes do botão "Abrir cadastro"
+    var amostra = amostraVertices(g, 30);
+    Promise.all([cota(lat, lon)].concat(amostra.map(function(q){ return cota(q[0], q[1]); }))).then(function(r){
+      var pt = r[0], vs = r.slice(1).filter(function(x){ return x != null; });
+      var t = 'Cota no ponto: <b>' + fmtM(pt) + '</b>';
+      if(vs.length) t += '<br>Perímetro: mín <b>' + fmtM(Math.min.apply(null, vs)) + '</b> · máx <b>' + fmtM(Math.max.apply(null, vs)) + '</b> <span style="color:#8a97a6">(' + vs.length + ' vértices, SRTM ~30 m)</span>';
+      d.innerHTML = t;
+    });
+  }
+
+  // ================= modo 2D / 3D =================
+  function montarChipsModo(){
+    var host = $('pgmModo'); host.innerHTML = '';
+    [['2d', '2D'], ['3d', '3D relevo']].forEach(function(m){
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'pgm-chip' + ((m[0] === '3d') === modo3d ? ' on' : ''); b.textContent = m[1]; b.dataset.modo = m[0];
+      b.addEventListener('click', function(){ definirModo(m[0] === '3d'); });
+      host.appendChild(b);
+    });
+    var vistas = $('pgm3dCtl').querySelectorAll('[data-vista]');
+    if(!$('pgm3dCtl')._ligado){
+      $('pgm3dCtl')._ligado = true;
+      $('pgmEx').addEventListener('input', function(){
+        ex3 = (+this.value) / 10; $('pgmExV').textContent = ex3.toFixed(1).replace('.', ',') + '×';
+        if(mapa3) mapa3.setTerrain({source:'dem', exaggeration:ex3});
+      });
+      $('pgmSombra').addEventListener('change', function(){
+        sombra3 = this.checked;
+        if(mapa3 && mapa3.getLayer('shade')) mapa3.setLayoutProperty('shade', 'visibility', sombra3 ? 'visible' : 'none');
+      });
+      Array.prototype.forEach.call(vistas, function(b){
+        b.addEventListener('click', function(){
+          if(!mapa3) return;
+          if(b.dataset.vista === 'topo') mapa3.easeTo({pitch:0, bearing:0, duration:900});
+          else mapa3.easeTo({pitch:65, duration:1100});
+        });
+      });
+    }
+  }
+  function marcarChipModo(){
+    Array.prototype.forEach.call($('pgmModo').children, function(c){ c.classList.toggle('on', (c.dataset.modo === '3d') === modo3d); });
+  }
+
+  var _mapLibreP = null;
+  function carregarMapLibre(){
+    if(window.maplibregl) return Promise.resolve();
+    if(_mapLibreP) return _mapLibreP;
+    _mapLibreP = new Promise(function(ok, falha){
+      var css = document.createElement('link'); css.rel = 'stylesheet'; css.href = MAPLIBRE_CSS; document.head.appendChild(css);
+      var sc = document.createElement('script'); sc.src = MAPLIBRE_JS;
+      sc.onload = function(){ ok(); };
+      sc.onerror = function(){ _mapLibreP = null; falha(new Error('sem internet (não consegui baixar o MapLibre)')); };
+      document.head.appendChild(sc);
+    });
+    return _mapLibreP;
+  }
+
+  function definirModo(quer3d){
+    if(quer3d === modo3d) return;
+    if(!quer3d){
+      // volta ao 2D levando o enquadramento atual
+      var b = mapa3 ? mapa3.getBounds() : null;
+      modo3d = false; marcarChipModo();
+      $('pgmMapa3d').hidden = true; $('pgmMapa').hidden = false; $('pgm3dCtl').hidden = true;
+      mapa.invalidateSize();
+      if(b) mapa.fitBounds([[b.getSouth(), b.getWest()], [b.getNorth(), b.getEast()]], {animate:false});
+      return;
+    }
+    msg('Carregando o mapa 3D…', 'info');
+    carregarMapLibre().then(function(){
+      var b = mapa ? mapa.getBounds() : null;
+      modo3d = true; marcarChipModo();
+      $('pgmMapa').hidden = true; $('pgmMapa3d').hidden = false; $('pgm3dCtl').hidden = false;
+      if(!mapa3){
+        try{ criarMapa3(b); }
+        catch(e){
+          modo3d = false; marcarChipModo(); $('pgmMapa3d').hidden = true; $('pgmMapa').hidden = false; $('pgm3dCtl').hidden = true;
+          msg('Este navegador não conseguiu iniciar o 3D (precisa de WebGL): ' + (e && e.message || e));
+          return;
+        }
+      } else {
+        mapa3.resize();
+        if(b) mapa3.fitBounds([[b.getWest(), b.getSouth()], [b.getEast(), b.getNorth()]], {padding:30, pitch:55, duration:0});
+        atualizar3D(); aplicarBase3(baseKey);
+      }
+      msg('');
+    }).catch(function(e){ msg('Não foi possível carregar o 3D: ' + (e && e.message || e)); });
+  }
+
+  function estilo3(){
+    var raster = function(url, max, attr, sub){ var o = {type:'raster', tiles:sub ? sub : [url], tileSize:256, maxzoom:max}; if(attr) o.attribution = attr; return o; };
+    var demSrc = function(attr){ var o = {type:'raster-dem', tiles:[DEM_URL], encoding:'terrarium', tileSize:256, maxzoom:15}; if(attr) o.attribution = attr; return o; };
+    return {
+      version: 8,
+      sources: {
+        sat:   raster(ESRI + 'World_Imagery/MapServer/tile/{z}/{y}/{x}', 18, ATTR_ESRI),
+        ref1:  raster(ESRI + 'Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}', 18),
+        ref2:  raster(ESRI + 'Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', 18),
+        topo:  raster(ESRI + 'World_Topo_Map/MapServer/tile/{z}/{y}/{x}', 18, 'Mapa © Esri, HERE, Garmin, OpenStreetMap e colaboradores'),
+        light: raster(null, 19, '© OpenStreetMap · © CARTO', ['https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', 'https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png']),
+        dem: demSrc('Elevação: Mapzen / AWS Terrain Tiles (SRTM)'),
+        demshade: demSrc(),
+        fixos: {type:'geojson', data:{type:'FeatureCollection', features:[]}},
+        cads:  {type:'geojson', data:{type:'FeatureCollection', features:[]}}
+      },
+      layers: [
+        {id:'bg',    type:'background', paint:{'background-color':'#0e2329'}},
+        {id:'sat',   type:'raster', source:'sat',   paint:{'raster-fade-duration':250}},
+        {id:'topo',  type:'raster', source:'topo',  layout:{visibility:'none'}, paint:{'raster-fade-duration':250}},
+        {id:'light', type:'raster', source:'light', layout:{visibility:'none'}, paint:{'raster-fade-duration':250}},
+        {id:'shade', type:'hillshade', source:'demshade', layout:{visibility: sombra3 ? 'visible' : 'none'},
+          paint:{'hillshade-exaggeration':.32, 'hillshade-shadow-color':'#06161b', 'hillshade-highlight-color':'#ffffff', 'hillshade-accent-color':'#06161b'}},
+        {id:'ref1',  type:'raster', source:'ref1',  layout:{visibility:'none'}},
+        {id:'ref2',  type:'raster', source:'ref2',  layout:{visibility:'none'}},
+        {id:'fixos-linha', type:'line', source:'fixos', layout:{'line-cap':'round', 'line-join':'round'},
+          paint:{'line-color':'#ef2b2d', 'line-width':2.6, 'line-opacity':.95, 'line-dasharray':[0.1, 2.2]}},
+        {id:'cads-fill',  type:'fill',   source:'cads', filter:['==', ['geometry-type'], 'Polygon'], paint:{'fill-color':'#00e5ff', 'fill-opacity':.16}},
+        {id:'cads-linha', type:'line',   source:'cads', filter:['!=', ['geometry-type'], 'Point'], paint:{'line-color':'#00e5ff', 'line-width':2.6}},
+        {id:'cads-pt',    type:'circle', source:'cads', filter:['==', ['geometry-type'], 'Point'], paint:{'circle-color':'#00e5ff', 'circle-radius':5, 'circle-stroke-color':'#062a30', 'circle-stroke-width':1}}
+      ],
+      terrain: {source:'dem', exaggeration:ex3},
+      sky: {'sky-color':'#7ea3b0', 'sky-horizon-blend':.55, 'horizon-color':'#d3ddd9', 'horizon-fog-blend':.6, 'fog-color':'#bccbc8', 'fog-ground-blend':.55}
+    };
+  }
+
+  function criarMapa3(b){
+    var opc = { container:'pgmMapa3d', style:estilo3(), center:[-37.3, -8.3], zoom:7, pitch:55, bearing:0, maxPitch:80, minZoom:3, maxZoom:19.5, attributionControl:false };
+    if(b) opc.bounds = [[b.getWest(), b.getSouth()], [b.getEast(), b.getNorth()]], opc.fitBoundsOptions = {padding:30, pitch:55};
+    mapa3 = new maplibregl.Map(opc);
+    mapa3.addControl(new maplibregl.AttributionControl({compact:true}), 'bottom-right');
+    mapa3.addControl(new maplibregl.NavigationControl({visualizePitch:true, showCompass:true, showZoom:true}), 'bottom-right');
+    mapa3.addControl(new maplibregl.ScaleControl({maxWidth:110, unit:'metric'}), 'bottom-right');
+    mapa3.on('load', function(){ aplicarBase3(baseKey); atualizar3D(); });
+    mapa3.on('error', function(e){
+      var t = String(e && e.error && e.error.message || '');
+      if(/Failed to fetch|NetworkError|ERR_/i.test(t)) msg('Falha ao baixar imagens/relevo do 3D: sem internet ou servidor de mapas bloqueado.');
+    });
+    mapa3.on('mousemove', function(e){
+      consultarCotaHover(e.lngLat.lat, e.lngLat.lng);
+      var f = mapa3.getLayer('cads-fill') && mapa3.queryRenderedFeatures(e.point, {layers:['cads-fill', 'cads-linha', 'cads-pt']});
+      mapa3.getCanvas().style.cursor = (f && f.length) ? 'pointer' : '';
+    });
+    mapa3.on('click', function(e){
+      var f = mapa3.queryRenderedFeatures(e.point, {layers:['cads-fill', 'cads-linha', 'cads-pt']});
+      if(!f.length) return;
+      var pr = f[0].properties || {};
+      var box = document.createElement('div'); box.className = 'pgm-pop';
+      box.innerHTML = '<b>' + escH(pr.rotulo || '') + '</b><br>' + escH(pr.proprietario || '') + '<br>';
+      var bt = document.createElement('button'); bt.type = 'button'; bt.textContent = 'Abrir cadastro';
+      bt.addEventListener('click', function(){ if(window.PG_abrir) window.PG_abrir(pr.ctd, pr.secao); });
+      box.appendChild(bt);
+      var it = { poligonos:[], linhas:[], pontos:[] };
+      var geom = f[0].geometry;
+      if(geom.type === 'Polygon') it.poligonos.push(geom.coordinates.map(function(a){ return a.map(function(c){ return [c[1], c[0]]; }); }));
+      else if(geom.type === 'MultiPolygon') geom.coordinates.forEach(function(pg){ it.poligonos.push(pg.map(function(a){ return a.map(function(c){ return [c[1], c[0]]; }); })); });
+      else if(geom.type === 'LineString') it.linhas.push(geom.coordinates.map(function(c){ return [c[1], c[0]]; }));
+      preencherDemPopup(box, e.lngLat.lat, e.lngLat.lng, it);
+      if(popup3) popup3.remove();
+      popup3 = new maplibregl.Popup({closeButton:true, maxWidth:'280px'}).setLngLat(e.lngLat).setDOMContent(box).addTo(mapa3);
+    });
+    if(window.ResizeObserver){ new ResizeObserver(function(){ if(mapa3) mapa3.resize(); }).observe($('pgmMapa3d')); }
+  }
+
+  function aplicarBase3(k){
+    if(!mapa3 || !mapa3.getLayer('sat')) return;
+    var mostrar = { sat:['sat'], hyb:['sat','ref1','ref2'], topo:['topo'], light:['light'] }[k] || ['sat'];
+    ['sat','topo','light','ref1','ref2'].forEach(function(id){
+      mapa3.setLayoutProperty(id, 'visibility', mostrar.indexOf(id) >= 0 ? 'visible' : 'none');
+    });
+  }
+
+  // geometrias do cache -> GeoJSON ([lon,lat]) para o MapLibre
+  function atualizar3D(){
+    if(!mapa3 || !ultimo || !mapa3.getSource('cads')) return;
+    var cads = [], fixos = [];
+    var ring = function(a){ return a.map(function(q){ return [q[1], q[0]]; }); };
+    if(visCad){
+      ultimo.comKml.forEach(function(it){
+        var g = cache['cad|' + it.secao + '|' + it.ctd + '|' + it.atualizado_em];
+        if(!g || g.erro) return;
+        var pr = { ctd: it.ctd, secao: it.secao, rotulo: rotuloCtd(it), proprietario: it.proprietario || '' };
+        g.poligonos.forEach(function(aneis){ cads.push({type:'Feature', properties:pr, geometry:{type:'Polygon', coordinates:aneis.map(function(a){ var r = ring(a); var f = r[0], l = r[r.length - 1]; if(f[0] !== l[0] || f[1] !== l[1]) r.push(f); return r; })}}); });
+        g.linhas.forEach(function(l){ cads.push({type:'Feature', properties:pr, geometry:{type:'LineString', coordinates:ring(l)}}); });
+        g.pontos.forEach(function(q){ cads.push({type:'Feature', properties:pr, geometry:{type:'Point', coordinates:[q[1], q[0]]}}); });
+      });
+    }
+    var fixosPorSps = {};
+    (fixosLista || []).forEach(function(f){ fixosPorSps[f.sps] = f; });
+    ultimo.spsVisiveis.forEach(function(q){
+      if(visFixo[q] === false) return;
+      var f = fixosPorSps[q]; if(!f) return;
+      var g = cache['fixo|' + f.arquivo + '|' + f.atualizado_em]; if(!g) return;
+      g.poligonos.forEach(function(aneis){ aneis.forEach(function(a){ var r = ring(a); r.push(r[0]); fixos.push({type:'Feature', properties:{sps:q}, geometry:{type:'LineString', coordinates:r}}); }); });
+      g.linhas.forEach(function(l){ fixos.push({type:'Feature', properties:{sps:q}, geometry:{type:'LineString', coordinates:ring(l)}}); });
+    });
+    mapa3.getSource('cads').setData({type:'FeatureCollection', features:cads});
+    mapa3.getSource('fixos').setData({type:'FeatureCollection', features:fixos});
   }
 
   // ---------- abrir / fechar ----------
