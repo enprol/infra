@@ -2773,7 +2773,7 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
           <tr class="pg-grupos">
             <th></th><th></th><th></th>
             <th colspan="2"></th>
-            <th colspan="4" class="pg-grupo-th">Andamento por etapa</th>
+            <th colspan="4" class="pg-grupo-th" id="pgGrupoEtapas" onclick="PG_toggleGrupo()" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();PG_toggleGrupo();}"><span id="pgGrupoTxt">▾ Andamento por etapa</span></th>
             <th colspan="6"></th>
           </tr>
           <tr class="pg-cabecalho">
@@ -2782,10 +2782,11 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
             <th>Cadastro</th>
             <th>Proprietário</th>
             <th>Posseiro</th>
-            <th class="pg-status-th">CAMPO</th>
-            <th class="pg-status-th">SOCIAL</th>
-            <th class="pg-status-th">TÉCNICA</th>
-            <th class="pg-status-th">JURÍDICA</th>
+            <th class="pg-status-th pg-col-st">CAMPO</th>
+            <th class="pg-status-th pg-col-st">SOCIAL</th>
+            <th class="pg-status-th pg-col-st">TÉCNICA</th>
+            <th class="pg-status-th pg-col-st">JURÍDICA</th>
+            <th class="pg-status-th pg-col-resumo" title="Campo · Social · Técnica · Jurídica">C · S · T · J</th>
             <th>Nº Processo SEI</th>
             <th class="pg-status-th">Melhorias</th>
             <th>R$ Terra nua</th>
@@ -2799,15 +2800,16 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
             <th><button type="button" class="pg-filtbtn" id="pgFiltBtnCad" onclick="PG_toggleFiltro(event,'cad')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
             <th></th>
             <th></th>
-            <th><button type="button" class="pg-filtbtn" id="pgFiltBtnCampo" onclick="PG_toggleFiltro(event,'campo')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
-            <th><button type="button" class="pg-filtbtn" id="pgFiltBtnSocial" onclick="PG_toggleFiltro(event,'social')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
-            <th><button type="button" class="pg-filtbtn" id="pgFiltBtnTecnica" onclick="PG_toggleFiltro(event,'tecnica')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
-            <th><button type="button" class="pg-filtbtn" id="pgFiltBtnJuridica" onclick="PG_toggleFiltro(event,'juridica')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
+            <th class="pg-col-st"><button type="button" class="pg-filtbtn" id="pgFiltBtnCampo" onclick="PG_toggleFiltro(event,'campo')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
+            <th class="pg-col-st"><button type="button" class="pg-filtbtn" id="pgFiltBtnSocial" onclick="PG_toggleFiltro(event,'social')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
+            <th class="pg-col-st"><button type="button" class="pg-filtbtn" id="pgFiltBtnTecnica" onclick="PG_toggleFiltro(event,'tecnica')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
+            <th class="pg-col-st"><button type="button" class="pg-filtbtn" id="pgFiltBtnJuridica" onclick="PG_toggleFiltro(event,'juridica')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
+            <th class="pg-col-resumo"></th>
             <th></th><th></th><th></th><th></th><th></th><th></th>
           </tr>
         </thead>
         <tbody id="pgCorpo">
-          <tr><td colspan="15" class="pg-vazio">Carregando…</td></tr>
+          <tr><td colspan="16" class="pg-vazio">Carregando…</td></tr>
         </tbody>
         <tfoot id="pgRodape"></tfoot>
       </table>
@@ -2931,6 +2933,24 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
   .pg-tabela tbody td.pg-status-td, .pg-tabela thead tr.pg-cabecalho th.pg-status-th:nth-child(n+6):nth-child(-n+9){ background-color:rgba(234,243,252,.35); }
   .pg-tabela thead tr.pg-cabecalho th.pg-status-th:nth-child(n+6):nth-child(-n+9){ background-color:#f0f6fc; }
   .pg-tabela td.pg-center{ text-align:center; }
+  /* grupo retrátil: recolhido, as 4 colunas de status somem e entra a coluna-resumo (4 bolinhas C/S/T/J) */
+  .pg-tabela .pg-col-resumo{ display:none; }
+  .pg-tabela.pg-grupo-fechado .pg-col-st{ display:none; }
+  .pg-tabela.pg-grupo-fechado .pg-col-resumo{ display:table-cell; }
+  .pg-tabela tr:not(.pg-grupos) > .pg-col-resumo{ border-left:1px solid #d3e2f3; border-right:1px solid #d3e2f3; }
+  .pg-tabela tbody td.pg-col-resumo{ background-color:rgba(234,243,252,.35); text-align:center; }
+  .pg-tabela thead tr.pg-cabecalho th.pg-col-resumo{ background-color:#f0f6fc; }
+  .pg-tabela thead tr.pg-grupos th.pg-grupo-th{ cursor:pointer; user-select:none; }
+  .pg-tabela thead tr.pg-grupos th.pg-grupo-th:hover{ background:#dcebfa; }
+  .pg-tabela thead tr.pg-grupos th.pg-grupo-th:focus-visible{ outline:2px solid #1F6FC0; outline-offset:-2px; }
+  .pg-dots{ display:inline-flex; gap:3px; vertical-align:middle; }
+  .pg-dot{
+    display:inline-flex; align-items:center; justify-content:center; width:17px; height:17px; border-radius:50%;
+    font-size:9.5px; font-weight:800; color:#fff; cursor:default; line-height:1;
+  }
+  .pg-dot-ok{ background:#22c55e; }
+  .pg-dot-falta{ background:#ef4444; }
+  .pg-dot-ni{ background:#c3ccd6; }
   .pg-tabela td.pg-posseiro{ color:#243447; }
   .pg-tabela td.pg-posseiro.pg-sem{ color:#a7b2bf; text-align:center; }
   /* coluna Melhorias: número + balão com a lista */
@@ -12279,7 +12299,7 @@ function AV_gerarDescSituacao(){
       PG_renderizar();
       if(status) status.textContent = "Atualizado " + new Date().toLocaleTimeString("pt-BR");
     }).catch(function(e){
-      if(corpo) corpo.innerHTML = '<tr><td colspan="15" class="pg-vazio">Não foi possível carregar: ' + esc(e && e.message || e) + '</td></tr>';
+      if(corpo) corpo.innerHTML = '<tr><td colspan="16" class="pg-vazio">Não foi possível carregar: ' + esc(e && e.message || e) + '</td></tr>';
       if(status) status.textContent = "";
     });
   };
@@ -12504,10 +12524,11 @@ function AV_gerarDescSituacao(){
     });
 
     _PG_CAMPOS.forEach(PG_atualizarBotaoFiltro);
+    PG_aplicarGrupo();
 
     if(!itens.length){
       var temFiltro = _PG_CAMPOS.some(function(campo){ return !!_pgSel[campo]; });
-      corpo.innerHTML = '<tr><td colspan="15" class="pg-vazio">Nenhum cadastro encontrado' + (temFiltro ? " para este filtro." : ".") + '</td></tr>';
+      corpo.innerHTML = '<tr><td colspan="16" class="pg-vazio">Nenhum cadastro encontrado' + (temFiltro ? " para este filtro." : ".") + '</td></tr>';
       if(rodape) rodape.innerHTML = "";
       return;
     }
@@ -12524,6 +12545,7 @@ function AV_gerarDescSituacao(){
         + PG_statusCelHTML(it.completude && it.completude.social)
         + PG_statusCelHTML(it.completude && it.completude.tecnica)
         + PG_statusCelHTML(it.completude && it.completude.juridica)
+        + PG_resumoEtapasCelHTML(it)
         + '<td>' + esc(it.sei||"—") + '</td>'
         + PG_melhoriasCelHTML(it)
         + '<td class="pg-num">' + money(it.valor_terra_nua) + '</td>'
@@ -12545,7 +12567,8 @@ function AV_gerarDescSituacao(){
         + '<td>' + itens.length + ' item(ns)</td>'
         + '<td></td>'
         + '<td></td>'
-        + '<td></td><td></td><td></td><td></td>'
+        + '<td class="pg-col-st"></td><td class="pg-col-st"></td><td class="pg-col-st"></td><td class="pg-col-st"></td>'
+        + '<td class="pg-col-resumo"></td>'
         + '<td></td>'
         + '<td></td>'
         + '<td class="pg-num">' + money(soma("valor_terra_nua")) + '</td>'
@@ -12557,6 +12580,45 @@ function AV_gerarDescSituacao(){
     requestAnimationFrame(PG_ajustarLayoutTabela);
   }
   window.PG_renderizar = PG_renderizar;
+
+  // ---- Grupo "Andamento por etapa" retrátil ----
+  // Expandido: as 4 colunas (CAMPO/SOCIAL/TÉCNICA/JURÍDICA). Recolhido: some tudo e entra
+  // uma coluna-resumo com 4 bolinhas (C/S/T/J) coloridas pelo status. O estado fica salvo
+  // no navegador (localStorage) — só uma conveniência de tela, não vai pro cadastro.
+  var _pgGrupoFechado = false;
+  try{ _pgGrupoFechado = localStorage.getItem('pg_grupo_etapas_fechado') === '1'; }catch(e){}
+
+  function PG_aplicarGrupo(){
+    var tabela = document.querySelector('#painelGeral .pg-tabela');
+    if(!tabela) return;
+    tabela.classList.toggle('pg-grupo-fechado', _pgGrupoFechado);
+    var th = document.getElementById('pgGrupoEtapas'), txt = document.getElementById('pgGrupoTxt');
+    if(th){
+      th.colSpan = _pgGrupoFechado ? 1 : 4;   // fechado: só a coluna-resumo fica visível
+      th.setAttribute('aria-expanded', String(!_pgGrupoFechado));
+      // filtro ativo numa coluna escondida não pode passar despercebido
+      var filtrado = _pgGrupoFechado && _PG_STATUS_CAMPOS.some(function(c){ return !!_pgSel[c]; });
+      if(txt) txt.textContent = (_pgGrupoFechado ? '▸ Etapas' : '▾ Andamento por etapa') + (filtrado ? ' • filtrado' : '');
+      th.title = _pgGrupoFechado ? 'Clique para expandir CAMPO / SOCIAL / TÉCNICA / JURÍDICA' : 'Clique para recolher as 4 colunas num resumo';
+    }
+    requestAnimationFrame(PG_ajustarLayoutTabela);
+  }
+  window.PG_toggleGrupo = function(){
+    _pgGrupoFechado = !_pgGrupoFechado;
+    try{ localStorage.setItem('pg_grupo_etapas_fechado', _pgGrupoFechado ? '1' : '0'); }catch(e){}
+    PG_aplicarGrupo();
+  };
+
+  // coluna-resumo: uma bolinha por etapa (C/S/T/J), cor = status; nome completo no title
+  function PG_resumoEtapasCelHTML(it){
+    var etapas = [['campo','C','Campo'],['social','S','Social'],['tecnica','T','Técnica'],['juridica','J','Jurídica']];
+    var dots = etapas.map(function(e){
+      var v = _pgRawValor(it, e[0]);
+      var cls = v === 'concluido' ? 'pg-dot-ok' : (v === 'pendente' ? 'pg-dot-falta' : 'pg-dot-ni');
+      return '<span class="pg-dot ' + cls + '" title="' + e[2] + ': ' + esc(_pgFmt(e[0], v)) + '">' + e[1] + '</span>';
+    }).join('');
+    return '<td class="pg-col-resumo"><span class="pg-dots">' + dots + '</span></td>';
+  }
 
   // ---- Posseiro: preenchido quando o ocupante do imóvel não é o(a) proprietário(a) ----
   // (Ficha de Vistoria 1.3 / 1.3.2). Sem posseiro = traço. `undefined` = server.js
@@ -12578,12 +12640,12 @@ function AV_gerarDescSituacao(){
 
   // ---- status de finalização (DESP 1/2/3): ícone + balão de pendências ----
   function PG_statusCelHTML(st){
-    if(!st){ return '<td class="pg-status-td"><span class="pg-status-vazio">—</span></td>'; }
+    if(!st){ return '<td class="pg-status-td pg-col-st"><span class="pg-status-vazio">—</span></td>'; }
     var cls, simbolo;
     if(st.ok){ cls='pg-status-ok'; simbolo='✓'; }
     else if(st.iniciado || st.iniciado === undefined){ cls='pg-status-falta'; simbolo='✕'; }   // undefined = server.js antigo
     else { cls='pg-status-naoiniciado'; simbolo='–'; }
-    return '<td class="pg-status-td"><span class="pg-status-ico ' + cls + '" data-pg-tt="' + esc(JSON.stringify(st)) + '">' + simbolo + '</span></td>';
+    return '<td class="pg-status-td pg-col-st"><span class="pg-status-ico ' + cls + '" data-pg-tt="' + esc(JSON.stringify(st)) + '">' + simbolo + '</span></td>';
   }
   function PG_tooltipConteudo(st){
     if(st.ok) return '<b class="pg-tt-ok">✓ Completo</b><div>Nenhuma pendência encontrada.</div>';
