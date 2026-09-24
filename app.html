@@ -2852,6 +2852,20 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
     .pgm-camadas .pgm-sw-cad{ border-top-color:#00e5ff; }
     .pgm-camadas .pgm-sw-eixo{ border-top-color:#ef2b2d; border-top-width:2px; }
     .pgm-camadas details{ margin-top:6px; color:#9cb7bd; }
+    .pgm-camadas details.pgm-incra-box{ margin-top:8px; padding-top:7px; border-top:1px solid #23444d; color:#e8f1f3; }
+    .pgm-camadas details.pgm-incra-box > summary{ font-size:11.5px; font-weight:700; color:#cfe6ea; }
+    .pgm-incra-n{ margin-left:6px; font-weight:600; font-size:10.5px; color:#00e5ff; }
+    .pgm-camadas details.pgm-incra-box label{ padding:3px 0 3px 2px; }
+    .pgm-sw-inc{ flex:0 0 18px; height:12px; border-radius:3px; border:1px solid rgba(255,255,255,.35); }
+    .pgm-incra-op{ display:flex; justify-content:space-between; margin-top:6px; color:#c8dde1; }
+    .pgm-camadas details.pgm-incra-box input[type=range]{ width:100%; margin:2px 0; accent-color:#00e5ff; }
+    .pgm-incra-nota{ font-size:10.5px; color:#7fa3ab; margin-top:3px; }
+    /* cores do servidor são todas vermelhas/marrons: cada camada ganha um tom próprio (a amostra da legenda usa o mesmo filtro) */
+    .pgm-incra-0{ filter:hue-rotate(28deg) saturate(1.25); }
+    .pgm-incra-1{ filter:hue-rotate(300deg) saturate(1.2); }
+    .pgm-incra-2{ filter:hue-rotate(60deg) saturate(1.5); }
+    .pgm-incra-3{ filter:hue-rotate(215deg) saturate(1.4); }
+    .pgm-incra-4{ filter:hue-rotate(112deg) saturate(1.1); }
     .pgm-camadas summary{ cursor:pointer; font-size:11.5px; }
     .pgm-camadas details ul{ margin:4px 0 0; padding-left:16px; max-height:120px; overflow:auto; }
     .pgm-t{ font-size:10.5px; font-weight:800; letter-spacing:.5px; text-transform:uppercase; color:#7fa3ab; margin-bottom:4px; }
@@ -13022,6 +13036,18 @@ function AV_gerarDescSituacao(){
   var ATTR_ESRI = 'Imagens © Esri, Maxar, Earthstar Geographics e comunidade de usuários GIS';
   var DEM_URL = 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
   var DEM_ATTR = 'Elevação: Mapzen / AWS Terrain Tiles (SRTM)';
+  // Acervo Fundiário do INCRA (WMS MapServer). É um serviço público; os tiles são só imagens, então não precisa de CORS.
+  // O servidor aceita EPSG:3857 (mesmo sem anunciar), por isso o WMS do Leaflet funciona direto sobre o mapa.
+  var INCRA_URL = 'https://acervofundiario.incra.gov.br/i3geo/ogc.php';
+  var INCRA_ATTR = 'Acervo Fundiário © INCRA / SIGEF';
+  var INCRA_ZOOM_MIN = 9;
+  var INCRA_TEMAS = [
+    {t:'certificada_sigef_particular_pe',  nome:'SIGEF — parcelas particulares',   base:'#a52a2a'},
+    {t:'certificada_sigef_publico_pe',     nome:'SIGEF — parcelas públicas',       base:'#a52a2a'},
+    {t:'imoveiscertificados_privado_pe',   nome:'Imóveis certificados — privados', base:'#8b6b6b'},
+    {t:'imoveiscertificados_publico_pe',   nome:'Imóveis certificados — públicos', base:'#8b6b6b'},
+    {t:'assentamentos_pe',                 nome:'Assentamentos',                   base:'#ff2020'}
+  ];
   var ESTILO_FIXO = { color:'#ef2b2d', weight:2.4, opacity:.95, dashArray:'1 7', lineCap:'round', fill:false, interactive:false };
   var ESTILO_CAD  = { color:'#00e5ff', weight:2.6, opacity:1, fillColor:'#00e5ff', fillOpacity:.14 };
   // Rampa hipsométrica — as mesmas 13 cores da apresentação AMBEV (azul-arroxeado → azul → verde →
@@ -13044,6 +13070,7 @@ function AV_gerarDescSituacao(){
   var demLayer = null, contLayer = null, demOn = false, demOp = .6, demEstilo = 'alt', demCurvas = true;
   var regCad = {};                                   // regCad[chave] = {layers:[...]} — para destacar o selecionado
   var selKey = null, hoverKey = null;
+  var incraLayers = {}, visIncra = {}, incraOp = .5, incraAberto = false, incraErros = 0;
 
   // ---------- carregar o Leaflet só quando precisa ----------
   var _leafletP = null;
@@ -13455,7 +13482,7 @@ function AV_gerarDescSituacao(){
     mapa = L.map($('pgmMapa'), { zoomControl:false, attributionControl:true, zoomSnap:.25, zoomDelta:.5, wheelPxPerZoomLevel:110,
       maxZoom:21, minZoom:4, preferCanvas:true });
     mapa.attributionControl.setPrefix('<a href="https://leafletjs.com" target="_blank" rel="noopener">Leaflet</a>');
-    [['demPane',250,true],['curvasPane',270,true],['fixosPane',390,true],['cadPane',410,false]].forEach(function(d){
+    [['demPane',250,true],['curvasPane',270,true],['incraPane',300,true],['fixosPane',390,true],['cadPane',410,false]].forEach(function(d){
       var pn = mapa.createPane(d[0]); pn.style.zIndex = d[1]; if(d[2]) pn.style.pointerEvents = 'none';
     });
     rFix = L.canvas({pane:'fixosPane', padding:.4});
@@ -13642,12 +13669,66 @@ function AV_gerarDescSituacao(){
         + semKml.map(function(it){ return '<li>' + escH(rotuloCtd(it)) + (it.proprietario ? ' — ' + escH(it.proprietario) : '') + '</li>'; }).join('') + '</ul></details>';
     }
     if(comErro.length) h += '<div style="color:#ffb4a8;margin-top:6px">Falha ao ler o KML de: ' + escH(comErro.join(', ')) + '</div>';
+    h += htmlIncra();
     var host = $('pgmCamadas'); host.innerHTML = h;
+    ligarEventosIncra(host);
     Array.prototype.forEach.call(host.querySelectorAll('input[data-cam]'), function(cb){
       cb.addEventListener('change', function(){
         if(cb.dataset.cam === 'cad'){ visCad = cb.checked; if(visCad) grupoCad.addTo(mapa); else mapa.removeLayer(grupoCad); }
         else { var q = cb.dataset.sps; visFixo[q] = cb.checked; var l = fixoLayers[q]; if(l){ if(cb.checked) l.addTo(mapa); else mapa.removeLayer(l); } }
       });
+    });
+  }
+
+  // ---------- Acervo Fundiário (INCRA): camadas WMS que se liga/desliga ----------
+  function incraLayer(i){
+    var d = INCRA_TEMAS[i];
+    var l = L.tileLayer.wms(INCRA_URL + '?tema=' + d.t, {
+      layers: d.t, styles: '', format: 'image/png', transparent: true, version: '1.1.1',
+      pane: 'incraPane', opacity: incraOp, minZoom: INCRA_ZOOM_MIN, maxZoom: 21, tileSize: 256,
+      className: 'pgm-incra pgm-incra-' + i, attribution: INCRA_ATTR
+    });
+    l.on('tileerror', function(){
+      incraErros++;
+      if(incraErros === 4) msg('O servidor do INCRA (Acervo Fundiário) não respondeu a alguns tiles. As camadas do SIGEF podem aparecer incompletas.', 'info');
+    });
+    l.on('tileload', function(){ if(incraErros){ incraErros = 0; } });
+    return l;
+  }
+  function ligarIncra(i, on){
+    var d = INCRA_TEMAS[i]; visIncra[d.t] = on;
+    if(on){
+      if(!incraLayers[d.t]) incraLayers[d.t] = incraLayer(i);
+      incraLayers[d.t].addTo(mapa);
+    } else if(incraLayers[d.t]){ mapa.removeLayer(incraLayers[d.t]); }
+  }
+  function htmlIncra(){
+    var ativas = INCRA_TEMAS.filter(function(d){ return visIncra[d.t]; }).length;
+    var h = '<details class="pgm-incra-box"' + (incraAberto ? ' open' : '') + '><summary>INCRA · SIGEF (PE)' + (ativas ? ' <span class="pgm-incra-n">' + ativas + ' ativa(s)</span>' : '') + '</summary>';
+    INCRA_TEMAS.forEach(function(d, i){
+      h += '<label><input type="checkbox" data-incra="' + i + '"' + (visIncra[d.t] ? ' checked' : '') + '>'
+        + '<span class="pgm-sw-inc pgm-incra-' + i + '" style="background:' + d.base + '"></span> ' + escH(d.nome) + '</label>';
+    });
+    h += '<div class="pgm-incra-op"><span>Transparência</span><b id="pgmIncraOpV">' + Math.round((1 - incraOp) * 100) + '%</b></div>'
+      + '<input type="range" id="pgmIncraOp" min="0" max="90" value="' + Math.round((1 - incraOp) * 100) + '" aria-label="Transparência das camadas do INCRA">'
+      + '<div class="pgm-incra-nota">Aparecem a partir do zoom ' + INCRA_ZOOM_MIN + '. Fonte: acervofundiario.incra.gov.br</div></details>';
+    return h;
+  }
+  function ligarEventosIncra(host){
+    var det = host.querySelector('details.pgm-incra-box');
+    if(det) det.addEventListener('toggle', function(){ incraAberto = det.open; });
+    Array.prototype.forEach.call(host.querySelectorAll('input[data-incra]'), function(cb){
+      cb.addEventListener('change', function(){
+        ligarIncra(Number(cb.dataset.incra), cb.checked);
+        var n = INCRA_TEMAS.filter(function(d){ return visIncra[d.t]; }).length;
+        var sm = host.querySelector('.pgm-incra-box summary'); if(sm) sm.innerHTML = 'INCRA · SIGEF (PE)' + (n ? ' <span class="pgm-incra-n">' + n + ' ativa(s)</span>' : '');
+      });
+    });
+    var r = host.querySelector('#pgmIncraOp');
+    if(r) r.addEventListener('input', function(){
+      incraOp = 1 - Number(r.value) / 100;
+      $('pgmIncraOpV').textContent = r.value + '%';
+      Object.keys(incraLayers).forEach(function(k){ incraLayers[k].setOpacity(incraOp); });
     });
   }
 
