@@ -2799,13 +2799,13 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
             <th><button type="button" class="pg-filtbtn" id="pgFiltBtnLote" onclick="PG_toggleFiltro(event,'lote')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
             <th><button type="button" class="pg-filtbtn" id="pgFiltBtnCad" onclick="PG_toggleFiltro(event,'cad')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
             <th></th>
-            <th></th>
+            <th><button type="button" class="pg-filtbtn" id="pgFiltBtnPosseiro" onclick="PG_toggleFiltro(event,'posseiro')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
             <th class="pg-col-st"><button type="button" class="pg-filtbtn" id="pgFiltBtnCampo" onclick="PG_toggleFiltro(event,'campo')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
             <th class="pg-col-st"><button type="button" class="pg-filtbtn" id="pgFiltBtnSocial" onclick="PG_toggleFiltro(event,'social')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
             <th class="pg-col-st"><button type="button" class="pg-filtbtn" id="pgFiltBtnTecnica" onclick="PG_toggleFiltro(event,'tecnica')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
             <th class="pg-col-st"><button type="button" class="pg-filtbtn" id="pgFiltBtnJuridica" onclick="PG_toggleFiltro(event,'juridica')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
             <th class="pg-col-resumo"></th>
-            <th></th><th></th><th></th><th></th><th></th><th></th>
+            <th></th><th><button type="button" class="pg-filtbtn" id="pgFiltBtnMelhorias" onclick="PG_toggleFiltro(event,'melhorias')">Todos <span class="pg-filtbtn-seta">▾</span></button></th><th></th><th></th><th></th><th></th>
           </tr>
         </thead>
         <tbody id="pgCorpo">
@@ -2855,6 +2855,19 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
     <label class="pg-filtpop-all"><input type="checkbox" id="pgSelAllJuridica" checked onchange="PG_toggleTodos('juridica',this.checked)"> Selecionar todos</label>
     <div class="pg-filtpop-list" id="pgListaJuridica"></div>
     <div class="pg-filtpop-actions"><button type="button" class="pg-btn pg-btn-primaria" onclick="PG_fecharFiltro('juridica')">OK</button></div>
+  </div>
+
+  <div class="pg-filtpop" id="pgPopPosseiro" hidden>
+    <div class="pg-filtpop-search"><input type="text" placeholder="Buscar…" oninput="PG_filtrarLista('posseiro',this.value)"></div>
+    <label class="pg-filtpop-all"><input type="checkbox" id="pgSelAllPosseiro" checked onchange="PG_toggleTodos('posseiro',this.checked)"> Selecionar todos</label>
+    <div class="pg-filtpop-list" id="pgListaPosseiro"></div>
+    <div class="pg-filtpop-actions"><button type="button" class="pg-btn pg-btn-primaria" onclick="PG_fecharFiltro('posseiro')">OK</button></div>
+  </div>
+  <div class="pg-filtpop" id="pgPopMelhorias" hidden>
+    <div class="pg-filtpop-search"><input type="text" placeholder="Buscar…" oninput="PG_filtrarLista('melhorias',this.value)"></div>
+    <label class="pg-filtpop-all"><input type="checkbox" id="pgSelAllMelhorias" checked onchange="PG_toggleTodos('melhorias',this.checked)"> Selecionar todos</label>
+    <div class="pg-filtpop-list" id="pgListaMelhorias"></div>
+    <div class="pg-filtpop-actions"><button type="button" class="pg-btn pg-btn-primaria" onclick="PG_fecharFiltro('melhorias')">OK</button></div>
   </div>
 
   <div class="pg-ctxmenu" id="pgCtxMenu" hidden>
@@ -12228,10 +12241,10 @@ function AV_gerarDescSituacao(){
 
   var _pgItens = [];
   var _pgTimer = null;
-  var _PG_CAMPOS = ['medicao','lote','cad','campo','social','tecnica','juridica'];
+  var _PG_CAMPOS = ['medicao','lote','cad','posseiro','campo','social','tecnica','juridica','melhorias'];
   var _PG_STATUS_CAMPOS = ['campo','social','tecnica','juridica'];
-  var _PG_SUFIXOS = {medicao:'Medicao', lote:'Lote', cad:'Cad', campo:'Campo', social:'Social', tecnica:'Tecnica', juridica:'Juridica'};
-  var _pgSel = {medicao:null, lote:null, cad:null, campo:null, social:null, tecnica:null, juridica:null}; // null = "todos" (sem filtro); senão Set com os valores marcados
+  var _PG_SUFIXOS = {medicao:'Medicao', lote:'Lote', cad:'Cad', posseiro:'Posseiro', campo:'Campo', social:'Social', tecnica:'Tecnica', juridica:'Juridica', melhorias:'Melhorias'};
+  var _pgSel = {medicao:null, lote:null, cad:null, posseiro:null, campo:null, social:null, tecnica:null, juridica:null, melhorias:null}; // null = "todos" (sem filtro); senão Set com os valores marcados
   var _pgCtxAlvo = null; // {ctd, secao} do cadastro clicado com o botão direito
 
   // Medição — coluna que só existe no Painel Geral (não é campo de cadastro e
@@ -12265,8 +12278,41 @@ function AV_gerarDescSituacao(){
     return campo === 'lote' ? (it.lote||"") : ctdFmt(it.ctd);
   }
 
+  // Nomes-padrão das melhorias (iguais aos do servidor). Qualquer outro texto veio do
+  // item "Outras medidas mitigadoras" (texto livre, às vezes um parágrafo) e é agrupado.
+  var PG_MELH_PADRAO = ['Passagem de Gado (PG)','Passagem em Nível (PN)','Passagem de Energia (PE)',
+    'Passagem de tubulações envelopadas (adutora)','Transposições elétricas, gás, fibra óptica e outras',
+    'Poço de abastecimento de água','Corredores de acesso','Passagem Superior (PS)'];
+  var PG_MELH_OUTRAS = 'Outras medidas mitigadoras';
+
+  // Valores crus de um item numa coluna, sempre como lista: Melhorias é a única em que um
+  // cadastro pode ter vários (marcar "Passagem de Gado" mostra quem tem PG, mesmo com outras).
+  function _pgValores(it, campo){
+    if (campo === 'posseiro'){
+      if (it.posseiro === undefined) return ['__nd'];       // servidor sem o campo
+      return [it.posseiro ? String(it.posseiro) : '__sem'];
+    }
+    if (campo === 'melhorias'){
+      if (it.melhorias === undefined) return ['__nd'];
+      var l = Array.isArray(it.melhorias) ? it.melhorias : [];
+      if (!l.length) return ['__sem'];
+      var vistos = {}, out = [];
+      l.forEach(function(m){
+        var k = PG_MELH_PADRAO.indexOf(m) >= 0 ? m : PG_MELH_OUTRAS;
+        if (!vistos[k]){ vistos[k] = true; out.push(k); }
+      });
+      return out;
+    }
+    return [_pgRawValor(it, campo)];
+  }
+
   // rótulo exibido para um valor cru da coluna
   function _pgFmt(campo, v){
+    if (campo === 'posseiro' || campo === 'melhorias'){
+      if (v === '__sem') return campo === 'posseiro' ? '(sem posseiro)' : '(nenhuma)';
+      if (v === '__nd') return '(sem dado — servidor desatualizado)';
+      return v;
+    }
     if (campo === 'lote') return loteFmt(v);
     if (campo === 'medicao') return v === PG_MEDICAO_VAZIO ? '(sem medição)' : v;
     if (_PG_STATUS_CAMPOS.indexOf(campo) >= 0){
@@ -12312,7 +12358,7 @@ function AV_gerarDescSituacao(){
       return _PG_CAMPOS.every(function(campo){
         if (campo === exceto) return true;
         var sel = _pgSel[campo];
-        return !sel || sel.has(_pgRawValor(it, campo));
+        return !sel || _pgValores(it, campo).some(function(v){ return sel.has(v); });
       });
     });
   }
@@ -12323,15 +12369,20 @@ function AV_gerarDescSituacao(){
   function _pgValoresUnicos(campo){
     var vistos = {}, opcoes = [];
     _pgItensFiltrados(campo).forEach(function(it){
-      var raw = _pgRawValor(it, campo);
-      var chave = String(raw);
-      if(chave === "" || chave === "—" || vistos[chave]) return;
-      vistos[chave] = true;
-      opcoes.push(raw);
+      _pgValores(it, campo).forEach(function(raw){
+        var chave = String(raw);
+        if(chave === "" || chave === "—" || vistos[chave]) return;
+        vistos[chave] = true;
+        opcoes.push(raw);
+      });
     });
     if (campo === 'medicao'){
       // ordem cronológica, não alfabética ("Ago/26" antes de "Set/26")
       opcoes.sort(function(a,b){ return PG_MEDICAO_OPCOES.indexOf(a) - PG_MEDICAO_OPCOES.indexOf(b); });
+    } else if (campo === 'posseiro' || campo === 'melhorias'){
+      // "(sem …)" primeiro, depois alfabético; "Outras" por último nas melhorias
+      var pos = function(v){ return v === '__sem' ? 0 : (v === '__nd' ? 1 : (v === PG_MELH_OUTRAS ? 9 : 5)); };
+      opcoes.sort(function(a,b){ return (pos(a) - pos(b)) || String(a).localeCompare(String(b), "pt-BR"); });
     } else if (_PG_STATUS_CAMPOS.indexOf(campo) >= 0){
       var ordem = {nao_iniciado:0, pendente:1, concluido:2};
       opcoes.sort(function(a,b){ return (ordem[a]||0) - (ordem[b]||0); });
@@ -12351,7 +12402,7 @@ function AV_gerarDescSituacao(){
       var chave = String(v);
       var marcado = !sel || sel.has(chave);
       var chaveJs = chave.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-      return '<label data-valor="' + esc(chave).toLowerCase() + '"><input type="checkbox" ' + (marcado?'checked ':'')
+      return '<label data-valor="' + esc(_pgFmt(campo, v) + ' ' + chave).toLowerCase() + '"><input type="checkbox" ' + (marcado?'checked ':'')
         + 'onchange="PG_toggleValor(\'' + campo + '\',\'' + chaveJs + '\',this.checked)"> ' + esc(_pgFmt(campo, v)) + '</label>';
     }).join("") : '<p class="pg-filt-vazio">Nenhum valor.</p>';
     var todos = document.getElementById('pgSelAll' + _PG_SUFIXOS[campo]);
@@ -12505,7 +12556,10 @@ function AV_gerarDescSituacao(){
     var texto;
     if(!sel) texto = 'Todos';
     else if(sel.size === 0) texto = 'Nenhum';
-    else if(sel.size === 1) texto = esc(_pgFmt(campo, Array.from(sel)[0]));
+    else if(sel.size === 1){
+      var rot = _pgFmt(campo, Array.from(sel)[0]);
+      texto = esc(rot.length > 16 ? rot.slice(0, 15) + '…' : rot);
+    }
     else texto = sel.size + ' selecionados';
     btn.classList.toggle('pg-ativo', !!sel);
     btn.innerHTML = texto + ' <span class="pg-filtbtn-seta">▾</span>';
