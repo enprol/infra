@@ -2770,16 +2770,24 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
     <div class="pg-tabela-wrap" id="pgTabelaWrap">
       <table class="pg-tabela">
         <thead>
-          <tr>
+          <tr class="pg-grupos">
+            <th></th><th></th><th></th>
+            <th colspan="2"></th>
+            <th colspan="4" class="pg-grupo-th">Andamento por etapa</th>
+            <th colspan="6"></th>
+          </tr>
+          <tr class="pg-cabecalho">
             <th>Medição</th>
             <th>Lote (SPS)</th>
             <th>Cadastro</th>
             <th>Proprietário</th>
+            <th>Posseiro</th>
             <th class="pg-status-th">CAMPO</th>
             <th class="pg-status-th">SOCIAL</th>
             <th class="pg-status-th">TÉCNICA</th>
             <th class="pg-status-th">JURÍDICA</th>
             <th>Nº Processo SEI</th>
+            <th class="pg-status-th">Melhorias</th>
             <th>R$ Terra nua</th>
             <th>R$ Benf. reprodutivas</th>
             <th>R$ Benf. não reprodutivas</th>
@@ -2790,15 +2798,16 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
             <th><button type="button" class="pg-filtbtn" id="pgFiltBtnLote" onclick="PG_toggleFiltro(event,'lote')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
             <th><button type="button" class="pg-filtbtn" id="pgFiltBtnCad" onclick="PG_toggleFiltro(event,'cad')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
             <th></th>
+            <th></th>
             <th><button type="button" class="pg-filtbtn" id="pgFiltBtnCampo" onclick="PG_toggleFiltro(event,'campo')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
             <th><button type="button" class="pg-filtbtn" id="pgFiltBtnSocial" onclick="PG_toggleFiltro(event,'social')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
             <th><button type="button" class="pg-filtbtn" id="pgFiltBtnTecnica" onclick="PG_toggleFiltro(event,'tecnica')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
             <th><button type="button" class="pg-filtbtn" id="pgFiltBtnJuridica" onclick="PG_toggleFiltro(event,'juridica')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
-            <th></th><th></th><th></th><th></th><th></th>
+            <th></th><th></th><th></th><th></th><th></th><th></th>
           </tr>
         </thead>
         <tbody id="pgCorpo">
-          <tr><td colspan="13" class="pg-vazio">Carregando…</td></tr>
+          <tr><td colspan="15" class="pg-vazio">Carregando…</td></tr>
         </tbody>
         <tfoot id="pgRodape"></tfoot>
       </table>
@@ -2907,7 +2916,31 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
   .pg-tabela td.pg-num{ text-align:right; font-variant-numeric:tabular-nums; }
   .pg-tabela td.pg-total{ font-weight:700; color:#0a4d7c; }
   .pg-vazio{ text-align:center; color:#8a97a6; padding:26px 14px !important; white-space:normal; }
-  .pg-tabela thead tr.pg-filtros th{ position:sticky; top:37px; background:#fff; padding:6px 14px 10px; border-bottom:2px solid #e4ebf2; }
+  /* 3 linhas de cabeçalho fixas (grupo / títulos / filtros): a altura das duas de cima é
+     medida em PG_ajustarLayoutTabela (--pg-h-grupo / --pg-h-cab) pra cada uma encostar na anterior */
+  .pg-tabela thead tr.pg-grupos th{ top:0; padding:5px 14px; height:auto; font-size:10.5px; border-bottom:none; background:#fff; }
+  .pg-tabela thead tr.pg-grupos th.pg-grupo-th{
+    text-align:center; color:#0a4d7c; letter-spacing:.6px; background:#eaf3fc;
+    border-radius:8px 8px 0 0; border-bottom:2px solid #1F6FC0;
+  }
+  .pg-tabela thead tr.pg-cabecalho th{ top:var(--pg-h-grupo, 26px); }
+  .pg-tabela thead tr.pg-filtros th{ position:sticky; top:calc(var(--pg-h-grupo, 26px) + var(--pg-h-cab, 37px)); background:#fff; padding:6px 14px 10px; border-bottom:2px solid #e4ebf2; }
+  /* moldura do grupo "Andamento por etapa" (CAMPO..JURÍDICA = colunas 6 a 9): faixa suave ao redor */
+  .pg-tabela tr:not(.pg-grupos) > :nth-child(6):not([colspan]){ border-left:1px solid #d3e2f3; }
+  .pg-tabela tr:not(.pg-grupos) > :nth-child(9):not([colspan]){ border-right:1px solid #d3e2f3; }
+  .pg-tabela tbody td.pg-status-td, .pg-tabela thead tr.pg-cabecalho th.pg-status-th:nth-child(n+6):nth-child(-n+9){ background-color:rgba(234,243,252,.35); }
+  .pg-tabela thead tr.pg-cabecalho th.pg-status-th:nth-child(n+6):nth-child(-n+9){ background-color:#f0f6fc; }
+  .pg-tabela td.pg-center{ text-align:center; }
+  .pg-tabela td.pg-posseiro{ color:#243447; }
+  .pg-tabela td.pg-posseiro.pg-sem{ color:#a7b2bf; text-align:center; }
+  /* coluna Melhorias: número + balão com a lista */
+  .pg-melh{
+    display:inline-flex; align-items:center; justify-content:center; min-width:24px; height:22px; padding:0 7px;
+    border-radius:11px; font-size:12px; font-weight:800; background:#eaf3fc; color:#0a4d7c; cursor:help;
+    border:1px solid #c9dcf0; user-select:none;
+  }
+  .pg-melh.pg-melh-zero{ background:transparent; border-color:transparent; color:#a7b2bf; font-weight:600; cursor:default; }
+  .pg-tt-lista{ margin:4px 0 0; padding-left:18px; }
   .pg-filtbtn{
     width:100%; display:flex; align-items:center; justify-content:space-between; gap:6px;
     border:1px solid #c3ccd6; border-radius:7px; padding:6px 9px; background:#fff;
@@ -5108,7 +5141,19 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 <div class="wrap">
 <h1>Técnica</h1>
 <p class="sub">Áreas de locação e área a desapropriar (preenchimento único, usado nos demais documentos) e as Benfeitorias da Avaliação (DESP 3) — o que for preenchido aqui ou lá aparece nos dois lugares.</p>
-<div class="vcard"><div class="vsub">Áreas de Locação</div><div class="rel-areas" id="rel_areas"></div><div class="vactions" style="margin-top:6px;"><button class="vbtn vbtn-ghost" type="button" onclick="REL_addArea()">+ Adicionar área</button></div></div>
+<div class="vcard"><div class="vsub">Áreas de Locação</div><div class="rel-areas" id="rel_areas"></div><div class="vactions" style="margin-top:6px;"><button class="vbtn vbtn-ghost" type="button" onclick="REL_addArea()">+ Adicionar área</button></div>
+  <div class="vfield grow" style="margin-top:16px;">
+    <label for="rel_kml_btn">KML <span class="hint-auto"> perímetro do trecho (arquivo .kml)</span></label>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <button class="vbtn vbtn-ghost" type="button" id="rel_kml_btn" onclick="document.getElementById('rel_kml_file').click()">📍 Escolher arquivo KML…</button>
+      <input type="file" id="rel_kml_file" accept=".kml,application/vnd.google-earth.kml+xml,text/xml,application/xml" style="display:none" onchange="REL_kmlEscolher(this)">
+      <span id="rel_kml_status" class="hint-inline" style="margin:0;">Nenhum arquivo inserido.</span>
+      <button class="vbtn vbtn-ghost vbtn-sm" type="button" id="rel_kml_rem" style="display:none" onclick="REL_kmlRemover()">Remover</button>
+    </div>
+    <textarea id="rel_kml_dados" style="display:none" aria-hidden="true"></textarea>
+    <input type="hidden" id="rel_kml_nome">
+  </div>
+</div>
 <div class="vcard"><div class="vrow"><div class="vfield"><label>Área Desap. (ha)</label><input type="text" id="fb_area_desap" class="num4" inputmode="decimal" placeholder="0,0000"></div><div id="remN_slot" style="display:contents"></div><div id="remS_slot" style="display:contents"></div></div></div>
 <div class="vcard"><div class="vsub">Georreferenciamento (Anexo B — Ficha de Vistoria)</div><div id="geo_row_slot"></div></div>
 <div class="vsub" style="margin-top:22px;">Benfeitorias (itens 12 e 13 da Avaliação — DESP 3)</div>
@@ -5131,6 +5176,92 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 </div>
 </div>
 </section>
+<script>
+/* ===== Técnica » Áreas de Locação » KML (perímetro do trecho) =====
+   O conteúdo do arquivo fica no textarea oculto #rel_kml_dados — qualquer campo com id
+   dentro de um painel já entra no cadastro salvo e é restaurado por restaurarCampos(),
+   então não precisa de nada especial em montarPacote(). Esta parte só cuida da tela. */
+(function(){
+  var MAX_MB = 25;
+  function el(id){ return document.getElementById(id); }
+  function fmtKB(n){ return n >= 1048576 ? (n/1048576).toFixed(1).replace('.',',') + ' MB' : Math.max(1, Math.round(n/1024)) + ' KB'; }
+  function fmtNum(n){ return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
+
+  // confere que é KML de verdade e conta o que tem dentro (só pra mostrar ao usuário)
+  function analisar(txt){
+    var doc = new DOMParser().parseFromString(txt, 'application/xml');
+    if(doc.getElementsByTagName('parsererror').length) return {erro:'o arquivo não é um XML válido.'};
+    var raiz = doc.documentElement;
+    if(!raiz || raiz.localName.toLowerCase() !== 'kml') return {erro:'o arquivo não parece ser um KML (falta a tag <kml>).'};
+    var pontos = 0;
+    Array.prototype.forEach.call(doc.getElementsByTagName('coordinates'), function(c){
+      pontos += (c.textContent || '').trim().split(/\s+/).filter(function(t){ return t.indexOf(',') > 0; }).length;
+    });
+    return {elementos: doc.getElementsByTagName('Placemark').length, pontos: pontos};
+  }
+
+  function atualizarUI(){
+    var dados = el('rel_kml_dados'), st = el('rel_kml_status'), rem = el('rel_kml_rem'), btn = el('rel_kml_btn');
+    if(!dados || !st) return;
+    var txt = dados.value || '';
+    if(!txt){
+      st.textContent = 'Nenhum arquivo inserido.'; st.style.color = '';
+      if(rem) rem.style.display = 'none';
+      if(btn) btn.textContent = '📍 Escolher arquivo KML…';
+      return;
+    }
+    var a = analisar(txt), nome = (el('rel_kml_nome') || {}).value || 'arquivo.kml';
+    st.style.color = '#159a3c';
+    st.textContent = '✓ ' + nome + ' — ' + (a.erro ? fmtKB(txt.length) : (fmtNum(a.elementos) + ' elemento(s), ' + fmtNum(a.pontos) + ' ponto(s), ' + fmtKB(txt.length)));
+    if(rem) rem.style.display = '';
+    if(btn) btn.textContent = '📍 Trocar arquivo KML…';
+  }
+
+  window.REL_kmlEscolher = function(input){
+    var f = input && input.files && input.files[0];
+    if(!f) return;
+    var st = el('rel_kml_status');
+    function falha(msg){
+      if(st){
+        st.style.color = '#c0392b';
+        st.textContent = 'Não foi possível usar "' + f.name + '": ' + msg + ((el('rel_kml_dados').value) ? ' (o KML que já estava inserido foi mantido)' : '');
+      }
+      input.value = '';
+    }
+    if(/\.kmz$/i.test(f.name)) return falha('KMZ é um KML compactado. Abra no Google Earth e salve/exporte como .kml.');
+    if(f.size > MAX_MB * 1048576) return falha('arquivo maior que ' + MAX_MB + ' MB.');
+    var rd = new FileReader();
+    rd.onerror = function(){ falha('erro ao ler o arquivo.'); };
+    rd.onload = function(){
+      var txt = String(rd.result || '');
+      var a = analisar(txt);
+      if(a.erro) return falha(a.erro);
+      el('rel_kml_dados').value = txt;
+      el('rel_kml_nome').value = f.name;
+      // dispara "input" pro app perceber alteração no cadastro (mesmo caminho dos demais campos)
+      el('rel_kml_dados').dispatchEvent(new Event('input', {bubbles:true}));
+      input.value = '';
+    };
+    rd.readAsText(f, 'UTF-8');
+  };
+  window.REL_kmlRemover = function(){
+    if(!confirm('Remover o KML deste cadastro?')) return;
+    el('rel_kml_dados').value = ''; el('rel_kml_nome').value = '';
+    el('rel_kml_dados').dispatchEvent(new Event('input', {bubbles:true}));
+  };
+  // texto do KML pra futuras ferramentas (mapa geral do trecho no Painel Geral)
+  window.REL_getKML = function(){ return {nome: (el('rel_kml_nome')||{}).value || '', kml: (el('rel_kml_dados')||{}).value || ''}; };
+
+  function ligar(){
+    var d = el('rel_kml_dados'); if(!d) return;
+    d.addEventListener('input', atualizarUI);
+    d.addEventListener('change', atualizarUI);
+    var n = el('rel_kml_nome'); if(n){ n.addEventListener('input', atualizarUI); n.addEventListener('change', atualizarUI); }
+    atualizarUI();
+  }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ligar); else ligar();
+})();
+</script>
 <section class="tab-panel" id="panel-desp1-parecer">
   <style>
     #panel-desp1-parecer{
@@ -12062,11 +12193,14 @@ function AV_gerarDescSituacao(){
   function PG_ajustarLayoutTabela(){
     var tabela = document.querySelector('#painelGeral .pg-tabela');
     if(!tabela) return;
-    var ths = tabela.querySelectorAll('thead tr:first-child th');
+    var ths = tabela.querySelectorAll('thead tr.pg-cabecalho th');
     if(ths.length >= 3){
       tabela.style.setProperty('--pg-col1-w', ths[0].getBoundingClientRect().width + 'px');
       tabela.style.setProperty('--pg-col2-w', ths[1].getBoundingClientRect().width + 'px');
     }
+    var trGrupo = tabela.querySelector('thead tr.pg-grupos'), trCab = tabela.querySelector('thead tr.pg-cabecalho');
+    if(trGrupo) tabela.style.setProperty('--pg-h-grupo', trGrupo.getBoundingClientRect().height + 'px');
+    if(trCab) tabela.style.setProperty('--pg-h-cab', trCab.getBoundingClientRect().height + 'px');
     if(!_pgResizeOk){
       _pgResizeOk = true;
       window.addEventListener('resize', PG_ajustarLayoutTabela);
@@ -12145,7 +12279,7 @@ function AV_gerarDescSituacao(){
       PG_renderizar();
       if(status) status.textContent = "Atualizado " + new Date().toLocaleTimeString("pt-BR");
     }).catch(function(e){
-      if(corpo) corpo.innerHTML = '<tr><td colspan="10" class="pg-vazio">Não foi possível carregar: ' + esc(e && e.message || e) + '</td></tr>';
+      if(corpo) corpo.innerHTML = '<tr><td colspan="15" class="pg-vazio">Não foi possível carregar: ' + esc(e && e.message || e) + '</td></tr>';
       if(status) status.textContent = "";
     });
   };
@@ -12373,7 +12507,7 @@ function AV_gerarDescSituacao(){
 
     if(!itens.length){
       var temFiltro = _PG_CAMPOS.some(function(campo){ return !!_pgSel[campo]; });
-      corpo.innerHTML = '<tr><td colspan="13" class="pg-vazio">Nenhum cadastro encontrado' + (temFiltro ? " para este filtro." : ".") + '</td></tr>';
+      corpo.innerHTML = '<tr><td colspan="15" class="pg-vazio">Nenhum cadastro encontrado' + (temFiltro ? " para este filtro." : ".") + '</td></tr>';
       if(rodape) rodape.innerHTML = "";
       return;
     }
@@ -12385,11 +12519,13 @@ function AV_gerarDescSituacao(){
         + '<td>' + esc(loteFmt(it.lote)) + '</td>'
         + '<td><b>' + esc(ctdFmt(it.ctd)) + '</b></td>'
         + '<td>' + esc(nomeFmt(it.proprietario)) + '</td>'
+        + PG_posseiroCelHTML(it)
         + PG_statusCelHTML(it.completude && it.completude.campo)
         + PG_statusCelHTML(it.completude && it.completude.social)
         + PG_statusCelHTML(it.completude && it.completude.tecnica)
         + PG_statusCelHTML(it.completude && it.completude.juridica)
         + '<td>' + esc(it.sei||"—") + '</td>'
+        + PG_melhoriasCelHTML(it)
         + '<td class="pg-num">' + money(it.valor_terra_nua) + '</td>'
         + '<td class="pg-num">' + money(it.valor_benf_reprodutiva) + '</td>'
         + '<td class="pg-num">' + money(it.valor_benf_nao_reprodutiva) + '</td>'
@@ -12408,7 +12544,9 @@ function AV_gerarDescSituacao(){
         + '<td></td>'
         + '<td>' + itens.length + ' item(ns)</td>'
         + '<td></td>'
+        + '<td></td>'
         + '<td></td><td></td><td></td><td></td>'
+        + '<td></td>'
         + '<td></td>'
         + '<td class="pg-num">' + money(soma("valor_terra_nua")) + '</td>'
         + '<td class="pg-num">' + money(soma("valor_benf_reprodutiva")) + '</td>'
@@ -12419,6 +12557,24 @@ function AV_gerarDescSituacao(){
     requestAnimationFrame(PG_ajustarLayoutTabela);
   }
   window.PG_renderizar = PG_renderizar;
+
+  // ---- Posseiro: preenchido quando o ocupante do imóvel não é o(a) proprietário(a) ----
+  // (Ficha de Vistoria 1.3 / 1.3.2). Sem posseiro = traço. `undefined` = server.js
+  // anterior a 24/09/2026, que ainda não manda o campo: mostra "?" em vez de fingir
+  // que ninguém tem posseiro.
+  function PG_posseiroCelHTML(it){
+    if(it.posseiro === undefined) return '<td class="pg-posseiro pg-sem" title="Servidor desatualizado — reinstale o servidor para ver esta coluna">?</td>';
+    if(!it.posseiro) return '<td class="pg-posseiro pg-sem">—</td>';
+    return '<td class="pg-posseiro" title="' + esc(it.posseiro) + '">' + esc(nomeFmt(it.posseiro)) + '</td>';
+  }
+
+  // ---- Melhorias: quantidade de medidas mitigadoras do DESP-2 (impactos negativos) ----
+  function PG_melhoriasCelHTML(it){
+    if(it.melhorias === undefined) return '<td class="pg-center pg-sem" style="color:#a7b2bf" title="Servidor desatualizado — reinstale o servidor para ver esta coluna">?</td>';
+    var lista = Array.isArray(it.melhorias) ? it.melhorias : [];
+    if(!lista.length) return '<td class="pg-center"><span class="pg-melh pg-melh-zero">0</span></td>';
+    return '<td class="pg-center"><span class="pg-melh" data-pg-melh="' + esc(JSON.stringify(lista)) + '">' + lista.length + '</span></td>';
+  }
 
   // ---- status de finalização (DESP 1/2/3): ícone + balão de pendências ----
   function PG_statusCelHTML(st){
@@ -12455,6 +12611,26 @@ function AV_gerarDescSituacao(){
   });
   document.addEventListener('mouseout', function(ev){
     var el = ev.target.closest && ev.target.closest('.pg-status-ico');
+    if(!el) return;
+    var tt = document.getElementById('pgStatusTooltip'); if(!tt) return;
+    tt.classList.remove('show');
+  });
+  // balão da coluna Melhorias — reaproveita o mesmo elemento do balão de status
+  document.addEventListener('mouseover', function(ev){
+    var el = ev.target.closest && ev.target.closest('.pg-melh[data-pg-melh]');
+    if(!el) return;
+    var lista; try{ lista = JSON.parse(el.getAttribute('data-pg-melh')); }catch(e){ return; }
+    var tt = document.getElementById('pgStatusTooltip'); if(!tt) return;
+    tt.innerHTML = '<b>Melhorias (' + lista.length + '):</b><ul class="pg-tt-lista">'
+      + lista.map(function(m){ return '<li>' + esc(m) + '</li>'; }).join('') + '</ul>';
+    var r = el.getBoundingClientRect();
+    var left = Math.max(6, Math.min(window.innerWidth - 292, r.left - 130));
+    tt.style.left = Math.round(left) + 'px';
+    tt.style.top = Math.round(r.bottom + 6) + 'px';
+    tt.classList.add('show');
+  });
+  document.addEventListener('mouseout', function(ev){
+    var el = ev.target.closest && ev.target.closest('.pg-melh[data-pg-melh]');
     if(!el) return;
     var tt = document.getElementById('pgStatusTooltip'); if(!tt) return;
     tt.classList.remove('show');
