@@ -19541,6 +19541,13 @@ window.DRL_gerarPDF=async function(opts){
     }catch(e){ console.warn("verificação de foto de acesso repetida falhou:", e); return []; }
   }
   var _rotCtd = function(c){ return String(c || "").split(" - ")[0]; };
+  // arquivo de origem que o técnico escolheu na galeria do celular (o app de campo grava nome/tamanho/data)
+  function origemTxt(p){
+    var o = p && p.orig;
+    if(!o) return "foto do arquivo (o aplicativo de campo desta ficha não registrou o arquivo de origem)";
+    var d = o.m ? new Date(o.m).toLocaleString("pt-BR", { day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit" }) : "";
+    return "arquivo escolhido no celular: " + (o.n || "?") + " (" + Math.round((o.t || 0) / 1024) + " KB" + (d ? ", " + d : "") + ")";
+  }
   // antes de importar: mostra as fotos de acesso repetidas e deixa tirar do arquivo (padrão: não importar). false = cancelou
   async function filtrarAcessoRepetido(o){
     var reps = await verificarAcessoRepetido(o);
@@ -19552,7 +19559,7 @@ window.DRL_gerarPDF=async function(opts){
            + '<p>As marcadas <b>não serão importadas</b> (peça ao técnico a foto correta deste imóvel). Desmarque só se tiver certeza de que é a foto certa.</p>',
       okTxt: "Continuar a importação", modos: null,
       montar: function(){ return { secoes:[{ t:"Fotos de acesso iguais às de outros cadastros", colAtual:"Já usada em", colNovo:"No arquivo",
-        linhas: reps.map(function(x){ return { id:"ac" + x.i, rot:"Foto de acesso " + (x.i + 1), atual: x.ctds.map(_rotCtd).join(", "), novo:"foto do arquivo", marcado:true, tag:"remove", tagTxt:"não importar" }; }) }], fotos:[] }; }
+        linhas: reps.map(function(x){ return { id:"ac" + x.i, rot:"Foto de acesso " + (x.i + 1), atual: x.ctds.map(_rotCtd).join(", "), novo: origemTxt(o.fotosAcesso[x.i]), marcado:true, tag:"remove", tagTxt:"não importar" }; }) }], fotos:[] }; }
     });
     if(!r.ok) return false;
     reps.slice().sort(function(a, b){ return b.i - a.i; }).forEach(function(x){ if(r.campos["ac" + x.i]) o.fotosAcesso.splice(x.i, 1); });
