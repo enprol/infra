@@ -2625,6 +2625,77 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
 </style>
 </head>
 <body>
+<!-- 25/09/2026: tela de "Abrindo cadastro…" — aparece NA HORA do clique e atravessa a recarga da página -->
+<style>
+  #cadLoad{ position:fixed; inset:0; z-index:2147483000; display:flex; align-items:center; justify-content:center; padding:16px;
+    background:rgba(10,30,45,.62); backdrop-filter:blur(3px); font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif; }
+  #cadLoad[hidden]{ display:none; }
+  #cadLoad .cl-card{ width:min(440px,94vw); background:#fff; border-radius:16px; padding:26px 28px 22px; box-shadow:0 24px 70px rgba(0,0,0,.4); color:#243447; text-align:center; }
+  #cadLoad .cl-spin{ width:46px; height:46px; margin:0 auto 14px; border-radius:50%; border:5px solid #dbe7f5; border-top-color:#1F6FC0; animation:clGira .8s linear infinite; }
+  @keyframes clGira{ to{ transform:rotate(360deg); } }
+  #cadLoad .cl-tit{ font-size:18px; font-weight:800; color:#0a4d7c; margin-bottom:4px; overflow-wrap:anywhere; }
+  #cadLoad .cl-sub{ font-size:13px; color:#5a6b7c; min-height:19px; margin-bottom:12px; }
+  #cadLoad .cl-bar{ height:8px; border-radius:6px; background:#e8eff8; overflow:hidden; position:relative; }
+  #cadLoad .cl-bar i{ position:absolute; inset:0 auto 0 0; width:0; background:linear-gradient(90deg,#1F6FC0,#2fa1ff); border-radius:6px; transition:width .25s ease; }
+  #cadLoad .cl-bar.cl-indef i{ width:38%; transition:none; animation:clVai 1.1s ease-in-out infinite; }
+  @keyframes clVai{ 0%{ transform:translateX(-110%); } 100%{ transform:translateX(280%); } }
+  #cadLoad .cl-passos{ display:flex; justify-content:space-between; gap:6px; margin-top:16px; font-size:11px; color:#9aa7b5; }
+  #cadLoad .cl-passos span{ flex:1; padding-top:7px; border-top:3px solid #e3eaf3; }
+  #cadLoad .cl-passos span.feito{ color:#178a3a; border-top-color:#37c66a; }
+  #cadLoad .cl-passos span.atual{ color:#0a4d7c; font-weight:700; border-top-color:#1F6FC0; }
+  #cadLoad .cl-dica{ margin-top:12px; font-size:11.5px; color:#8494a4; }
+  @media (prefers-reduced-motion: reduce){ #cadLoad .cl-spin{ animation-duration:2s; } }
+</style>
+<div id="cadLoad" role="status" aria-live="polite" hidden>
+  <div class="cl-card">
+    <div class="cl-spin"></div>
+    <div class="cl-tit" id="cadLoadTit">Abrindo cadastro…</div>
+    <div class="cl-sub" id="cadLoadSub"></div>
+    <div class="cl-bar cl-indef" id="cadLoadBarra"><i id="cadLoadBar"></i></div>
+    <div class="cl-passos" id="cadLoadPassos"></div>
+    <div class="cl-dica" id="cadLoadDica"></div>
+  </div>
+</div>
+<script>
+/* CAD_load: mostra/atualiza/esconde a tela de carregamento. Definido logo no início do <body> para já estar
+   visível durante a recarga da página (o cadastro pedido fica pendente em sessionStorage). */
+(function(){
+  var PASSOS = ["Conferindo no servidor", "Preparando a tela", "Baixando dados e fotos", "Montando as abas"];
+  var el = document.getElementById("cadLoad"), t0 = 0, ultimo = 0;
+  function $(id){ return document.getElementById(id); }
+  function desenhaPassos(i){
+    $("cadLoadPassos").innerHTML = PASSOS.map(function(p, k){ return '<span class="' + (k < i ? "feito" : (k === i ? "atual" : "")) + '">' + (k < i ? "✓ " : "") + p + '</span>'; }).join("");
+  }
+  var CL = window.CAD_load = {
+    mostrar: function(titulo, passo, sub){
+      if(!el) return; t0 = Date.now();
+      $("cadLoadTit").textContent = titulo || "Abrindo cadastro…";
+      CL.passo(passo || 0, sub || "", null);
+      el.hidden = false;
+      clearTimeout(CL._dica);
+      CL._dica = setTimeout(function(){ var d = $("cadLoadDica"); if(d && !el.hidden) d.textContent = "Cadastros com muitas fotos podem levar alguns segundos — não feche a página."; }, 4000);
+    },
+    passo: function(i, sub, pct){
+      if(!el) return;
+      desenhaPassos(i);
+      if(sub != null) $("cadLoadSub").textContent = sub;
+      var barra = $("cadLoadBarra"), b = $("cadLoadBar");
+      if(pct == null){ barra.classList.add("cl-indef"); b.style.width = ""; }
+      else { barra.classList.remove("cl-indef"); b.style.width = Math.max(2, Math.min(100, Math.round(pct * 100))) + "%"; }
+    },
+    ocultar: function(){ clearTimeout(CL._dica); if(el) el.hidden = true; var d = $("cadLoadDica"); if(d) d.textContent = ""; },
+    titulo: function(t){ if($("cadLoadTit")) $("cadLoadTit").textContent = t; }
+  };
+  // recarga em andamento (abrir cadastro): já entra com a tela visível, sem "piscar" a página vazia
+  try{
+    if(sessionStorage.getItem("enprol_cad_pendente")){
+      var rot = sessionStorage.getItem("enprol_cad_label") || "";
+      CL.mostrar(rot ? ("Abrindo " + rot) : "Abrindo cadastro…", 1, "Preparando a tela…");
+      setTimeout(function(){ CL.ocultar(); }, 180000);   // rede de segurança: nunca fica presa na tela
+    }
+  }catch(e){}
+})();
+</script>
 
 <!-- ===== TELA DE LOGIN (ACESSO RESTRITO) ===== -->
 <div id="loginGate">
@@ -14586,15 +14657,16 @@ function AV_gerarDescSituacao(){
     });
   }
 
-  function restaurarPacote(pacote){
+  function restaurarPacote(pacote, opts){
     // Cada etapa roda isolada: uma falha numa etapa (ex.: dado antigo/formato
     // inesperado em uma seção) não pode impedir as demais de rodar — em especial
     // restaurarCampos(), que é o único responsável por repor os dados de campos
     // como Ficha de Vistoria e Relatório Técnico.
-    const falhas=[];
-    function etapa(nome, fn){
-      try{ fn(); }
-      catch(err){ falhas.push(nome+": "+err.message); console.warn("Falha ao restaurar '"+nome+"':", err); }
+    const falhas=[], passos=[];
+    function etapa(nome, fn){ passos.push([nome, fn]); }        // as etapas são reunidas e rodadas no fim (em ordem)
+    function rodarPasso(p){
+      try{ p[1](); }
+      catch(err){ falhas.push(p[0]+": "+err.message); console.warn("Falha ao restaurar '"+p[0]+"':", err); }
     }
     etapa("limpeza dos campos", function(){ _resetCamposCadastro(); });
     etapa("estacas", function(){ restaurarEstacas(pacote.estacas); });
@@ -14624,6 +14696,23 @@ function AV_gerarDescSituacao(){
     etapa("benfeitorias reprodutivas/não reprodutivas (itens 12/13)", function(){ if(pacote.avBenf && window.BNF_setLinhas) window.BNF_setLinhas(pacote.avBenf); });
     etapa("amostra de mercado (Terra Nua)", function(){ if(pacote.avAmostra && window.AV_preencherAmostra) window.AV_preencherAmostra(pacote.avAmostra); });
     etapa("recálculo da avaliação", function(){ if(typeof window.AV_recalcular==="function") window.AV_recalcular(); });
+    // modo assíncrono (abrir cadastro do servidor): cede o quadro de vez em quando para a tela de
+    // carregamento mostrar em que etapa está e continuar girando; o resultado é o mesmo.
+    if(opts && opts.async){
+      return (async function(){
+        var ult = performance.now();
+        for(var i=0;i<passos.length;i++){
+          if(opts.aoEtapa) opts.aoEtapa(i, passos.length, passos[i][0]);
+          if(performance.now() - ult > 80){
+            await new Promise(function(r){ requestAnimationFrame(function(){ setTimeout(r, 0); }); });
+            ult = performance.now();
+          }
+          rodarPasso(passos[i]);
+        }
+        return falhas;
+      })();
+    }
+    passos.forEach(rodarPasso);
     return falhas;
   }
 
@@ -14641,7 +14730,12 @@ function AV_gerarDescSituacao(){
   }
   window.__agendarAberturaEReload = _agendarAberturaEReload;
 
+  // (a tela "Abrindo cadastro…" sempre some ao terminar, com sucesso ou não)
   async function _restaurarCadPendente(){
+    try{ await _restaurarCadPendente2(); }
+    finally{ if(window.CAD_load) window.CAD_load.ocultar(); }
+  }
+  async function _restaurarCadPendente2(){
     let raw;
     try{ raw = sessionStorage.getItem("enprol_cad_pendente"); }catch(e){ return; }
     if(!raw) return;
@@ -14660,7 +14754,7 @@ function AV_gerarDescSituacao(){
         : "Cadastro carregado com sucesso.");
     } else if(pend.tipo==="servidor" && typeof window.__restaurarCadServidor==="function"){
       try{ await window.__restaurarCadServidor(pend.ctd, pend.secao); }
-      catch(e){ alert("Não foi possível abrir esse cadastro: "+(e&&e.message||e)); }
+      catch(e){ if(window.CAD_load) window.CAD_load.ocultar(); alert("Não foi possível abrir esse cadastro: "+(e&&e.message||e)+"\n\nA página foi recarregada e o cadastro não chegou a abrir. Se o servidor estava reiniciando, aguarde um minuto e abra de novo."); }
     }
   }
   // roda depois de todo o carregamento (todos os módulos já inicializados)
@@ -14799,6 +14893,44 @@ function AV_gerarDescSituacao(){
     return js;
   }
 
+  // erro de REDE (servidor local reiniciando/travado, VPN caiu): "Failed to fetch" & cia.
+  function _erroDeRede(e){
+    return (e instanceof TypeError) || /Failed to fetch|NetworkError|Load failed|network/i.test(String((e && e.message) || e));
+  }
+  // repete a chamada (2 s, 5 s, 10 s) quando é erro de rede — o servidor pode estar reiniciando sozinho
+  async function _apiComRetry(metodo, caminho, corpo, aoRetentar){
+    var esperas = [2000, 5000, 10000];
+    for(var i = 0; ; i++){
+      try{ return await _api(metodo, caminho, corpo); }
+      catch(e){
+        if(!_erroDeRede(e) || i >= esperas.length) throw e;
+        if(aoRetentar) aoRetentar(i + 1, esperas.length);
+        await new Promise(function(r){ setTimeout(r, esperas[i]); });
+      }
+    }
+  }
+  // baixa o JSON aos poucos, contando os bytes (servidor novo manda Content-Length → % de verdade)
+  async function _baixarJSON(caminho, aoProgresso){
+    var r = await fetch(CAD_API + caminho);
+    if(!r.ok){
+      var txt = await r.text(), js = null; try{ js = JSON.parse(txt); }catch(e){}
+      throw new Error((js && js.erro) ? js.erro : ("HTTP " + r.status));
+    }
+    var total = parseInt(r.headers.get("content-length") || "0", 10) || 0;
+    if(!r.body || !r.body.getReader) return JSON.parse(await r.text());
+    var rd = r.body.getReader(), partes = [], lido = 0, ult = 0;
+    for(;;){
+      var x = await rd.read();
+      if(x.done) break;
+      partes.push(x.value); lido += x.value.length;
+      var agora = performance.now();
+      if(aoProgresso && agora - ult > 120){ ult = agora; aoProgresso(lido, total); }
+    }
+    if(aoProgresso) aoProgresso(lido, total);
+    return JSON.parse(await new Blob(partes).text());
+  }
+  var _mb = function(n){ return (n / 1048576).toFixed(1).replace(".", ",") + " MB"; };
+
   function _funcoesOk(){
     return (typeof montarPacote === "function") && (typeof restaurarPacote === "function");
   }
@@ -14917,10 +15049,10 @@ function AV_gerarDescSituacao(){
       if (window.__comprimirImagensPacote){ if (btn) btn.textContent = "💾 Otimizando imagens…"; pacote = await window.__comprimirImagensPacote(pacote); }
       if (btn) btn.textContent = "💾 Salvando…";
       var processoSei = _rotuloProc();
-      var resp = await _api("PUT", "/api/cadastros/" + encodeURIComponent(secao) + "/" + encodeURIComponent(ctd), {
+      var resp = await _apiComRetry("PUT", "/api/cadastros/" + encodeURIComponent(secao) + "/" + encodeURIComponent(ctd), {
         versao: VERSAO, processo_sei: processoSei || null, pacote: pacote,
         renomear_de: renomearDe || undefined
-      });
+      }, function(n, t){ if (btn) btn.textContent = "💾 Servidor não respondeu — tentando de novo (" + n + "/" + t + ")…"; });
       // o servidor devolve a pasta em que realmente gravou (pode ser a antiga, se o
       // nome novo já pertencia a outro cadastro) — é ela que vale daqui pra frente.
       var ctdFinal = (resp && resp.ctd) || ctd;
@@ -14934,8 +15066,15 @@ function AV_gerarDescSituacao(){
       }
       alert('Cadastro "' + ctdFinal + '" salvo no servidor da empresa (' + secao + ') com sucesso.' + extra);
     }catch(e){
-      alert("Não foi possível salvar no servidor da empresa: " + (e && e.message || e) +
-            "\n\nVerifique a conexão (rede local ou VPN) e se o serviço de cadastros está ativo.");
+      if (_erroDeRede(e)){
+        alert("O servidor de cadastros (nesta máquina) não respondeu, mesmo depois de 3 tentativas.\n\n" +
+              "Seus dados continuam na tela — NADA foi perdido. Ele costuma voltar sozinho em até 10 minutos " +
+              "(se a rede da empresa/VPN estiver de pé). Aguarde um pouco e clique em 💾 Salvar de novo.\n\n" +
+              "Se quiser garantir agora, use “Salvar em arquivo” para guardar uma cópia no computador.\n\n(" + (e && e.message || e) + ")");
+      } else {
+        alert("Não foi possível salvar no servidor da empresa: " + (e && e.message || e) +
+              "\n\nVerifique a conexão (rede local ou VPN) e se o serviço de cadastros está ativo.");
+      }
     }finally{
       if (btn){ btn.disabled = false; btn.textContent = txt0; }
     }
@@ -14956,16 +15095,24 @@ function AV_gerarDescSituacao(){
   window.CAD_abrirNuvem = async function(ctd, secao){
     if (!_funcoesOk()){ alert("Erro interno: funções de cadastro não encontradas nesta versão da página. Avise o suporte."); return; }
     secao = secao || _secaoAtual();
+    var rot = String(ctd || "").split(" - ")[0];
+    // 25/09/2026: a tela de carregamento entra JÁ NO CLIQUE. Antes o app baixava o cadastro INTEIRO (com todas
+    // as fotos, 10–40 MB) só para conferir que ele existia, recarregava a página e baixava TUDO DE NOVO,
+    // sem mostrar nada — parecia travado. Agora: checagem leve (?meta=1), recarga, um único download com progresso.
+    if (window.CAD_load) window.CAD_load.mostrar("Abrindo " + rot, 0, "Conferindo o cadastro no servidor…");
     try{
-      // confere que existe antes de recarregar (erro claro se não achar / sem rede)
-      var js = await _api("GET", "/api/cadastros/" + encodeURIComponent(secao) + "/" + encodeURIComponent(ctd));
-      if (!js || !js.pacote){ alert("Cadastro não encontrado no servidor."); return; }
+      var js = await _apiComRetry("GET", "/api/cadastros/" + encodeURIComponent(secao) + "/" + encodeURIComponent(ctd) + "?meta=1", undefined,
+        function(n, t){ if (window.CAD_load) window.CAD_load.passo(0, "Servidor não respondeu — tentando de novo (" + n + "/" + t + ")…", null); });
+      if (!js || !(js.meta || js.pacote)){ if (window.CAD_load) window.CAD_load.ocultar(); alert("Cadastro não encontrado no servidor."); return; }
     }catch(e){
+      if (window.CAD_load) window.CAD_load.ocultar();
       alert("Não foi possível abrir esse cadastro: " + (e && e.message || e) +
             "\n\nVerifique a conexão (rede local ou VPN) e se o serviço de cadastros está ativo.");
       return;
     }
     if (window.CAD_fecharModal) CAD_fecharModal();
+    if (window.CAD_load) window.CAD_load.passo(1, "Preparando a tela…", null);
+    try{ sessionStorage.setItem("enprol_cad_label", rot); }catch(e){}
     if (typeof window.__agendarAberturaEReload === "function" &&
         window.__agendarAberturaEReload({ tipo: "servidor", ctd: ctd, secao: secao })) return;
     // fallback (sem sessionStorage): repõe no lugar — restaurarPacote já limpa os campos
@@ -14976,9 +15123,29 @@ function AV_gerarDescSituacao(){
   // ou direto no fallback acima).
   window.__restaurarCadServidor = async function(ctd, secao){
     secao = secao || _secaoAtual();
-    var js = await _api("GET", "/api/cadastros/" + encodeURIComponent(secao) + "/" + encodeURIComponent(ctd));
-    if (!js || !js.pacote){ alert("Cadastro não encontrado no servidor."); return; }
+    var L = window.CAD_load, rot = String(ctd || "").split(" - ")[0];
+    try{ sessionStorage.removeItem("enprol_cad_label"); }catch(e){}
+    if (L) L.mostrar("Abrindo " + rot, 2, "Baixando dados e fotografias…");
+    var _tp = { ini: performance.now(), pagina_ms: Math.round(performance.now()) };   // pagina_ms = tempo desde o início do carregamento da página
+    var js;
+    try{
+      js = await _baixarJSON("/api/cadastros/" + encodeURIComponent(secao) + "/" + encodeURIComponent(ctd), function(lido, total){
+        if (L) L.passo(2, "Baixando dados e fotografias… " + _mb(lido) + (total ? " de " + _mb(total) : ""), total ? lido / total : null);
+      });
+    }catch(e){
+      if (_erroDeRede(e)){
+        // servidor reiniciando: tenta de novo com a tela ainda visível
+        try{
+          js = await _apiComRetry("GET", "/api/cadastros/" + encodeURIComponent(secao) + "/" + encodeURIComponent(ctd), undefined,
+            function(n, t){ if (L) L.passo(2, "Servidor não respondeu — tentando de novo (" + n + "/" + t + ")…", null); });
+        }catch(e2){ if (L) L.ocultar(); throw e2; }
+      } else { if (L) L.ocultar(); throw e; }
+    }
+    if (!js || !js.pacote){ if (L) L.ocultar(); alert("Cadastro não encontrado no servidor."); return; }
 
+    _tp.baixar_ms = Math.round(performance.now() - _tp.ini);
+    if (L) L.passo(3, "Lendo os dados…", null);
+    await new Promise(function(r){ requestAnimationFrame(function(){ setTimeout(r, 0); }); });
     var pacote = _migrar(js.pacote);
 
     // campos que estão no arquivo mas não existem no layout atual -> guarda em _orfaos
@@ -14989,10 +15156,18 @@ function AV_gerarDescSituacao(){
     if (movidos) console.warn("CADASTRO: " + movidos + " campo(s) fora do layout atual — preservados em _orfaos:", Object.keys(pacote._orfaos));
 
     _checarIdsDuplicados();
-    var falhas = restaurarPacote(pacote);
+    var falhas;
+    try{
+      falhas = await restaurarPacote(pacote, { async: true, aoEtapa: function(i, n, nome){
+        if (L) L.passo(3, "Montando: " + String(nome).split(" (")[0] + "…", (i + 1) / n);
+      } });
+    }catch(e){ if (L) L.ocultar(); throw e; }
     // ctdCalc = nome calculado do texto identificador NO MOMENTO da abertura; é com ele
     // que o save compara pra saber se o usuário mudou o texto (e precisa renomear a pasta).
     window.__CAD_ATUAL = { secao: secao, ctd: ctd, ctdCalc: _ctdAtual(), pacote: pacote };
+    if (L) L.ocultar();
+    _tp.total_ms = Math.round(performance.now() - _tp.ini); _tp.montar_ms = _tp.total_ms - _tp.baixar_ms;
+    window.__CAD_TEMPOS = _tp; console.info("CADASTRO aberto — tempos (ms):", _tp);
 
     var msg = 'Cadastro "' + ctd + '" carregado com sucesso.';
     if (falhas.length) msg = "Cadastro carregado, mas com " + falhas.length + " problema(s) em seções específicas:\n\n" + falhas.join("\n");
