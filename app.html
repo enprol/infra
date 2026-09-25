@@ -14852,29 +14852,35 @@ function AV_gerarDescSituacao(){
         || ((document.getElementById("fb_processo") || {}).value || "").trim();
   }
 
-  // Extrai só o número do CTD de um texto (ex.: "004" de "CTD 004 - SPS-04 – FTN",
-  // ou "4" do campo "Nº CTD" digitado cru). Zeros à esquerda não contam pra
-  // comparação: "4", "04" e "004" são o MESMO número de cadastro.
-  function _numeroCTD(txt){
-    var m = /(\d+)/.exec(String(txt || ""));
-    return m ? parseInt(m[1], 10) : null;
+  // Código COMPLETO do CTD, para comparar cadastros: "012B" de "CTD 012B - SPS-07 – FTN", "12-CP" de
+  // "CTD 12-CP - …", ou o valor cru do campo "Nº CTD" ("012"). Zeros à esquerda não contam
+  // ("4", "04" e "004" são o mesmo cadastro), MAS a letra/sufixo conta: 012, 012B e 012C são
+  // três cadastros diferentes (25/09/2026: antes só o número era comparado, então salvar o
+  // 012 "reconhecia" o 012B como o mesmo cadastro).
+  function _codigoCTD(txt){
+    var t = String(txt || "").trim();
+    var m = /^(?:CTD\s*)?([A-Za-z0-9]+(?:[-.\/][A-Za-z0-9]+)*)/i.exec(t) || /CTD\s*([A-Za-z0-9]+(?:[-.\/][A-Za-z0-9]+)*)/i.exec(t);
+    if (!m) return null;
+    var c = m[1].toUpperCase().replace(/^0+(?=\d)/, "");
+    return /\d/.test(c) ? c : null;
   }
+  window.__codigoCTD = _codigoCTD;
 
   // Confere, ANTES de criar um cadastro novo, se já existe outro cadastro com
-  // o mesmo número de CTD (em qualquer seção/ferrovia/SEI) — pra não repetir o
+  // o mesmo CÓDIGO de CTD (em qualquer seção/ferrovia/SEI) — pra não repetir o
   // que aconteceu quando o time subiu um "cadastro 04" e já havia outro (16/09/2026).
   // Não bloqueia nada: só avisa e devolve o cadastro achado, pra quem chamou
   // decidir (abrir e atualizar o existente, ou seguir criando mesmo assim).
   async function _checarDuplicidadeCTD(secao, ctdCalc){
     try{
-      var numero = _numeroCTD((document.getElementById("fb_proc_ctd") || {}).value)
-                || _numeroCTD(ctdCalc);
+      var numero = _codigoCTD((document.getElementById("fb_proc_ctd") || {}).value)
+                || _codigoCTD(ctdCalc);
       if (numero == null) return null;
       var js = await _api("GET", "/api/cadastros?secao=" + encodeURIComponent(secao) + "&limite=500");
       var lista = Array.isArray(js) ? js : ((js && js.itens) || []);
       var achado = lista.find(function(item){
         if (!item) return false;
-        return _numeroCTD(item.ctd) === numero;
+        return _codigoCTD(item.ctd) === numero;
       });
       return achado ? { existe: true, numero: numero, ctd: achado.ctd } : { existe: false, numero: numero };
     }catch(e){
@@ -15023,6 +15029,13 @@ function AV_gerarDescSituacao(){
       if (aberto && ctdCalc && aberto.ctdCalc && ctdCalc !== aberto.ctdCalc){
         ctd = ctdCalc; renomearDe = aberto.ctd;
       }
+      // Se o que mudou foi o CÓDIGO do CTD (ex.: abriu o 012B e trocou para 012), salvar RENOMEIA o cadastro
+      // aberto — não cria outro. Pede confirmação (mudar só o SEI/texto do processo não pergunta nada).
+      if (renomearDe && _codigoCTD(renomearDe) !== _codigoCTD(ctd)){
+        if (!confirm('ATENÇÃO: o Nº do CTD foi alterado de "' + (_codigoCTD(renomearDe) || renomearDe) + '" para "' + (_codigoCTD(ctd) || ctd) + '".\n\n' +
+                     'Com o cadastro "' + renomearDe + '" aberto, salvar vai RENOMEÁ-LO — não cria um cadastro novo, e o de nome antigo deixa de existir.\n\n' +
+                     'OK = renomear e salvar.\nCancelar = não salvar. (Para criar um cadastro NOVO, use "Novo Cadastro".)')) return;
+      }
       // Só faz sentido checar duplicidade de NÚMERO quando é um cadastro que não veio
       // do servidor (nada aberto) — se já está aberto, o usuário está claramente
       // atualizando um cadastro que ele mesmo escolheu, não criando um novo.
@@ -15030,7 +15043,7 @@ function AV_gerarDescSituacao(){
         var dupCTD = await _checarDuplicidadeCTD(secao, ctd);
         if (dupCTD && dupCTD.existe && dupCTD.ctd !== ctd){
           var atualizarExistente = confirm(
-            'Já existe um cadastro com o número ' + dupCTD.numero + ' nesta seção: "' + dupCTD.ctd + '".\n\n' +
+            'Já existe um cadastro com o código ' + dupCTD.numero + ' nesta seção: "' + dupCTD.ctd + '".\n\n' +
             'Clique em OK para ABRIR e ATUALIZAR esse cadastro existente (recomendado), ou em Cancelar para salvar este mesmo assim como um cadastro separado.'
           );
           if (atualizarExistente){
