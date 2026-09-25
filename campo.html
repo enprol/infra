@@ -169,6 +169,7 @@ dialog::backdrop{background:rgba(15,35,60,.55);}
 .dlg-f{padding:12px 18px;border-top:1px solid #e2e8f0;display:flex;gap:8px;justify-content:flex-end;}
 .dlg-f button{border-radius:9px;padding:10px 16px;font:600 14px/1 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;border:1px solid #c3ccd6;background:#fff;}
 .dlg-f .pri{background:#1F6FC0;color:#fff;border-color:#1F6FC0;}
+.ph .dup{position:absolute;left:0;right:0;bottom:0;background:rgba(200,50,30,.92);color:#fff;font-size:11px;font-weight:700;padding:4px 6px;line-height:1.25;}
 </style>
 </head>
 <body>
@@ -573,7 +574,9 @@ function galeriaHTML(cam, titulo, num, max){
   if(arr.length){
     h += '<div class="fotos">';
     arr.forEach(function(p, i){
+      var dupDe = (cam === "fotosAcesso" && p.dh) ? acessoRepetidoDe(f, p.dh, p) : "";
       h += '<div class="ph"><img src="'+p.src+'" alt=""><button class="x" type="button" onclick="rmFoto(\''+cam+'\','+i+')">×</button>'
+         + (dupDe ? '<div class="dup">⚠ igual à foto de acesso de '+esc(dupDe)+' — troque</div>' : '')
          + '<button class="leg" type="button" onclick="legFoto(\''+cam+'\','+i+')">'+(p.leg?esc(p.leg):"+ legenda")+'</button></div>';
     });
     h += '</div>';
@@ -753,6 +756,11 @@ function irPassoValidado(alvo){ irPasso(alvo); }
 // usada só informativamente na revisão final e na confirmação de "Enviar".
 function todasPendencias(){
   var lista = [];
+  var fa = atual();
+  ((fa && fa.fotosAcesso) || []).forEach(function(p, i){
+    var d = p && p.dh ? acessoRepetidoDe(fa, p.dh, p) : "";
+    if(d) lista.push("Fotos do acesso: a foto " + (i+1) + " é igual à de " + d + " — cada cadastro precisa da sua foto de acesso");
+  });
   SECOES.forEach(function(sec, i){
     if(sec.fim) return;
     var faltando = secaoIncompleta(i);
@@ -849,6 +857,82 @@ function comprimir(file, maxLado, q){
     fr.onerror = rej; fr.readAsDataURL(file);
   });
 }
+/* ---------- impressão digital VISUAL da foto (dHash de 64 bits) ----------
+   Serve para achar a MESMA foto de acesso usada em mais de um cadastro, mesmo recomprimida/recortada
+   um pouco (as duas cópias que apareceram no lote 07 diferem 6 bits; fotos diferentes ficam >= 16). */
+var DH_LIMITE = 10;
+function dHashImg(src){
+  return new Promise(function(res){
+    var im = new Image();
+    if(!/^data:/i.test(src)) im.crossOrigin = "anonymous";
+    im.onload = function(){
+      try{
+        var w = im.naturalWidth || im.width, h = im.naturalHeight || im.height;
+        if(!w || !h){ res(""); return; }
+        // reduz pela metade em etapas: desenhar 1280 px direto em 9x8 "pula" pixels e gera ruído
+        var cw = w, ch = h, fonte = im;
+        while(cw > 72 || ch > 64){
+          var nw = Math.max(9, Math.floor(cw / 2)), nh = Math.max(8, Math.floor(ch / 2));
+          var c2 = document.createElement("canvas"); c2.width = nw; c2.height = nh;
+          var x2 = c2.getContext("2d"); x2.imageSmoothingEnabled = true; x2.imageSmoothingQuality = "high";
+          x2.drawImage(fonte, 0, 0, nw, nh); fonte = c2; cw = nw; ch = nh;
+        }
+        var cv = document.createElement("canvas"); cv.width = 9; cv.height = 8;
+        var cx = cv.getContext("2d"); cx.imageSmoothingEnabled = true; cx.imageSmoothingQuality = "high";
+        cx.drawImage(fonte, 0, 0, 9, 8);
+        var d = cx.getImageData(0, 0, 9, 8).data;
+        var g = function(x, y){ var i = (y * 9 + x) * 4; return .299 * d[i] + .587 * d[i + 1] + .114 * d[i + 2]; };
+        var hex = "";
+        for(var y = 0; y < 8; y++){
+          var nib = 0;
+          for(var x = 0; x < 8; x++){
+            nib = (nib << 1) | (g(x, y) > g(x + 1, y) ? 1 : 0);
+            if(x % 4 === 3){ hex += nib.toString(16); nib = 0; }
+          }
+        }
+        res(hex);
+      }catch(e){ res(""); }
+    };
+    im.onerror = function(){ res(""); };
+    im.src = src;
+  });
+}
+function dhDist(a, b){
+  if(!a || !b || a.length !== b.length) return 99;
+  var n = 0;
+  for(var i = 0; i < a.length; i++){ var x = parseInt(a[i], 16) ^ parseInt(b[i], 16); while(x){ n += x & 1; x >>= 1; } }
+  return n;
+}
+
+/* FOTO DE ACESSO: cada cadastro precisa da SUA. Usar a mesma foto (ou uma cópia dela) em outra ficha
+   é tratado como erro: não entra na hora de adicionar e aparece como pendência/aviso na ficha. */
+function nomeFicha(x){ return (x.geral && x.geral.processo) ? ("CTD " + x.geral.processo) : "outra ficha sem nº"; }
+// impressão digital das fotos de acesso que ainda não têm (fichas antigas / recebidas de arquivo)
+function completarDh(){
+  var pend = [];
+  ST.fichas.forEach(function(x){ (x.fotosAcesso || []).forEach(function(p){ if(p && p.src && !p.dh) pend.push(p); }); });
+  if(!pend.length) return Promise.resolve(false);
+  return pend.reduce(function(cad, p){
+    return cad.then(function(){ return dHashImg(p.src).then(function(h){ if(h) p.dh = h; }); });
+  }, Promise.resolve()).then(function(){ salvar(true); return true; });
+}
+// nome da ficha (outra, ou "esta mesma ficha") que já tem uma foto de acesso igual à impressão `dh`; "" se nenhuma
+function acessoRepetidoDe(f, dh, ignorar){
+  if(!dh) return "";
+  var i, k, p;
+  for(i = 0; i < (f.fotosAcesso || []).length; i++){
+    p = f.fotosAcesso[i];
+    if(p !== ignorar && p && p.dh && dhDist(p.dh, dh) <= DH_LIMITE) return "esta mesma ficha";
+  }
+  for(k = 0; k < ST.fichas.length; k++){
+    var x = ST.fichas[k]; if(x.id === f.id) continue;
+    for(i = 0; i < (x.fotosAcesso || []).length; i++){
+      p = x.fotosAcesso[i];
+      if(p && p.dh && dhDist(p.dh, dh) <= DH_LIMITE) return nomeFicha(x);
+    }
+  }
+  return "";
+}
 function addFoto(input, cam){
   var files = Array.prototype.slice.call(input.files || []);
   if(!files.length) return;
@@ -865,7 +949,32 @@ function addFoto(input, cam){
   flash("processando " + files.length + " foto(s)…");
   Promise.all(files.map(function(file){ return comprimir(file, 1280, 0.7).catch(function(){ return null; }); }))
     .then(function(srcs){
-      srcs.forEach(function(s){ if(s) arr.push({ src:s, leg:"", em:new Date().toISOString() }); });
+      if(cam !== "fotosAcesso"){
+        srcs.forEach(function(s){ if(s) arr.push({ src:s, leg:"", em:new Date().toISOString() }); });
+        return;
+      }
+      // foto de acesso: confere se já é a de outro cadastro (na ordem, uma de cada vez)
+      var recusadas = [];
+      return srcs.reduce(function(cad, s){
+        return cad.then(function(){
+          if(!s) return;
+          return dHashImg(s).then(function(h){
+            var dono = acessoRepetidoDe(f, h);
+            if(dono){ recusadas.push(dono); return; }
+            arr.push({ src:s, leg:"", em:new Date().toISOString(), dh:h });
+          });
+        });
+      }, Promise.resolve()).then(function(){
+        if(recusadas.length){
+          setTimeout(function(){
+            alert("Esta foto de acesso já está em " + recusadas.filter(function(v, i, a){ return a.indexOf(v) === i; }).join(", ") +
+                  ".\n\nCada cadastro precisa da SUA foto de acesso (a que mostra o caminho até ESTE imóvel). " +
+                  (recusadas.length > 1 ? (recusadas.length + " foto(s) não foram adicionadas.") : "A foto não foi adicionada."));
+          }, 50);
+        }
+      });
+    })
+    .then(function(){
       input.value = "";
       salvarJa(); render();
     });
@@ -1124,6 +1233,7 @@ function impArquivo(input){
         .forEach(function(k){ if(o[k] != null) nf[k] = o[k]; });
       ST.fichas.push(nf); ST.atual = nf.id; salvar(true);
       document.getElementById("dlg").close(); render(); window.scrollTo(0,0);
+      completarDh().then(function(mudou){ if(mudou) render(); });
       flash("ficha carregada");
     }catch(e){ alert("Não consegui ler o arquivo: " + e.message); }
   };
@@ -1168,6 +1278,7 @@ window.addEventListener("beforeunload", function(e){ salvarJa(true); });
 
 /* ---------------- início ---------------- */
 carregar(); net(); render();
+completarDh().then(function(mudou){ if(mudou) render(); });   // dá impressão digital às fotos de acesso antigas (aviso de foto repetida)
 try{
   if(!localStorage.getItem(CHAVE + "_visto")){
     document.getElementById("avisoPrimeiro").style.display = "";

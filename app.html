@@ -6098,6 +6098,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
     #panel-desp1-campo .cf-ctl .cf-rm:hover:not(:disabled){background:#fdecec; border-color:#d9472f; color:#b3311d;}
     #panel-desp1-campo .cf-leg{width:100%; box-sizing:border-box; border:none; border-top:1px solid #eef2f6; padding:7px 8px; font:inherit; font-size:12px; color:var(--texto); background:#fbfdff;}
     #panel-desp1-campo .cf-mv{width:100%; box-sizing:border-box; border:none; border-top:1px solid #eef2f6; padding:6px 6px; font:inherit; font-size:11.5px; color:#5a6b7c; background:#f7f9fc; cursor:pointer;}
+    #panel-desp1-campo .cf-fotos .cf-dup{background:#c8321e; color:#fff; font-size:11.5px; font-weight:700; padding:5px 8px; line-height:1.3;}
     #panel-desp1-campo .cf-vazia{grid-column:1 / -1; color:#8494a4; font-size:12.5px; padding:18px; text-align:center;}
     #campo_lightbox .cl-nav{
       position:absolute; top:50%; transform:translateY(-50%); width:54px; height:54px; border-radius:50%; border:none;
@@ -19425,6 +19426,156 @@ window.DRL_gerarPDF=async function(opts){
     var s = (p && p.src) || "", n = s.length, m = Math.floor(n/2);
     return n + ":" + s.slice(60, 100) + s.slice(m, m + 60) + s.slice(-50);
   }
+  /* ---------- impressão digital VISUAL da foto (dHash de 64 bits) ----------
+     Serve para achar a MESMA foto de acesso usada em mais de um cadastro, mesmo recomprimida/recortada
+     um pouco (as duas cópias que apareceram no lote 07 diferem 6 bits; fotos diferentes ficam >= 16). */
+  var DH_LIMITE = 10;
+  function dHashImg(src){
+    return new Promise(function(res){
+      var im = new Image();
+      if(!/^data:/i.test(src)) im.crossOrigin = "anonymous";
+      im.onload = function(){
+        try{
+          var w = im.naturalWidth || im.width, h = im.naturalHeight || im.height;
+          if(!w || !h){ res(""); return; }
+          // reduz pela metade em etapas: desenhar 1280 px direto em 9x8 "pula" pixels e gera ruído
+          var cw = w, ch = h, fonte = im;
+          while(cw > 72 || ch > 64){
+            var nw = Math.max(9, Math.floor(cw / 2)), nh = Math.max(8, Math.floor(ch / 2));
+            var c2 = document.createElement("canvas"); c2.width = nw; c2.height = nh;
+            var x2 = c2.getContext("2d"); x2.imageSmoothingEnabled = true; x2.imageSmoothingQuality = "high";
+            x2.drawImage(fonte, 0, 0, nw, nh); fonte = c2; cw = nw; ch = nh;
+          }
+          var cv = document.createElement("canvas"); cv.width = 9; cv.height = 8;
+          var cx = cv.getContext("2d"); cx.imageSmoothingEnabled = true; cx.imageSmoothingQuality = "high";
+          cx.drawImage(fonte, 0, 0, 9, 8);
+          var d = cx.getImageData(0, 0, 9, 8).data;
+          var g = function(x, y){ var i = (y * 9 + x) * 4; return .299 * d[i] + .587 * d[i + 1] + .114 * d[i + 2]; };
+          var hex = "";
+          for(var y = 0; y < 8; y++){
+            var nib = 0;
+            for(var x = 0; x < 8; x++){
+              nib = (nib << 1) | (g(x, y) > g(x + 1, y) ? 1 : 0);
+              if(x % 4 === 3){ hex += nib.toString(16); nib = 0; }
+            }
+          }
+          res(hex);
+        }catch(e){ res(""); }
+      };
+      im.onerror = function(){ res(""); };
+      im.src = src;
+    });
+  }
+  function dhDist(a, b){
+    if(!a || !b || a.length !== b.length) return 99;
+    var n = 0;
+    for(var i = 0; i < a.length; i++){ var x = parseInt(a[i], 16) ^ parseInt(b[i], 16); while(x){ n += x & 1; x >>= 1; } }
+    return n;
+  }
+
+  /* ---------- foto de ACESSO repetida entre cadastros (25/09/2026) ----------
+     Cada cadastro precisa da SUA foto de acesso. O app de campo mandou a MESMA foto (ou uma cópia recomprimida
+     dela) em vários cadastros do lote 07. Aqui comparamos a foto de acesso da ficha com as dos OUTROS
+     cadastros salvos no servidor: igualdade exata (mesmo hash do arquivo) ou visual (dHash). */
+  var DH_KEY = "enprol_dh_v1";
+  function dhCache(){ try{ return JSON.parse(localStorage.getItem(DH_KEY) || "{}") || {}; }catch(e){ return {}; } }
+  function dhSalvar(c){ try{ if(Object.keys(c).length > 3000) c = {}; localStorage.setItem(DH_KEY, JSON.stringify(c)); }catch(e){} }
+  var API_BASE = function(){ return (typeof window.CAD_SERVIDOR_URL === "string" ? window.CAD_SERVIDOR_URL : "").replace(/\/+$/, ""); };
+  // mesmo "nome de arquivo" que o servidor dá à imagem: sha256 do conteúdo (20 hex) + extensão
+  async function idDaImagem(dataUrl){
+    try{
+      var m = /^data:image\/([a-z0-9.+-]+);base64,(.*)$/i.exec(String(dataUrl || ""));
+      if(!m || !window.crypto || !crypto.subtle) return "";
+      var bin = atob(m[2]), u8 = new Uint8Array(bin.length);
+      for(var i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+      var h = new Uint8Array(await crypto.subtle.digest("SHA-256", u8)), hex = "";
+      for(var k = 0; k < 10; k++) hex += (h[k] < 16 ? "0" : "") + h[k].toString(16);
+      var ext = m[1].toLowerCase(); if(ext === "jpeg") ext = "jpg";
+      return hex + "." + ext;
+    }catch(e){ return ""; }
+  }
+  var _outrosAcesso = null, _outrosQuando = 0;
+  // fotos de acesso dos OUTROS cadastros do servidor: [{ctd,id,dh}]; null = servidor sem o recurso / sem rede
+  async function acessosDeOutros(){
+    if(_outrosAcesso && Date.now() - _outrosQuando < 60000) return _outrosAcesso;
+    var itens;
+    try{ var r = await fetch(API_BASE() + "/api/cadastros?limite=500", { cache:"no-store" }); itens = await r.json(); }
+    catch(e){ return null; }
+    if(!Array.isArray(itens) || !itens.some(function(i){ return i && i.acesso_ids !== undefined; })) return null;   // servidor antigo
+    var ab = window.__CAD_ATUAL || {};
+    var alvos = itens.filter(function(i){ return i && Array.isArray(i.acesso_ids) && i.acesso_ids.length && !(i.secao === ab.secao && i.ctd === ab.ctd); });
+    var cache = dhCache(), out = [], fila = [];
+    alvos.forEach(function(i){ i.acesso_ids.forEach(function(id){
+      if(cache[id]) out.push({ ctd:i.ctd, id:id, dh:cache[id] }); else fila.push({ i:i, id:id });
+    }); });
+    var pos = 0;
+    await Promise.all([0,1,2,3].map(async function(){
+      while(pos < fila.length){
+        var f = fila[pos++];
+        var dh = await dHashImg(API_BASE() + "/api/imagem/" + encodeURIComponent(f.i.secao) + "/" + encodeURIComponent(f.i.ctd) + "/" + encodeURIComponent(f.id));
+        out.push({ ctd:f.i.ctd, id:f.id, dh:dh });
+        if(dh) cache[f.id] = dh;
+      }
+    }));
+    dhSalvar(cache);
+    _outrosAcesso = out; _outrosQuando = Date.now();
+    return out;
+  }
+  // fotos de acesso de `f` que são iguais às de outros cadastros: [{i:posição em f.fotosAcesso, ctds:[...]}]
+  async function verificarAcessoRepetido(f){
+    try{
+      var outros = await acessosDeOutros();
+      if(!outros || !outros.length) return [];
+      var reps = [];
+      var arr = f.fotosAcesso || [];
+      for(var i = 0; i < arr.length; i++){
+        var p = arr[i]; if(!p || !p.src) continue;
+        var id = await idDaImagem(p.src), dh = await dHashImg(p.src);
+        var ctds = [];
+        outros.forEach(function(o){
+          if((id && o.id === id) || (dh && o.dh && dhDist(o.dh, dh) <= DH_LIMITE)){ if(ctds.indexOf(o.ctd) < 0) ctds.push(o.ctd); }
+        });
+        if(ctds.length) reps.push({ i:i, ctds:ctds });
+      }
+      return reps;
+    }catch(e){ console.warn("verificação de foto de acesso repetida falhou:", e); return []; }
+  }
+  var _rotCtd = function(c){ return String(c || "").split(" - ")[0]; };
+  // antes de importar: mostra as fotos de acesso repetidas e deixa tirar do arquivo (padrão: não importar). false = cancelou
+  async function filtrarAcessoRepetido(o){
+    var reps = await verificarAcessoRepetido(o);
+    if(!reps.length) return true;
+    var miniaturas = reps.map(function(x){ return '<img src="' + o.fotosAcesso[x.i].src + '" alt="" style="height:78px;border-radius:7px;border:1px solid #c3ccd6;margin:2px 6px 2px 0">'; }).join("");
+    var r = await dlgMescla({
+      titulo: "Foto de acesso repetida — CTD " + ((o.geral || {}).processo || "?"),
+      intro: '<p>A foto de <b>Acesso</b> deste arquivo é <b>igual à de outro(s) cadastro(s)</b>. Cada cadastro precisa da sua própria foto de acesso.</p><p>' + miniaturas + '</p>'
+           + '<p>As marcadas <b>não serão importadas</b> (peça ao técnico a foto correta deste imóvel). Desmarque só se tiver certeza de que é a foto certa.</p>',
+      okTxt: "Continuar a importação", modos: null,
+      montar: function(){ return { secoes:[{ t:"Fotos de acesso iguais às de outros cadastros", colAtual:"Já usada em", colNovo:"No arquivo",
+        linhas: reps.map(function(x){ return { id:"ac" + x.i, rot:"Foto de acesso " + (x.i + 1), atual: x.ctds.map(_rotCtd).join(", "), novo:"foto do arquivo", marcado:true, tag:"remove", tagTxt:"não importar" }; }) }], fotos:[] }; }
+    });
+    if(!r.ok) return false;
+    reps.slice().sort(function(a, b){ return b.i - a.i; }).forEach(function(x){ if(r.campos["ac" + x.i]) o.fotosAcesso.splice(x.i, 1); });
+    _outrosAcesso = null;
+    return true;
+  }
+  // etiqueta vermelha nas fotos de acesso repetidas (editor)
+  var _tmAviso = null;
+  function marcarAcessoRepetido(){
+    clearTimeout(_tmAviso);
+    _tmAviso = setTimeout(async function(){
+      var meu = CAMPO; if(!meu) return;
+      var reps = await verificarAcessoRepetido(meu);
+      if(CAMPO !== meu) return;
+      reps.forEach(function(x){
+        var fig = document.querySelector('#campo_fotos_box figure[data-gid="fotosAcesso"][data-i="' + x.i + '"]');
+        if(!fig || fig.querySelector(".cf-dup")) return;
+        var d = document.createElement("div"); d.className = "cf-dup";
+        d.textContent = "⚠ igual à foto de acesso de " + x.ctds.map(_rotCtd).join(", ") + " — troque";
+        fig.insertBefore(d, fig.querySelector("figcaption"));
+      });
+    }, 400);
+  }
 
   /* ---------- diálogo genérico "comparar e confirmar item a item" ---------- */
   function dlgMescla(cfg){
@@ -19654,7 +19805,7 @@ window.DRL_gerarPDF=async function(opts){
     var file = input && input.files && input.files[0];
     if(!file) return;
     var fr = new FileReader();
-    fr.onload = function(){
+    fr.onload = async function(){
       var o;
       try{
         o = JSON.parse(fr.result);
@@ -19662,6 +19813,7 @@ window.DRL_gerarPDF=async function(opts){
       }catch(e){ alert("Não consegui ler o arquivo:\n" + e.message); input.value = ""; return; }
       garantirEstrutura(o);
       input.value = "";
+      if(!(await filtrarAcessoRepetido(o))) return;     // foto de acesso igual à de outro cadastro: pergunta antes
 
       // a ficha é do cadastro que está aberto?
       var ctdAberto = ctdNorm((_("fb_proc_ctd") || {}).value), ctdFicha = ctdNorm((o.geral||{}).processo);
@@ -19960,6 +20112,7 @@ window.DRL_gerarPDF=async function(opts){
     box.innerHTML = h;
     var tit = _("campo_fotos_tit"); if(tit) tit.innerHTML = 'Fotografias <span style="color:#7a8797;font-weight:600">('+total+')</span>';
     ligarArrasto(box);
+    marcarAcessoRepetido();
   }
 
   /* ---------------- render do painel ---------------- */
