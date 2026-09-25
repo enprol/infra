@@ -2936,6 +2936,7 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
     .pgm-incra-op{ display:flex; justify-content:space-between; margin-top:6px; color:#c8dde1; }
     .pgm-camadas details.pgm-incra-box input[type=range]{ width:100%; margin:2px 0; accent-color:#00e5ff; }
     .pgm-incra-nota{ font-size:10.5px; color:#7fa3ab; margin-top:3px; }
+    .pgm-cg{ font-size:10.5px; color:#8db0b8; font-weight:500; }
     /* cores do servidor são todas vermelhas/marrons: cada camada ganha um tom próprio (a amostra da legenda usa o mesmo filtro) */
     .pgm-incra-0{ filter:hue-rotate(28deg) saturate(1.25); }
     .pgm-incra-1{ filter:hue-rotate(300deg) saturate(1.2); }
@@ -13287,6 +13288,7 @@ function AV_gerarDescSituacao(){
   var regCad = {};                                   // regCad[chave] = {layers:[...]} — para destacar o selecionado
   var selKey = null, hoverKey = null;
   var incraLayers = {}, visIncra = {}, incraOp = .5, incraAberto = false, incraErros = 0;
+  var projGrupos = null, projErro = false, projDados = {}, projLayers = {}, visProj = {}, projAberto = {}, projRend = {}, ultArgsCamadas = null;
 
   // ---------- carregar o Leaflet só quando precisa ----------
   var _leafletP = null;
@@ -13702,7 +13704,7 @@ function AV_gerarDescSituacao(){
     mapa = L.map($('pgmMapa'), { zoomControl:false, attributionControl:true, zoomSnap:.25, zoomDelta:.5, wheelPxPerZoomLevel:110,
       maxZoom:21, minZoom:4, preferCanvas:true });
     mapa.attributionControl.setPrefix('<a href="https://leafletjs.com" target="_blank" rel="noopener">Leaflet</a>');
-    [['demPane',250,true],['curvasPane',270,true],['incraPane',300,true],['fixosPane',390,true],['cadPane',410,false]].forEach(function(d){
+    [['demPane',250,true],['curvasPane',270,true],['incraPane',300,true],['projPoli',320,true],['projLin',330,true],['projEst',340,true],['projTxt',350,true],['fixosPane',390,true],['cadPane',410,false]].forEach(function(d){
       var pn = mapa.createPane(d[0]); pn.style.zIndex = d[1]; if(d[2]) pn.style.pointerEvents = 'none';
     });
     rFix = L.canvas({pane:'fixosPane', padding:.4});
@@ -13714,6 +13716,7 @@ function AV_gerarDescSituacao(){
     mapa.on('mousemove', function(e){ lerCotaHover(e.latlng.lat, e.latlng.lng); });
     mapa.on('popupclose', function(e){ if(e.popup && e.popup._chaveCad && selKey === e.popup._chaveCad){ selKey = null; aplicarDestaque(); } });
     mapa.on('zoomend', atualizarIntervaloCurvas);
+    mapa.on('zoomend', aplicarZoomProj);
     // passar o mouse numa linha da tabela destaca o cadastro no mapa (só enquanto o mapa está aberto)
     var corpo = document.getElementById('pgCorpo');
     if(corpo && !corpo._pgmLigado){
@@ -13795,6 +13798,7 @@ function AV_gerarDescSituacao(){
       msg('Este servidor ainda é a versão antiga e não informa quais cadastros têm KML. Rode o instalador do servidor (servidor-cadastros-INSTALADOR.zip) para ativar o Mapa Geral.', 'info');
     }
 
+    if(!projGrupos && !projErro) carregarProjetos();
     var tarefas = [], total = 0;
     var pFixos = (fixosLista || fixosErro) ? Promise.resolve() : fetch('/api/mapa/fixos', {cache:'no-cache'}).then(function(r){
       if(!r.ok) throw new Error('HTTP ' + r.status); return r.json();
@@ -13859,6 +13863,7 @@ function AV_gerarDescSituacao(){
       fixosVisiveis.push(q);
     });
 
+    sincronizarProj(spsLista);
     painelCamadas(usados, semKml, comErro, spsLista, fixosPorSps);
 
     // enquadra nos cadastros; se nenhum tem KML, na faixa de domínio
@@ -13889,13 +13894,186 @@ function AV_gerarDescSituacao(){
         + semKml.map(function(it){ return '<li>' + escH(rotuloCtd(it)) + (it.proprietario ? ' — ' + escH(it.proprietario) : '') + '</li>'; }).join('') + '</ul></details>';
     }
     if(comErro.length) h += '<div style="color:#ffb4a8;margin-top:6px">Falha ao ler o KML de: ' + escH(comErro.join(', ')) + '</div>';
+    ultArgsCamadas = [usados, semKml, comErro, spsLista, fixosPorSps];
+    h += htmlProjetos(spsLista);
     h += htmlIncra();
     var host = $('pgmCamadas'); host.innerHTML = h;
+    ligarEventosProj(host);
     ligarEventosIncra(host);
     Array.prototype.forEach.call(host.querySelectorAll('input[data-cam]'), function(cb){
       cb.addEventListener('change', function(){
         if(cb.dataset.cam === 'cad'){ visCad = cb.checked; if(visCad) grupoCad.addTo(mapa); else mapa.removeLayer(grupoCad); }
         else { var q = cb.dataset.sps; visFixo[q] = cb.checked; var l = fixoLayers[q]; if(l){ if(cb.checked) l.addTo(mapa); else mapa.removeLayer(l); } }
+      });
+    });
+  }
+
+  /* ---------- Projetos de engenharia (SPS 04: Projeto revisado) ----------
+     Grupos vêm do servidor (<BASE>/_MAPA-PROJETOS/<pasta>/manifest.json): camadas, tipo e ESTILO de cada uma.
+     Só aparecem quando há cadastro do SPS do grupo entre os filtrados; cada camada só é baixada quando ligada. */
+  function carregarProjetos(){
+    fetch('/api/mapa/projetos', {cache:'no-cache'}).then(function(r){ if(!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(function(l){ projGrupos = Array.isArray(l) ? l : []; })
+      .catch(function(){ projErro = true; projGrupos = []; })
+      .then(function(){ if(aberto && ultArgsCamadas) painelCamadas.apply(null, ultArgsCamadas); });
+  }
+  var _swap = function(a){ return typeof a[0] === 'number' ? [a[1], a[0]] : a.map(_swap); };   // [lon,lat] -> [lat,lon]
+  function rendProj(pane){ return projRend[pane] || (projRend[pane] = L.canvas({pane:pane, padding:.4})); }
+  function rendXadrez(){
+    if(projRend.xadrez) return projRend.xadrez;
+    var r = projRend.xadrez = L.svg({pane:'projPoli', padding:.4});
+    mapa.addLayer(r);
+    var ns = 'http://www.w3.org/2000/svg', defs = document.createElementNS(ns, 'defs');
+    defs.innerHTML = '<pattern id="pgmXadrez" width="9" height="9" patternUnits="userSpaceOnUse"><path d="M0 .5H9M.5 0V9" stroke="#ff8c1a" stroke-width="1" fill="none"/></pattern>';
+    r._container.insertBefore(defs, r._container.firstChild);
+    return r;
+  }
+  // camada de texto (canvas próprio): rótulos das estacas e anotações do projeto, girados como no desenho
+  function criarTextoProj(d, est){
+    var Cls = L.Layer.extend({
+      onAdd: function(m){
+        this._m = m; var c = this._c = L.DomUtil.create('canvas', 'leaflet-zoom-hide');
+        c.style.pointerEvents = 'none'; m.getPane('projTxt').appendChild(c);
+        m.on('moveend zoomend resize', this._r, this); this._r();
+      },
+      onRemove: function(m){ L.DomUtil.remove(this._c); m.off('moveend zoomend resize', this._r, this); },
+      _r: function(){
+        var m = this._m, sz = m.getSize(), c = this._c, z = m.getZoom();
+        c.width = sz.x; c.height = sz.y; L.DomUtil.setPosition(c, m.containerPointToLayerPoint([0, 0]));
+        var ctx = c.getContext('2d'), lim = m.getBounds().pad(.05);
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+        d.t.forEach(function(t){
+          var estaca = t[3] >= 5;                                   // texto de 6 m = número da estaca (250+600); os demais são notas do projeto
+          if(z < (estaca ? (est.zoomEstacas || 16) : (est.zoomNotas || 13))) return;
+          if(!lim.contains([t[1], t[0]])) return;
+          var p = m.latLngToContainerPoint([t[1], t[0]]);
+          var px = estaca ? (z >= 18 ? 12 : 10) : (z >= 16 ? 12 : 11);
+          var a = ((t[4] % 360) + 360) % 360; if(a > 90 && a <= 270) a -= 180;       // nunca de cabeça para baixo
+          ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(-a * Math.PI / 180);
+          ctx.font = (estaca ? '600 ' : '700 ') + px + 'px system-ui,Segoe UI,Arial,sans-serif';
+          var linhas = String(t[2]).split(/\r?\n/), h = px * 1.15, y0 = -(linhas.length - 1) * h / 2;
+          linhas.forEach(function(ln, i){
+            ctx.strokeStyle = 'rgba(255,255,255,.92)'; ctx.lineWidth = 3.2; ctx.strokeText(ln, 0, y0 + i * h);
+            ctx.fillStyle = est.cor || '#111'; ctx.fillText(ln, 0, y0 + i * h);
+          });
+          ctx.restore();
+        });
+      }
+    });
+    return new Cls();
+  }
+  // devolve [{layer, zmin}] para a camada conforme o tipo do manifest
+  function criarCamadaProj(c, d){
+    var e = c.estilo || {};
+    if(c.tipo === 'linhas'){
+      return [{ layer: L.polyline(_swap(d.l), {pane:'projLin', renderer:rendProj('projLin'), color:e.cor, weight:e.peso, opacity:e.opacidade, interactive:false, smoothFactor:1.2, noClip:false}) }];
+    }
+    if(c.tipo === 'estacas'){
+      var a = e.a || {}, b = e.b || {};
+      return [
+        { layer: L.polyline(_swap(d.b), {pane:'projEst', renderer:rendProj('projEst'), color:b.cor, weight:b.peso, opacity:1, interactive:false, lineCap:'butt'}), zmin: b.zoomMin },
+        { layer: L.polyline(_swap(d.a), {pane:'projEst', renderer:rendProj('projEst'), color:a.cor, weight:a.peso, opacity:1, interactive:false, lineCap:'butt'}), zmin: a.zoomMin }
+      ];
+    }
+    if(c.tipo === 'texto') return [{ layer: criarTextoProj(d, e) }];
+    if(c.tipo === 'poligonos'){
+      var xadrez = e.preenchimento === 'quadriculado';
+      var o = { pane:'projPoli', color:e.cor, weight:e.peso, opacity:e.opacidade, fill:true, interactive:false, smoothFactor:1.2 };
+      if(xadrez){ o.renderer = rendXadrez(); o.fillColor = 'url(#pgmXadrez)'; o.fillOpacity = 1; }
+      else { o.renderer = rendProj('projPoli'); o.fillColor = e.preenchimento; o.fillOpacity = e.opPreench != null ? e.opPreench : .5; }
+      return [{ layer: L.polygon(_swap(d.p), o) }];
+    }
+    return [];
+  }
+  function chaveProj(g, c){ return g.pasta + '|' + c.id; }
+  function projVisivel(key){ var pl = projLayers[key]; return !!(pl && visProj[key] && pl.spsOk); }
+  function aplicarZoomProj(){
+    if(!mapa) return;
+    Object.keys(projLayers).forEach(function(k){
+      var pl = projLayers[k], z = mapa.getZoom();
+      pl.partes.forEach(function(pt){
+        var quer = projVisivel(k) && (pt.zmin == null || z >= pt.zmin);
+        if(quer && !mapa.hasLayer(pt.layer)) pt.layer.addTo(mapa);
+        else if(!quer && mapa.hasLayer(pt.layer)) mapa.removeLayer(pt.layer);
+      });
+    });
+  }
+  // camadas de projeto só valem enquanto o SPS do grupo estiver entre os cadastros filtrados
+  function sincronizarProj(spsLista){
+    Object.keys(projLayers).forEach(function(k){ projLayers[k].spsOk = spsLista.indexOf(projLayers[k].sps) >= 0; });
+    aplicarZoomProj();
+  }
+  function statusProj(key, txt){
+    Array.prototype.forEach.call(document.querySelectorAll('[data-projst]'), function(el){ if(el.getAttribute('data-projst') === key) el.textContent = txt || ''; });
+  }
+  async function ligarProj(g, c, on, spsAtual){
+    var key = chaveProj(g, c); visProj[key] = on;
+    if(!on){ aplicarZoomProj(); return; }
+    var pl = projLayers[key];
+    if(!pl){
+      statusProj(key, 'carregando…');
+      try{
+        var url = '/api/mapa/projeto/' + encodeURIComponent(g.pasta) + '/' + encodeURIComponent(c.arquivo);
+        var k2 = g.pasta + '|' + c.arquivo;
+        if(!projDados[k2]){
+          var r = await fetch(url); if(!r.ok) throw new Error('HTTP ' + r.status);
+          projDados[k2] = await r.json();
+        }
+        pl = projLayers[key] = { sps: g.sps, spsOk: true, partes: criarCamadaProj(c, projDados[k2]) };
+      }catch(e){
+        visProj[key] = false; statusProj(key, 'falhou');
+        var cb = document.querySelector('input[data-proj="' + key + '"]'); if(cb) cb.checked = false;
+        msg('Não consegui carregar a camada "' + c.nome + '": ' + (e && e.message || e), 'info');
+        return;
+      }
+      statusProj(key, '');
+    }
+    pl.spsOk = true;
+    aplicarZoomProj();
+  }
+  function rgba(hex, a){
+    var m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex || ''); if(!m) return hex;
+    return 'rgba(' + parseInt(m[1], 16) + ',' + parseInt(m[2], 16) + ',' + parseInt(m[3], 16) + ',' + a + ')';
+  }
+  function amostraProj(c){
+    var e = c.estilo || {};
+    if(c.tipo === 'linhas') return '<span class="pgm-sw-inc" style="height:0;border:0;border-top:2px solid ' + e.cor + '"></span>';
+    if(c.tipo === 'estacas') return '<span class="pgm-sw-inc" style="border:0;background:linear-gradient(90deg,#000 0 3px,transparent 3px 7px,#000 7px 8px,transparent 8px 11px,#000 11px 12px,transparent 12px 15px,#000 15px 16px,transparent 16px);height:12px"></span>';
+    if(c.tipo === 'texto') return '<span class="pgm-sw-inc" style="border:0;height:auto;font:700 11px system-ui;color:#dff0f3;text-align:center">Aa</span>';
+    if(e.preenchimento === 'quadriculado')
+      return '<span class="pgm-sw-inc" style="border:1.5px solid ' + e.cor + ';background-image:linear-gradient(' + e.corPreench + ' 1px,transparent 1px),linear-gradient(90deg,' + e.corPreench + ' 1px,transparent 1px);background-size:5px 5px"></span>';
+    return '<span class="pgm-sw-inc" style="border:1px solid ' + e.cor + ';background:' + rgba(e.preenchimento, e.opPreench != null ? e.opPreench : .5) + '"></span>';
+  }
+  function htmlProjetos(spsLista){
+    var h = '';
+    (projGrupos || []).forEach(function(g){
+      if(spsLista.indexOf(g.sps) < 0) return;
+      var n = (g.camadas || []).filter(function(c){ return visProj[chaveProj(g, c)]; }).length;
+      h += '<details class="pgm-incra-box pgm-proj" data-pasta="' + escH(g.pasta) + '"' + (projAberto[g.pasta] ? ' open' : '') + '><summary>' + escH(g.titulo || g.grupo)
+        + (n ? ' <span class="pgm-incra-n">' + n + ' ativa(s)</span>' : '') + '</summary>';
+      (g.camadas || []).forEach(function(c){
+        var key = chaveProj(g, c);
+        h += '<label title="' + escH(c.codigo || '') + '"><input type="checkbox" data-proj="' + escH(key) + '"' + (visProj[key] ? ' checked' : '') + '>' + amostraProj(c) + ' ' + escH(c.nome)
+          + (c.tipo === 'estacas' ? ' <span class="pgm-cg">(100 m · 20 em 20 m)</span>' : '') + ' <span class="pgm-cg" data-projst="' + escH(key) + '"></span></label>';
+      });
+      var ce = (g.camadas || []).filter(function(c){ return c.tipo === 'estacas'; })[0], ct = (g.camadas || []).filter(function(c){ return c.tipo === 'texto'; })[0];
+      h += '<div class="pgm-incra-nota">' + escH(g.fonte || '')
+        + (ce || ct ? '<br>Aparecem conforme o zoom:' + (ce ? ' estacas de 20 m a partir do ' + ((ce.estilo.b || {}).zoomMin || 15) + ';' : '') + (ct ? ' números das estacas a partir do ' + (ct.estilo.zoomEstacas || 16) + ', notas do projeto a partir do ' + (ct.estilo.zoomNotas || 15) + '.' : '') : '') + '</div></details>';
+    });
+    return h;
+  }
+  function ligarEventosProj(host){
+    Array.prototype.forEach.call(host.querySelectorAll('details.pgm-proj'), function(det){
+      det.addEventListener('toggle', function(){ projAberto[det.getAttribute('data-pasta')] = det.open; });
+    });
+    Array.prototype.forEach.call(host.querySelectorAll('input[data-proj]'), function(cb){
+      cb.addEventListener('change', function(){
+        var key = cb.getAttribute('data-proj'), pasta = key.split('|')[0], id = key.split('|')[1];
+        var g = (projGrupos || []).filter(function(x){ return x.pasta === pasta; })[0]; if(!g) return;
+        var c = g.camadas.filter(function(x){ return x.id === id; })[0]; if(!c) return;
+        ligarProj(g, c, cb.checked);
+        var det = cb.closest('details'), n = det.querySelectorAll('input[data-proj]:checked').length, sm = det.querySelector('summary');
+        sm.innerHTML = escH(g.titulo || g.grupo) + (n ? ' <span class="pgm-incra-n">' + n + ' ativa(s)</span>' : '');
       });
     });
   }
