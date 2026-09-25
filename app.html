@@ -2981,6 +2981,11 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
     .pgm-pop button{ margin-top:8px; padding:5px 10px; border:1px solid #1F6FC0; background:#1F6FC0; color:#fff; border-radius:7px; font:700 12px/1 inherit; cursor:pointer; }
 
     /* ===== Planta e Memorial Descritivo (25/09/2026) ===== */
+    /* o painel usa uma grade própria: em tela estreita os campos não ficam label-e-caixa na mesma linha */
+    #panel-desp1-planta .vrow{ display:grid; grid-template-columns:repeat(auto-fit,minmax(225px,1fr)); gap:10px 16px; align-items:start; }
+    #panel-desp1-planta .vrow .vfield{ display:flex; flex-direction:column; gap:4px; min-width:0; flex:initial; }
+    #panel-desp1-planta .vrow .vfield > label{ font-size:12px; font-weight:600; color:#5a6b7c; line-height:1.3; }
+    #panel-desp1-planta .vrow .vfield input, #panel-desp1-planta .vrow .vfield select{ width:100%; box-sizing:border-box; }
     #panel-desp1-planta .mdp-nums{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; }
     #panel-desp1-planta .mdp-num{ background:#f7f9fc; border:1px solid #e4ebf2; border-radius:10px; padding:9px 12px; }
     #panel-desp1-planta .mdp-num span{ display:block; font-size:10.5px; font-weight:700; letter-spacing:.4px; text-transform:uppercase; color:#8494a4; }
@@ -5730,6 +5735,8 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 
 <div class="vcard">
   <div class="vsub">2 · Tabela de distância, coordenadas e azimutes</div>
+  <datalist id="mdp_dl_conf"></datalist>
+  <p class="hint-inline" style="margin-top:0;" id="mdp_conf_aviso"></p>
   <p class="hint-inline" style="margin-top:0;">Preencha o <b>confrontante</b> de cada trecho — o nome em cinza é herdado do trecho anterior (use ↓ para repetir nos seguintes). É esta tabela que vai para o memorial, para a planta e para o <b>DRL</b> (no lugar da imagem). O <b>KM</b> é opcional e aparece no memorial (“no KM=227+872,41”).</p>
   <div id="mdp_tabela"></div>
 </div>
@@ -14678,7 +14685,20 @@ function AV_gerarDescSituacao(){
       fuso: fuso, mc: mcDe(fuso), letra: FUSO_LETRA(pts[0][1]), sul: pts[0][1] < 0,
       cx: cx, cy: cy, nomeKml: gv("rel_kml_nome"), rotuloAnel: anel.nome || ""
     };
+    publicarArea();
     return G;
+  }
+  // a área desapropriada passa a NASCER do KML: escreve em fb_area_desap (Técnica), que é de onde
+  // todos os outros documentos puxam a área. Só sobrescreve quando o valor calculado muda.
+  function publicarArea(){
+    if(!G) return;
+    var el = $("fb_area_desap"); if(!el) return;
+    var novo = br(G.area_ha, 4);
+    if(String(el.value||"").trim() === novo) return;
+    el.value = novo;
+    el.dispatchEvent(new Event("input", {bubbles:true}));
+    el.dispatchEvent(new Event("change", {bubbles:true}));
+    try{ if(window.CAD_marcarSujo) window.CAD_marcarSujo(); }catch(e){}
   }
   window.MDP_geo = function(){ return G; };
   window.MDP_analisar = function(){ return analisar(); };
@@ -14688,15 +14708,25 @@ function AV_gerarDescSituacao(){
     var ex = extras();
     var proc = (gv("fb_proc_preview") || gv("fb_processo")).replace(/^\s*processo\s+administrativo\s*:\s*/i, "").trim();
     var ctd = gv("fb_proc_ctd"), lote = gv("fb_proc_lote"), fer = gv("fb_proc_ferrovia") || "FTN";
+    // 1.3 Proprietário(a) / 1.3.2 Informante — quando o ocupante NÃO é o proprietário, quem assina como
+    // expropriado pode ser o informante (posseiro). O padrão segue o material aprovado (proprietário do 1.3)
+    // e o seletor "Expropriado no documento" troca para o informante.
+    var temPosseiro = gv("fb_ocup_e_prop") === "2 - Não";
+    var nomeProp = gv("fb_nome"), nomeInf = temPosseiro ? gv("fb_inf_nome") : "";
+    var quem = ex.expropriado_fonte || "prop";
+    var expro = (quem === "inf" && nomeInf) ? nomeInf : (nomeProp || nomeInf);
     return {
       processo: proc || ("INFRA S.A. CTD " + (ctd||"___") + " – SPS-" + (lote||"__") + " – " + fer),
       processoCurto: "INFRA S.A. CTD-" + (ctd||"___") + " SPS-" + (lote ? String(parseInt(lote,10)) : "_"),
       ctd: ctd, lote: lote, ferrovia: fer,
-      expropriado: (gv("fb_nome") || "").toUpperCase(),
-      posseiro: (gv("fb_ocup_e_prop") === "2 - Não" ? gv("fb_inf_nome") : "").toUpperCase(),
-      municipio: (gv("fb_municipio") || "").toUpperCase(),
-      uf: (gv("fb_uf") || "PE").toUpperCase(),
+      expropriado: (expro || "").toUpperCase(),
+      posseiro: ((nomeInf && nomeInf !== expro) ? nomeInf : "").toUpperCase(),
+      // 1.4 Propriedade (é onde fica a identificação do imóvel e o município dele); 1.3 é o endereço da pessoa
+      denominacao: (ex.denominacao || gv("fb_prop_id") || "").toUpperCase(),
+      municipio: (gv("fb_prop_mun") || gv("fb_municipio") || "").toUpperCase(),
+      uf: (gv("fb_prop_uf") || gv("fb_uf") || "PE").toUpperCase(),
       matricula: gv("fb_matricula"),
+      cartorio: gv("fb_cartorio"),
       areaTotal: gv("fb_area_total"),
       areaDesap: gv("fb_area_desap"),
       acesso: gv("rel_roteiro_txt") || gv("d2_roteiro_txt") || ex.acesso || "",
@@ -14769,30 +14799,39 @@ function AV_gerarDescSituacao(){
   };
 
   /* ---------------- texto do memorial (formato aprovado) ---------------- */
-  function memorialTexto(){
-    if(!G) return "";
-    var c = doCadastro(), cs = confrontantes(), out = [], ult = null;
+  // devolve a descrição em PARTES ({t:texto, b:negrito}) — os dados da tabela (vértice, coordenadas,
+  // azimute, distância, confrontante, KM, área e perímetro) saem em negrito, como no modelo aprovado.
+  function memorialPartes(){
+    if(!G) return [];
+    var cs = confrontantes(), out = [], ult = null;
+    var N = function(t){ out.push({ t:t, b:false }); }, B = function(t){ out.push({ t:t, b:true }); };
     var v0 = G.v[0];
-    out.push("Inicia-se a descrição deste perímetro no vértice " + v0.nome + ", de coordenadas N " + br(v0.N,3) + "m e E " + br(v0.E,3) + "m; ");
+    N("Inicia-se a descrição deste perímetro no vértice "); B(v0.nome);
+    N(", de coordenadas N "); B(br(v0.N,3) + "m"); N(" e E "); B(br(v0.E,3) + "m"); N("; ");
     G.segs.forEach(function(s, i){
       var b = G.v[s.para], nome = cs[i] || "";
       var troca = nome && nome !== ult; ult = nome || ult;
-      var km = kmDe(s.para);
-      out.push("deste segue, " + (troca ? ("confrontando com " + nome + " ") : "")
-        + "com azimute de " + dms(s.az) + " por uma distância de " + br(s.dist,2) + "m  até o vértice " + b.nome
-        + (km ? (", no KM=" + km) : "")
-        + ", de coordenadas N " + br(b.N,3) + "m e E " + br(b.E,3) + "m; ");
+      var km = kmDe(s.para), fim = (i === G.segs.length - 1);
+      N("deste segue, ");
+      if(troca){ N("confrontando com "); B(nome); N(" "); }
+      N("com azimute de "); B(dms(s.az));
+      N(" por uma distância de "); B(br(s.dist,2) + "m");
+      N("  até o vértice "); B(b.nome);
+      if(km){ N(", no KM="); B(km); }
+      if(fim){ N(", "); return; }
+      N(", de coordenadas N "); B(br(b.N,3) + "m"); N(" e E "); B(br(b.E,3) + "m"); N("; ");
     });
-    // o último segmento fecha no P01: troca o fim da frase
-    var ultimo = out.pop().replace(/, de coordenadas N [^;]*; $/, ", ");
-    out.push(ultimo + "encerrando esta poligonal com área de " + br(G.area_ha,4) + " ha (" + areaExtenso(G.area_ha)
-      + ") e perímetro de " + br(G.perim,2) + " metros. Todas as coordenadas aqui descritas estão georreferenciadas ao "
-      + "Sistema Geodésico Brasileiro, encontram-se representadas no Sistema de Coordenadas UTM, referenciadas ao Meridiano Central "
-      + G.mc + "°, fuso " + G.fuso + G.letra + ", tendo como datum o SIRGAS2000. Todos os azimutes e distâncias, área e perímetro "
+    N("encerrando esta poligonal com área de "); B(br(G.area_ha,4) + " ha");
+    N(" (" + areaExtenso(G.area_ha) + ") e perímetro de "); B(br(G.perim,2) + " metros");
+    N(". Todas as coordenadas aqui descritas estão georreferenciadas ao Sistema Geodésico Brasileiro, encontram-se "
+      + "representadas no Sistema de Coordenadas UTM, referenciadas ao Meridiano Central " + G.mc + "°, fuso "
+      + G.fuso + G.letra + ", tendo como datum o SIRGAS2000. Todos os azimutes e distâncias, área e perímetro "
       + "foram calculados no plano de projeção UTM.");
-    return out.join("");
+    return out;
   }
+  function memorialTexto(){ return memorialPartes().map(function(p){ return p.t; }).join(""); }
   window.MDP_memorialTexto = memorialTexto;
+  window.MDP_memorialPartes = memorialPartes;
 
   function blocos(){
     var c = doCadastro(), ex = extras(), lim = limites();
@@ -14800,14 +14839,14 @@ function AV_gerarDescSituacao(){
       cad: c, ex: ex, lim: lim,
       dados: [
         ["Nº DO PROCESSO", c.processo],
-        ["DENOMINAÇÃO DO IMÓVEL INTERCEPTADO PELO PROJETO", (ex.denominacao||"").toUpperCase()],
+        ["DENOMINAÇÃO DO IMÓVEL INTERCEPTADO PELO PROJETO", c.denominacao],
         ["EXPROPRIADO", c.expropriado]
       ].concat(c.posseiro ? [["POSSEIRO", c.posseiro]] : []),
       situacao: [["MUNICÍPIO", c.municipio + (c.uf ? " – " + c.uf : "")], ["COMARCA", (ex.comarca||"").toUpperCase() + (ex.comarca && c.uf ? " – " + c.uf : "")]],
       fim: [
         ["UTILIZAÇÃO", (ex.utilizacao||"").toUpperCase()], ["BENFEITORIAS", (ex.benfeitorias||"").toUpperCase()],
         ["ESCRITURA", (ex.escritura||"").toUpperCase()], ["N° DE REGISTRO", ex.registro||""],
-        ["CARTÓRIO", (ex.cartorio||"").toUpperCase()], ["LIVRO", ex.livro||""], ["FOLHA", ex.folha||""], ["DATA", ex.data_reg||""]
+        ["CARTÓRIO", (ex.cartorio || c.cartorio || "").toUpperCase()], ["LIVRO", ex.livro||""], ["FOLHA", ex.folha||""], ["DATA", ex.data_reg||""]
       ]
     };
   }
@@ -14876,6 +14915,43 @@ function AV_gerarDescSituacao(){
       pdf.text(ls[0] || "", x + lw + .6, y); y += 4.1;
       for(var i = 1; i < ls.length; i++){ garantir(5); pdf.text(ls[i], x, y); y += 4.1; }
     }
+    // parágrafo com trechos em negrito, quebrado por palavra e justificado (igual ao modelo aprovado)
+    function paragrafoRico(partes, o){
+      o = o || {};
+      var tam = o.tam || 8.6, lh = o.lh || 4.1, larg = o.larg || RW, x0 = o.x || mL;
+      var palavras = [];
+      partes.forEach(function(p){
+        String(p.t).split(/(\s+)/).forEach(function(w){
+          if(w === "") return;
+          palavras.push({ t:w, b:!!p.b, esp:/^\s+$/.test(w) });
+        });
+      });
+      var med = function(w){ pdf.setFont("helvetica", w.b ? "bold" : "normal"); pdf.setFontSize(tam); return pdf.getTextWidth(w.t); };
+      palavras.forEach(function(w){ w.w = med(w); });
+      var linha = [], usado = 0;
+      function despejar(ultima){
+        while(linha.length && linha[linha.length-1].esp){ usado -= linha[linha.length-1].w; linha.pop(); }
+        while(linha.length && linha[0].esp){ usado -= linha[0].w; linha.shift(); }
+        if(!linha.length) return;
+        garantir(lh + 1);
+        var extra = 0, nEsp = linha.filter(function(w){ return w.esp; }).length;
+        if(o.just && !ultima && nEsp) extra = (larg - usado)/nEsp;
+        var x = x0;
+        linha.forEach(function(w){
+          if(!w.esp){
+            pdf.setFont("helvetica", w.b ? "bold" : "normal"); pdf.setFontSize(tam);
+            pdf.text(w.t, x, y);
+          }
+          x += w.w + (w.esp ? extra : 0);
+        });
+        y += lh; linha = []; usado = 0;
+      }
+      palavras.forEach(function(w){
+        if(usado + w.w > larg && linha.length){ despejar(false); if(w.esp) return; }
+        linha.push(w); usado += w.w;
+      });
+      despejar(true);
+    }
     function topico(num, titulo){
       garantir(9); y += 2.4;
       pdf.setFont("helvetica","normal"); pdf.setFontSize(8.6);
@@ -14915,7 +14991,7 @@ function AV_gerarDescSituacao(){
     rot("MERIDIANO CENTRAL", G.mc + "°; ZONA: " + G.fuso + G.letra);
 
     topico("iv.", "DESCRIÇÃO DA ÁREA OBJETO DO PROCESSO " + c.processo);
-    par(memorialTexto(), { just:true, lh:4.05 });
+    paragrafoRico(memorialPartes(), { just:true, lh:4.05 });
 
     y += 4;
     b.fim.forEach(function(d){ rot(d[0], d[1]); });
@@ -14963,7 +15039,7 @@ function AV_gerarDescSituacao(){
     rotW("SISTEMA DE COORDENADAS", "UTM");
     rotW("MERIDIANO CENTRAL", G.mc + "°; ZONA: " + G.fuso + G.letra);
     K.push(lin([R("iv.  "), R("DESCRIÇÃO DA ÁREA OBJETO DO PROCESSO " + c.processo, {bold:true})], {after:80}));
-    K.push(lin([R(memorialTexto())], {al:AL.JUSTIFIED, after:180}));
+    K.push(lin(memorialPartes().map(function(p){ return R(p.t, {bold:p.b}); }), {al:AL.JUSTIFIED, after:180}));
     b.fim.forEach(function(d){ rotW(d[0], d[1]); });
     K.push(lin([R(" ")], {after:600}));
     K.push(lin([R("______________________________________")], {al:AL.CENTER}));
@@ -15417,9 +15493,9 @@ function AV_gerarDescSituacao(){
       [ ["Trecho:", ex.trecho || "", 74], ["Município:", (c.municipio ? (c.municipio[0] + c.municipio.slice(1).toLowerCase()) : "") + (c.uf ? " - " + c.uf : ""), 26],
         ["Processo:", "CTD-" + (c.ctd||""), 18], ["Lote:", "SPS-" + (c.lote||""), 14], ["Segmento:", ex.segmento || "", 0] ],
       [ ["Área Total da Propriedade:", ex.area_total_prop || c.areaTotal || "", 42], ["Área Total a Desapropriar:", ex.area_total_desap || "", 40],
-        ["Área da Parcela/Lote:", (ex.area_parcela || "") , 34], ["Área a Desapropriar:", br(G.area_ha,4) + " ha", 32],
+        ["Área da Parcela/Lote:", (ex.area_parcela || c.areaTotal || "") , 34], ["Área a Desapropriar:", br(G.area_ha,4) + " ha", 32],
         ["Área Remanescente:", ex.area_remanescente || "", 30], ["Perímetro:", br(G.perim,2) + " m", 0] ],
-      [ ["Propriedade:", (ex.denominacao||"").toUpperCase(), 58], ["Matrícula:", c.matricula || "", 22],
+      [ ["Propriedade:", c.denominacao, 58], ["Matrícula:", c.matricula || "", 22],
         ["Datum:", "SIRGAS 2000 UTM " + G.fuso + "S", 34], ["Escala:", "1/" + br(T.esc,0), 18],
         ["Data:", ex.data || "", 20], ["Folha:", ex.car_folha || "1/1", 12], ["Rev:", ex.rev || "0", 0] ],
       [ ["Expropriado(a):", c.expropriado, 74] ].concat(c.posseiro ? [["Posseiro(a):", c.posseiro, 0]] : [])
@@ -15580,13 +15656,12 @@ function AV_gerarDescSituacao(){
     ["lim_o","OESTE","text","em branco = calculado"]
   ];
   var CAMPOS_EX = [
-    ["denominacao","Denominação do imóvel interceptado","text",""],
-    ["comarca","Comarca","text",""],
+    ["comarca","Comarca","text","ex.: Sertânia"],
     ["utilizacao","Utilização","text","Ex.: AGRICULTURA"],
     ["benfeitorias","Benfeitorias","text","Ex.: CERCAS"],
     ["escritura","Escritura","text","Ex.: COMPRA E VENDA"],
     ["registro","Nº de registro","text",""],
-    ["cartorio","Cartório","text",""],
+    ["cartorio","Cartório (em branco = o de 1.4 Propriedade)","text",""],
     ["livro","Livro","text",""],
     ["folha","Folha","text",""],
     ["data_reg","Data do registro","text","dd/mm/aaaa"]
@@ -15611,9 +15686,50 @@ function AV_gerarDescSituacao(){
     var v = extras()[k] || "";
     return '<div class="vfield grow"><label>' + esc(rot) + '</label><input type="text" value="' + esc(v) + '" placeholder="' + esc(ph||"") + '" oninput="MDP_setEx(\'' + k + '\',this.value)"></div>';
   }
-  window.MDP_setEx = function(k, v){ setExtra(k, v); if(/^lim_/.test(k)) renderTabela(); renderMemorial(); };
+  window.MDP_setEx = function(k, v){ setExtra(k, v); if(/^lim_/.test(k)) renderTabela(); if(k === "expropriado_fonte") renderCampos(); renderMemorial(); };
   window.MDP_limparLim = function(){ ["lim_n","lim_s","lim_l","lim_o"].forEach(function(k){ setExtra(k, ""); }); renderCampos(); renderTabela(); };
   window.MDP_setObs = function(i, v){ var o = extras().obs || []; o[i] = v; setExtra("obs", o); };
+  /* ---- lista de opções do confrontante: CTDs já cadastrados no mesmo SPS + áreas remanescentes ---- */
+  var LISTA_CONF = { sps:null, itens:[], carregando:false };
+  var REMANESCENTES = ["Área remanescente Norte", "Área remanescente Sul", "Área remanescente Leste", "Área remanescente Oeste"];
+  function spsAtual(){ var l = gv("fb_proc_lote"); return l ? String(parseInt(l,10)).padStart(2,"0") : ""; }
+  function sps2(l){ var d = String(l == null ? "" : l).replace(/\D/g,""); return d ? ("0" + d).slice(-2) : ""; }
+  function ctdCurto(v){ var m = String(v||"").match(/CTD\s*([A-Za-z0-9]+(?:[-.\/][A-Za-z0-9]+)*)/i); return m ? m[1] : String(v||""); }
+  function carregarConfrontantes(){
+    var sps = spsAtual();
+    if(LISTA_CONF.carregando || (LISTA_CONF.sps === sps && LISTA_CONF.itens.length)) return Promise.resolve();
+    LISTA_CONF.carregando = true;
+    var base = (typeof window.CAD_SERVIDOR_URL === "string" ? window.CAD_SERVIDOR_URL : "").replace(/\/+$/, "");
+    return fetch(base + "/api/cadastros?limite=500", {cache:"no-cache"}).then(function(r){ return r.json(); }).then(function(l){
+      var meu = ctdCurto((window.__CAD_ATUAL && window.__CAD_ATUAL.ctd) || "") || gv("fb_proc_ctd");
+      LISTA_CONF.itens = (Array.isArray(l) ? l : []).filter(function(it){
+        return it && it.proprietario && (!sps || sps2(it.lote) === sps) && ctdCurto(it.ctd) !== meu;
+      }).map(function(it){ return { ctd:ctdCurto(it.ctd), nome:String(it.proprietario).trim(), posseiro:it.posseiro || "" }; })
+       .sort(function(a,b){ return a.ctd.localeCompare(b.ctd, "pt-BR", {numeric:true}); });
+      LISTA_CONF.sps = sps;
+    }).catch(function(e){ console.warn("lista de confrontantes:", e.message || e); })
+      .then(function(){ LISTA_CONF.carregando = false; renderDatalist(); });
+  }
+  function renderDatalist(){
+    var dl = $("mdp_dl_conf"); if(!dl) return;
+    var h = REMANESCENTES.map(function(t){ return '<option value="' + esc(t) + '">área remanescente</option>'; }).join("");
+    h += LISTA_CONF.itens.map(function(it){
+      return '<option value="' + esc(it.nome) + '">CTD ' + esc(it.ctd) + (it.posseiro ? (" · posseiro: " + esc(it.posseiro)) : "") + '</option>';
+    }).join("");
+    dl.innerHTML = h;
+    var av = $("mdp_conf_aviso");
+    if(av) av.textContent = LISTA_CONF.itens.length
+      ? (LISTA_CONF.itens.length + " cadastro(s) do SPS-" + (LISTA_CONF.sps || "?") + " na lista (digite o nº do CTD para achar).")
+      : "Nenhum outro cadastro deste SPS no servidor — digite o nome do confrontante.";
+  }
+  // "CTD 006B" digitado à mão vira o nome do proprietário daquele cadastro
+  function resolverConf(v){
+    var t = String(v||"").trim(); if(!t) return t;
+    var cod = ctdCurto(t) || t.replace(/^CTD\s*/i, "").trim();
+    var achou = LISTA_CONF.itens.filter(function(it){ return it.ctd.toUpperCase() === cod.toUpperCase(); })[0];
+    return achou ? achou.nome : t;
+  }
+  window.MDP_confResolver = function(i, v){ window.MDP_conf(i, "c", resolverConf(v)); };
   window.MDP_conf = function(i, campo, v){
     var c = conf(); c[i] = c[i] || {}; c[i][campo] = v; setConf(c);
     renderTabela(); renderMemorial();
@@ -15660,7 +15776,7 @@ function AV_gerarDescSituacao(){
       h += '<tr><td><b>' + a.nome + '</b></td><td>' + b.nome + '</td><td class="mdp-c">' + dms(s.az) + '</td>' +
         '<td class="mdp-r">' + br(s.dist,2) + '</td><td class="mdp-r">' + br(a.N,3) + '</td><td class="mdp-r">' + br(a.E,3) + '</td>' +
         '<td><input type="text" value="' + esc((c[s.para] && c[s.para].km) || "") + '" placeholder="—" title="KM da estaca neste vértice (sai no memorial)" oninput="MDP_conf(' + s.para + ',\'km\',this.value)"></td>' +
-        '<td><input type="text" value="' + esc(own) + '" placeholder="' + esc(own ? "" : (cs[i] || "nome do confrontante")) + '" oninput="MDP_conf(' + i + ',\'c\',this.value)"' + (own ? '' : ' class="mdp-herd"') + '></td>' +
+        '<td><input type="text" list="mdp_dl_conf" value="' + esc(own) + '" placeholder="' + esc(own ? "" : (cs[i] ? ("↑ " + cs[i]) : "nome ou nº do CTD")) + '" oninput="MDP_conf(' + i + ',\'c\',this.value)" onchange="MDP_confResolver(' + i + ',this.value)"' + (own ? '' : ' class="mdp-herd"') + '></td>' +
         '<td><button type="button" class="mdp-mini" title="Repetir este confrontante nos segmentos seguintes" onclick="MDP_confAbaixo(' + i + ')">↓</button></td></tr>';
     });
     h += '</tbody></table></div>';
@@ -15671,11 +15787,29 @@ function AV_gerarDescSituacao(){
   }
   function renderMemorial(){
     var box = $("mdp_mem_prev"); if(!box) return;
-    box.textContent = G ? memorialTexto() : "";
+    box.innerHTML = G ? memorialPartes().map(function(p){
+      return p.b ? ("<b>" + esc(p.t) + "</b>") : esc(p.t);
+    }).join("") : "";
   }
   function renderCampos(){
     var a = $("mdp_campos_mem"), b = $("mdp_campos_car"), o = $("mdp_obs");
-    if(a) a.innerHTML = CAMPOS_EX.map(function(f){ return inputEx(f[0], f[1], f[3]); }).join("");
+    if(a){
+      var c = doCadastro(), ex = extras();
+      var vem = function(rot, v, onde){ return '<div class="vfield grow"><label>' + esc(rot) + ' <span class="hint-auto">' + esc(onde) + '</span></label><input type="text" class="bloqueado" readonly value="' + esc(v || "—") + '"></div>'; };
+      a.innerHTML =
+          vem("Denominação do imóvel interceptado", c.denominacao, "1.4 Propriedade › Identificação")
+        + '<div class="vfield grow"><label>Expropriado no documento</label><select onchange="MDP_setEx(\'expropriado_fonte\',this.value)">'
+          + '<option value="prop"' + ((ex.expropriado_fonte||"prop") === "prop" ? " selected" : "") + '>Proprietário(a) — 1.3</option>'
+          + '<option value="inf"' + (ex.expropriado_fonte === "inf" ? " selected" : "") + '>Informante/posseiro(a) — 1.3.2</option>'
+          + '</select></div>'
+        + vem("Expropriado(a)", c.expropriado, "1.3 Proprietário(a) › Nome")
+        + (c.posseiro ? vem("Posseiro(a)", c.posseiro, "1.3.2 Informante") : "")
+        + vem("Município / UF", (c.municipio || "") + (c.uf ? " – " + c.uf : ""), "1.4 Propriedade")
+        + vem("Matrícula", c.matricula, "1.4 Propriedade")
+        + vem("Área total (ha)", c.areaTotal, "1.4 Propriedade")
+        + vem("Área desapropriada (ha)", c.areaDesap, "calculada do KML → Técnica")
+        + CAMPOS_EX.map(function(f){ return inputEx(f[0], f[1], f[3]); }).join("");
+    }
     var lm = $("mdp_campos_lim");
     if(lm) lm.innerHTML = CAMPOS_LIM.map(function(f){ return inputEx(f[0], f[1], f[3]); }).join("");
     if(b) b.innerHTML = CAMPOS_CAR.map(function(f){ return inputEx(f[0], f[1], f[3]); }).join("");
@@ -15686,7 +15820,7 @@ function AV_gerarDescSituacao(){
       }).join("");
     }
   }
-  function renderTudo(){ renderResumo(); renderTabela(); renderMemorial(); }
+  function renderTudo(){ renderResumo(); renderTabela(); renderMemorial(); renderDatalist(); carregarConfrontantes(); }
   window.MDP_render = function(){ analisar(); renderCampos(); renderTudo(); };
 
   /* ---- tabela de confrontação para o DRL (vetorial no PDF, tabela no Word) ---- */
