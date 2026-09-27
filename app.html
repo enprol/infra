@@ -24859,6 +24859,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     vias:  { nome:'Vias de acesso',              tipo:'line', cor:'#ffd24a', peso:2.4, dash:'6 3' },
     appest:{ nome:'APP estimada',                tipo:'fill', cor:'#00e676', op:.35, peso:1.6 },
     app:   { nome:'APP (CAR)',                   tipo:'fill', cor:'#00e676', op:.3,  peso:1.4 },
+    appcar:{ nome:'APP (CAR)',                   tipo:'fill', cor:'#22b1ff', op:.3,  peso:1.4 },
     rl:    { nome:'Reserva Legal (CAR)',         tipo:'fill', cor:'#b6ff00', op:.28, peso:1.4 },
     benf:  { nome:'Benfeitorias',                tipo:'pt',   cor:'#ffffff', peso:1.4 },
     faixa: { nome:'Faixa de domínio / eixo',     tipo:'faixa',cor:'#12d84a' },
@@ -24895,6 +24896,43 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       var c=p.getElementsByTagNameNS('*','coordinates')[0]; if(c){ var r=coords(c.textContent); if(r.length) out.pts.push(r[0]); }
     });
     return out;
+  }
+  // ---- camadas do servidor (faixa/eixo, SIGEF, CAR, RL, APP-CAR) ----
+  function d2uf(){ var el=document.getElementById('fb_prop_uf')||document.getElementById('fb_uf'); var v=el?(el.value||'').trim():''; return (v||'PE').substring(0,2).toLowerCase(); }
+  function d2bboxStr(bb){ return [bb.w,bb.s,bb.e,bb.n].join(','); }
+  function d2fetchJSON(u){ return fetch(u).then(function(r){ return r.ok?r.json():null; }).catch(function(){ return null; }); }
+  function d2ptIn(x,y,ring){ var inside=false; for(var i=0,j=ring.length-1;i<ring.length;j=i++){ var xi=ring[i][0],yi=ring[i][1],xj=ring[j][0],yj=ring[j][1]; if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi)) inside=!inside; } return inside; }
+  function d2polysIntersect(aPolys,bPolys){ for(var i=0;i<aPolys.length;i++){ var ar=aPolys[i]; for(var k=0;k<bPolys.length;k++){ var br=bPolys[k]; for(var m=0;m<ar.length;m++){ if(d2ptIn(ar[m][0],ar[m][1],br)) return true; } for(var n=0;n<br.length;n++){ if(d2ptIn(br[n][0],br[n][1],ar)) return true; } } } return false; }
+  // GeoJSON -> {polys,lines} em lon/lat; se refPolys, só feições que interceptam
+  function d2geojson(gj,refPolys){
+    var out={polys:[],lines:[],pts:[]}; if(!gj||!gj.features) return out;
+    gj.features.forEach(function(f){ var g=f.geometry; if(!g) return; var ps=[];
+      if(g.type==='Polygon') ps=[g.coordinates]; else if(g.type==='MultiPolygon') ps=g.coordinates;
+      ps.forEach(function(rings){ var outer=rings[0]; if(!outer||outer.length<3) return; var r=outer.map(function(p){return [p[0],p[1]];}); if(refPolys && !d2polysIntersect([r],refPolys)) return; out.polys.push(r); });
+      if(g.type==='LineString') out.lines.push(g.coordinates.map(function(p){return [p[0],p[1]];}));
+      else if(g.type==='MultiLineString') g.coordinates.forEach(function(l){ out.lines.push(l.map(function(p){return [p[0],p[1]];})); });
+    });
+    return out;
+  }
+  function d2fixoParse(txt){
+    var out={limites:[],eixos:[]}; if(!txt) return out; var doc; try{doc=new DOMParser().parseFromString(txt,'application/xml');}catch(e){return out;}
+    if(!doc||doc.getElementsByTagName('parsererror').length) return out;
+    function C(s){var o=[];String(s||'').trim().split(/\s+/).forEach(function(t){var q=t.split(',');if(q.length>=2){var lo=+q[0],la=+q[1];if(isFinite(lo)&&isFinite(la))o.push([lo,la]);}});return o;}
+    var lps=[]; Array.prototype.forEach.call(doc.getElementsByTagNameNS('*','Placemark'),function(pm){ var nm=pm.getElementsByTagNameNS('*','name')[0], st=pm.getElementsByTagNameNS('*','styleUrl')[0];
+      Array.prototype.forEach.call(pm.getElementsByTagNameNS('*','LineString'),function(ls){ var c=ls.getElementsByTagNameNS('*','coordinates')[0]; if(!c)return; var pts=C(c.textContent); if(pts.length>=2) lps.push({c:pts,nome:nm?nm.textContent:'',estilo:st?st.textContent.trim():''}); }); });
+    var cont={}; lps.forEach(function(l){cont[l.estilo]=(cont[l.estilo]||0)+1;}); var nEst=Object.keys(cont).length;
+    lps.forEach(function(l){ var eixo=/eixo/i.test(l.nome)||(lps.length>=3&&nEst===2&&l.estilo&&cont[l.estilo]===1); (eixo?out.eixos:out.limites).push(l.c); });
+    Array.prototype.forEach.call(doc.getElementsByTagNameNS('*','Polygon'),function(pg){ var ext=pg.getElementsByTagNameNS('*','outerBoundaryIs')[0], c=ext&&ext.getElementsByTagNameNS('*','coordinates')[0]; if(c){var pts=C(c.textContent); if(pts.length>=3) out.limites.push(pts);} });
+    return out;
+  }
+  async function d2fetchFixo(bb){
+    var lista=await d2fetchJSON('/api/mapa/fixos'); if(!Array.isArray(lista)) return {limites:[],eixos:[]};
+    var agg={limites:[],eixos:[]};
+    function inBB(l){ return l.some(function(p){ return p[0]>=bb.w&&p[0]<=bb.e&&p[1]>=bb.s&&p[1]<=bb.n; }); }
+    for(var i=0;i<lista.length;i++){ try{ var t=await (await fetch('/api/mapa/fixo/'+encodeURIComponent(lista[i].arquivo))).text(); var p=d2fixoParse(t);
+      p.limites.forEach(function(l){ if(inBB(l)) agg.limites.push(l); }); p.eixos.forEach(function(l){ if(inBB(l)) agg.eixos.push(l); });
+    }catch(e){} }
+    return agg;
   }
   // web mercator (px do mundo no zoom z)
   function d2lonpx(lon,z){ return (lon+180)/360*256*Math.pow(2,z); }
@@ -24984,6 +25022,9 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
         (g.polys||[]).forEach(function(r){ s+='<polyline points="'+polyStr(r)+'" fill="none" stroke="'+e.cor+'" stroke-width="'+(e.peso||2)+'"/>'; });
       } else if(e.tipo==='pt'){
         (g.pts||[]).forEach(function(p){ var q=PX(p[0],p[1]); s+='<rect x="'+(q[0]-3).toFixed(1)+'" y="'+(q[1]-3).toFixed(1)+'" width="6" height="6" fill="'+e.cor+'" stroke="#111" stroke-width="1"/>'; });
+      } else if(e.tipo==='faixa'){
+        (g.limites||[]).forEach(function(r){ s+='<polyline points="'+polyStr(r)+'" fill="none" stroke="'+e.cor+'" stroke-width="2" stroke-linecap="round"/>'; });
+        (g.eixos||[]).forEach(function(r){ s+='<polyline points="'+polyStr(r)+'" fill="none" stroke="#ff8c1a" stroke-width="1.8"/>'; s+='<polyline points="'+polyStr(r)+'" fill="none" stroke="#ff8c1a" stroke-width="4" stroke-dasharray="1.5 7" opacity=".9"/>'; });
       }
     });
     s+='</g>';
@@ -25003,13 +25044,15 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     s+='<polygon points="'+D2MAP_PE.map(function(p){return pex(p[0]).toFixed(1)+','+pey(p[1]).toFixed(1);}).join(' ')+'" fill="#eaf1f6" stroke="#1f4e79" stroke-width="1"/>';
     var cxx=(bb.w+bb.e)/2, cyy=(bb.s+bb.n)/2;
     s+='<circle cx="'+pex(cxx).toFixed(1)+'" cy="'+pey(cyy).toFixed(1)+'" r="4" fill="#d81f26" stroke="#fff" stroke-width="1.2"/>';
-    // ESCALA GRÁFICA — canto inferior direito, dentro do mapa
-    var mppx=(e1-e0)/mapW, segM=pas, segPx=segM/mppx, barW=4*segPx;
-    var sbx=mapR-16-barW, sby=mapB-24, bx=sbx-8, bw=barW+16;
-    s+='<rect x="'+bx.toFixed(1)+'" y="'+(sby-20)+'" width="'+bw.toFixed(1)+'" height="42" rx="4" fill="#ffffff" opacity=".82"/>';
-    s+='<text x="'+(sbx+barW/2).toFixed(1)+'" y="'+(sby-9)+'" text-anchor="middle" font-family="Arial" font-size="8.5" font-weight="700" fill="#16202b" letter-spacing=".5">ESCALA</text>';
-    for(var i=0;i<4;i++){ s+='<rect x="'+(sbx+i*segPx).toFixed(1)+'" y="'+sby+'" width="'+segPx.toFixed(1)+'" height="7" fill="'+(i%2?'#fff':'#16202b')+'" stroke="#16202b" stroke-width=".8"/>'; s+='<text x="'+(sbx+i*segPx).toFixed(1)+'" y="'+(sby+18)+'" text-anchor="middle" font-family="monospace" font-size="8.5" fill="#16202b">'+(i*segM)+'</text>'; }
-    s+='<text x="'+(sbx+4*segPx).toFixed(1)+'" y="'+(sby+18)+'" text-anchor="middle" font-family="monospace" font-size="8.5" fill="#16202b">'+(4*segM)+' m</text>';
+    // ESCALA GRÁFICA — canto inferior direito, dentro do mapa (compacta)
+    var mppx=(e1-e0)/mapW;
+    var niceM=[10,20,25,50,100,200,250,500,1000,2000,5000];
+    var segM=niceM.find(function(m){ return m/mppx>=30 && m/mppx<=58; }) || (function(){ var b=niceM[0]; niceM.forEach(function(m){ if(Math.abs(m/mppx-44)<Math.abs(b/mppx-44)) b=m; }); return b; })();
+    var segPx=segM/mppx, nSeg=Math.max(2,Math.min(4,Math.floor(150/segPx))), barW=nSeg*segPx;
+    var sbx=mapR-14-barW, sby=mapB-20, bx=sbx-7, bw=barW+14;
+    s+='<rect x="'+bx.toFixed(1)+'" y="'+(sby-15)+'" width="'+bw.toFixed(1)+'" height="33" rx="3" fill="#ffffff" opacity=".82"/>';
+    for(var i=0;i<nSeg;i++){ s+='<rect x="'+(sbx+i*segPx).toFixed(1)+'" y="'+sby+'" width="'+segPx.toFixed(1)+'" height="5" fill="'+(i%2?'#fff':'#16202b')+'" stroke="#16202b" stroke-width=".7"/>'; s+='<text x="'+(sbx+i*segPx).toFixed(1)+'" y="'+(sby+14)+'" text-anchor="middle" font-family="monospace" font-size="7.5" fill="#16202b">'+(i*segM)+'</text>'; }
+    s+='<text x="'+(sbx+nSeg*segPx).toFixed(1)+'" y="'+(sby+14)+'" text-anchor="middle" font-family="monospace" font-size="7.5" fill="#16202b">'+(nSeg*segM)+' m</text>';
     // ===== CARIMBO INFERIOR (fora do mapa) =====
     var cy0=mapB+14;   // 992
     s+='<line x1="'+mapL+'" y1="'+cy0+'" x2="'+mapR+'" y2="'+cy0+'" stroke="#22303d" stroke-width="1"/>';
@@ -25017,15 +25060,20 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     function kv(x,k,lines,y){ var r='<text x="'+x+'" y="'+y+'" font-family="Arial" font-size="9.5" font-weight="700" fill="#4a5a6a" letter-spacing=".6">'+d2esc(k)+'</text>'; (lines||[]).forEach(function(ln,i){ r+='<text x="'+x+'" y="'+(y+19+i*17)+'" font-family="Arial" font-size="12.5" font-weight="600" fill="#16202b">'+d2esc(ln)+'</text>'; }); return r; }
     s+=kv(mapL,'PROCESSO ADMINISTRATIVO',(o.proc||'').split('\n').slice(0,2),cy0+26);
     s+=kv(mapL,'DADOS DA FERROVIA',(o.ferrovia||'').split('\n').slice(0,2),cy0+92);
-    // DIREITA: legenda
-    var lx=470, lw=mapR-lx;
-    s+='<rect x="'+lx+'" y="'+(cy0+8)+'" width="'+lw+'" height="182" fill="#f7f9fb" stroke="#c3ccd4" stroke-width=".8"/>';
-    s+='<text x="'+(lx+16)+'" y="'+(cy0+26)+'" font-family="Arial" font-size="9.5" font-weight="700" fill="#4a5a6a" letter-spacing=".6">LEGENDA</text>';
-    (o.legend||[]).forEach(function(it,i){ var row=cy0+46+i*21, sw=lx+16;
-      if(it.tipo==='line'||it.tipo==='faixa'||it.tipo==='drenagem') s+='<line x1="'+sw+'" y1="'+(row-3)+'" x2="'+(sw+26)+'" y2="'+(row-3)+'" stroke="'+it.cor+'" stroke-width="3"'+(it.dash?' stroke-dasharray="'+it.dash+'"':'')+'/>';
-      else if(it.tipo==='pt') s+='<rect x="'+sw+'" y="'+(row-10)+'" width="12" height="12" fill="'+it.cor+'" stroke="#111"/>';
-      else s+='<rect x="'+sw+'" y="'+(row-11)+'" width="26" height="14" fill="'+it.cor+'" fill-opacity=".45" stroke="'+it.cor+'" stroke-width="1.4"'+(it.dash?' stroke-dasharray="'+it.dash+'"':'')+'/>';
-      s+='<text x="'+(sw+36)+'" y="'+row+'" font-family="Arial" font-size="11" font-weight="600" fill="#16202b">'+d2esc(it.nome)+'</text>';
+    // DIREITA: legenda (quebra em colunas quando houver muitos itens; nada sai do quadro)
+    var lx=470, lw=mapR-lx, items=o.legend||[];
+    var nCols = items.length>6 ? 2 : 1, rowsPerCol = Math.ceil(items.length/nCols) || 1;
+    var colW=(lw-24)/nCols, lrow=18, lh=Math.max(60, 34+rowsPerCol*lrow);
+    s+='<rect x="'+lx+'" y="'+(cy0+8)+'" width="'+lw+'" height="'+lh+'" fill="#f7f9fb" stroke="#c3ccd4" stroke-width=".8"/>';
+    s+='<text x="'+(lx+14)+'" y="'+(cy0+26)+'" font-family="Arial" font-size="9.5" font-weight="700" fill="#4a5a6a" letter-spacing=".6">LEGENDA</text>';
+    var lfs = nCols>1 ? 10 : 11, sww = nCols>1 ? 20 : 26;
+    items.forEach(function(it,i){
+      var col=Math.floor(i/rowsPerCol), rowi=i%rowsPerCol;
+      var sw=lx+14+col*colW, row=cy0+44+rowi*lrow;
+      if(it.tipo==='line'||it.tipo==='faixa'||it.tipo==='drenagem') s+='<line x1="'+sw+'" y1="'+(row-3)+'" x2="'+(sw+sww)+'" y2="'+(row-3)+'" stroke="'+it.cor+'" stroke-width="3"'+(it.dash?' stroke-dasharray="'+it.dash+'"':'')+'/>';
+      else if(it.tipo==='pt') s+='<rect x="'+sw+'" y="'+(row-9)+'" width="11" height="11" fill="'+it.cor+'" stroke="#111"/>';
+      else s+='<rect x="'+sw+'" y="'+(row-10)+'" width="'+sww+'" height="13" fill="'+it.cor+'" fill-opacity=".45" stroke="'+it.cor+'" stroke-width="1.4"'+(it.dash?' stroke-dasharray="'+it.dash+'"':'')+'/>';
+      s+='<text x="'+(sw+sww+8)+'" y="'+row+'" font-family="Arial" font-size="'+lfs+'" font-weight="600" fill="#16202b">'+d2esc(it.nome)+'</text>';
     });
     // georref discreta (rodapé da figura)
     s+='<text x="'+mapL+'" y="1190" font-family="monospace" font-size="9" fill="#8a97a3">SIRGAS 2000 · UTM '+zone+(south?'S':'N')+' · Universal Transversa de Mercator</text>';
@@ -25076,29 +25124,46 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     function st(m){ var e=document.getElementById('d2map_status'); if(e) e.textContent=m||''; }
     document.getElementById('d2map_ger').onclick=async function(){
       D2MAP_TXT.proc=document.getElementById('d2map_proc').value; D2MAP_TXT.ferrovia=document.getElementById('d2map_ferr').value;
-      st('Lendo camadas…');
-      var geoms=[], camadas=[], legend=[], faltando=[];
-      regra.cams.forEach(function(cam){
-        var est=D2MAP_EST[cam]||{};
-        if(cam==='faixa'||cam==='sigef'||cam==='car'||cam==='drenagem'||cam==='rl'||cam==='appcar'){ faltando.push(est.nome||cam); return; }
-        var kml=d2mapFonteKML(cam);
-        var g=d2mapKML(kml);
-        if((g.polys.length+g.lines.length+g.pts.length)>0){ geoms.push(g); camadas.push({cam:cam,geom:g}); legend.push({nome:est.nome,tipo:est.tipo,cor:est.cor,dash:est.dash}); }
+      st('Lendo camadas do imóvel…');
+      var need={}; (regra.cams||[]).forEach(function(c){ need[c]=true; });
+      var geom={};   // cam -> geometria
+      // ---- camadas client-side (KML) ----
+      ['area','desap','vias','appest'].forEach(function(cam){ if(!need[cam]) return; var g=d2mapKML(d2mapFonteKML(cam)); if(g.polys.length+g.lines.length+g.pts.length) geom[cam]=g; });
+      var gb=d2mapKML(d2mapFonteKML('benf')); if(gb.pts.length||gb.polys.length) geom.benf=gb;
+      // bbox a partir das camadas do imóvel (base para buscar as do servidor)
+      var baseGeoms=[]; ['area','desap','vias','appest','benf'].forEach(function(c){ if(geom[c]) baseGeoms.push(geom[c]); });
+      var bb=d2bboxDe(baseGeoms);
+      if(!bb){ st('Insira ao menos o KML de "Área total do imóvel" (ou da área a desapropriar) em Técnica › Camadas do imóvel.'); return; }
+      // polígono de referência p/ interseção (cadastro = área total, senão desapropriada)
+      var refPolys=(geom.area&&geom.area.polys.length)?geom.area.polys:((geom.desap&&geom.desap.polys)||null);
+      var falhou=[];
+      // ---- camadas do servidor ----
+      if(need.faixa){ st('Buscando faixa de domínio / eixo…'); try{ var fx=await d2fetchFixo(bb); if(fx.limites.length||fx.eixos.length) geom.faixa=fx; }catch(e){ falhou.push('faixa/eixo'); } }
+      if(need.sigef){ st('Buscando SIGEF…'); try{ var uf=d2uf(); var acc={polys:[],lines:[],pts:[]};
+        var temas=['certificada_sigef_particular_'+uf,'certificada_sigef_publico_'+uf];
+        for(var ti=0;ti<temas.length;ti++){ var gj=await d2fetchJSON('/api/mapa/sigef?tema='+encodeURIComponent(temas[ti])+'&bbox='+d2bboxStr(bb)); var gg=d2geojson(gj,refPolys); acc.polys=acc.polys.concat(gg.polys); }
+        if(acc.polys.length) geom.sigef=acc;
+      }catch(e){ falhou.push('SIGEF'); } }
+      if(need.car){ st('Buscando CAR…'); try{ var gjc=await d2fetchJSON('/api/mapa/car?uf='+d2uf()+'&bbox='+d2bboxStr(bb)); var gc=d2geojson(gjc,refPolys); if(gc.polys.length) geom.car=gc; }catch(e){ falhou.push('CAR'); } }
+      if(need.rl){ st('Buscando Reserva Legal (CAR)…'); try{ var gjr=await d2fetchJSON('/api/mapa/car-rl?bbox='+d2bboxStr(bb)); var gr=d2geojson(gjr,null); if(gr.polys.length) geom.rl=gr; }catch(e){ falhou.push('Reserva Legal'); } }
+      if(need.appcar){ st('Buscando APP (CAR)…'); try{ var gja=await d2fetchJSON('/api/mapa/car-app?bbox='+d2bboxStr(bb)); var ga=d2geojson(gja,null); if(ga.polys.length) geom.appcar=ga; }catch(e){ falhou.push('APP (CAR)'); } }
+      if(need.drenagem) falhou.push('trecho de drenagem (ANA — WMS, próxima etapa)');
+      // ---- ordem de desenho (contexto embaixo, destaques em cima) ----
+      var ORDER=['sigef','car','rl','appcar','appest','faixa','area','vias','desap','benf'];
+      var camadas=[], legend=[];
+      ORDER.forEach(function(cam){ if(!geom[cam]) return; var est=D2MAP_EST[cam]||{}; camadas.push({cam:cam,geom:geom[cam]});
+        if(cam==='faixa'){ legend.push({nome:'Faixa de domínio',tipo:'line',cor:est.cor}); if(geom.faixa.eixos&&geom.faixa.eixos.length) legend.push({nome:'Eixo da ferrovia',tipo:'line',cor:'#ff8c1a'}); }
+        else legend.push({nome:est.nome,tipo:est.tipo,cor:est.cor,dash:est.dash});
       });
-      // benfeitorias sempre que houver
-      var gb=d2mapKML(d2mapFonteKML('benf')); if(gb.pts.length||gb.polys.length){ geoms.push(gb); camadas.push({cam:'benf',geom:gb}); legend.push({nome:D2MAP_EST.benf.nome,tipo:'pt',cor:D2MAP_EST.benf.cor}); }
-      var bb=d2bboxDe(geoms);
-      if(!bb){ st('Nenhum KML com geometria para este mapa. Insira ao menos "Área total do imóvel" em Técnica › Camadas do imóvel.'); return; }
       st('Baixando satélite (Esri)…');
       var sat; try{ sat=await d2satelite(bb); }catch(e){ st('Falha ao baixar o satélite: '+(e&&e.message||e)); return; }
       st('Compondo o mapa…');
-      var logoE=await d2logo(window.__LOGO_ENPROL__), logoI=await d2logo(window.__LOGO_INFRA__);
-      var svg=d2mapSVG({ titulo:(meta[0]||'').toUpperCase(), sat:sat, bb:bb, camadas:camadas, legend:legend, proc:D2MAP_TXT.proc, ferrovia:D2MAP_TXT.ferrovia, logoE:logoE, logoI:logoI });
+      var svg=d2mapSVG({ sat:sat, bb:bb, camadas:camadas, legend:legend, proc:D2MAP_TXT.proc, ferrovia:D2MAP_TXT.ferrovia });
       var png; try{ png=await d2svg2png(svg,2); }catch(e){ st('Falha ao rasterizar: '+(e&&e.message||e)); return; }
       figsAuto[fid]=png;
       var prev=document.getElementById('d2map_prev'); if(prev) prev.innerHTML='<img src="'+png+'" style="width:100%;border:1px solid #c3ccd4;border-radius:8px;">';
       document.getElementById('d2map_usar').style.display='';
-      st(faltando.length?('Prévia pronta. Camadas ainda não incluídas nesta 1ª versão: '+faltando.join(', ')+'.'):'Prévia pronta.');
+      st(falhou.length?('Prévia pronta. Não incluído: '+falhou.join(', ')+'.'):'Prévia pronta.');
     };
     document.getElementById('d2map_usar').onclick=function(){
       if(!figsAuto[fid]) return;
