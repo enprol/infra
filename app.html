@@ -25050,7 +25050,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
   // monta o SVG do mapa (figura compacta: entra DENTRO de uma página que já tem
   // cabeçalho/rodapé/logos/texto — por isso sem título, sem logos e sem moldura de página)
   function d2mapSVG(o){
-    var mapL=18,mapT=30,mapR=882,mapB=980,mapW=mapR-mapL,mapH=mapB-mapT;
+    var mapL=18,mapT=30,mapR=882,mapB=770,mapW=mapR-mapL,mapH=mapB-mapT;
     var base=o.base, bb=o.bb;
     function PX(lon,lat){
       if(base.mode==='orto'){ var u=d2utm(lon,lat); return [mapL+(u.E-base.e0)/(base.e1-base.e0)*mapW, mapT+(base.n1-u.N)/(base.n1-base.n0)*mapH]; }
@@ -25058,8 +25058,8 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     }
     // texto com halo escuro (legível sobre o satélite)
     function TH(x,y,txt,opt){ opt=opt||{}; var attr='x="'+x+'" y="'+y+'" text-anchor="'+(opt.anchor||'middle')+'" font-family="'+(opt.mono?'monospace':'Arial,sans-serif')+'" font-size="'+(opt.size||9)+'" font-weight="'+(opt.weight||'400')+'"'+(opt.ls?' letter-spacing="'+opt.ls+'"':''); if(opt.rot!=null) attr+=' transform="rotate('+opt.rot+' '+x+' '+y+')"'; return '<text '+attr+' fill="'+(opt.fill||'#fff')+'" stroke="#0d1620" stroke-width="'+(opt.halo||2.6)+'" stroke-linejoin="round" paint-order="stroke">'+d2esc(txt)+'</text>'; }
-    var s='<svg id="svg" viewBox="0 0 900 1150" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">';
-    s+='<rect x="0" y="0" width="900" height="1150" fill="#fff"/>';
+    var s='<svg id="svg" viewBox="0 0 900 940" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">';
+    s+='<rect x="0" y="0" width="900" height="940" fill="#fff"/>';
     s+='<clipPath id="mc"><rect x="'+mapL+'" y="'+mapT+'" width="'+mapW+'" height="'+mapH+'"/></clipPath>';
     s+='<rect x="'+mapL+'" y="'+mapT+'" width="'+mapW+'" height="'+mapH+'" fill="#e9edf0"/>';
     // satélite Esri ao fundo (sempre); ortofoto à frente com o branco transparente
@@ -25074,16 +25074,16 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     for(var E=Math.ceil(e0/pas)*pas; E<=e1; E+=pas){
       var pA=PX.apply(null,d2utmInv(E,nn0,zone,south)), pB=PX.apply(null,d2utmInv(E,nn1,zone,south));
       gl+='<line x1="'+pA[0].toFixed(1)+'" y1="'+pA[1].toFixed(1)+'" x2="'+pB[0].toFixed(1)+'" y2="'+pB[1].toFixed(1)+'" stroke="rgba(255,255,255,.55)" stroke-width=".7"/>';
-      // rótulos DENTRO do mapa (topo e base), horizontais
-      gt+=TH(pB[0],mapT+16,Math.round(E),{size:11,weight:'700'});
-      gt+=TH(pA[0],mapB-8,Math.round(E),{size:11,weight:'700'});
+      // rótulos DENTRO do mapa (topo e base), horizontais — só se não estourarem as laterais
+      if(pB[0]>mapL+28 && pB[0]<mapR-28) gt+=TH(pB[0],mapT+16,Math.round(E),{size:11,weight:'700'});
+      if(pA[0]>mapL+28 && pA[0]<mapR-28) gt+=TH(pA[0],mapB-8,Math.round(E),{size:11,weight:'700'});
     }
     for(var Nn=Math.ceil(nn0/pas)*pas; Nn<=nn1; Nn+=pas){
       var qA=PX.apply(null,d2utmInv(e0,Nn,zone,south)), qB=PX.apply(null,d2utmInv(e1,Nn,zone,south));
       gl+='<line x1="'+qA[0].toFixed(1)+'" y1="'+qA[1].toFixed(1)+'" x2="'+qB[0].toFixed(1)+'" y2="'+qB[1].toFixed(1)+'" stroke="rgba(255,255,255,.55)" stroke-width=".7"/>';
-      // rótulos DENTRO nas margens esquerda e direita, ROTACIONADOS na vertical
-      gt+=TH(mapL+15,qA[1],Math.round(Nn),{size:11,weight:'700',rot:-90});
-      gt+=TH(mapR-15,qB[1],Math.round(Nn),{size:11,weight:'700',rot:-90});
+      // rótulos DENTRO nas margens esquerda e direita, ROTACIONADOS — só se não estourarem topo/base
+      if(qA[1]>mapT+30 && qA[1]<mapB-30) gt+=TH(mapL+15,qA[1],Math.round(Nn),{size:11,weight:'700',rot:-90});
+      if(qB[1]>mapT+30 && qB[1]<mapB-30) gt+=TH(mapR-15,qB[1],Math.round(Nn),{size:11,weight:'700',rot:-90});
     }
     s+=gl;
     // camadas
@@ -25183,7 +25183,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
   function d2svg2png(svg,scale){
     return new Promise(function(res,rej){
       var img=new Image();
-      img.onload=function(){ var c=document.createElement('canvas'); c.width=900*scale; c.height=1150*scale; var ctx=c.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height); ctx.drawImage(img,0,0,c.width,c.height); try{ res(c.toDataURL('image/jpeg',0.9)); }catch(e){ rej(e); } };
+      img.onload=function(){ var c=document.createElement('canvas'); c.width=900*scale; c.height=940*scale; var ctx=c.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height); ctx.drawImage(img,0,0,c.width,c.height); try{ res(c.toDataURL('image/jpeg',0.9)); }catch(e){ rej(e); } };
       img.onerror=function(){ rej(new Error('svg')); };
       img.src='data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(svg)));
     });
@@ -25194,7 +25194,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     if(!ok) return null;
     // padding 14% e força aspecto do mapa (772x662)
     var padx=(e-w)*0.14||0.002, pady=(n-s)*0.14||0.002; w-=padx;e+=padx;s-=pady;n+=pady;
-    var arMap=864/950, cx=(w+e)/2, cy=(s+n)/2, ww=e-w, hh=n-s;
+    var arMap=864/740, cx=(w+e)/2, cy=(s+n)/2, ww=e-w, hh=n-s;
     var arGeo=ww/(hh*Math.cos(cy*Math.PI/180));
     if(arGeo<arMap){ ww=hh*Math.cos(cy*Math.PI/180)*arMap; w=cx-ww/2; e=cx+ww/2; } else { hh=ww/Math.cos(cy*Math.PI/180)/arMap; s=cy-hh/2; n=cy+hh/2; }
     return {w:w,s:s,e:e,n:n};
