@@ -13500,7 +13500,7 @@ function AV_gerarDescSituacao(){
   var escH = function(t){ return String(t == null ? '' : t).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); };
 
   var aberto = false, mapa = null;
-  var rFix = null, rCad = null, grupoCad = null, fixoLayers = {};
+  var rFix = null, rCad = null, rIncra = null, rCar = null, grupoCad = null, fixoLayers = {};
   var visCad = true, visFixo = {};
   var cache = {};
   var fixosLista = null, fixosErro = null;
@@ -13964,11 +13964,15 @@ function AV_gerarDescSituacao(){
       maxZoom:21, minZoom:4, preferCanvas:true });
     mapa.attributionControl.setPrefix('<a href="https://leafletjs.com" target="_blank" rel="noopener">Leaflet</a>');
     window.__pgmMapa = mapa;   // gancho para testes/diagnóstico
-    [['demPane',250,true],['curvasPane',270,true],['pubPane',285,true],['carPane',295,false],['incraPane',300,false],['projPoli',320,true],['projLin',330,true],['projEst',340,true],['projTxt',350,true],['fixosPane',390,true],['cadPane',410,false]].forEach(function(d){
+    [['demPane',250,true],['curvasPane',270,true],['pubPane',285,true],['projPoli',320,true],['projLin',330,true],['projEst',340,true],['projTxt',350,true],['fixosPane',390,true],['cadPane',410,false],['carPane',415,false],['incraPane',420,false]].forEach(function(d){
       var pn = mapa.createPane(d[0]); pn.style.zIndex = d[1]; if(d[2]) pn.style.pointerEvents = 'none';
     });
     rFix = L.canvas({pane:'fixosPane', padding:.4});
     rCad = L.canvas({pane:'cadPane', padding:.4});
+    // SIGEF/CAR: SVG acima do cadPane para que o clique atinja as feições
+    // (canvas cobre toda a viewport e engoliria os cliques). SVG só captura na área pintada.
+    rIncra = L.svg({pane:'incraPane', padding:.4});
+    rCar   = L.svg({pane:'carPane', padding:.4});
     L.control.scale({metric:true, imperial:false, position:'bottomright', maxWidth:110}).addTo(mapa);
     L.control.zoom({position:'bottomright', zoomInTitle:'Aproximar', zoomOutTitle:'Afastar'}).addTo(mapa);
     grupoCad = L.featureGroup().addTo(mapa);
@@ -14346,7 +14350,7 @@ function AV_gerarDescSituacao(){
         if(!visIncra[d.t]) return;
         if(incraLayers[i]) mapa.removeLayer(incraLayers[i]);
         incraLayers[i] = L.geoJSON(gj, {
-          pane:'incraPane',
+          pane:'incraPane', renderer:rIncra,
           style: function(){ return { color:d.cor, weight:1.8, fillColor:d.fill, fillOpacity:0.15 * incraOp, opacity:incraOp }; },
           onEachFeature: function(f, layer){
             var p = f.properties || {};
@@ -14455,7 +14459,7 @@ function AV_gerarDescSituacao(){
         if(tok !== tokRef.v) return;
         if(oldLayer.ref) mapa.removeLayer(oldLayer.ref);
         oldLayer.ref = L.geoJSON(gj, {
-          pane:'carPane',
+          pane:'carPane', renderer:rCar,
           style: function(){ return style; },
           onEachFeature: function(f, layer){
             var t = tooltip(f); if(!t) return;
