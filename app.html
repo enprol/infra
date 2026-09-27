@@ -13510,6 +13510,7 @@ function AV_gerarDescSituacao(){
   var selKey = null, hoverKey = null;
   var incraLayers = {}, visIncra = {}, incraOp = .5, incraAberto = false, incraErros = 0, _incraTmr = {};
   var projGrupos = null, projErro = false, projDados = {}, projLayers = {}, visProj = {}, projAberto = {}, projRend = {}, ultArgsCamadas = null;
+  var forcarEstaca = {};   // camadas de estaca/texto forçadas visíveis por acompanharem um eixo (faixa de domínio) ligado
   var pubLayers = {}, visPub = {}, pubAberto = false;
   var visCar = false, _carTmr = 0;
   var visCarRl = false, _carRlTmr = 0;
@@ -14132,6 +14133,7 @@ function AV_gerarDescSituacao(){
     });
 
     sincronizarProj(spsLista);
+    sincronizarEstacasEixo();   // estaqueamento acompanha o eixo da faixa de domínio
     painelCamadas(usados, semKml, comErro, spsLista, fixosPorSps);
 
     // enquadra nos cadastros; se nenhum tem KML, na faixa de domínio
@@ -14173,7 +14175,7 @@ function AV_gerarDescSituacao(){
     Array.prototype.forEach.call(host.querySelectorAll('input[data-cam]'), function(cb){
       cb.addEventListener('change', function(){
         if(cb.dataset.cam === 'cad'){ visCad = cb.checked; if(visCad) grupoCad.addTo(mapa); else mapa.removeLayer(grupoCad); }
-        else { var q = cb.dataset.sps; visFixo[q] = cb.checked; var l = fixoLayers[q]; if(l){ if(cb.checked) l.addTo(mapa); else mapa.removeLayer(l); } }
+        else { var q = cb.dataset.sps; visFixo[q] = cb.checked; var l = fixoLayers[q]; if(l){ if(cb.checked) l.addTo(mapa); else mapa.removeLayer(l); } sincronizarEstacasEixo(); }
       });
     });
   }
@@ -14185,7 +14187,7 @@ function AV_gerarDescSituacao(){
     fetch('/api/mapa/projetos', {cache:'no-cache'}).then(function(r){ if(!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
       .then(function(l){ projGrupos = Array.isArray(l) ? l : []; })
       .catch(function(){ projErro = true; projGrupos = []; })
-      .then(function(){ if(aberto && ultArgsCamadas) painelCamadas.apply(null, ultArgsCamadas); });
+      .then(function(){ if(aberto && ultArgsCamadas) painelCamadas.apply(null, ultArgsCamadas); sincronizarEstacasEixo(); });
   }
   var _swap = function(a){ return typeof a[0] === 'number' ? [a[1], a[0]] : a.map(_swap); };   // [lon,lat] -> [lat,lon]
   function rendProj(pane){ return projRend[pane] || (projRend[pane] = L.canvas({pane:pane, padding:.4})); }
@@ -14257,7 +14259,40 @@ function AV_gerarDescSituacao(){
     return [];
   }
   function chaveProj(g, c){ return g.pasta + '|' + c.id; }
-  function projVisivel(key){ var pl = projLayers[key]; return !!(pl && visProj[key] && pl.spsOk); }
+  function projVisivel(key){ var pl = projLayers[key]; return !!(pl && (visProj[key] || forcarEstaca[key]) && pl.spsOk); }
+  // carrega uma camada de projeto (estaca/texto) SEM alterar visProj — usada para
+  // acoplar o estaqueamento ao eixo da faixa de domínio (KML fixo).
+  async function carregarEstacaProj(g, c){
+    var key = chaveProj(g, c);
+    if(projLayers[key]) { projLayers[key].spsOk = true; return; }
+    try{
+      var k2 = g.pasta + '|' + c.arquivo;
+      if(!projDados[k2]){
+        var r = await fetch('/api/mapa/projeto/' + encodeURIComponent(g.pasta) + '/' + encodeURIComponent(c.arquivo));
+        if(!r.ok) throw new Error('HTTP ' + r.status);
+        projDados[k2] = await r.json();
+      }
+      projLayers[key] = { sps: g.sps, spsOk: true, partes: criarCamadaProj(c, projDados[k2]) };
+    }catch(e){ /* silencioso: sem estaqueamento é aceitável */ }
+  }
+  // sincroniza o estaqueamento (traços + números) para acompanhar o eixo:
+  // sempre que a "Faixa de domínio" (que contém o eixo) de um SPS estiver visível,
+  // as camadas de estaca/texto daquele SPS ficam visíveis mesmo sem o grupo "Projeto revisado".
+  function sincronizarEstacasEixo(){
+    if(!Array.isArray(projGrupos) || !mapa) return;
+    var pend = [];
+    projGrupos.forEach(function(g){
+      var q = g.sps;
+      var eixoOn = (visFixo[q] !== false) && fixoLayers[q] && fixoLayers[q]._temEixo && mapa.hasLayer(fixoLayers[q]);
+      (g.camadas || []).forEach(function(c){
+        if(c.tipo !== 'estacas' && c.tipo !== 'texto') return;
+        var key = chaveProj(g, c);
+        forcarEstaca[key] = !!eixoOn;
+        if(eixoOn && !projLayers[key]) pend.push(carregarEstacaProj(g, c));
+      });
+    });
+    if(pend.length) Promise.all(pend).then(aplicarZoomProj); else aplicarZoomProj();
+  }
   function aplicarZoomProj(){
     if(!mapa) return;
     Object.keys(projLayers).forEach(function(k){
@@ -16065,7 +16100,7 @@ function AV_gerarDescSituacao(){
   /* ---- desenho do projeto revisado (camadas já estilizadas pelo servidor/manifest) ---- */
   function desenharProjeto(P, T, g, lim){
     if(!g) return;
-    var ordem = ["ferrovia","rodovia","corte","aterro","fd-add-hatch","projeto","fd-add","estacas"];
+    var ordem = ["ferrovia","rodovia","corte","aterro","fd-add-hatch","projeto","fd-add"];  // estacas saíram: agora acompanham o eixo (ver desenharEstacas)
     function dentro(pt){ return pt[0] >= lim.lo0 && pt[0] <= lim.lo1 && pt[1] >= lim.la0 && pt[1] <= lim.la1; }
     function mm(pt){ var u = utm(pt[0], pt[1], G.fuso); return [T.x(u.E), T.y(u.N)]; }
     ordem.forEach(function(id){
@@ -16085,13 +16120,24 @@ function AV_gerarDescSituacao(){
             P.poli(pol, { cor:e.cor, peso:.12, fill:(e.preenchimento === "quadriculado" ? (e.corPreench || "#ff8c1a") : e.preenchimento), opacFill:(e.preenchimento === "quadriculado" ? .22 : (e.opPreench == null ? .5 : e.opPreench)) });
           }
         });
-      } else if(d.tipo === "estacas"){
-        [["a", e.a || {}], ["b", e.b || {}]].forEach(function(par){
-          (d[par[0]] || []).forEach(function(l){ if(!l.some(dentro)) return; P.poli(l.map(mm), { cor:par[1].cor || "#000", peso:(par[0] === "a" ? .35 : .15), fechar:false }); });
-        });
       }
     });
-    // números das estacas (100 em 100 m), pequenos e girados como no projeto
+  }
+  /* estaqueamento (traços de 100/20 m + números): desacoplado do toggle "projeto"
+     para acompanhar o EIXO. Chamado quando "Projeto revisado" OU "Faixa e eixo"
+     estiver ligado, de modo que os números nunca andem separados do eixo. */
+  function desenharEstacas(P, T, g, lim){
+    if(!g) return;
+    function dentro(pt){ return pt[0] >= lim.lo0 && pt[0] <= lim.lo1 && pt[1] >= lim.la0 && pt[1] <= lim.la1; }
+    function mm(pt){ var u = utm(pt[0], pt[1], G.fuso); return [T.x(u.E), T.y(u.N)]; }
+    var ce = (g.camadas || []).filter(function(x){ return x.tipo === "estacas"; })[0];
+    var de = ce && PROJ.dados[g.pasta + "|" + ce.arquivo];
+    if(de){
+      var e = ce.estilo || {};
+      [["a", e.a || {}], ["b", e.b || {}]].forEach(function(par){
+        (de[par[0]] || []).forEach(function(l){ if(!l.some(dentro)) return; P.poli(l.map(mm), { cor:par[1].cor || "#000", peso:(par[0] === "a" ? .35 : .15), fechar:false }); });
+      });
+    }
     var ct = (g.camadas || []).filter(function(x){ return x.tipo === "texto"; })[0], dt = ct && PROJ.dados[g.pasta + "|" + ct.arquivo];
     if(dt && dt.t) dt.t.forEach(function(t){
       if(!dentro([t[0], t[1]])) return;
@@ -16350,6 +16396,8 @@ function AV_gerarDescSituacao(){
     if((op.satelite || op.ortofoto) && op.rasterSat) P.img({ el:op.rasterSatEl, url:op.rasterSat }, MAPA.x, MAPA.y, MAPA.w, MAPA.h);
     if(op.projeto && op.projGrupo) desenharProjeto(P, T, op.projGrupo, op.limGeo);
     if(op.fixo && op.fixoDados) desenharFixo(P, T, op.fixoDados);
+    // estaqueamento acompanha o eixo: aparece se "Projeto revisado" OU "Faixa e eixo" estiver ligado
+    if((op.projeto || op.fixo) && CTX.proj) desenharEstacas(P, T, CTX.proj, op.limGeo);
     if(op.extras) desenharExtras(P, T);
 
     // malha de coordenadas
