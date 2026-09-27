@@ -14350,8 +14350,12 @@ function AV_gerarDescSituacao(){
           style: function(){ return { color:d.cor, weight:1.8, fillColor:d.fill, fillOpacity:0.15 * incraOp, opacity:incraOp }; },
           onEachFeature: function(f, layer){
             var p = f.properties || {};
-            var tip = (p.nome_area || '') + (p.codigo_imovel ? '\n' + p.codigo_imovel : '');
-            if(tip) layer.bindTooltip(tip.trim(), { direction:'center', className:'pgm-car-label', sticky:true, permanent:false });
+            var rows = [];
+            if(p.nome_area) rows.push('<b>' + escH(p.nome_area) + '</b>');
+            if(p.status) rows.push('Status: ' + escH(p.status));
+            if(p.registro_matricula) rows.push('Matrícula: ' + escH(p.registro_matricula));
+            if(p.parcela_codigo) rows.push('Parcela: ' + escH(p.parcela_codigo));
+            if(rows.length) layer.bindPopup(rows.join('<br>'), {maxWidth:320});
           }
         }).addTo(mapa);
       })
