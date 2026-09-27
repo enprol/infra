@@ -14351,7 +14351,7 @@ function AV_gerarDescSituacao(){
         if(incraLayers[i]) mapa.removeLayer(incraLayers[i]);
         incraLayers[i] = L.geoJSON(gj, {
           pane:'incraPane', renderer:rIncra,
-          style: function(){ return { color:d.cor, weight:1.8, fillColor:d.fill, fillOpacity:0.15 * incraOp, opacity:incraOp }; },
+          style: function(){ return _incraEstilo(d); },
           onEachFeature: function(f, layer){
             var p = f.properties || {};
             var rows = [];
@@ -14406,11 +14406,15 @@ function AV_gerarDescSituacao(){
       + '<div class="pgm-incra-nota">Aparecem a partir do zoom ' + INCRA_ZOOM_MIN + '. Fonte: acervofundiario.incra.gov.br</div></details>';
     return h;
   }
+  // contorno sólido + preenchimento translúcido; o slider (incraOp) controla a intensidade
+  function _incraEstilo(d){
+    return { color:d.cor, weight:2.2, opacity:Math.min(1, 0.55 + 0.45*incraOp),
+             fillColor:d.fill, fillOpacity:0.55 * incraOp };
+  }
   function _reestilizarIncra(){
     Object.keys(incraLayers).forEach(function(k){
       var l = incraLayers[k]; if(!l) return;
-      var d = INCRA_TEMAS[k];
-      l.setStyle({ color:d.cor, weight:1.8, fillColor:d.fill, fillOpacity:0.15 * incraOp, opacity:incraOp });
+      l.setStyle(_incraEstilo(INCRA_TEMAS[k]));
     });
   }
   function ligarEventosIncra(host){
@@ -14450,6 +14454,29 @@ function AV_gerarDescSituacao(){
     if(!v){ el = document.getElementById('fb_uf'); v = el ? (el.value || '').trim() : ''; }
     return (v || 'PE').substring(0,2).toUpperCase();
   }
+  // Ponto-em-polígono (ray casting). GeoJSON: coords [lng,lat]; latlng: {lat,lng}
+  function _ptInRing(x, y, ring){
+    var inside = false;
+    for(var i=0, j=ring.length-1; i<ring.length; j=i++){
+      var xi=ring[i][0], yi=ring[i][1], xj=ring[j][0], yj=ring[j][1];
+      if(((yi>y)!==(yj>y)) && (x < (xj-xi)*(y-yi)/(yj-yi)+xi)) inside = !inside;
+    }
+    return inside;
+  }
+  function _ptInPoly(x, y, rings){
+    if(!rings.length || !_ptInRing(x, y, rings[0])) return false;
+    for(var k=1; k<rings.length; k++){ if(_ptInRing(x, y, rings[k])) return false; } // buraco
+    return true;
+  }
+  function _ptInFeature(latlng, f){
+    var g = f.geometry; if(!g) return false;
+    var x = latlng.lng, y = latlng.lat;
+    if(g.type === 'Polygon') return _ptInPoly(x, y, g.coordinates);
+    if(g.type === 'MultiPolygon'){
+      for(var i=0; i<g.coordinates.length; i++){ if(_ptInPoly(x, y, g.coordinates[i])) return true; }
+    }
+    return false;
+  }
   function _carFetchGeoJSON(url, tokRef, oldLayer, style, tooltip, opts){
     opts = opts || {};
     var tok = ++tokRef.v;
@@ -14458,15 +14485,36 @@ function AV_gerarDescSituacao(){
       .then(function(gj){
         if(tok !== tokRef.v) return;
         if(oldLayer.ref) mapa.removeLayer(oldLayer.ref);
+        var feats = (gj && gj.features) || [];
         oldLayer.ref = L.geoJSON(gj, {
           pane:'carPane', renderer:rCar,
           style: function(){ return style; },
           onEachFeature: function(f, layer){
             var t = tooltip(f); if(!t) return;
+            // com opts.overlap o popup é montado no clique (lista todos os sobrepostos)
+            if(opts.overlap) return;
             if(opts.popup) layer.bindPopup(t);
             else layer.bindTooltip(t, { permanent:true, direction:'center', className:'pgm-car-label' });
           }
         }).addTo(mapa);
+        // clique único listando TODAS as feições sob o ponto (imóveis sobrepostos)
+        if(opts.overlap){
+          oldLayer.ref.on('click', function(e){
+            var codes = [];
+            feats.forEach(function(f){
+              if(_ptInFeature(e.latlng, f)){
+                var c = f.properties && f.properties[opts.overlap];
+                if(c) codes.push(c);
+              }
+            });
+            codes = codes.filter(function(v,i,a){ return a.indexOf(v) === i; });
+            if(!codes.length) return;
+            var html = codes.length === 1
+              ? escH(codes[0])
+              : '<b>' + codes.length + ' imóveis sobrepostos</b><br>' + codes.map(escH).join('<br>');
+            L.popup({ maxWidth:340 }).setLatLng(e.latlng).setContent(html).openOn(mapa);
+          });
+        }
       })
       .catch(function(e){ console.warn('CAR erro:', e); });
   }
@@ -14480,7 +14528,7 @@ function AV_gerarDescSituacao(){
     var uf = carUf().toLowerCase();
     _carFetchGeoJSON('/api/mapa/car?uf=' + uf + '&bbox=' + bbox, _carRef, _carLRef,
       { color:'#e6a800', weight:1.5, fillColor:'#ffe066', fillOpacity:0.25, opacity:0.5 },
-      function(f){ return (f.properties && f.properties.cod_imovel) || ''; }, {popup:true});
+      function(f){ return (f.properties && f.properties.cod_imovel) || ''; }, {overlap:'cod_imovel'});
   }
   function carregarCarRl(){
     if(mapa.getZoom() < CAR_ZOOM_MIN){ if(_carRlLRef.ref){ mapa.removeLayer(_carRlLRef.ref); _carRlLRef.ref=null; } return; }
