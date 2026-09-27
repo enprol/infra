@@ -3982,15 +3982,18 @@ igual DESP 3) */
       #panel-desp2-relatorio .d2-row .a-nome{ flex:1; }
       #panel-desp2-relatorio .d2-row .a-area{ flex:0 0 130px; }
       #panel-desp2-relatorio .d2-rm{ border:none; background:#f3d6d6; color:#a33; border-radius:6px; width:28px; height:28px; cursor:pointer; flex:0 0 auto; }
-      /* ---- 6.1: importar fotos de fontes (5.3 / Campo) ---- */
-      #panel-desp2-relatorio .d2-import{ border:1px dashed var(--borda-forte); border-radius:10px; padding:12px 14px; margin-bottom:14px; background:var(--suave); }
-      #panel-desp2-relatorio .d2-import-h{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:4px; }
-      #panel-desp2-relatorio .d2-import-h b{ font-size:13px; color:var(--azul-esc); }
-      #panel-desp2-relatorio .d2-import-fontes{ display:flex; flex-direction:column; gap:8px; }
-      #panel-desp2-relatorio .d2-fonte-item{ display:flex; align-items:center; gap:10px; background:#fff; border:1px solid var(--borda); border-radius:8px; padding:10px 14px; cursor:pointer; font-weight:400; }
-      #panel-desp2-relatorio .d2-fonte-item input[type=checkbox]{ width:16px; height:16px; cursor:pointer; accent-color:#1F6FC0; flex:0 0 auto; }
-      #panel-desp2-relatorio .d2-fonte-nome{ flex:1; font-size:13px; color:var(--texto); }
-      #panel-desp2-relatorio .d2-fonte-cnt{ font-size:12px; color:#6b7887; white-space:nowrap; }
+      /* ---- 6.1: seleção de fonte de fotografias (toggle buttons) ---- */
+      #panel-desp2-relatorio .d2-fontes-wrap{ border:1px dashed var(--borda-forte); border-radius:10px; padding:14px 16px; margin-bottom:14px; background:var(--suave); }
+      #panel-desp2-relatorio .d2-fontes-wrap > p{ margin:0 0 12px; font-size:12.5px; color:#4a5568; }
+      #panel-desp2-relatorio .d2-fontes{ display:flex; gap:10px; flex-wrap:wrap; }
+      #panel-desp2-relatorio .d2-fonte-btn{ flex:1; min-width:200px; border:2px solid var(--borda); border-radius:10px; background:#fff; padding:13px 16px 11px; text-align:left; cursor:pointer; font-family:inherit; transition:border-color .15s, background .15s; position:relative; }
+      #panel-desp2-relatorio .d2-fonte-btn:hover{ border-color:#b0bfcf; }
+      #panel-desp2-relatorio .d2-fonte-btn.ativo{ border-color:#1F6FC0; background:#eef4fd; }
+      #panel-desp2-relatorio .d2-fonte-btn .fn{ display:block; font-size:13px; font-weight:700; color:var(--texto); margin-bottom:3px; }
+      #panel-desp2-relatorio .d2-fonte-btn .fc{ display:block; font-size:12px; color:#6b7887; }
+      #panel-desp2-relatorio .d2-fonte-btn.ativo .fn{ color:#1F6FC0; }
+      #panel-desp2-relatorio .d2-fonte-btn .fck{ position:absolute; top:10px; right:12px; font-size:14px; color:#1F6FC0; opacity:0; transition:opacity .15s; }
+      #panel-desp2-relatorio .d2-fonte-btn.ativo .fck{ opacity:1; }
       /* ===== Reformulação do preenchimento — lista compacta, sem acordeão por tópico ===== */
       #panel-desp2-relatorio .d2t-list{ display:flex; flex-direction:column; }
       #panel-desp2-relatorio .d2t-row{ background:var(--card); border:1px solid var(--borda); border-radius:10px;
@@ -23865,35 +23868,36 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
   }
   window.D2_renderFotos=D2_renderFotos;
 
-  /* ---- 6.1: importar de 5.3 e/ou Campo para o Relatório Fotográfico (DESP-2) ---- */
+  /* ---- 6.1: seleção de fonte de fotografias (toggle buttons) ---- */
+  var D2_fontesSel={ '53':false, 'campo':false };
   function D2_renderImportarFotos(){
-    var h53=document.getElementById("d2_import_cnt_53");
-    var hCampo=document.getElementById("d2_import_cnt_campo");
     var fb=(window.FB_getFotos?window.FB_getFotos():[])||[];
     var fc=(window.CAMPO_getFotos?window.CAMPO_getFotos():[])||[];
-    if(h53) h53.textContent=fb.length?"("+fb.length+" foto"+(fb.length>1?"s":"")+")" :"(sem fotos)";
-    if(hCampo) hCampo.textContent=fc.length?"("+fc.length+" foto"+(fc.length>1?"s":"")+")" :"(sem fotos)";
+    var b53=document.getElementById("d2_btn_53"), bCampo=document.getElementById("d2_btn_campo");
+    var c53=document.getElementById("d2_cnt_53"), cCampo=document.getElementById("d2_cnt_campo");
+    if(c53) c53.textContent=fb.length?fb.length+" foto"+(fb.length>1?"s":""):"sem fotos";
+    if(cCampo) cCampo.textContent=fc.length?fc.length+" foto"+(fc.length>1?"s":""):"sem fotos";
+    if(b53) b53.classList.toggle("ativo",!!D2_fontesSel['53']);
+    if(bCampo) bCampo.classList.toggle("ativo",!!D2_fontesSel['campo']);
   }
   window.D2_renderImportarFotos=D2_renderImportarFotos;
+  window.D2_toggleFonte=function(f){ D2_fontesSel[f]=!D2_fontesSel[f]; D2_renderImportarFotos(); };
   window.D2_importFotosTodas=function(){}; // stub de compatibilidade
-  window.D2_importFotos=function(){
-    var usar53=document.getElementById("d2_import_ck_53");
-    var usarCampo=document.getElementById("d2_import_ck_campo");
+  window.D2_usarFontesSel=function(){
     var novas=[];
-    if(usar53&&usar53.checked){
+    if(D2_fontesSel['53']){
       var fb=(window.FB_getFotos?window.FB_getFotos():[])||[];
       fb.forEach(function(f){ novas.push({src:(f.src||""),legenda:(f.legenda||"")}); });
     }
-    if(usarCampo&&usarCampo.checked){
+    if(D2_fontesSel['campo']){
       var fc=(window.CAMPO_getFotos?window.CAMPO_getFotos():[])||[];
       fc.forEach(function(f){ novas.push({src:(f.src||""),legenda:(f.legenda||"")}); });
     }
-    if(!novas.length){ alert("Selecione ao menos uma fonte com fotos para importar."); return; }
-    var existSrcs=D2_fotos.map(function(f){ return f.src; });
-    novas.forEach(function(f){ if(!f.src||existSrcs.indexOf(f.src)<0) D2_fotos.push(f); });
-    D2_renderFotos();
-    D2_renderImportarFotos();
+    if(!novas.length){ alert("Selecione ao menos uma fonte com fotos."); return; }
+    D2_fotos=novas; // substitui (o relatório constará as fotos da opção sinalada)
+    D2_renderFotos(); D2_renderImportarFotos();
   };
+  window.D2_importFotos=window.D2_usarFontesSel; // alias de compatibilidade
 
   /* ---- 3.1 Atividades exploradas (área em ha, numérico) ---- */
   var D2_atividades=[];
@@ -24199,14 +24203,19 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
         html+='<div id="d2_row_fotos_marca"></div><div id="d2_row_fotos">'
             + rowOpen(tp)
             + '<p class="hint-auto" style="margin:0 0 8px;">Adicione as fotos do imóvel — a numeração (Foto 01, 02, ...) é automática e o laudo imprime <b>4 fotos por página</b>. A legenda é opcional.</p>'
-            + '<div class="d2-import">'
-              + '<div class="d2-import-h"><b>↧ Importar fotos para o Relatório Fotográfico</b></div>'
-              + '<p class="hint-auto" style="margin:0 0 10px;">Selecione as fontes cujas fotos deseja incluir. Fotos já existentes não serão duplicadas.</p>'
-              + '<div class="d2-import-fontes">'
-                + '<label class="d2-fonte-item"><input type="checkbox" id="d2_import_ck_53"> <span class="d2-fonte-nome">5.3 — Fotografias do imóvel (Ficha de Vistoria)</span> <span class="d2-fonte-cnt" id="d2_import_cnt_53">(—)</span></label>'
-                + '<label class="d2-fonte-item"><input type="checkbox" id="d2_import_ck_campo"> <span class="d2-fonte-nome">Campo — Relatório Fotográfico de Campo</span> <span class="d2-fonte-cnt" id="d2_import_cnt_campo">(—)</span></label>'
+            + '<div class="d2-fontes-wrap">'
+              + '<p>Selecione as fontes cujas fotografias devem constar no Anexo 1. Você pode escolher uma ou as duas:</p>'
+              + '<div class="d2-fontes">'
+                + '<button type="button" class="d2-fonte-btn" id="d2_btn_53" onclick="D2_toggleFonte(\'53\')">'
+                  + '<span class="fck">✓</span><span class="fn">📷 Fotografias da Ficha de Vistoria</span>'
+                  + '<span class="fc" id="d2_cnt_53">—</span>'
+                + '</button>'
+                + '<button type="button" class="d2-fonte-btn" id="d2_btn_campo" onclick="D2_toggleFonte(\'campo\')">'
+                  + '<span class="fck">✓</span><span class="fn">📷 Fotografias do Campo</span>'
+                  + '<span class="fc" id="d2_cnt_campo">—</span>'
+                + '</button>'
               + '</div>'
-              + '<div class="vactions" style="margin-top:10px;"><button class="vbtn vbtn-ghost vbtn-sm" type="button" onclick="D2_importFotos()">↧ Importar das fontes selecionadas</button></div>'
+              + '<div class="vactions" style="margin-top:12px;"><button class="vbtn vbtn-sm" type="button" onclick="D2_usarFontesSel()">↧ Adicionar ao relatório</button></div>'
             + '</div>'
             + '<div id="d2_fotos"></div>'
             + '<div class="vactions" style="margin-top:8px;"><button class="vbtn vbtn-ghost" type="button" onclick="D2_addFoto()">+ Adicionar foto (campo manual)</button></div>'
