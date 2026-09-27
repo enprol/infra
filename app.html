@@ -24940,16 +24940,16 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
   }
   function d2esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-  // monta o SVG completo do carimbo (retorna string)
+  // monta o SVG do mapa (figura compacta: entra DENTRO de uma página que já tem
+  // cabeçalho/rodapé/logos/texto — por isso sem título, sem logos e sem moldura de página)
   function d2mapSVG(o){
-    var mapL=64,mapT=150,mapR=836,mapB=812,mapW=mapR-mapL,mapH=mapB-mapT;
+    var mapL=34,mapT=34,mapR=866,mapB=978,mapW=mapR-mapL,mapH=mapB-mapT;
     var sat=o.sat, bb=o.bb;
     function PX(lon,lat){ var px=d2lonpx(lon,sat.z)-sat.w0, py=d2latpx(lat,sat.z)-sat.n0; return [mapL+px/sat.cw*mapW, mapT+py/sat.ch*mapH]; }
+    // texto com halo escuro (legível sobre o satélite)
+    function TH(x,y,txt,opt){ opt=opt||{}; var attr='x="'+x+'" y="'+y+'" text-anchor="'+(opt.anchor||'middle')+'" font-family="'+(opt.mono?'monospace':'Arial,sans-serif')+'" font-size="'+(opt.size||9)+'" font-weight="'+(opt.weight||'400')+'"'+(opt.ls?' letter-spacing="'+opt.ls+'"':''); if(opt.rot!=null) attr+=' transform="rotate('+opt.rot+' '+x+' '+y+')"'; return '<text '+attr+' fill="'+(opt.fill||'#fff')+'" stroke="#0d1620" stroke-width="'+(opt.halo||2.6)+'" stroke-linejoin="round" paint-order="stroke">'+d2esc(txt)+'</text>'; }
     var s='<svg id="svg" viewBox="0 0 900 1200" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">';
     s+='<rect x="0" y="0" width="900" height="1200" fill="#fff"/>';
-    s+='<rect x="16" y="16" width="868" height="1168" fill="none" stroke="#22303d" stroke-width="1.4"/><rect x="22" y="22" width="856" height="1156" fill="none" stroke="#c3ccd4" stroke-width=".8"/>';
-    s+='<text x="450" y="64" text-anchor="middle" font-family="Arial,sans-serif" font-weight="700" font-size="16" fill="#16202b">'+d2esc(o.titulo)+'</text>';
-    s+='<line x1="64" y1="100" x2="836" y2="100" stroke="#c3ccd4" stroke-width=".8"/>';
     s+='<clipPath id="mc"><rect x="'+mapL+'" y="'+mapT+'" width="'+mapW+'" height="'+mapH+'"/></clipPath>';
     s+='<image x="'+mapL+'" y="'+mapT+'" width="'+mapW+'" height="'+mapH+'" preserveAspectRatio="none" clip-path="url(#mc)" xlink:href="'+sat.url+'"/>';
     s+='<g clip-path="url(#mc)">';
@@ -24960,13 +24960,17 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     var gl='',gt='';
     for(var E=Math.ceil(e0/pas)*pas; E<=e1; E+=pas){
       var pA=PX.apply(null,d2utmInv(E,nn0,zone,south)), pB=PX.apply(null,d2utmInv(E,nn1,zone,south));
-      gl+='<line x1="'+pA[0].toFixed(1)+'" y1="'+pA[1].toFixed(1)+'" x2="'+pB[0].toFixed(1)+'" y2="'+pB[1].toFixed(1)+'" stroke="rgba(255,255,255,.5)" stroke-width=".7"/>';
-      gt+='<text x="'+pB[0].toFixed(1)+'" y="'+(mapT-4)+'" text-anchor="middle" font-family="monospace" font-size="9" fill="#16202b">'+Math.round(E)+'</text>';
+      gl+='<line x1="'+pA[0].toFixed(1)+'" y1="'+pA[1].toFixed(1)+'" x2="'+pB[0].toFixed(1)+'" y2="'+pB[1].toFixed(1)+'" stroke="rgba(255,255,255,.55)" stroke-width=".7"/>';
+      // rótulos DENTRO do mapa (topo e base), horizontais
+      gt+=TH(pB[0],mapT+13,Math.round(E),{mono:true,size:9,weight:'500'});
+      gt+=TH(pA[0],mapB-6,Math.round(E),{mono:true,size:9,weight:'500'});
     }
     for(var Nn=Math.ceil(nn0/pas)*pas; Nn<=nn1; Nn+=pas){
       var qA=PX.apply(null,d2utmInv(e0,Nn,zone,south)), qB=PX.apply(null,d2utmInv(e1,Nn,zone,south));
-      gl+='<line x1="'+qA[0].toFixed(1)+'" y1="'+qA[1].toFixed(1)+'" x2="'+qB[0].toFixed(1)+'" y2="'+qB[1].toFixed(1)+'" stroke="rgba(255,255,255,.5)" stroke-width=".7"/>';
-      gt+='<text x="'+(mapL-6)+'" y="'+(qA[1]+3).toFixed(1)+'" text-anchor="end" font-family="monospace" font-size="9" fill="#16202b">'+Math.round(Nn)+'</text>';
+      gl+='<line x1="'+qA[0].toFixed(1)+'" y1="'+qA[1].toFixed(1)+'" x2="'+qB[0].toFixed(1)+'" y2="'+qB[1].toFixed(1)+'" stroke="rgba(255,255,255,.55)" stroke-width=".7"/>';
+      // rótulos DENTRO nas margens esquerda e direita, ROTACIONADOS na vertical
+      gt+=TH(mapL+12,qA[1],Math.round(Nn),{mono:true,size:9,weight:'500',rot:-90});
+      gt+=TH(mapR-12,qB[1],Math.round(Nn),{mono:true,size:9,weight:'500',rot:-90});
     }
     s+=gl;
     // camadas
@@ -24985,41 +24989,46 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     s+='</g>';
     s+=gt;
     s+='<rect x="'+mapL+'" y="'+mapT+'" width="'+mapW+'" height="'+mapH+'" fill="none" stroke="#22303d" stroke-width="1.2"/>';
-    // norte magnético
-    var nx=800,ny=196;
-    s+='<g><polygon points="'+nx+','+(ny-24)+' '+(nx-8)+','+(ny+10)+' '+nx+','+(ny+2)+' '+(nx+8)+','+(ny+10)+'" fill="#16202b"/><polygon points="'+nx+','+(ny-24)+' '+nx+','+(ny+2)+' '+(nx+8)+','+(ny+10)+'" fill="#6b7885"/><text x="'+nx+'" y="'+(ny+26)+'" text-anchor="middle" font-family="Arial" font-weight="600" font-size="11" fill="#16202b">NM</text></g>';
-    // locator PE
-    var ix=76,iy=690,iw=150,ih=112;
-    s+='<rect x="'+ix+'" y="'+iy+'" width="'+iw+'" height="'+ih+'" fill="#fff" stroke="#22303d" stroke-width="1"/><text x="'+(ix+7)+'" y="'+(iy+15)+'" font-family="Arial" font-size="9" font-weight="500" fill="#4a5a6a">LOCALIZAÇÃO — PE</text>';
+    // NORTE magnético — canto superior esquerdo, dentro do mapa
+    var nx=mapL+30, ny=mapT+42;
+    s+='<circle cx="'+nx+'" cy="'+(ny-4)+'" r="26" fill="#ffffff" opacity=".8"/>';
+    s+='<polygon points="'+nx+','+(ny-22)+' '+(nx-7)+','+(ny+9)+' '+nx+','+(ny+2)+' '+(nx+7)+','+(ny+9)+'" fill="#16202b"/><polygon points="'+nx+','+(ny-22)+' '+nx+','+(ny+2)+' '+(nx+7)+','+(ny+9)+'" fill="#6b7885"/>';
+    s+='<text x="'+nx+'" y="'+(ny+22)+'" text-anchor="middle" font-family="Arial" font-weight="700" font-size="11" fill="#16202b">NM</text>';
+    // LOCALIZAÇÃO — canto inferior esquerdo, dentro do mapa
+    var iw=152,ih=116,ix=mapL+12,iy=mapB-12-ih;
+    s+='<rect x="'+ix+'" y="'+iy+'" width="'+iw+'" height="'+ih+'" fill="#fff" stroke="#22303d" stroke-width="1"/><text x="'+(ix+8)+'" y="'+(iy+15)+'" font-family="Arial" font-size="9" font-weight="600" fill="#4a5a6a">LOCALIZAÇÃO — PE</text>';
     var mnx=1e9,mny=1e9,mxx=-1e9,mxy=-1e9; D2MAP_PE.forEach(function(p){ if(p[0]<mnx)mnx=p[0]; if(p[0]>mxx)mxx=p[0]; if(p[1]<mny)mny=p[1]; if(p[1]>mxy)mxy=p[1]; });
-    var padi=8,iw2=iw-padi*2,ih2=ih-24,sc=Math.min(iw2/(mxx-mnx),ih2/(mxy-mny)),ox=ix+padi+(iw2-(mxx-mnx)*sc)/2,oy=iy+20+(ih2-(mxy-mny)*sc)/2;
+    var padi=8,iw2=iw-padi*2,ih2=ih-26,sc=Math.min(iw2/(mxx-mnx),ih2/(mxy-mny)),ox=ix+padi+(iw2-(mxx-mnx)*sc)/2,oy=iy+22+(ih2-(mxy-mny)*sc)/2;
     var pex=function(x){return ox+(x-mnx)*sc;}, pey=function(y){return oy+(mxy-y)*sc;};
     s+='<polygon points="'+D2MAP_PE.map(function(p){return pex(p[0]).toFixed(1)+','+pey(p[1]).toFixed(1);}).join(' ')+'" fill="#eaf1f6" stroke="#1f4e79" stroke-width="1"/>';
     var cxx=(bb.w+bb.e)/2, cyy=(bb.s+bb.n)/2;
     s+='<circle cx="'+pex(cxx).toFixed(1)+'" cy="'+pey(cyy).toFixed(1)+'" r="4" fill="#d81f26" stroke="#fff" stroke-width="1.2"/>';
-    // escala gráfica
-    var mppx=(e1-e0)/mapW; var segM=pas; var segPx=segM/mppx; var sbx=560,sby=700;
-    s+='<text x="'+sbx+'" y="'+(sby-8)+'" font-family="Arial" font-size="9" font-weight="700" fill="#4a5a6a" letter-spacing=".6">ESCALA GRÁFICA</text>';
-    for(var i=0;i<4;i++){ s+='<rect x="'+(sbx+i*segPx).toFixed(1)+'" y="'+sby+'" width="'+segPx.toFixed(1)+'" height="7" fill="'+(i%2?'#fff':'#16202b')+'" stroke="#16202b" stroke-width=".8"/>'; s+='<text x="'+(sbx+i*segPx).toFixed(1)+'" y="'+(sby+20)+'" text-anchor="middle" font-family="monospace" font-size="9" fill="#4a5a6a">'+(i*segM)+'</text>'; }
-    s+='<text x="'+(sbx+4*segPx).toFixed(1)+'" y="'+(sby+20)+'" text-anchor="middle" font-family="monospace" font-size="9" fill="#4a5a6a">'+(4*segM)+' m</text>';
-    // carimbo inferior
-    var cy0=838; s+='<line x1="64" y1="'+cy0+'" x2="836" y2="'+cy0+'" stroke="#22303d" stroke-width="1"/>';
-    s+='<text x="64" y="'+(cy0+16)+'" font-family="Arial" font-size="9" font-weight="700" fill="#4a5a6a" letter-spacing=".6">LEGENDA</text>';
-    (o.legend||[]).forEach(function(it,i){ var row=cy0+34+i*23, sw=68;
+    // ESCALA GRÁFICA — canto inferior direito, dentro do mapa
+    var mppx=(e1-e0)/mapW, segM=pas, segPx=segM/mppx, barW=4*segPx;
+    var sbx=mapR-16-barW, sby=mapB-24, bx=sbx-8, bw=barW+16;
+    s+='<rect x="'+bx.toFixed(1)+'" y="'+(sby-20)+'" width="'+bw.toFixed(1)+'" height="42" rx="4" fill="#ffffff" opacity=".82"/>';
+    s+='<text x="'+(sbx+barW/2).toFixed(1)+'" y="'+(sby-9)+'" text-anchor="middle" font-family="Arial" font-size="8.5" font-weight="700" fill="#16202b" letter-spacing=".5">ESCALA</text>';
+    for(var i=0;i<4;i++){ s+='<rect x="'+(sbx+i*segPx).toFixed(1)+'" y="'+sby+'" width="'+segPx.toFixed(1)+'" height="7" fill="'+(i%2?'#fff':'#16202b')+'" stroke="#16202b" stroke-width=".8"/>'; s+='<text x="'+(sbx+i*segPx).toFixed(1)+'" y="'+(sby+18)+'" text-anchor="middle" font-family="monospace" font-size="8.5" fill="#16202b">'+(i*segM)+'</text>'; }
+    s+='<text x="'+(sbx+4*segPx).toFixed(1)+'" y="'+(sby+18)+'" text-anchor="middle" font-family="monospace" font-size="8.5" fill="#16202b">'+(4*segM)+' m</text>';
+    // ===== CARIMBO INFERIOR (fora do mapa) =====
+    var cy0=mapB+14;   // 992
+    s+='<line x1="'+mapL+'" y1="'+cy0+'" x2="'+mapR+'" y2="'+cy0+'" stroke="#22303d" stroke-width="1"/>';
+    // ESQUERDA: processo administrativo + dados da ferrovia
+    function kv(x,k,lines,y){ var r='<text x="'+x+'" y="'+y+'" font-family="Arial" font-size="9.5" font-weight="700" fill="#4a5a6a" letter-spacing=".6">'+d2esc(k)+'</text>'; (lines||[]).forEach(function(ln,i){ r+='<text x="'+x+'" y="'+(y+19+i*17)+'" font-family="Arial" font-size="12.5" font-weight="600" fill="#16202b">'+d2esc(ln)+'</text>'; }); return r; }
+    s+=kv(mapL,'PROCESSO ADMINISTRATIVO',(o.proc||'').split('\n').slice(0,2),cy0+26);
+    s+=kv(mapL,'DADOS DA FERROVIA',(o.ferrovia||'').split('\n').slice(0,2),cy0+92);
+    // DIREITA: legenda
+    var lx=470, lw=mapR-lx;
+    s+='<rect x="'+lx+'" y="'+(cy0+8)+'" width="'+lw+'" height="182" fill="#f7f9fb" stroke="#c3ccd4" stroke-width=".8"/>';
+    s+='<text x="'+(lx+16)+'" y="'+(cy0+26)+'" font-family="Arial" font-size="9.5" font-weight="700" fill="#4a5a6a" letter-spacing=".6">LEGENDA</text>';
+    (o.legend||[]).forEach(function(it,i){ var row=cy0+46+i*21, sw=lx+16;
       if(it.tipo==='line'||it.tipo==='faixa'||it.tipo==='drenagem') s+='<line x1="'+sw+'" y1="'+(row-3)+'" x2="'+(sw+26)+'" y2="'+(row-3)+'" stroke="'+it.cor+'" stroke-width="3"'+(it.dash?' stroke-dasharray="'+it.dash+'"':'')+'/>';
       else if(it.tipo==='pt') s+='<rect x="'+sw+'" y="'+(row-10)+'" width="12" height="12" fill="'+it.cor+'" stroke="#111"/>';
       else s+='<rect x="'+sw+'" y="'+(row-11)+'" width="26" height="14" fill="'+it.cor+'" fill-opacity=".45" stroke="'+it.cor+'" stroke-width="1.4"'+(it.dash?' stroke-dasharray="'+it.dash+'"':'')+'/>';
       s+='<text x="'+(sw+36)+'" y="'+row+'" font-family="Arial" font-size="11" font-weight="600" fill="#16202b">'+d2esc(it.nome)+'</text>';
     });
-    s+='<rect x="520" y="'+(cy0+8)+'" width="316" height="250" fill="#f7f9fb" stroke="#c3ccd4" stroke-width=".8"/>';
-    function kv(k,lines,y){ var r='<text x="536" y="'+y+'" font-family="Arial" font-size="9" font-weight="700" fill="#4a5a6a" letter-spacing=".6">'+d2esc(k)+'</text>'; (lines||[]).forEach(function(ln,i){ r+='<text x="536" y="'+(y+18+i*16)+'" font-family="Arial" font-size="12" font-weight="600" fill="#16202b">'+d2esc(ln)+'</text>'; }); return r; }
-    s+=kv('PROCESSO ADMINISTRATIVO',(o.proc||'').split('\n').slice(0,2),cy0+30);
-    s+=kv('DADOS DA FERROVIA',(o.ferrovia||'').split('\n').slice(0,2),cy0+96);
-    // rodapé
-    var fy=1150; s+='<line x1="64" y1="'+(fy-22)+'" x2="836" y2="'+(fy-22)+'" stroke="#c3ccd4" stroke-width=".8"/>';
-    if(o.logoE) s+='<image x="64" y="'+(fy-20)+'" height="22" xlink:href="'+o.logoE+'"/>'; else s+='<text x="64" y="'+fy+'" font-family="Arial" font-weight="700" font-size="15" fill="#1f4e79" letter-spacing="1">ENPROL</text>';
-    if(o.logoI) s+='<image x="772" y="'+(fy-20)+'" height="22" xlink:href="'+o.logoI+'"/>'; else s+='<text x="836" y="'+fy+'" text-anchor="end" font-family="Arial" font-weight="700" font-size="15" fill="#16202b" letter-spacing="1">INFRA</text>';
-    s+='<text x="450" y="'+(fy-4)+'" text-anchor="middle" font-family="monospace" font-size="8.5" fill="#8a97a3">SIRGAS 2000 · UTM '+zone+(south?'S':'N')+' · UNIVERSAL TRANSVERSA DE MERCATOR</text>';
+    // georref discreta (rodapé da figura)
+    s+='<text x="'+mapL+'" y="1190" font-family="monospace" font-size="9" fill="#8a97a3">SIRGAS 2000 · UTM '+zone+(south?'S':'N')+' · Universal Transversa de Mercator</text>';
     s+='</svg>';
     return s;
   }
@@ -25038,7 +25047,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     if(!ok) return null;
     // padding 14% e força aspecto do mapa (772x662)
     var padx=(e-w)*0.14||0.002, pady=(n-s)*0.14||0.002; w-=padx;e+=padx;s-=pady;n+=pady;
-    var arMap=772/662, cx=(w+e)/2, cy=(s+n)/2, ww=e-w, hh=n-s;
+    var arMap=832/944, cx=(w+e)/2, cy=(s+n)/2, ww=e-w, hh=n-s;
     var arGeo=ww/(hh*Math.cos(cy*Math.PI/180));
     if(arGeo<arMap){ ww=hh*Math.cos(cy*Math.PI/180)*arMap; w=cx-ww/2; e=cx+ww/2; } else { hh=ww/Math.cos(cy*Math.PI/180)/arMap; s=cy-hh/2; n=cy+hh/2; }
     return {w:w,s:s,e:e,n:n};
