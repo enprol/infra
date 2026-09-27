@@ -24933,6 +24933,24 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
   function d2segInt(a,b,c,d){ var r0=b[0]-a[0],r1=b[1]-a[1],s0=d[0]-c[0],s1=d[1]-c[1]; var den=r0*s1-r1*s0; if(Math.abs(den)<1e-14) return null; var t=((c[0]-a[0])*s1-(c[1]-a[1])*s0)/den, u=((c[0]-a[0])*r1-(c[1]-a[1])*r0)/den; if(t>=0&&t<=1&&u>=0&&u<=1) return [a[0]+t*r0,a[1]+t*r1]; return null; }
   // cruzamentos de um conjunto de linhas com o contorno de polígonos -> pontos [lon,lat]
   function d2crossings(lines,polys){ var out=[]; (lines||[]).forEach(function(ln){ for(var i=0;i<ln.length-1;i++){ (polys||[]).forEach(function(ring){ for(var j=0;j<ring.length-1;j++){ var p=d2segInt(ln[i],ln[i+1],ring[j],ring[j+1]); if(p) out.push(p); } }); } }); return out; }
+  // projeta um ponto [E,N] numa polilinha [[E,N]..] -> {dist, chain(m ao longo da linha)}
+  function d2projChain(pt,line){ var best={dist:Infinity,chain:0}, acc=0; for(var i=0;i<line.length-1;i++){ var a=line[i],b=line[i+1],dx=b[0]-a[0],dy=b[1]-a[1],L2=dx*dx+dy*dy||1e-9,seg=Math.sqrt(L2); var t=((pt[0]-a[0])*dx+(pt[1]-a[1])*dy)/L2; t=Math.max(0,Math.min(1,t)); var px=a[0]+t*dx,py=a[1]+t*dy,d=Math.hypot(pt[0]-px,pt[1]-py); if(d<best.dist) best={dist:d,chain:acc+seg*t}; acc+=seg; } return best; }
+  // KM (em metros) no ponto de cruzamento, interpolado pelos marcadores de estaca "227+500"
+  function d2kmNoEixo(cross, eixosLonLat, estacas){
+    if(!cross||!eixosLonLat||!eixosLonLat.length||!estacas||!estacas.length) return null;
+    var cu=d2utm(cross[0],cross[1]); cu=[cu.E,cu.N];
+    var lines=eixosLonLat.map(function(l){ return l.map(function(p){ var u=d2utm(p[0],p[1]); return [u.E,u.N]; }); });
+    var best=null,bestD=Infinity,bestChain=0;
+    lines.forEach(function(l){ var pc=d2projChain(cu,l); if(pc.dist<bestD){ bestD=pc.dist; best=l; bestChain=pc.chain; } });
+    if(!best) return null;
+    var mk=[]; estacas.forEach(function(t){ var m=/(\d+)\s*\+\s*([\d.,]+)/.exec(String(t.txt||'')); if(!m) return; var total=parseInt(m[1],10)*1000+parseFloat(m[2].replace(',','.')); var u=d2utm(t.lon,t.lat); var pc=d2projChain([u.E,u.N],best); if(pc.dist>80) return; mk.push({chain:pc.chain,km:total}); });
+    if(!mk.length) return null;
+    mk.sort(function(a,b){return a.chain-b.chain;});
+    var slope=1; if(mk.length>=2){ var f=mk[0],l2=mk[mk.length-1]; if(Math.abs(l2.chain-f.chain)>1) slope=(l2.km-f.km)/(l2.chain-f.chain); }
+    var near=mk[0],nd=Math.abs(mk[0].chain-bestChain); mk.forEach(function(m){ var d=Math.abs(m.chain-bestChain); if(d<nd){ nd=d; near=m; } });
+    return near.km+slope*(bestChain-near.chain);
+  }
+  function d2fmtKM(total){ if(total==null||!isFinite(total)) return null; var neg=total<0; total=Math.abs(total); var km=Math.floor(total/1000), m=total-km*1000; return (neg?'-':'')+km+' + '+m.toFixed(2).replace('.',','); }
   function d2fixoParse(txt){
     var out={limites:[],eixos:[]}; if(!txt) return out; var doc; try{doc=new DOMParser().parseFromString(txt,'application/xml');}catch(e){return out;}
     if(!doc||doc.getElementsByTagName('parsererror').length) return out;
@@ -25244,6 +25262,11 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       if(geom.faixa && geom.faixa.eixos && geom.faixa.eixos.length){
         var cadPolys=(geom.desap&&geom.desap.polys.length)?geom.desap.polys:((geom.area&&geom.area.polys)||null);
         if(cadPolys){ var xs=d2crossings(geom.faixa.eixos,cadPolys); if(xs.length){ xs.sort(function(a,b){return a[0]-b[0];}); cruz={ent:xs[0],sai:(xs.length>1?xs[xs.length-1]:null)}; } }
+      }
+      // KM automático no cruzamento (só sobrescreve se o campo estiver no placeholder)
+      if(cruz && geom.faixa && geom.faixa.eixos){
+        if(cruz.ent){ var _kE=d2fmtKM(d2kmNoEixo(cruz.ent,geom.faixa.eixos,estacas)); if(_kE && (!D2MAP_TXT.kmEnt||D2MAP_TXT.kmEnt==='000 + 000,00')) D2MAP_TXT.kmEnt=_kE; }
+        if(cruz.sai){ var _kS=d2fmtKM(d2kmNoEixo(cruz.sai,geom.faixa.eixos,estacas)); if(_kS && (!D2MAP_TXT.kmSai||D2MAP_TXT.kmSai==='000 + 000,00')) D2MAP_TXT.kmSai=_kS; }
       }
       var sigefCodes=[], carCodes=[];
       if(need.sigef){ st('Buscando SIGEF…'); try{ var uf=d2uf(); var acc={polys:[],lines:[],pts:[]};
