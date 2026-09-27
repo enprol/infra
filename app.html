@@ -25050,7 +25050,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
   // monta o SVG do mapa (figura compacta: entra DENTRO de uma página que já tem
   // cabeçalho/rodapé/logos/texto — por isso sem título, sem logos e sem moldura de página)
   function d2mapSVG(o){
-    var mapL=34,mapT=34,mapR=866,mapB=978,mapW=mapR-mapL,mapH=mapB-mapT;
+    var mapL=18,mapT=30,mapR=882,mapB=980,mapW=mapR-mapL,mapH=mapB-mapT;
     var base=o.base, bb=o.bb;
     function PX(lon,lat){
       if(base.mode==='orto'){ var u=d2utm(lon,lat); return [mapL+(u.E-base.e0)/(base.e1-base.e0)*mapW, mapT+(base.n1-u.N)/(base.n1-base.n0)*mapH]; }
@@ -25058,8 +25058,8 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     }
     // texto com halo escuro (legível sobre o satélite)
     function TH(x,y,txt,opt){ opt=opt||{}; var attr='x="'+x+'" y="'+y+'" text-anchor="'+(opt.anchor||'middle')+'" font-family="'+(opt.mono?'monospace':'Arial,sans-serif')+'" font-size="'+(opt.size||9)+'" font-weight="'+(opt.weight||'400')+'"'+(opt.ls?' letter-spacing="'+opt.ls+'"':''); if(opt.rot!=null) attr+=' transform="rotate('+opt.rot+' '+x+' '+y+')"'; return '<text '+attr+' fill="'+(opt.fill||'#fff')+'" stroke="#0d1620" stroke-width="'+(opt.halo||2.6)+'" stroke-linejoin="round" paint-order="stroke">'+d2esc(txt)+'</text>'; }
-    var s='<svg id="svg" viewBox="0 0 900 1200" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">';
-    s+='<rect x="0" y="0" width="900" height="1200" fill="#fff"/>';
+    var s='<svg id="svg" viewBox="0 0 900 1150" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">';
+    s+='<rect x="0" y="0" width="900" height="1150" fill="#fff"/>';
     s+='<clipPath id="mc"><rect x="'+mapL+'" y="'+mapT+'" width="'+mapW+'" height="'+mapH+'"/></clipPath>';
     s+='<rect x="'+mapL+'" y="'+mapT+'" width="'+mapW+'" height="'+mapH+'" fill="#e9edf0"/>';
     // satélite Esri ao fundo (sempre); ortofoto à frente com o branco transparente
@@ -25075,15 +25075,15 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       var pA=PX.apply(null,d2utmInv(E,nn0,zone,south)), pB=PX.apply(null,d2utmInv(E,nn1,zone,south));
       gl+='<line x1="'+pA[0].toFixed(1)+'" y1="'+pA[1].toFixed(1)+'" x2="'+pB[0].toFixed(1)+'" y2="'+pB[1].toFixed(1)+'" stroke="rgba(255,255,255,.55)" stroke-width=".7"/>';
       // rótulos DENTRO do mapa (topo e base), horizontais
-      gt+=TH(pB[0],mapT+14,Math.round(E),{size:10.5,weight:'700'});
-      gt+=TH(pA[0],mapB-7,Math.round(E),{size:10.5,weight:'700'});
+      gt+=TH(pB[0],mapT+16,Math.round(E),{size:11,weight:'700'});
+      gt+=TH(pA[0],mapB-8,Math.round(E),{size:11,weight:'700'});
     }
     for(var Nn=Math.ceil(nn0/pas)*pas; Nn<=nn1; Nn+=pas){
       var qA=PX.apply(null,d2utmInv(e0,Nn,zone,south)), qB=PX.apply(null,d2utmInv(e1,Nn,zone,south));
       gl+='<line x1="'+qA[0].toFixed(1)+'" y1="'+qA[1].toFixed(1)+'" x2="'+qB[0].toFixed(1)+'" y2="'+qB[1].toFixed(1)+'" stroke="rgba(255,255,255,.55)" stroke-width=".7"/>';
       // rótulos DENTRO nas margens esquerda e direita, ROTACIONADOS na vertical
-      gt+=TH(mapL+13,qA[1],Math.round(Nn),{size:10.5,weight:'700',rot:-90});
-      gt+=TH(mapR-13,qB[1],Math.round(Nn),{size:10.5,weight:'700',rot:-90});
+      gt+=TH(mapL+15,qA[1],Math.round(Nn),{size:11,weight:'700',rot:-90});
+      gt+=TH(mapR-15,qB[1],Math.round(Nn),{size:11,weight:'700',rot:-90});
     }
     s+=gl;
     // camadas
@@ -25103,9 +25103,9 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       }
     });
     // texto das estacas ao longo do eixo ferroviário
-    (o.estacas||[]).forEach(function(t){ var q=PX(t.lon,t.lat); if(q[0]<mapL||q[0]>mapR||q[1]<mapT||q[1]>mapB) return; var a=((t.ang%360)+360)%360; if(a>90&&a<=270) a-=180; s+=TH(q[0],q[1],t.txt,{size:9,weight:'700',rot:-a,fill:'#ffd24a',halo:2.8}); });
+    (o.estacas||[]).forEach(function(t){ var q=PX(t.lon,t.lat); if(q[0]<mapL||q[0]>mapR||q[1]<mapT||q[1]>mapB) return; var a=((t.ang%360)+360)%360; if(a>90&&a<=270) a-=180; s+=TH(q[0],q[1],t.txt,{size:11,weight:'700',rot:-a,fill:'#ffd24a',halo:3}); });
     // rótulo da ÁREA TOTAL dentro do perímetro
-    function rotuloNoPoligono(cam,label,cor){ if(!label) return; var ac=(o.camadas||[]).filter(function(c){return c.cam===cam;})[0]; if(!ac||!ac.geom.polys||!ac.geom.polys.length) return; var ring=ac.geom.polys[0],cx=0,cy=0; ring.forEach(function(p){cx+=p[0];cy+=p[1];}); cx/=ring.length; cy/=ring.length; var qc=PX(cx,cy); var ls=String(label).split('\n').slice(0,3); ls.forEach(function(ln,i){ s+=TH(qc[0],qc[1]+(i-(ls.length-1)/2)*15,ln,{size:12.5,weight:'700',fill:cor||'#fff'}); }); }
+    function rotuloNoPoligono(cam,label,cor){ if(!label) return; var ac=(o.camadas||[]).filter(function(c){return c.cam===cam;})[0]; if(!ac||!ac.geom.polys||!ac.geom.polys.length) return; var ring=ac.geom.polys[0],cx=0,cy=0; ring.forEach(function(p){cx+=p[0];cy+=p[1];}); cx/=ring.length; cy/=ring.length; var qc=PX(cx,cy); var ls=String(label).split('\n').slice(0,3); ls.forEach(function(ln,i){ s+=TH(qc[0],qc[1]+(i-(ls.length-1)/2)*18,ln,{size:15,weight:'700',fill:cor||'#fff'}); }); }
     rotuloNoPoligono('area',o.areaLabel);
     rotuloNoPoligono('desap',o.desapLabel,'#ffd7d7');
     // entrada/saída do eixo no cadastro — bloco KM/coordenada UTM, FORA do perímetro
@@ -25118,14 +25118,14 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
         s+='<line x1="'+q[0].toFixed(1)+'" y1="'+q[1].toFixed(1)+'" x2="'+lx2.toFixed(1)+'" y2="'+ly2.toFixed(1)+'" stroke="#ff020c" stroke-width="1.6"/>';
         s+='<circle cx="'+q[0].toFixed(1)+'" cy="'+q[1].toFixed(1)+'" r="4.5" fill="#fff" stroke="#ff020c" stroke-width="2.2"/>';
         var lns=['KM= '+(it[1]||'000 + 000,00'),'(PROJETO ATUAL)','E= '+u.E.toFixed(3),'N= '+u.N.toFixed(3)];
-        lns.forEach(function(ln,i){ s+=TH(lx2, ly2-20+i*12, ln, {anchor:anchor,size:8.5,weight:'700',fill:(i===0?'#ffd7d7':'#ffffff')}); });
+        lns.forEach(function(ln,i){ s+=TH(lx2, ly2-24+i*14, ln, {anchor:anchor,size:10,weight:'700',fill:(i===0?'#ffd7d7':'#ffffff')}); });
       });
     }
     s+='</g>';
     s+=gt;
     s+='<rect x="'+mapL+'" y="'+mapT+'" width="'+mapW+'" height="'+mapH+'" fill="none" stroke="#22303d" stroke-width="1.2"/>';
     // NORTE magnético — canto superior esquerdo, dentro do mapa (símbolo profissional)
-    var nx=mapL+32, ny=mapT+40;
+    var nx=mapL+46, ny=mapT+54;
     s+='<rect x="'+(nx-19)+'" y="'+(ny-30)+'" width="38" height="74" rx="6" fill="#ffffff" opacity=".55"/>';
     s+='<text x="'+nx+'" y="'+(ny-19)+'" text-anchor="middle" font-family="Georgia,\'Times New Roman\',serif" font-weight="700" font-size="14" fill="#16202b">N</text>';
     // agulha afilada, metade preenchida (padrão cartográfico)
@@ -25134,7 +25134,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     s+='<circle cx="'+nx+'" cy="'+(ny+15)+'" r="2" fill="#16202b"/>';
     s+='<text x="'+nx+'" y="'+(ny+40)+'" text-anchor="middle" font-family="Arial" font-weight="600" font-size="8.5" fill="#16202b">NM</text>';
     // LOCALIZAÇÃO — canto inferior esquerdo, dentro do mapa
-    var iw=152,ih=116,ix=mapL+12,iy=mapB-12-ih;
+    var iw=152,ih=116,ix=mapL+22,iy=mapB-22-ih;
     s+='<rect x="'+ix+'" y="'+iy+'" width="'+iw+'" height="'+ih+'" fill="#fff" stroke="#22303d" stroke-width="1"/><text x="'+(ix+8)+'" y="'+(iy+15)+'" font-family="Arial" font-size="9" font-weight="600" fill="#4a5a6a">LOCALIZAÇÃO — PE</text>';
     var mnx=1e9,mny=1e9,mxx=-1e9,mxy=-1e9; D2MAP_PE.forEach(function(p){ if(p[0]<mnx)mnx=p[0]; if(p[0]>mxx)mxx=p[0]; if(p[1]<mny)mny=p[1]; if(p[1]>mxy)mxy=p[1]; });
     var padi=8,iw2=iw-padi*2,ih2=ih-26,sc=Math.min(iw2/(mxx-mnx),ih2/(mxy-mny)),ox=ix+padi+(iw2-(mxx-mnx)*sc)/2,oy=iy+22+(ih2-(mxy-mny)*sc)/2;
@@ -25147,7 +25147,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     var niceM=[10,20,25,50,100,200,250,500,1000,2000,5000];
     var segM=niceM.find(function(m){ return m/mppx>=30 && m/mppx<=58; }) || (function(){ var b=niceM[0]; niceM.forEach(function(m){ if(Math.abs(m/mppx-44)<Math.abs(b/mppx-44)) b=m; }); return b; })();
     var segPx=segM/mppx, nSeg=Math.max(2,Math.min(4,Math.floor(150/segPx))), barW=nSeg*segPx;
-    var sbx=mapR-14-barW, sby=mapB-20, bx=sbx-7, bw=barW+14;
+    var sbx=mapR-26-barW, sby=mapB-30, bx=sbx-7, bw=barW+14;
     s+='<rect x="'+bx.toFixed(1)+'" y="'+(sby-15)+'" width="'+bw.toFixed(1)+'" height="33" rx="3" fill="#ffffff" opacity=".55"/>';
     for(var i=0;i<nSeg;i++){ s+='<rect x="'+(sbx+i*segPx).toFixed(1)+'" y="'+sby+'" width="'+segPx.toFixed(1)+'" height="5" fill="'+(i%2?'#fff':'#16202b')+'" stroke="#16202b" stroke-width=".7"/>'; s+='<text x="'+(sbx+i*segPx).toFixed(1)+'" y="'+(sby+14)+'" text-anchor="middle" font-family="monospace" font-size="7.5" fill="#16202b">'+(i*segM)+'</text>'; }
     s+='<text x="'+(sbx+nSeg*segPx).toFixed(1)+'" y="'+(sby+14)+'" text-anchor="middle" font-family="monospace" font-size="7.5" fill="#16202b">'+(nSeg*segM)+' m</text>';
@@ -25156,8 +25156,8 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     s+='<line x1="'+mapL+'" y1="'+cy0+'" x2="'+mapR+'" y2="'+cy0+'" stroke="#22303d" stroke-width="1"/>';
     // ESQUERDA: processo administrativo + dados da ferrovia
     function kv(x,k,lines,y){ var r='<text x="'+x+'" y="'+y+'" font-family="Arial" font-size="9.5" font-weight="700" fill="#4a5a6a" letter-spacing=".6">'+d2esc(k)+'</text>'; (lines||[]).forEach(function(ln,i){ r+='<text x="'+x+'" y="'+(y+19+i*17)+'" font-family="Arial" font-size="12.5" font-weight="600" fill="#16202b">'+d2esc(ln)+'</text>'; }); return r; }
-    s+=kv(mapL,'PROCESSO ADMINISTRATIVO',(o.proc||'').split('\n').slice(0,2),cy0+26);
-    s+=kv(mapL,'DADOS DA FERROVIA',(o.ferrovia||'').split('\n').slice(0,2),cy0+92);
+    s+=kv(mapL,'PROCESSO ADMINISTRATIVO',(o.proc||'').split('\n').slice(0,2),cy0+24);
+    s+=kv(mapL,'DADOS DA FERROVIA',(o.ferrovia||'').split('\n').slice(0,2),cy0+74);
     // DIREITA: legenda (quebra em colunas quando houver muitos itens; nada sai do quadro)
     var lx=470, lw=mapR-lx, items=o.legend||[];
     var nCols = items.length>6 ? 2 : 1, rowsPerCol = Math.ceil(items.length/nCols) || 1;
@@ -25174,8 +25174,8 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       else s+='<rect x="'+sw+'" y="'+(row-10)+'" width="'+sww+'" height="13" fill="'+it.cor+'" fill-opacity=".45" stroke="'+it.cor+'" stroke-width="1.4"'+(it.dash?' stroke-dasharray="'+it.dash+'"':'')+'/>';
       s+='<text x="'+(sw+sww+8)+'" y="'+row+'" font-family="Arial" font-size="'+lfs+'" font-weight="600" fill="#16202b">'+d2esc(it.nome)+'</text>';
     });
-    // georref discreta (rodapé da figura)
-    s+='<text x="'+mapL+'" y="1190" font-family="monospace" font-size="9" fill="#8a97a3">SIRGAS 2000 · UTM '+zone+(south?'S':'N')+' · Universal Transversa de Mercator</text>';
+    // georref discreta — logo abaixo dos textos do carimbo
+    s+='<text x="'+mapL+'" y="'+(cy0+128)+'" font-family="monospace" font-size="9" fill="#8a97a3">SIRGAS 2000 · UTM '+zone+(south?'S':'N')+' · Universal Transversa de Mercator</text>';
     s+='</svg>';
     return s;
   }
@@ -25183,7 +25183,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
   function d2svg2png(svg,scale){
     return new Promise(function(res,rej){
       var img=new Image();
-      img.onload=function(){ var c=document.createElement('canvas'); c.width=900*scale; c.height=1200*scale; var ctx=c.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height); ctx.drawImage(img,0,0,c.width,c.height); try{ res(c.toDataURL('image/jpeg',0.9)); }catch(e){ rej(e); } };
+      img.onload=function(){ var c=document.createElement('canvas'); c.width=900*scale; c.height=1150*scale; var ctx=c.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height); ctx.drawImage(img,0,0,c.width,c.height); try{ res(c.toDataURL('image/jpeg',0.9)); }catch(e){ rej(e); } };
       img.onerror=function(){ rej(new Error('svg')); };
       img.src='data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(svg)));
     });
@@ -25194,7 +25194,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     if(!ok) return null;
     // padding 14% e força aspecto do mapa (772x662)
     var padx=(e-w)*0.14||0.002, pady=(n-s)*0.14||0.002; w-=padx;e+=padx;s-=pady;n+=pady;
-    var arMap=832/944, cx=(w+e)/2, cy=(s+n)/2, ww=e-w, hh=n-s;
+    var arMap=864/950, cx=(w+e)/2, cy=(s+n)/2, ww=e-w, hh=n-s;
     var arGeo=ww/(hh*Math.cos(cy*Math.PI/180));
     if(arGeo<arMap){ ww=hh*Math.cos(cy*Math.PI/180)*arMap; w=cx-ww/2; e=cx+ww/2; } else { hh=ww/Math.cos(cy*Math.PI/180)/arMap; s=cy-hh/2; n=cy+hh/2; }
     return {w:w,s:s,e:e,n:n};
@@ -25478,7 +25478,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     // linha em branco antes do próximo título — sem essa folga, isso não contava
     // como "colado" e entrava o respiro de 10mm inteiro entre o título e o
     // subtítulo seguinte (23/09/2026, pedido do usuário: "4." e "4.1" muito longe).
-    function gapTopico(farGap){ if(yc<=topY+0.5) return; yc += (Math.abs(yc-_headEndY)<3 ? 3 : (farGap!==undefined?farGap:10)); }
+    function gapTopico(farGap){ if(yc<=topY+0.5) return; yc += (Math.abs(yc-_headEndY)<3 ? 2.5 : (farGap!==undefined?farGap:6.5)); }
     function titulo(t){ gapTopico(); ensure(20); pdf.setFont(FONT,"bold"); pdf.setFontSize(13.5); pdf.setTextColor(0,0,0);
       const m=String(t).match(/^(\d+)\.\s*(.*)$/);
       if(m){ pdf.text(m[1]+".", mL, yc); pdf.text(m[2].toUpperCase(), mL+11, yc); } else { pdf.text(String(t).toUpperCase(), mL, yc); }
@@ -25638,7 +25638,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       if(!figs[fid]) return;
       const meta=FIG_META[fid]||[fid,""];
       let iw=cw, ih=iw*0.6;
-      try{ const p=pdf.getImageProperties(figs[fid]); if(p&&p.width&&p.height){ ih=iw*(p.height/p.width); if(ih>190){ih=190; iw=ih*(p.width/p.height);} } }catch(e){}
+      try{ const p=pdf.getImageProperties(figs[fid]); if(p&&p.width&&p.height){ ih=iw*(p.height/p.width); if(ih>210){ih=210; iw=ih*(p.width/p.height);} } }catch(e){}
       ensure(ih+12); const fmt=/^data:image\/png/i.test(figs[fid])?"PNG":"JPEG";
       try{ pdf.addImage(figs[fid],fmt,mL+(cw-iw)/2,yc,iw,ih); }catch(e){}
       yc+=ih+3.5;
