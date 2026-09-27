@@ -24865,7 +24865,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
   };
   // estilos e rótulos das camadas
   var D2MAP_EST = {
-    area:  { nome:'Área total do imóvel',        tipo:'line', cor:'#ff1e1e', peso:2.8 },
+    area:  { nome:'Área total do imóvel',        tipo:'line', cor:'#ff1e1e', peso:4.2 },
     desap: { nome:'Área a ser desapropriada',    tipo:'fill', cor:'#ff2a30', op:.5, peso:2 },
     vias:  { nome:'Vias de acesso',              tipo:'line', cor:'#ffd24a', peso:2.4, dash:'6 3' },
     appest:{ nome:'APP estimada',                tipo:'fill', cor:'#00e676', op:.35, peso:1.6 },
@@ -25059,6 +25059,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     // texto com halo escuro (legível sobre o satélite)
     function TH(x,y,txt,opt){ opt=opt||{}; var attr='x="'+x+'" y="'+y+'" text-anchor="'+(opt.anchor||'middle')+'" font-family="'+(opt.mono?'monospace':'Arial,sans-serif')+'" font-size="'+(opt.size||9)+'" font-weight="'+(opt.weight||'400')+'"'+(opt.ls?' letter-spacing="'+opt.ls+'"':''); if(opt.rot!=null) attr+=' transform="rotate('+opt.rot+' '+x+' '+y+')"'; return '<text '+attr+' fill="'+(opt.fill||'#fff')+'" stroke="#0d1620" stroke-width="'+(opt.halo||2.6)+'" stroke-linejoin="round" paint-order="stroke">'+d2esc(txt)+'</text>'; }
     var s='<svg id="svg" viewBox="0 0 900 940" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">';
+    s+='<defs><filter id="d2sh" x="-25%" y="-25%" width="150%" height="150%"><feDropShadow dx="0.8" dy="1.1" stdDeviation="1.1" flood-color="#000" flood-opacity="0.6"/></filter></defs>';
     s+='<rect x="0" y="0" width="900" height="940" fill="#fff"/>';
     s+='<clipPath id="mc"><rect x="'+mapL+'" y="'+mapT+'" width="'+mapW+'" height="'+mapH+'"/></clipPath>';
     s+='<rect x="'+mapL+'" y="'+mapT+'" width="'+mapW+'" height="'+mapH+'" fill="#e9edf0"/>';
@@ -25090,15 +25091,16 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     function polyStr(r){ return r.map(function(p){ var q=PX(p[0],p[1]); return q[0].toFixed(1)+','+q[1].toFixed(1); }).join(' '); }
     (o.camadas||[]).forEach(function(cm){
       var e=D2MAP_EST[cm.cam]||{}, g=cm.geom;
+      var sh=(cm.cam==='area'||cm.cam==='faixa')?' filter="url(#d2sh)"':'';   // sombra projetada p/ destacar do satélite
       if(e.tipo==='fill'){
-        (g.polys||[]).forEach(function(r){ s+='<polygon points="'+polyStr(r)+'" fill="'+e.cor+'" fill-opacity="'+(e.op||.4)+'" stroke="'+e.cor+'" stroke-width="'+(e.peso||1.6)+'"'+(e.dash?' stroke-dasharray="'+e.dash+'"':'')+'/>'; });
+        (g.polys||[]).forEach(function(r){ s+='<polygon points="'+polyStr(r)+'" fill="'+e.cor+'" fill-opacity="'+(e.op||.4)+'" stroke="'+e.cor+'" stroke-width="'+(e.peso||1.6)+'"'+(e.dash?' stroke-dasharray="'+e.dash+'"':'')+sh+'/>'; });
       } else if(e.tipo==='line'){
-        (g.lines||[]).forEach(function(r){ s+='<polyline points="'+polyStr(r)+'" fill="none" stroke="'+e.cor+'" stroke-width="'+(e.peso||2)+'"'+(e.dash?' stroke-dasharray="'+e.dash+'"':'')+' stroke-linecap="round"/>'; });
-        (g.polys||[]).forEach(function(r){ s+='<polyline points="'+polyStr(r)+'" fill="none" stroke="'+e.cor+'" stroke-width="'+(e.peso||2)+'"/>'; });
+        (g.lines||[]).forEach(function(r){ s+='<polyline points="'+polyStr(r)+'" fill="none" stroke="'+e.cor+'" stroke-width="'+(e.peso||2)+'"'+(e.dash?' stroke-dasharray="'+e.dash+'"':'')+' stroke-linecap="round"'+sh+'/>'; });
+        (g.polys||[]).forEach(function(r){ s+='<polyline points="'+polyStr(r)+'" fill="none" stroke="'+e.cor+'" stroke-width="'+(e.peso||2)+'" stroke-linejoin="round"'+sh+'/>'; });
       } else if(e.tipo==='pt'){
         (g.pts||[]).forEach(function(p){ var q=PX(p[0],p[1]); s+='<rect x="'+(q[0]-3).toFixed(1)+'" y="'+(q[1]-3).toFixed(1)+'" width="6" height="6" fill="'+e.cor+'" stroke="#111" stroke-width="1"/>'; });
       } else if(e.tipo==='faixa'){
-        (g.limites||[]).forEach(function(r){ s+='<polyline points="'+polyStr(r)+'" fill="none" stroke="'+e.cor+'" stroke-width="2" stroke-linecap="round"/>'; });
+        (g.limites||[]).forEach(function(r){ s+='<polyline points="'+polyStr(r)+'" fill="none" stroke="'+e.cor+'" stroke-width="3" stroke-linecap="round"'+sh+'/>'; });
         (g.eixos||[]).forEach(function(r){ s+='<polyline points="'+polyStr(r)+'" fill="none" stroke="#ff8c1a" stroke-width="1.8"/>'; s+='<polyline points="'+polyStr(r)+'" fill="none" stroke="#ff8c1a" stroke-width="4" stroke-dasharray="1.5 7" opacity=".9"/>'; });
       }
     });
