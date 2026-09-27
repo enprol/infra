@@ -2938,6 +2938,10 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
     .pgm-incra-op{ display:flex; justify-content:space-between; margin-top:6px; color:#c8dde1; }
     .pgm-camadas details.pgm-incra-box input[type=range]{ width:100%; margin:2px 0; accent-color:#00e5ff; }
     .pgm-incra-nota{ font-size:10.5px; color:#7fa3ab; margin-top:3px; }
+    .pgm-camadas details.pgm-pub-box{ margin-top:8px; padding-top:7px; border-top:1px solid #23444d; color:#e8f1f3; }
+    .pgm-camadas details.pgm-pub-box > summary{ font-size:11.5px; font-weight:700; color:#cfe6ea; }
+    .pgm-camadas details.pgm-pub-box label{ padding:3px 0 3px 2px; }
+    .pgm-car-label{ background:none!important; border:none!important; box-shadow:none!important; color:#b8860b; font-size:10px; font-weight:700; padding:0!important; }
     .pgm-cg{ font-size:10.5px; color:#8db0b8; font-weight:500; }
     /* cores do servidor são todas vermelhas/marrons: cada camada ganha um tom próprio (a amostra da legenda usa o mesmo filtro) */
     .pgm-incra-0{ filter:hue-rotate(28deg) saturate(1.25); }
@@ -13476,6 +13480,13 @@ function AV_gerarDescSituacao(){
     {t:'imoveiscertificados_publico_pe',   nome:'Imóveis certificados — públicos', base:'#8b6b6b'},
     {t:'assentamentos_pe',                 nome:'Assentamentos',                   base:'#ff2020'}
   ];
+  // ---- Camadas públicas (WMS) ----
+  var PUB_WMS = [
+    {id:'ana_drenagem', nome:'Trecho de Drenagem', url:'https://www.snirh.gov.br/arcgis/services/INDE/Camadas/MapServer/WMSServer', layers:'108', attr:'ANA'},
+    {id:'anm_mineracao', nome:'Processos minerários ativos', url:'https://geoservicos.inde.gov.br/geoserver/ANM/ows', layers:'processos_minerarios_ativos', attr:'ANM'},
+    {id:'icmbio_uc', nome:'Limite de UC federais', url:'https://geoservicos.inde.gov.br/geoserver/ICMBio/ows', layers:'limiteucsfederais_a', attr:'ICMBio'}
+  ];
+  var CAR_ZOOM_MIN = 12;
   var ESTILO_FIXO = { color:'#00c400', weight:1.8, opacity:.95, lineCap:'round', lineJoin:'round', fill:false, interactive:false };
   var ESTILO_CAD  = { color:'#00e5ff', weight:2.6, opacity:1, fillColor:'#00e5ff', fillOpacity:.14 };
   // Rampa hipsométrica — as mesmas 13 cores da apresentação AMBEV (azul-arroxeado → azul → verde →
@@ -13500,6 +13511,8 @@ function AV_gerarDescSituacao(){
   var selKey = null, hoverKey = null;
   var incraLayers = {}, visIncra = {}, incraOp = .5, incraAberto = false, incraErros = 0;
   var projGrupos = null, projErro = false, projDados = {}, projLayers = {}, visProj = {}, projAberto = {}, projRend = {}, ultArgsCamadas = null;
+  var pubLayers = {}, visPub = {}, pubAberto = false;
+  var carLayer = null, visCar = false, _carTmr = 0, _carTok = 0;
 
   // ---------- carregar o Leaflet só quando precisa ----------
   var _leafletP = null;
@@ -13950,7 +13963,7 @@ function AV_gerarDescSituacao(){
       maxZoom:21, minZoom:4, preferCanvas:true });
     mapa.attributionControl.setPrefix('<a href="https://leafletjs.com" target="_blank" rel="noopener">Leaflet</a>');
     window.__pgmMapa = mapa;   // gancho para testes/diagnóstico
-    [['demPane',250,true],['curvasPane',270,true],['incraPane',300,true],['projPoli',320,true],['projLin',330,true],['projEst',340,true],['projTxt',350,true],['fixosPane',390,true],['cadPane',410,false]].forEach(function(d){
+    [['demPane',250,true],['curvasPane',270,true],['pubPane',285,true],['carPane',295,false],['incraPane',300,true],['projPoli',320,true],['projLin',330,true],['projEst',340,true],['projTxt',350,true],['fixosPane',390,true],['cadPane',410,false]].forEach(function(d){
       var pn = mapa.createPane(d[0]); pn.style.zIndex = d[1]; if(d[2]) pn.style.pointerEvents = 'none';
     });
     rFix = L.canvas({pane:'fixosPane', padding:.4});
@@ -14143,9 +14156,11 @@ function AV_gerarDescSituacao(){
     ultArgsCamadas = [usados, semKml, comErro, spsLista, fixosPorSps];
     h += htmlProjetos(spsLista);
     h += htmlIncra();
+    h += htmlPublicas();
     var host = $('pgmCamadas'); host.innerHTML = h;
     ligarEventosProj(host);
     ligarEventosIncra(host);
+    ligarEventosPub(host);
     Array.prototype.forEach.call(host.querySelectorAll('input[data-cam]'), function(cb){
       cb.addEventListener('change', function(){
         if(cb.dataset.cam === 'cad'){ visCad = cb.checked; if(visCad) grupoCad.addTo(mapa); else mapa.removeLayer(grupoCad); }
@@ -14367,6 +14382,86 @@ function AV_gerarDescSituacao(){
       incraOp = 1 - Number(r.value) / 100;
       $('pgmIncraOpV').textContent = r.value + '%';
       Object.keys(incraLayers).forEach(function(k){ incraLayers[k].setOpacity(incraOp); });
+    });
+  }
+
+  // ---------- Consultas públicas (WMS + CAR WFS) ----------
+  function pubWmsLayer(i){
+    var d = PUB_WMS[i];
+    return L.tileLayer.wms(d.url, {
+      layers: d.layers, format:'image/png', transparent:true,
+      attribution: d.attr, pane:'pubPane'
+    });
+  }
+  function ligarPub(i, on){
+    var d = PUB_WMS[i]; visPub[d.id] = on;
+    if(on){ if(!pubLayers[d.id]) pubLayers[d.id] = pubWmsLayer(i); pubLayers[d.id].addTo(mapa); }
+    else if(pubLayers[d.id]){ mapa.removeLayer(pubLayers[d.id]); }
+  }
+  function carUf(){
+    var el = document.getElementById('fb_prop_uf');
+    var v = el ? (el.value || '').trim() : '';
+    if(!v){ el = document.getElementById('fb_uf'); v = el ? (el.value || '').trim() : ''; }
+    return (v || 'PE').substring(0,2).toUpperCase();
+  }
+  function carregarCar(){
+    if(mapa.getZoom() < CAR_ZOOM_MIN){ if(carLayer){ mapa.removeLayer(carLayer); carLayer = null; } return; }
+    var b = mapa.getBounds();
+    var bbox = [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].join(',');
+    var uf = carUf().toLowerCase();
+    var tok = ++_carTok;
+    var base = (typeof BASE_URL !== 'undefined' ? BASE_URL : '');
+    fetch(base + '/api/mapa/car?uf=' + uf + '&bbox=' + bbox)
+      .then(function(r){ return r.ok ? r.json() : Promise.reject(r.status); })
+      .then(function(gj){
+        if(tok !== _carTok) return;
+        if(carLayer) mapa.removeLayer(carLayer);
+        carLayer = L.geoJSON(gj, {
+          pane:'carPane',
+          style: function(){ return { color:'#e6a800', weight:1.5, fillColor:'#ffe066', fillOpacity:0.25, opacity:0.5 }; },
+          onEachFeature: function(f, layer){
+            var cod = (f.properties && f.properties.cod_imovel) || '';
+            if(cod) layer.bindTooltip(cod, { permanent:true, direction:'center', className:'pgm-car-label' });
+          }
+        }).addTo(mapa);
+      })
+      .catch(function(e){ console.warn('CAR WFS erro:', e); });
+  }
+  function ligarCar(on){
+    visCar = on;
+    if(on){
+      carregarCar();
+      mapa.on('moveend', _carMoveEnd);
+    } else {
+      mapa.off('moveend', _carMoveEnd);
+      if(carLayer){ mapa.removeLayer(carLayer); carLayer = null; }
+    }
+  }
+  function _carMoveEnd(){
+    clearTimeout(_carTmr);
+    _carTmr = setTimeout(carregarCar, 600);
+  }
+  function htmlPublicas(){
+    var ativas = PUB_WMS.filter(function(d){ return visPub[d.id]; }).length + (visCar ? 1 : 0);
+    var h = '<details class="pgm-pub-box"' + (pubAberto ? ' open' : '') + '><summary>Consultas públicas' + (ativas ? ' <span class="pgm-incra-n">' + ativas + ' ativa(s)</span>' : '') + '</summary>';
+    PUB_WMS.forEach(function(d, i){
+      h += '<label><input type="checkbox" data-pub="' + i + '"' + (visPub[d.id] ? ' checked' : '') + '> ' + escH(d.nome) + '</label>';
+    });
+    h += '<label><input type="checkbox" data-pub="car"' + (visCar ? ' checked' : '') + '> CAR — Imóveis rurais (' + carUf() + ')</label>';
+    h += '<div class="pgm-incra-nota">CAR aparece a partir do zoom ' + CAR_ZOOM_MIN + '. Fontes: ANA · ANM · ICMBio · CAR/SICAR</div></details>';
+    return h;
+  }
+  function ligarEventosPub(host){
+    var det = host.querySelector('details.pgm-pub-box');
+    if(det) det.addEventListener('toggle', function(){ pubAberto = det.open; });
+    Array.prototype.forEach.call(host.querySelectorAll('input[data-pub]'), function(cb){
+      cb.addEventListener('change', function(){
+        var v = cb.dataset.pub;
+        if(v === 'car'){ ligarCar(cb.checked); }
+        else { ligarPub(Number(v), cb.checked); }
+        var n = PUB_WMS.filter(function(d){ return visPub[d.id]; }).length + (visCar ? 1 : 0);
+        var sm = host.querySelector('.pgm-pub-box summary'); if(sm) sm.innerHTML = 'Consultas públicas' + (n ? ' <span class="pgm-incra-n">' + n + ' ativa(s)</span>' : '');
+      });
     });
   }
 
