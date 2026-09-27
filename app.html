@@ -25090,13 +25090,19 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     function rotuloNoPoligono(cam,label,cor){ if(!label) return; var ac=(o.camadas||[]).filter(function(c){return c.cam===cam;})[0]; if(!ac||!ac.geom.polys||!ac.geom.polys.length) return; var ring=ac.geom.polys[0],cx=0,cy=0; ring.forEach(function(p){cx+=p[0];cy+=p[1];}); cx/=ring.length; cy/=ring.length; var qc=PX(cx,cy); var ls=String(label).split('\n').slice(0,3); ls.forEach(function(ln,i){ s+=TH(qc[0],qc[1]+(i-(ls.length-1)/2)*15,ln,{size:12.5,weight:'700',fill:cor||'#fff'}); }); }
     rotuloNoPoligono('area',o.areaLabel);
     rotuloNoPoligono('desap',o.desapLabel,'#ffd7d7');
-    // entrada/saída do eixo no cadastro — seta + coordenada UTM (não confundir com KM)
-    if(o.cruz){ [[o.cruz.ent,'ENTRADA DO EIXO'],[o.cruz.sai,'SAÍDA DO EIXO']].forEach(function(it){ if(!it[0]) return; var q=PX(it[0][0],it[0][1]), u=d2utm(it[0][0],it[0][1]);
-      s+='<polygon points="'+(q[0]+6)+','+q[1]+' '+(q[0]+20)+','+(q[1]-5)+' '+(q[0]+20)+','+(q[1]+5)+'" fill="#ff020c"/>';  // seta →
-      s+='<circle cx="'+q[0].toFixed(1)+'" cy="'+q[1].toFixed(1)+'" r="4.5" fill="#fff" stroke="#ff020c" stroke-width="2.2"/>';
-      s+=TH(q[0]+22,q[1]-8,it[1],{anchor:'start',size:8.5,weight:'700',fill:'#ffd7d7'});
-      s+=TH(q[0]+22,q[1]+4,'E '+Math.round(u.E)+'  N '+Math.round(u.N),{anchor:'start',size:9,weight:'700'});
-    }); }
+    // entrada/saída do eixo no cadastro — bloco KM/coordenada UTM, FORA do perímetro
+    if(o.cruz){
+      var cadC=null, cc=(o.camadas||[]).filter(function(c){return c.cam==='desap'||c.cam==='area';})[0];
+      if(cc&&cc.geom.polys&&cc.geom.polys.length){ var rg=cc.geom.polys[0],ccx=0,ccy=0; rg.forEach(function(p){ccx+=p[0];ccy+=p[1];}); cadC=PX(ccx/rg.length,ccy/rg.length); }
+      [[o.cruz.ent,o.kmEnt],[o.cruz.sai,o.kmSai]].forEach(function(it){ if(!it[0]) return; var q=PX(it[0][0],it[0][1]), u=d2utm(it[0][0],it[0][1]);
+        var dx=1,dy=0; if(cadC){ dx=q[0]-cadC[0]; dy=q[1]-cadC[1]; var L=Math.hypot(dx,dy)||1; dx/=L; dy/=L; }
+        var off=52, lx2=q[0]+dx*off, ly2=q[1]+dy*off, anchor=(dx<0)?'end':'start';
+        s+='<line x1="'+q[0].toFixed(1)+'" y1="'+q[1].toFixed(1)+'" x2="'+lx2.toFixed(1)+'" y2="'+ly2.toFixed(1)+'" stroke="#ff020c" stroke-width="1.6"/>';
+        s+='<circle cx="'+q[0].toFixed(1)+'" cy="'+q[1].toFixed(1)+'" r="4.5" fill="#fff" stroke="#ff020c" stroke-width="2.2"/>';
+        var lns=['KM= '+(it[1]||'000 + 000,00'),'(PROJETO ATUAL)','E= '+u.E.toFixed(3),'N= '+u.N.toFixed(3)];
+        lns.forEach(function(ln,i){ s+=TH(lx2, ly2-20+i*12, ln, {anchor:anchor,size:8.5,weight:'700',fill:(i===0?'#ffd7d7':'#ffffff')}); });
+      });
+    }
     s+='</g>';
     s+=gt;
     s+='<rect x="'+mapL+'" y="'+mapT+'" width="'+mapW+'" height="'+mapH+'" fill="none" stroke="#22303d" stroke-width="1.2"/>';
@@ -25202,6 +25208,10 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       +'<textarea id="d2map_arealbl" rows="2" placeholder="Ex.: ÁREA TOTAL&#10;17,6639 ha" style="width:100%;margin:4px 0 10px;border:1px solid #c3ccd4;border-radius:6px;padding:8px;font-size:12px;font-family:Arial;">'+d2esc(D2MAP_TXT.areaLabel||'')+'</textarea>'
       +'<label style="font-size:11px;font-weight:700;color:#4a5a6a;">TEXTO DA ÁREA DESAPROPRIADA (dentro do polígono)</label>'
       +'<textarea id="d2map_desaplbl" rows="2" placeholder="Ex.: ÁREA A DESAPROPRIAR&#10;2,3842 ha" style="width:100%;margin:4px 0 12px;border:1px solid #c3ccd4;border-radius:6px;padding:8px;font-size:12px;font-family:Arial;">'+d2esc(D2MAP_TXT.desapLabel||'')+'</textarea>'
+      +'<div style="display:flex;gap:10px;">'
+      +'<div style="flex:1;"><label style="font-size:11px;font-weight:700;color:#4a5a6a;">KM ENTRADA DO EIXO</label><input id="d2map_kment" value="'+d2esc(D2MAP_TXT.kmEnt||'000 + 000,00')+'" style="width:100%;margin:4px 0 12px;border:1px solid #c3ccd4;border-radius:6px;padding:8px;font-size:12px;font-family:Arial;"></div>'
+      +'<div style="flex:1;"><label style="font-size:11px;font-weight:700;color:#4a5a6a;">KM SAÍDA DO EIXO</label><input id="d2map_kmsai" value="'+d2esc(D2MAP_TXT.kmSai||'000 + 000,00')+'" style="width:100%;margin:4px 0 12px;border:1px solid #c3ccd4;border-radius:6px;padding:8px;font-size:12px;font-family:Arial;"></div>'
+      +'</div>'
       +'<label style="font-size:11px;font-weight:700;color:#4a5a6a;">BASE DO MAPA</label>'
       +'<select id="d2map_base" style="width:100%;margin:4px 0 12px;border:1px solid #c3ccd4;border-radius:6px;padding:8px;font-size:12px;font-family:Arial;"><option value="orto">Ortofoto do acervo (recomendado)</option><option value="sat">Satélite Esri</option></select>'
       +'<div id="d2map_status" style="font-size:12px;color:#4a5a6a;min-height:18px;"></div>'
@@ -25211,6 +25221,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     function st(m){ var e=document.getElementById('d2map_status'); if(e) e.textContent=m||''; }
     document.getElementById('d2map_ger').onclick=async function(){
       D2MAP_TXT.proc=document.getElementById('d2map_proc').value; D2MAP_TXT.ferrovia=document.getElementById('d2map_ferr').value; D2MAP_TXT.areaLabel=document.getElementById('d2map_arealbl').value; D2MAP_TXT.desapLabel=document.getElementById('d2map_desaplbl').value;
+      D2MAP_TXT.kmEnt=(document.getElementById('d2map_kment')||{}).value||''; D2MAP_TXT.kmSai=(document.getElementById('d2map_kmsai')||{}).value||'';
       st('Lendo camadas do imóvel…');
       var need={}; (regra.cams||[]).forEach(function(c){ need[c]=true; });
       var geom={};   // cam -> geometria
@@ -25260,7 +25271,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       if(base && base.mode==='orto'){ st('Baixando satélite (base de fundo)…'); try{ var satB=await d2satelite(bb); base.satUrl=satB.url; }catch(e){} }
       if(!base){ st('Baixando satélite (Esri)…'); try{ var sat=await d2satelite(bb); base={mode:'sat',sat:sat,url:sat.url}; }catch(e){ st('Falha ao baixar a base: '+(e&&e.message||e)); return; } }
       st('Compondo o mapa…');
-      var svg=d2mapSVG({ base:base, bb:bb, camadas:camadas, legend:legend, proc:D2MAP_TXT.proc, ferrovia:D2MAP_TXT.ferrovia, estacas:estacas, areaLabel:D2MAP_TXT.areaLabel, desapLabel:D2MAP_TXT.desapLabel, sigefCodes:sigefCodes, carCodes:carCodes, cruz:cruz });
+      var svg=d2mapSVG({ base:base, bb:bb, camadas:camadas, legend:legend, proc:D2MAP_TXT.proc, ferrovia:D2MAP_TXT.ferrovia, estacas:estacas, areaLabel:D2MAP_TXT.areaLabel, desapLabel:D2MAP_TXT.desapLabel, sigefCodes:sigefCodes, carCodes:carCodes, cruz:cruz, kmEnt:D2MAP_TXT.kmEnt, kmSai:D2MAP_TXT.kmSai });
       var png; try{ png=await d2svg2png(svg,2); }catch(e){ st('Falha ao rasterizar: '+(e&&e.message||e)); return; }
       figsAuto[fid]=png;
       var prev=document.getElementById('d2map_prev'); if(prev) prev.innerHTML='<img src="'+png+'" style="width:100%;border:1px solid #c3ccd4;border-radius:8px;">';
