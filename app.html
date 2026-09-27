@@ -2945,11 +2945,7 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
     .pgm-car-titulo{ font-size:10.5px; font-weight:700; color:#cfe6ea; margin:6px 0 2px 0; padding-top:5px; border-top:1px solid #2a4f58; }
     .pgm-cg{ font-size:10.5px; color:#8db0b8; font-weight:500; }
     /* cores do servidor são todas vermelhas/marrons: cada camada ganha um tom próprio (a amostra da legenda usa o mesmo filtro) */
-    .pgm-incra-0{ filter:hue-rotate(280deg) saturate(1.6) brightness(1.1); }
-    .pgm-incra-1{ filter:hue-rotate(160deg) saturate(1.4) brightness(1.2); }
-    .pgm-incra-2{ filter:hue-rotate(60deg) saturate(1.5) brightness(1.1); }
-    .pgm-incra-3{ filter:hue-rotate(210deg) saturate(1.3) brightness(1.2); }
-    .pgm-incra-4{ filter:hue-rotate(0deg) saturate(1.2); }
+    /* cores do SIGEF agora são por vetor (fillColor/color no L.geoJSON), não por filtro CSS */
     .pgm-camadas summary{ cursor:pointer; font-size:11.5px; }
     .pgm-camadas details ul{ margin:4px 0 0; padding-left:16px; max-height:120px; overflow:auto; }
     .pgm-t{ font-size:10.5px; font-weight:800; letter-spacing:.5px; text-transform:uppercase; color:#7fa3ab; margin-bottom:4px; }
@@ -13475,11 +13471,11 @@ function AV_gerarDescSituacao(){
   var INCRA_ATTR = 'Acervo Fundiário © INCRA / SIGEF';
   var INCRA_ZOOM_MIN = 9;
   var INCRA_TEMAS_BASE = [
-    {pre:'certificada_sigef_particular_',  nome:'SIGEF — parcelas particulares',   base:'#a52a2a'},
-    {pre:'certificada_sigef_publico_',     nome:'SIGEF — parcelas públicas',       base:'#a52a2a'},
-    {pre:'imoveiscertificados_privado_',   nome:'Imóveis certificados — privados', base:'#8b6b6b'},
-    {pre:'imoveiscertificados_publico_',   nome:'Imóveis certificados — públicos', base:'#8b6b6b'},
-    {pre:'assentamentos_',                 nome:'Assentamentos',                   base:'#ff2020'}
+    {pre:'certificada_sigef_particular_',  nome:'SIGEF — parcelas particulares',   cor:'#e040fb', fill:'#e040fb'},
+    {pre:'certificada_sigef_publico_',     nome:'SIGEF — parcelas públicas',       cor:'#ff6d00', fill:'#ff6d00'},
+    {pre:'imoveiscertificados_privado_',   nome:'Imóveis certificados — privados', cor:'#00e676', fill:'#00e676'},
+    {pre:'imoveiscertificados_publico_',   nome:'Imóveis certificados — públicos', cor:'#40c4ff', fill:'#40c4ff'},
+    {pre:'assentamentos_',                 nome:'Assentamentos',                   cor:'#ff1744', fill:'#ff1744'}
   ];
   var _incraUf = 'pe';
   var INCRA_TEMAS = INCRA_TEMAS_BASE.map(function(d){ return {t:d.pre + _incraUf, nome:d.nome, base:d.base, pre:d.pre}; });
@@ -13512,7 +13508,7 @@ function AV_gerarDescSituacao(){
   var demLayer = null, contLayer = null, demOn = false, demOp = .6, demEstilo = 'alt', demCurvas = true;
   var regCad = {};                                   // regCad[chave] = {layers:[...]} — para destacar o selecionado
   var selKey = null, hoverKey = null;
-  var incraLayers = {}, visIncra = {}, incraOp = .5, incraAberto = false, incraErros = 0;
+  var incraLayers = {}, visIncra = {}, incraOp = .5, incraAberto = false, incraErros = 0, _incraTmr = {};
   var projGrupos = null, projErro = false, projDados = {}, projLayers = {}, visProj = {}, projAberto = {}, projRend = {}, ultArgsCamadas = null;
   var pubLayers = {}, visPub = {}, pubAberto = false;
   var visCar = false, _carTmr = 0;
@@ -14339,36 +14335,54 @@ function AV_gerarDescSituacao(){
   }
 
   // ---------- Acervo Fundiário (INCRA): camadas WMS que se liga/desliga ----------
-  function incraLayer(i){
+  function _carregarIncra(i){
+    if(mapa.getZoom() < INCRA_ZOOM_MIN){ if(incraLayers[i]){ mapa.removeLayer(incraLayers[i]); incraLayers[i] = null; } return; }
     var d = INCRA_TEMAS[i];
-    var l = L.tileLayer.wms(INCRA_URL + '?tema=' + d.t, {
-      layers: d.t, styles: '', format: 'image/png', transparent: true, version: '1.1.1',
-      pane: 'incraPane', opacity: incraOp, minZoom: INCRA_ZOOM_MIN, maxZoom: 21, tileSize: 256,
-      className: 'pgm-incra pgm-incra-' + i, attribution: INCRA_ATTR
-    });
-    l.on('tileerror', function(){
-      incraErros++;
-      if(incraErros === 4) msg('O servidor do INCRA (Acervo Fundiário) não respondeu a alguns tiles. As camadas do SIGEF podem aparecer incompletas.', 'info');
-    });
-    l.on('tileload', function(){ if(incraErros){ incraErros = 0; } });
-    return l;
+    var b = mapa.getBounds();
+    var bbox = [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].join(',');
+    fetch('/api/mapa/sigef?tema=' + encodeURIComponent(d.t) + '&bbox=' + bbox)
+      .then(function(r){ return r.ok ? r.json() : Promise.reject(r.status); })
+      .then(function(gj){
+        if(!visIncra[d.t]) return;
+        if(incraLayers[i]) mapa.removeLayer(incraLayers[i]);
+        incraLayers[i] = L.geoJSON(gj, {
+          pane:'incraPane',
+          style: function(){ return { color:d.cor, weight:1.8, fillColor:d.fill, fillOpacity:0.15 * incraOp, opacity:incraOp }; },
+          onEachFeature: function(f, layer){
+            var p = f.properties || {};
+            var tip = (p.nome_area || '') + (p.codigo_imovel ? '\n' + p.codigo_imovel : '');
+            if(tip) layer.bindTooltip(tip.trim(), { direction:'center', className:'pgm-car-label', sticky:true, permanent:false });
+          }
+        }).addTo(mapa);
+      })
+      .catch(function(e){ console.warn('SIGEF WFS erro (' + d.t + '):', e); });
+  }
+  function _incraMoveEnd(i){
+    return function(){
+      clearTimeout(_incraTmr[i]);
+      _incraTmr[i] = setTimeout(function(){ _carregarIncra(i); }, 600);
+    };
   }
   function ligarIncra(i, on){
     var d = INCRA_TEMAS[i]; visIncra[d.t] = on;
+    var evKey = '_incra_move_' + i;
     if(on){
-      if(!incraLayers[d.t]) incraLayers[d.t] = incraLayer(i);
-      incraLayers[d.t].addTo(mapa);
-    } else if(incraLayers[d.t]){ mapa.removeLayer(incraLayers[d.t]); }
+      _carregarIncra(i);
+      if(!mapa[evKey]){ mapa[evKey] = _incraMoveEnd(i); mapa.on('moveend', mapa[evKey]); }
+    } else {
+      if(mapa[evKey]){ mapa.off('moveend', mapa[evKey]); delete mapa[evKey]; }
+      if(incraLayers[i]){ mapa.removeLayer(incraLayers[i]); incraLayers[i] = null; }
+    }
   }
   function atualizarUfIncra(){
     var novoUf = carUf().toLowerCase();
     if(novoUf === _incraUf) return;
-    Object.keys(incraLayers).forEach(function(k){ mapa.removeLayer(incraLayers[k]); });
     var visAntes = INCRA_TEMAS.map(function(d){ return visIncra[d.t]; });
-    incraLayers = {}; visIncra = {};
+    INCRA_TEMAS.forEach(function(d, i){ ligarIncra(i, false); });
+    visIncra = {};
     _incraUf = novoUf;
-    INCRA_TEMAS = INCRA_TEMAS_BASE.map(function(d){ return {t:d.pre + _incraUf, nome:d.nome, base:d.base, pre:d.pre}; });
-    INCRA_TEMAS.forEach(function(d, i){ if(visAntes[i]){ visIncra[d.t] = true; incraLayers[d.t] = incraLayer(i); incraLayers[d.t].addTo(mapa); } });
+    INCRA_TEMAS = INCRA_TEMAS_BASE.map(function(d){ return {t:d.pre + _incraUf, nome:d.nome, cor:d.cor, fill:d.fill, pre:d.pre}; });
+    INCRA_TEMAS.forEach(function(d, i){ if(visAntes[i]){ visIncra[d.t] = true; ligarIncra(i, true); } });
   }
   function htmlIncra(){
     atualizarUfIncra();
@@ -14377,12 +14391,19 @@ function AV_gerarDescSituacao(){
     var h = '<details class="pgm-incra-box"' + (incraAberto ? ' open' : '') + '><summary>INCRA · SIGEF (' + uf + ')' + (ativas ? ' <span class="pgm-incra-n">' + ativas + ' ativa(s)</span>' : '') + '</summary>';
     INCRA_TEMAS.forEach(function(d, i){
       h += '<label><input type="checkbox" data-incra="' + i + '"' + (visIncra[d.t] ? ' checked' : '') + '>'
-        + '<span class="pgm-sw-inc pgm-incra-' + i + '" style="background:' + d.base + '"></span> ' + escH(d.nome) + '</label>';
+        + '<span class="pgm-sw-inc" style="background:' + d.cor + '"></span> ' + escH(d.nome) + '</label>';
     });
     h += '<div class="pgm-incra-op"><span>Transparência</span><b id="pgmIncraOpV">' + Math.round((1 - incraOp) * 100) + '%</b></div>'
       + '<input type="range" id="pgmIncraOp" min="0" max="90" value="' + Math.round((1 - incraOp) * 100) + '" aria-label="Transparência das camadas do INCRA">'
       + '<div class="pgm-incra-nota">Aparecem a partir do zoom ' + INCRA_ZOOM_MIN + '. Fonte: acervofundiario.incra.gov.br</div></details>';
     return h;
+  }
+  function _reestilizarIncra(){
+    Object.keys(incraLayers).forEach(function(k){
+      var l = incraLayers[k]; if(!l) return;
+      var d = INCRA_TEMAS[k];
+      l.setStyle({ color:d.cor, weight:1.8, fillColor:d.fill, fillOpacity:0.15 * incraOp, opacity:incraOp });
+    });
   }
   function ligarEventosIncra(host){
     var det = host.querySelector('details.pgm-incra-box');
@@ -14398,7 +14419,7 @@ function AV_gerarDescSituacao(){
     if(r) r.addEventListener('input', function(){
       incraOp = 1 - Number(r.value) / 100;
       $('pgmIncraOpV').textContent = r.value + '%';
-      Object.keys(incraLayers).forEach(function(k){ incraLayers[k].setOpacity(incraOp); });
+      _reestilizarIncra();
     });
   }
 
