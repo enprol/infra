@@ -25006,21 +25006,40 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     await Promise.all(jobs);
     return { url:cv.toDataURL('image/jpeg',0.9), cw:cw, ch:ch, w0:w0, n0:n0, z:z };
   }
+  // SPS do cadastro (do texto "Resultado (Processo administrativo)" ou dos campos)
+  function d2sps(){
+    var fontes=[ (document.getElementById('fb_proc_preview')||{}).value, (document.getElementById('fb_proc_lote')||{}).value, (document.getElementById('fb_proc_ctd')||{}).value ];
+    for(var i=0;i<fontes.length;i++){ var m=/SPS[ \-]?0*(\d{1,2})/i.exec(fontes[i]||''); if(m) return ('0'+m[1]).slice(-2); }
+    return null;
+  }
+  // recorte de ortofoto (ECW via servidor) — base em UTM alinhada às feições
+  async function d2ortofoto(bb, sps){
+    var cs=[d2utm(bb.w,bb.s),d2utm(bb.e,bb.n),d2utm(bb.w,bb.n),d2utm(bb.e,bb.s)];
+    var Es=cs.map(function(c){return c.E;}), Ns=cs.map(function(c){return c.N;});
+    var e0=Math.min.apply(null,Es), e1=Math.max.apply(null,Es), n0=Math.min.apply(null,Ns), n1=Math.max.apply(null,Ns);
+    var url='/api/ortofoto/'+sps+'?bbox='+[e0,n0,e1,n1].map(function(v){return Math.round(v);}).join(',')+'&px=1800';
+    var r=await fetch(url); if(!r.ok) throw new Error('HTTP '+r.status);
+    var blob=await r.blob(); var durl=await new Promise(function(res,rej){ var fr=new FileReader(); fr.onload=function(){res(fr.result);}; fr.onerror=rej; fr.readAsDataURL(blob); });
+    return { mode:'orto', e0:e0, e1:e1, n0:n0, n1:n1, url:durl };
+  }
   function d2esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
   // monta o SVG do mapa (figura compacta: entra DENTRO de uma página que já tem
   // cabeçalho/rodapé/logos/texto — por isso sem título, sem logos e sem moldura de página)
   function d2mapSVG(o){
     var mapL=34,mapT=34,mapR=866,mapB=978,mapW=mapR-mapL,mapH=mapB-mapT;
-    var sat=o.sat, bb=o.bb;
-    function PX(lon,lat){ var px=d2lonpx(lon,sat.z)-sat.w0, py=d2latpx(lat,sat.z)-sat.n0; return [mapL+px/sat.cw*mapW, mapT+py/sat.ch*mapH]; }
+    var base=o.base, bb=o.bb;
+    function PX(lon,lat){
+      if(base.mode==='orto'){ var u=d2utm(lon,lat); return [mapL+(u.E-base.e0)/(base.e1-base.e0)*mapW, mapT+(base.n1-u.N)/(base.n1-base.n0)*mapH]; }
+      var px=d2lonpx(lon,base.sat.z)-base.sat.w0, py=d2latpx(lat,base.sat.z)-base.sat.n0; return [mapL+px/base.sat.cw*mapW, mapT+py/base.sat.ch*mapH];
+    }
     // texto com halo escuro (legível sobre o satélite)
     function TH(x,y,txt,opt){ opt=opt||{}; var attr='x="'+x+'" y="'+y+'" text-anchor="'+(opt.anchor||'middle')+'" font-family="'+(opt.mono?'monospace':'Arial,sans-serif')+'" font-size="'+(opt.size||9)+'" font-weight="'+(opt.weight||'400')+'"'+(opt.ls?' letter-spacing="'+opt.ls+'"':''); if(opt.rot!=null) attr+=' transform="rotate('+opt.rot+' '+x+' '+y+')"'; return '<text '+attr+' fill="'+(opt.fill||'#fff')+'" stroke="#0d1620" stroke-width="'+(opt.halo||2.6)+'" stroke-linejoin="round" paint-order="stroke">'+d2esc(txt)+'</text>'; }
     var s='<svg id="svg" viewBox="0 0 900 1200" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">';
     s+='<rect x="0" y="0" width="900" height="1200" fill="#fff"/>';
     s+='<clipPath id="mc"><rect x="'+mapL+'" y="'+mapT+'" width="'+mapW+'" height="'+mapH+'"/></clipPath>';
     s+='<rect x="'+mapL+'" y="'+mapT+'" width="'+mapW+'" height="'+mapH+'" fill="#e9edf0"/>';
-    s+='<image x="'+mapL+'" y="'+mapT+'" width="'+mapW+'" height="'+mapH+'" preserveAspectRatio="none" clip-path="url(#mc)" opacity="0.8" xlink:href="'+sat.url+'"/>';
+    s+='<image x="'+mapL+'" y="'+mapT+'" width="'+mapW+'" height="'+mapH+'" preserveAspectRatio="none" clip-path="url(#mc)" opacity="'+(base.mode==='orto'?'0.9':'0.8')+'" xlink:href="'+base.url+'"/>';
     s+='<g clip-path="url(#mc)">';
     // grade UTM
     var uSW=d2utm(bb.w,bb.s), uNE=d2utm(bb.e,bb.n), zone=uSW.zone, south=bb.s<0;
@@ -25176,6 +25195,8 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       +'<textarea id="d2map_arealbl" rows="2" placeholder="Ex.: ÁREA TOTAL&#10;17,6639 ha" style="width:100%;margin:4px 0 10px;border:1px solid #c3ccd4;border-radius:6px;padding:8px;font-size:12px;font-family:Arial;">'+d2esc(D2MAP_TXT.areaLabel||'')+'</textarea>'
       +'<label style="font-size:11px;font-weight:700;color:#4a5a6a;">TEXTO DA ÁREA DESAPROPRIADA (dentro do polígono)</label>'
       +'<textarea id="d2map_desaplbl" rows="2" placeholder="Ex.: ÁREA A DESAPROPRIAR&#10;2,3842 ha" style="width:100%;margin:4px 0 12px;border:1px solid #c3ccd4;border-radius:6px;padding:8px;font-size:12px;font-family:Arial;">'+d2esc(D2MAP_TXT.desapLabel||'')+'</textarea>'
+      +'<label style="font-size:11px;font-weight:700;color:#4a5a6a;">BASE DO MAPA</label>'
+      +'<select id="d2map_base" style="width:100%;margin:4px 0 12px;border:1px solid #c3ccd4;border-radius:6px;padding:8px;font-size:12px;font-family:Arial;"><option value="orto">Ortofoto do acervo (recomendado)</option><option value="sat">Satélite Esri</option></select>'
       +'<div id="d2map_status" style="font-size:12px;color:#4a5a6a;min-height:18px;"></div>'
       +'<div id="d2map_prev" style="margin:10px 0;"></div>'
       +'<div style="display:flex;gap:8px;flex-wrap:wrap;"><button id="d2map_ger" style="background:#1f6fc0;color:#fff;border:none;border-radius:7px;padding:9px 14px;font-weight:700;cursor:pointer;">Gerar prévia</button>'
@@ -25226,10 +25247,12 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       // Figura 2B: códigos dos interceptados na legenda
       if(sigefCodes.length) legend.push({nome:'SIGEF: '+sigefCodes.join(' · '),tipo:'txt'});
       if(carCodes.length) legend.push({nome:'CAR: '+carCodes.join(' · '),tipo:'txt'});
-      st('Baixando satélite (Esri)…');
-      var sat; try{ sat=await d2satelite(bb); }catch(e){ st('Falha ao baixar o satélite: '+(e&&e.message||e)); return; }
+      var basePref=(document.getElementById('d2map_base')||{}).value||'orto';
+      var base=null;
+      if(basePref==='orto'){ var sps=d2sps(); if(sps){ st('Baixando ortofoto (SPS '+sps+')…'); try{ base=await d2ortofoto(bb,sps); }catch(e){ falhou.push('ortofoto (usando satélite)'); } } else falhou.push('ortofoto (SPS não identificado — usando satélite)'); }
+      if(!base){ st('Baixando satélite (Esri)…'); try{ var sat=await d2satelite(bb); base={mode:'sat',sat:sat,url:sat.url}; }catch(e){ st('Falha ao baixar a base: '+(e&&e.message||e)); return; } }
       st('Compondo o mapa…');
-      var svg=d2mapSVG({ sat:sat, bb:bb, camadas:camadas, legend:legend, proc:D2MAP_TXT.proc, ferrovia:D2MAP_TXT.ferrovia, estacas:estacas, areaLabel:D2MAP_TXT.areaLabel, desapLabel:D2MAP_TXT.desapLabel, sigefCodes:sigefCodes, carCodes:carCodes, cruz:cruz });
+      var svg=d2mapSVG({ base:base, bb:bb, camadas:camadas, legend:legend, proc:D2MAP_TXT.proc, ferrovia:D2MAP_TXT.ferrovia, estacas:estacas, areaLabel:D2MAP_TXT.areaLabel, desapLabel:D2MAP_TXT.desapLabel, sigefCodes:sigefCodes, carCodes:carCodes, cruz:cruz });
       var png; try{ png=await d2svg2png(svg,2); }catch(e){ st('Falha ao rasterizar: '+(e&&e.message||e)); return; }
       figsAuto[fid]=png;
       var prev=document.getElementById('d2map_prev'); if(prev) prev.innerHTML='<img src="'+png+'" style="width:100%;border:1px solid #c3ccd4;border-radius:8px;">';
