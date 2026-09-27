@@ -25190,12 +25190,13 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       img.src='data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(svg)));
     });
   }
-  function d2bboxDe(geoms){
+  function d2bboxDe(geoms, padFrac){
+    if(padFrac==null) padFrac=0.14;
     var w=1e9,s=1e9,e=-1e9,n=-1e9,ok=false;
     geoms.forEach(function(g){ ['polys','lines'].forEach(function(k){ (g[k]||[]).forEach(function(r){ r.forEach(function(p){ ok=true; if(p[0]<w)w=p[0]; if(p[0]>e)e=p[0]; if(p[1]<s)s=p[1]; if(p[1]>n)n=p[1]; }); }); }); (g.pts||[]).forEach(function(p){ ok=true; if(p[0]<w)w=p[0]; if(p[0]>e)e=p[0]; if(p[1]<s)s=p[1]; if(p[1]>n)n=p[1]; }); });
     if(!ok) return null;
-    // padding 14% e força aspecto do mapa (772x662)
-    var padx=(e-w)*0.14||0.002, pady=(n-s)*0.14||0.002; w-=padx;e+=padx;s-=pady;n+=pady;
+    // padding e força aspecto do mapa
+    var padx=(e-w)*padFrac||0.002, pady=(n-s)*padFrac||0.002; w-=padx;e+=padx;s-=pady;n+=pady;
     var arMap=864/740, cx=(w+e)/2, cy=(s+n)/2, ww=e-w, hh=n-s;
     var arGeo=ww/(hh*Math.cos(cy*Math.PI/180));
     if(arGeo<arMap){ ww=hh*Math.cos(cy*Math.PI/180)*arMap; w=cx-ww/2; e=cx+ww/2; } else { hh=ww/Math.cos(cy*Math.PI/180)/arMap; s=cy-hh/2; n=cy+hh/2; }
@@ -25248,9 +25249,12 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       // ---- camadas client-side (KML) ----
       ['area','desap','vias','appest','hidro'].forEach(function(cam){ if(!need[cam]) return; var g=d2mapKML(d2mapFonteKML(cam)); if(g.polys.length+g.lines.length+g.pts.length) geom[cam]=g; });
       var gb=d2mapKML(d2mapFonteKML('benf')); if(gb.pts.length||gb.polys.length) geom.benf=gb;
-      // bbox a partir das camadas do imóvel (base para buscar as do servidor)
-      var baseGeoms=[]; ['area','desap','vias','appest','benf','hidro'].forEach(function(c){ if(geom[c]) baseGeoms.push(geom[c]); });
-      var bb=d2bboxDe(baseGeoms);
+      // enquadramento por figura: Fig 2 e 2B mostram a ÁREA TOTAL; demais focam a ÁREA DESAPROPRIADA
+      var mostraTudo=(fid==='f2'||fid==='f2b');
+      var focoCams = mostraTudo ? ['area'] : ['desap'];
+      var focoGeoms=[]; focoCams.forEach(function(c){ if(geom[c]) focoGeoms.push(geom[c]); });
+      if(!focoGeoms.length){ ['area','desap','vias','appest','hidro','benf'].forEach(function(c){ if(geom[c]) focoGeoms.push(geom[c]); }); }
+      var bb=d2bboxDe(focoGeoms, mostraTudo?0.12:0.30);
       if(!bb){ st('Insira ao menos o KML de "Área total do imóvel" (ou da área a desapropriar) em Técnica › Camadas do imóvel.'); return; }
       // polígono de referência p/ interseção (cadastro = área total, senão desapropriada)
       var refPolys=(geom.area&&geom.area.polys.length)?geom.area.polys:((geom.desap&&geom.desap.polys)||null);
