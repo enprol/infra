@@ -2942,6 +2942,7 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
     .pgm-camadas details.pgm-pub-box > summary{ font-size:11.5px; font-weight:700; color:#cfe6ea; }
     .pgm-camadas details.pgm-pub-box label{ padding:3px 0 3px 2px; }
     .pgm-car-label{ background:none!important; border:none!important; box-shadow:none!important; color:#b8860b; font-size:10px; font-weight:700; padding:0!important; }
+    .pgm-car-titulo{ font-size:10.5px; font-weight:700; color:#cfe6ea; margin:6px 0 2px 0; padding-top:5px; border-top:1px solid #2a4f58; }
     .pgm-cg{ font-size:10.5px; color:#8db0b8; font-weight:500; }
     /* cores do servidor são todas vermelhas/marrons: cada camada ganha um tom próprio (a amostra da legenda usa o mesmo filtro) */
     .pgm-incra-0{ filter:hue-rotate(28deg) saturate(1.25); }
@@ -13512,7 +13513,9 @@ function AV_gerarDescSituacao(){
   var incraLayers = {}, visIncra = {}, incraOp = .5, incraAberto = false, incraErros = 0;
   var projGrupos = null, projErro = false, projDados = {}, projLayers = {}, visProj = {}, projAberto = {}, projRend = {}, ultArgsCamadas = null;
   var pubLayers = {}, visPub = {}, pubAberto = false;
-  var carLayer = null, visCar = false, _carTmr = 0, _carTok = 0;
+  var visCar = false, _carTmr = 0;
+  var visCarRl = false, _carRlTmr = 0;
+  var visCarApp = false, _carAppTmr = 0;
 
   // ---------- carregar o Leaflet só quando precisa ----------
   var _leafletP = null;
@@ -14404,50 +14407,83 @@ function AV_gerarDescSituacao(){
     if(!v){ el = document.getElementById('fb_uf'); v = el ? (el.value || '').trim() : ''; }
     return (v || 'PE').substring(0,2).toUpperCase();
   }
+  function _carFetchGeoJSON(url, tokRef, oldLayer, style, tooltip, cb){
+    var tok = ++tokRef.v;
+    fetch(url)
+      .then(function(r){ return r.ok ? r.json() : Promise.reject(r.status); })
+      .then(function(gj){
+        if(tok !== tokRef.v) return;
+        if(oldLayer.ref) mapa.removeLayer(oldLayer.ref);
+        oldLayer.ref = L.geoJSON(gj, {
+          pane:'carPane',
+          style: function(){ return style; },
+          onEachFeature: function(f, layer){
+            var t = tooltip(f); if(t) layer.bindTooltip(t, { permanent:true, direction:'center', className:'pgm-car-label' });
+          }
+        }).addTo(mapa);
+        cb && cb(oldLayer.ref);
+      })
+      .catch(function(e){ console.warn('CAR erro:', e); });
+  }
+  var _carRef={v:0}, _carLRef={ref:null};
+  var _carRlRef={v:0}, _carRlLRef={ref:null};
+  var _carAppRef={v:0}, _carAppLRef={ref:null};
   function carregarCar(){
-    if(mapa.getZoom() < CAR_ZOOM_MIN){ if(carLayer){ mapa.removeLayer(carLayer); carLayer = null; } return; }
+    if(mapa.getZoom() < CAR_ZOOM_MIN){ if(_carLRef.ref){ mapa.removeLayer(_carLRef.ref); _carLRef.ref=null; } return; }
     var b = mapa.getBounds();
     var bbox = [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].join(',');
     var uf = carUf().toLowerCase();
-    var tok = ++_carTok;
-    var base = (typeof BASE_URL !== 'undefined' ? BASE_URL : '');
-    fetch(base + '/api/mapa/car?uf=' + uf + '&bbox=' + bbox)
-      .then(function(r){ return r.ok ? r.json() : Promise.reject(r.status); })
-      .then(function(gj){
-        if(tok !== _carTok) return;
-        if(carLayer) mapa.removeLayer(carLayer);
-        carLayer = L.geoJSON(gj, {
-          pane:'carPane',
-          style: function(){ return { color:'#e6a800', weight:1.5, fillColor:'#ffe066', fillOpacity:0.25, opacity:0.5 }; },
-          onEachFeature: function(f, layer){
-            var cod = (f.properties && f.properties.cod_imovel) || '';
-            if(cod) layer.bindTooltip(cod, { permanent:true, direction:'center', className:'pgm-car-label' });
-          }
-        }).addTo(mapa);
-      })
-      .catch(function(e){ console.warn('CAR WFS erro:', e); });
+    _carFetchGeoJSON('/api/mapa/car?uf=' + uf + '&bbox=' + bbox, _carRef, _carLRef,
+      { color:'#e6a800', weight:1.5, fillColor:'#ffe066', fillOpacity:0.25, opacity:0.5 },
+      function(f){ return (f.properties && f.properties.cod_imovel) || ''; });
+  }
+  function carregarCarRl(){
+    if(mapa.getZoom() < CAR_ZOOM_MIN){ if(_carRlLRef.ref){ mapa.removeLayer(_carRlLRef.ref); _carRlLRef.ref=null; } return; }
+    var b = mapa.getBounds();
+    var bbox = [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].join(',');
+    _carFetchGeoJSON('/api/mapa/car-rl?bbox=' + bbox, _carRlRef, _carRlLRef,
+      { color:'#2d7d2d', weight:1.2, fillColor:'#4caf50', fillOpacity:0.3, opacity:0.5 },
+      function(f){ return ''; });
+  }
+  function carregarCarApp(){
+    if(mapa.getZoom() < CAR_ZOOM_MIN){ if(_carAppLRef.ref){ mapa.removeLayer(_carAppLRef.ref); _carAppLRef.ref=null; } return; }
+    var b = mapa.getBounds();
+    var bbox = [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].join(',');
+    _carFetchGeoJSON('/api/mapa/car-app?bbox=' + bbox, _carAppRef, _carAppLRef,
+      { color:'#1565c0', weight:1.2, fillColor:'#42a5f5', fillOpacity:0.3, opacity:0.5 },
+      function(f){ return ''; });
   }
   function ligarCar(on){
     visCar = on;
-    if(on){
-      carregarCar();
-      mapa.on('moveend', _carMoveEnd);
-    } else {
-      mapa.off('moveend', _carMoveEnd);
-      if(carLayer){ mapa.removeLayer(carLayer); carLayer = null; }
-    }
+    if(on){ carregarCar(); mapa.on('moveend', _carMoveEnd); }
+    else { mapa.off('moveend', _carMoveEnd); if(_carLRef.ref){ mapa.removeLayer(_carLRef.ref); _carLRef.ref=null; } }
   }
-  function _carMoveEnd(){
-    clearTimeout(_carTmr);
-    _carTmr = setTimeout(carregarCar, 600);
+  function ligarCarRl(on){
+    visCarRl = on;
+    if(on){ carregarCarRl(); mapa.on('moveend', _carRlMoveEnd); }
+    else { mapa.off('moveend', _carRlMoveEnd); if(_carRlLRef.ref){ mapa.removeLayer(_carRlLRef.ref); _carRlLRef.ref=null; } }
+  }
+  function ligarCarApp(on){
+    visCarApp = on;
+    if(on){ carregarCarApp(); mapa.on('moveend', _carAppMoveEnd); }
+    else { mapa.off('moveend', _carAppMoveEnd); if(_carAppLRef.ref){ mapa.removeLayer(_carAppLRef.ref); _carAppLRef.ref=null; } }
+  }
+  function _carMoveEnd(){ clearTimeout(_carTmr); _carTmr = setTimeout(carregarCar, 600); }
+  function _carRlMoveEnd(){ clearTimeout(_carRlTmr); _carRlTmr = setTimeout(carregarCarRl, 600); }
+  function _carAppMoveEnd(){ clearTimeout(_carAppTmr); _carAppTmr = setTimeout(carregarCarApp, 600); }
+  function _contarPub(){
+    return PUB_WMS.filter(function(d){ return visPub[d.id]; }).length + (visCar?1:0) + (visCarRl?1:0) + (visCarApp?1:0);
   }
   function htmlPublicas(){
-    var ativas = PUB_WMS.filter(function(d){ return visPub[d.id]; }).length + (visCar ? 1 : 0);
+    var ativas = _contarPub();
     var h = '<details class="pgm-pub-box"' + (pubAberto ? ' open' : '') + '><summary>Consultas públicas' + (ativas ? ' <span class="pgm-incra-n">' + ativas + ' ativa(s)</span>' : '') + '</summary>';
     PUB_WMS.forEach(function(d, i){
       h += '<label><input type="checkbox" data-pub="' + i + '"' + (visPub[d.id] ? ' checked' : '') + '> ' + escH(d.nome) + '</label>';
     });
-    h += '<label><input type="checkbox" data-pub="car"' + (visCar ? ' checked' : '') + '> CAR — Imóveis rurais (' + carUf() + ')</label>';
+    h += '<div class="pgm-car-titulo">CAR</div>';
+    h += '<label><input type="checkbox" data-pub="car"' + (visCar ? ' checked' : '') + '> Imóveis rurais (' + carUf() + ')</label>';
+    h += '<label><input type="checkbox" data-pub="car-rl"' + (visCarRl ? ' checked' : '') + '> Reserva legal</label>';
+    h += '<label><input type="checkbox" data-pub="car-app"' + (visCarApp ? ' checked' : '') + '> APP</label>';
     h += '<div class="pgm-incra-nota">CAR aparece a partir do zoom ' + CAR_ZOOM_MIN + '. Fontes: ANA · ANM · ICMBio · CAR/SICAR</div></details>';
     return h;
   }
@@ -14457,9 +14493,11 @@ function AV_gerarDescSituacao(){
     Array.prototype.forEach.call(host.querySelectorAll('input[data-pub]'), function(cb){
       cb.addEventListener('change', function(){
         var v = cb.dataset.pub;
-        if(v === 'car'){ ligarCar(cb.checked); }
-        else { ligarPub(Number(v), cb.checked); }
-        var n = PUB_WMS.filter(function(d){ return visPub[d.id]; }).length + (visCar ? 1 : 0);
+        if(v === 'car') ligarCar(cb.checked);
+        else if(v === 'car-rl') ligarCarRl(cb.checked);
+        else if(v === 'car-app') ligarCarApp(cb.checked);
+        else ligarPub(Number(v), cb.checked);
+        var n = _contarPub();
         var sm = host.querySelector('.pgm-pub-box summary'); if(sm) sm.innerHTML = 'Consultas públicas' + (n ? ' <span class="pgm-incra-n">' + n + ' ativa(s)</span>' : '');
       });
     });
