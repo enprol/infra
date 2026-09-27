@@ -2945,11 +2945,11 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
     .pgm-car-titulo{ font-size:10.5px; font-weight:700; color:#cfe6ea; margin:6px 0 2px 0; padding-top:5px; border-top:1px solid #2a4f58; }
     .pgm-cg{ font-size:10.5px; color:#8db0b8; font-weight:500; }
     /* cores do servidor são todas vermelhas/marrons: cada camada ganha um tom próprio (a amostra da legenda usa o mesmo filtro) */
-    .pgm-incra-0{ filter:hue-rotate(28deg) saturate(1.25); }
-    .pgm-incra-1{ filter:hue-rotate(300deg) saturate(1.2); }
-    .pgm-incra-2{ filter:hue-rotate(60deg) saturate(1.5); }
-    .pgm-incra-3{ filter:hue-rotate(215deg) saturate(1.4); }
-    .pgm-incra-4{ filter:hue-rotate(112deg) saturate(1.1); }
+    .pgm-incra-0{ filter:hue-rotate(280deg) saturate(1.6) brightness(1.1); }
+    .pgm-incra-1{ filter:hue-rotate(160deg) saturate(1.4) brightness(1.2); }
+    .pgm-incra-2{ filter:hue-rotate(60deg) saturate(1.5) brightness(1.1); }
+    .pgm-incra-3{ filter:hue-rotate(210deg) saturate(1.3) brightness(1.2); }
+    .pgm-incra-4{ filter:hue-rotate(0deg) saturate(1.2); }
     .pgm-camadas summary{ cursor:pointer; font-size:11.5px; }
     .pgm-camadas details ul{ margin:4px 0 0; padding-left:16px; max-height:120px; overflow:auto; }
     .pgm-t{ font-size:10.5px; font-weight:800; letter-spacing:.5px; text-transform:uppercase; color:#7fa3ab; margin-bottom:4px; }
@@ -13474,13 +13474,15 @@ function AV_gerarDescSituacao(){
   var INCRA_URL = 'https://acervofundiario.incra.gov.br/i3geo/ogc.php';
   var INCRA_ATTR = 'Acervo Fundiário © INCRA / SIGEF';
   var INCRA_ZOOM_MIN = 9;
-  var INCRA_TEMAS = [
-    {t:'certificada_sigef_particular_pe',  nome:'SIGEF — parcelas particulares',   base:'#a52a2a'},
-    {t:'certificada_sigef_publico_pe',     nome:'SIGEF — parcelas públicas',       base:'#a52a2a'},
-    {t:'imoveiscertificados_privado_pe',   nome:'Imóveis certificados — privados', base:'#8b6b6b'},
-    {t:'imoveiscertificados_publico_pe',   nome:'Imóveis certificados — públicos', base:'#8b6b6b'},
-    {t:'assentamentos_pe',                 nome:'Assentamentos',                   base:'#ff2020'}
+  var INCRA_TEMAS_BASE = [
+    {pre:'certificada_sigef_particular_',  nome:'SIGEF — parcelas particulares',   base:'#a52a2a'},
+    {pre:'certificada_sigef_publico_',     nome:'SIGEF — parcelas públicas',       base:'#a52a2a'},
+    {pre:'imoveiscertificados_privado_',   nome:'Imóveis certificados — privados', base:'#8b6b6b'},
+    {pre:'imoveiscertificados_publico_',   nome:'Imóveis certificados — públicos', base:'#8b6b6b'},
+    {pre:'assentamentos_',                 nome:'Assentamentos',                   base:'#ff2020'}
   ];
+  var _incraUf = 'pe';
+  var INCRA_TEMAS = INCRA_TEMAS_BASE.map(function(d){ return {t:d.pre + _incraUf, nome:d.nome, base:d.base, pre:d.pre}; });
   // ---- Camadas públicas (WMS) ----
   var PUB_WMS = [
     {id:'ana_drenagem', nome:'Trecho de Drenagem', url:'https://www.snirh.gov.br/arcgis/services/INDE/Camadas/MapServer/WMSServer', layers:'108', attr:'ANA'},
@@ -14358,9 +14360,21 @@ function AV_gerarDescSituacao(){
       incraLayers[d.t].addTo(mapa);
     } else if(incraLayers[d.t]){ mapa.removeLayer(incraLayers[d.t]); }
   }
+  function atualizarUfIncra(){
+    var novoUf = carUf().toLowerCase();
+    if(novoUf === _incraUf) return;
+    Object.keys(incraLayers).forEach(function(k){ mapa.removeLayer(incraLayers[k]); });
+    var visAntes = INCRA_TEMAS.map(function(d){ return visIncra[d.t]; });
+    incraLayers = {}; visIncra = {};
+    _incraUf = novoUf;
+    INCRA_TEMAS = INCRA_TEMAS_BASE.map(function(d){ return {t:d.pre + _incraUf, nome:d.nome, base:d.base, pre:d.pre}; });
+    INCRA_TEMAS.forEach(function(d, i){ if(visAntes[i]){ visIncra[d.t] = true; incraLayers[d.t] = incraLayer(i); incraLayers[d.t].addTo(mapa); } });
+  }
   function htmlIncra(){
+    atualizarUfIncra();
+    var uf = _incraUf.toUpperCase();
     var ativas = INCRA_TEMAS.filter(function(d){ return visIncra[d.t]; }).length;
-    var h = '<details class="pgm-incra-box"' + (incraAberto ? ' open' : '') + '><summary>INCRA · SIGEF (PE)' + (ativas ? ' <span class="pgm-incra-n">' + ativas + ' ativa(s)</span>' : '') + '</summary>';
+    var h = '<details class="pgm-incra-box"' + (incraAberto ? ' open' : '') + '><summary>INCRA · SIGEF (' + uf + ')' + (ativas ? ' <span class="pgm-incra-n">' + ativas + ' ativa(s)</span>' : '') + '</summary>';
     INCRA_TEMAS.forEach(function(d, i){
       h += '<label><input type="checkbox" data-incra="' + i + '"' + (visIncra[d.t] ? ' checked' : '') + '>'
         + '<span class="pgm-sw-inc pgm-incra-' + i + '" style="background:' + d.base + '"></span> ' + escH(d.nome) + '</label>';
@@ -14377,7 +14391,7 @@ function AV_gerarDescSituacao(){
       cb.addEventListener('change', function(){
         ligarIncra(Number(cb.dataset.incra), cb.checked);
         var n = INCRA_TEMAS.filter(function(d){ return visIncra[d.t]; }).length;
-        var sm = host.querySelector('.pgm-incra-box summary'); if(sm) sm.innerHTML = 'INCRA · SIGEF (PE)' + (n ? ' <span class="pgm-incra-n">' + n + ' ativa(s)</span>' : '');
+        var sm = host.querySelector('.pgm-incra-box summary'); if(sm) sm.innerHTML = 'INCRA · SIGEF (' + _incraUf.toUpperCase() + ')' + (n ? ' <span class="pgm-incra-n">' + n + ' ativa(s)</span>' : '');
       });
     });
     var r = host.querySelector('#pgmIncraOp');
