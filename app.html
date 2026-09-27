@@ -5598,6 +5598,56 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
     <input type="hidden" id="rel_kml_nome">
   </div>
 </div>
+<div class="vcard">
+  <div class="vsub">Camadas do imóvel (para as plantas e mapas automáticos do DESP-2)</div>
+  <p class="hint-inline" style="margin-top:0;">KMLs opcionais usados nos <b>mapas automáticos do DESP-2</b> e na planta. Cada um alimenta as figuras conforme a regra de cada mapa.</p>
+  <div class="imv-kml-grade">
+    <div class="vfield grow">
+      <label>Área total do imóvel <span class="hint-auto"> polígono (.kml)</span></label>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <button class="vbtn vbtn-ghost" type="button" data-imvbtn="area" onclick="IMV_pick('area')">📍 Escolher KML…</button>
+        <input type="file" data-imvfile="area" accept=".kml,application/vnd.google-earth.kml+xml,text/xml,application/xml" style="display:none" onchange="IMV_escolher('area',this)">
+        <span class="hint-inline" data-imvst="area" style="margin:0;">Nenhum arquivo inserido.</span>
+        <button class="vbtn vbtn-ghost vbtn-sm" type="button" data-imvrem="area" style="display:none" onclick="IMV_remover('area')">Remover</button>
+      </div>
+      <textarea id="imv_kml_area_dados" style="display:none" aria-hidden="true"></textarea>
+      <input type="hidden" id="imv_kml_area_nome">
+    </div>
+    <div class="vfield grow">
+      <label>Vias de acesso <span class="hint-auto"> linhas (.kml)</span></label>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <button class="vbtn vbtn-ghost" type="button" data-imvbtn="vias" onclick="IMV_pick('vias')">📍 Escolher KML…</button>
+        <input type="file" data-imvfile="vias" accept=".kml,application/vnd.google-earth.kml+xml,text/xml,application/xml" style="display:none" onchange="IMV_escolher('vias',this)">
+        <span class="hint-inline" data-imvst="vias" style="margin:0;">Nenhum arquivo inserido.</span>
+        <button class="vbtn vbtn-ghost vbtn-sm" type="button" data-imvrem="vias" style="display:none" onclick="IMV_remover('vias')">Remover</button>
+      </div>
+      <textarea id="imv_kml_vias_dados" style="display:none" aria-hidden="true"></textarea>
+      <input type="hidden" id="imv_kml_vias_nome">
+    </div>
+    <div class="vfield grow">
+      <label>APP estimada <span class="hint-auto"> polígono (.kml)</span></label>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <button class="vbtn vbtn-ghost" type="button" data-imvbtn="app" onclick="IMV_pick('app')">📍 Escolher KML…</button>
+        <input type="file" data-imvfile="app" accept=".kml,application/vnd.google-earth.kml+xml,text/xml,application/xml" style="display:none" onchange="IMV_escolher('app',this)">
+        <span class="hint-inline" data-imvst="app" style="margin:0;">Nenhum arquivo inserido.</span>
+        <button class="vbtn vbtn-ghost vbtn-sm" type="button" data-imvrem="app" style="display:none" onclick="IMV_remover('app')">Remover</button>
+      </div>
+      <textarea id="imv_kml_app_dados" style="display:none" aria-hidden="true"></textarea>
+      <input type="hidden" id="imv_kml_app_nome">
+    </div>
+    <div class="vfield grow">
+      <label>Benfeitorias <span class="hint-auto"> opcional — pontos/polígonos (.kml)</span></label>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <button class="vbtn vbtn-ghost" type="button" data-imvbtn="benf" onclick="IMV_pick('benf')">📍 Escolher KML…</button>
+        <input type="file" data-imvfile="benf" accept=".kml,application/vnd.google-earth.kml+xml,text/xml,application/xml" style="display:none" onchange="IMV_escolher('benf',this)">
+        <span class="hint-inline" data-imvst="benf" style="margin:0;">Nenhum arquivo inserido.</span>
+        <button class="vbtn vbtn-ghost vbtn-sm" type="button" data-imvrem="benf" style="display:none" onclick="IMV_remover('benf')">Remover</button>
+      </div>
+      <textarea id="imv_kml_benf_dados" style="display:none" aria-hidden="true"></textarea>
+      <input type="hidden" id="imv_kml_benf_nome">
+    </div>
+  </div>
+</div>
 <div class="vcard"><div class="vrow"><div class="vfield"><label>Área Desap. (ha)</label><input type="text" id="fb_area_desap" class="num4" inputmode="decimal" placeholder="0,0000"></div><div id="remN_slot" style="display:contents"></div><div id="remS_slot" style="display:contents"></div></div></div>
 <div class="vcard"><div class="vsub">Georreferenciamento (Anexo B — Ficha de Vistoria)</div><div id="geo_row_slot"></div></div>
 <div class="vsub" style="margin-top:22px;">Benfeitorias (itens 12 e 13 da Avaliação — DESP 3)</div>
@@ -5702,6 +5752,77 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
     d.addEventListener('change', atualizarUI);
     var n = el('rel_kml_nome'); if(n){ n.addEventListener('input', atualizarUI); n.addEventListener('change', atualizarUI); }
     atualizarUI();
+  }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ligar); else ligar();
+})();
+</script>
+<style>
+  .imv-kml-grade{ display:grid; grid-template-columns:repeat(2,minmax(240px,1fr)); gap:14px 20px; margin-top:8px; }
+  @media (max-width:720px){ .imv-kml-grade{ grid-template-columns:1fr; } }
+</style>
+<script>
+/* ===== Técnica » Camadas do imóvel (KMLs dedicados p/ mapas automáticos DESP-2) =====
+   Cada slot guarda o conteúdo do KML num textarea oculto #imv_kml_<key>_dados (persistido
+   automaticamente pelo cadastro, como o rel_kml). IMV_get(key)/IMV_getAll() servem o gerador. */
+(function(){
+  var MAX_MB = 25;
+  var SLOTS = { area:'Área total do imóvel', vias:'Vias de acesso', app:'APP estimada', benf:'Benfeitorias' };
+  function el(id){ return document.getElementById(id); }
+  function q(attr,key){ return document.querySelector('['+attr+'="'+key+'"]'); }
+  function fmtKB(n){ return n >= 1048576 ? (n/1048576).toFixed(1).replace('.',',') + ' MB' : Math.max(1, Math.round(n/1024)) + ' KB'; }
+  function fmtNum(n){ return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
+  function analisar(txt){
+    var doc = new DOMParser().parseFromString(txt, 'application/xml');
+    if(doc.getElementsByTagName('parsererror').length) return {erro:'o arquivo não é um XML válido.'};
+    var raiz = doc.documentElement;
+    if(!raiz || raiz.localName.toLowerCase() !== 'kml') return {erro:'o arquivo não parece ser um KML (falta a tag <kml>).'};
+    var pontos = 0;
+    Array.prototype.forEach.call(doc.getElementsByTagName('coordinates'), function(c){
+      pontos += (c.textContent || '').trim().split(/\s+/).filter(function(t){ return t.indexOf(',') > 0; }).length;
+    });
+    return {elementos: doc.getElementsByTagName('Placemark').length, pontos: pontos};
+  }
+  function atualizarUI(key){
+    var dados = el('imv_kml_'+key+'_dados'), st = q('data-imvst',key), rem = q('data-imvrem',key), btn = q('data-imvbtn',key);
+    if(!dados || !st) return;
+    var txt = dados.value || '';
+    if(!txt){ st.textContent = 'Nenhum arquivo inserido.'; st.style.color = ''; if(rem) rem.style.display='none'; if(btn) btn.textContent='📍 Escolher KML…'; return; }
+    var a = analisar(txt), nome = (el('imv_kml_'+key+'_nome')||{}).value || 'arquivo.kml';
+    st.style.color = '#159a3c';
+    st.textContent = '✓ ' + nome + ' — ' + (a.erro ? fmtKB(txt.length) : (fmtNum(a.elementos)+' elem., '+fmtNum(a.pontos)+' pt, '+fmtKB(txt.length)));
+    if(rem) rem.style.display=''; if(btn) btn.textContent='📍 Trocar KML…';
+  }
+  window.IMV_pick = function(key){ var f = q('data-imvfile',key); if(f) f.click(); };
+  window.IMV_escolher = function(key, input){
+    var f = input && input.files && input.files[0]; if(!f) return;
+    var st = q('data-imvst',key);
+    function falha(msg){ if(st){ st.style.color='#c0392b'; st.textContent='Não foi possível usar "'+f.name+'": '+msg; } input.value=''; }
+    if(/\.kmz$/i.test(f.name)) return falha('KMZ é compactado — exporte como .kml no Google Earth.');
+    if(f.size > MAX_MB*1048576) return falha('arquivo maior que '+MAX_MB+' MB.');
+    var rd = new FileReader();
+    rd.onerror = function(){ falha('erro ao ler o arquivo.'); };
+    rd.onload = function(){
+      var txt = String(rd.result||''); var a = analisar(txt); if(a.erro) return falha(a.erro);
+      el('imv_kml_'+key+'_dados').value = txt; el('imv_kml_'+key+'_nome').value = f.name;
+      el('imv_kml_'+key+'_dados').dispatchEvent(new Event('input', {bubbles:true}));
+      input.value = '';
+    };
+    rd.readAsText(f, 'UTF-8');
+  };
+  window.IMV_remover = function(key){
+    if(!confirm('Remover o KML de "'+(SLOTS[key]||key)+'"?')) return;
+    el('imv_kml_'+key+'_dados').value=''; el('imv_kml_'+key+'_nome').value='';
+    el('imv_kml_'+key+'_dados').dispatchEvent(new Event('input', {bubbles:true}));
+  };
+  window.IMV_get = function(key){ return { nome:(el('imv_kml_'+key+'_nome')||{}).value||'', kml:(el('imv_kml_'+key+'_dados')||{}).value||'' }; };
+  window.IMV_getAll = function(){ var o={}; Object.keys(SLOTS).forEach(function(k){ o[k]=IMV_get(k); }); return o; };
+  function ligar(){
+    Object.keys(SLOTS).forEach(function(key){
+      var d = el('imv_kml_'+key+'_dados'); if(!d) return;
+      d.addEventListener('input', function(){ atualizarUI(key); });
+      d.addEventListener('change', function(){ atualizarUI(key); });
+      atualizarUI(key);
+    });
   }
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ligar); else ligar();
 })();
@@ -24453,7 +24574,11 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
         +'<input type="file" accept="image/*" aria-label="Anexar imagem — '+esc(label)+'" onchange="D2_carregarFig(\''+fid+'\',this)"></label>';
     }
     var status=has?('Imagem anexada'+(fname?(': '+fname):'')+' — campo preenchido.'):'';
-    return '<div class="d2-figwrap'+(has?' tem-imagem':'')+'" id="d2_figwrap_'+fid+'">'+body
+    var btnAuto = comVisualizador
+      ? '<button type="button" class="vbtn vbtn-ghost vbtn-sm" style="margin-top:4px;" onclick="D2MAP_abrir(\''+fid+'\')">🗺️ Gerar mapa automático</button>'
+        + (figManualBackup[fid] ? ' <button type="button" class="vbtn vbtn-ghost vbtn-sm" style="margin-top:4px;" onclick="D2MAP_restaurarManual(\''+fid+'\')">↩︎ Voltar à imagem manual</button>' : '')
+      : '';
+    return '<div class="d2-figwrap'+(has?' tem-imagem':'')+'" id="d2_figwrap_'+fid+'">'+body+btnAuto
       +'<p class="sr-only" id="d2_figstatus_'+fid+'" role="status" aria-live="polite">'+esc(status)+'</p></div>';
   }
 
@@ -24705,6 +24830,277 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     const wrap=document.getElementById("d2_figwrap_"+fid);
     if(wrap) wrap.outerHTML=figSlotHtml(fid);
   }
+
+  /* ==========================================================================
+     GERADOR DE MAPA AUTOMÁTICO DESP-2 (satélite Esri + camadas + carimbo 3:4)
+     - Não substitui a imagem manual: o PNG gerado vai para figsAuto[fid];
+       o usuário escolhe qual usar na figura (manual x automático).
+     ========================================================================== */
+  var figsAuto = {};
+  var figManualBackup = {};   // guarda a imagem manual quando o usuário adota a automática
+  var D2MAP_TXT = { proc:'', ferrovia:'' };   // linhas do carimbo (lembradas na sessão)
+  var D2MAP_PE = [[-36.62,-9.325],[-36.76,-9.27],[-36.835,-9.29],[-36.875,-9.27],[-36.915,-9.295],[-36.95,-9.385],[-37.005,-9.355],[-37.025,-9.315],[-37.06,-9.32],[-37.055,-9.28],[-37.09,-9.245],[-37.165,-9.275],[-37.18,-9.225],[-37.235,-9.24],[-37.245,-9.18],[-37.405,-9.01],[-37.495,-8.995],[-37.495,-8.97],[-37.525,-8.96],[-37.6,-8.97],[-37.635,-9.005],[-37.7,-8.99],[-37.67,-8.975],[-37.76,-8.845],[-37.825,-8.885],[-37.85,-9],[-37.94,-9.08],[-37.98,-9.15],[-38.105,-9.18],[-38.175,-9.29],[-38.24,-9.33],[-38.285,-9.18],[-38.32,-9.14],[-38.305,-9.095],[-38.325,-9.075],[-38.29,-9.045],[-38.3,-9.015],[-38.32,-8.99],[-38.41,-9.04],[-38.47,-9.015],[-38.52,-8.95],[-38.47,-8.875],[-38.5,-8.835],[-38.575,-8.83],[-38.62,-8.975],[-38.655,-8.985],[-38.695,-8.935],[-38.705,-8.86],[-38.785,-8.8],[-38.875,-8.785],[-38.955,-8.805],[-39.035,-8.735],[-39.145,-8.715],[-39.17,-8.69],[-39.23,-8.71],[-39.275,-8.575],[-39.385,-8.535],[-39.615,-8.66],[-39.69,-8.66],[-39.675,-8.79],[-39.89,-8.825],[-39.905,-8.86],[-39.875,-8.935],[-39.96,-9.05],[-40.07,-9.065],[-40.125,-9.11],[-40.17,-9.105],[-40.225,-9.055],[-40.265,-9.07],[-40.335,-9.355],[-40.37,-9.38],[-40.42,-9.35],[-40.465,-9.42],[-40.51,-9.405],[-40.555,-9.46],[-40.63,-9.485],[-40.72,-9.44],[-40.765,-9.445],[-40.735,-9.335],[-40.755,-9.31],[-40.685,-9.28],[-40.695,-9.23],[-40.665,-9.16],[-40.81,-9.095],[-40.85,-8.95],[-40.92,-8.835],[-41.03,-8.84],[-41.035,-8.785],[-41.095,-8.785],[-41.125,-8.755],[-41.11,-8.705],[-41.23,-8.705],[-41.28,-8.735],[-41.36,-8.71],[-41.32,-8.7],[-41.29,-8.66],[-41.215,-8.645],[-41.215,-8.605],[-41.165,-8.58],[-41.15,-8.535],[-41.11,-8.535],[-41.075,-8.47],[-41.05,-8.48],[-41.045,-8.435],[-41,-8.4],[-40.925,-8.445],[-40.9,-8.425],[-40.895,-8.355],[-40.835,-8.38],[-40.82,-8.32],[-40.78,-8.305],[-40.785,-8.255],[-40.705,-8.225],[-40.635,-8.14],[-40.59,-8.14],[-40.605,-8.095],[-40.545,-7.965],[-40.54,-7.84],[-40.675,-7.76],[-40.62,-7.65],[-40.715,-7.475],[-40.55,-7.395],[-40.525,-7.32],[-40.395,-7.37],[-40.32,-7.305],[-40.265,-7.3],[-40.195,-7.36],[-40.11,-7.385],[-40,-7.375],[-39.86,-7.325],[-39.7,-7.34],[-39.645,-7.38],[-39.63,-7.425],[-39.57,-7.43],[-39.55,-7.485],[-39.46,-7.47],[-39.455,-7.505],[-39.485,-7.53],[-39.475,-7.575],[-39.435,-7.575],[-39.42,-7.605],[-39.375,-7.61],[-39.305,-7.665],[-39.27,-7.66],[-39.255,-7.705],[-39.205,-7.69],[-39.14,-7.72],[-39.105,-7.76],[-39.09,-7.86],[-39.015,-7.81],[-39.005,-7.84],[-38.96,-7.845],[-38.94,-7.76],[-38.885,-7.75],[-38.87,-7.71],[-38.82,-7.715],[-38.82,-7.665],[-38.745,-7.66],[-38.715,-7.62],[-38.625,-7.695],[-38.595,-7.755],[-38.495,-7.75],[-38.45,-7.715],[-38.41,-7.73],[-38.355,-7.675],[-38.31,-7.715],[-38.295,-7.825],[-38.24,-7.83],[-38.155,-7.78],[-38.115,-7.825],[-38.075,-7.83],[-38.07,-7.77],[-38.03,-7.75],[-38.005,-7.78],[-37.97,-7.78],[-37.855,-7.65],[-37.785,-7.625],[-37.75,-7.665],[-37.755,-7.62],[-37.705,-7.57],[-37.71,-7.55],[-37.665,-7.525],[-37.63,-7.535],[-37.535,-7.475],[-37.485,-7.395],[-37.5,-7.365],[-37.395,-7.36],[-37.35,-7.34],[-37.335,-7.29],[-37.235,-7.275],[-37.165,-7.335],[-37.025,-7.385],[-37.025,-7.435],[-36.985,-7.48],[-37.095,-7.52],[-37.18,-7.595],[-37.2,-7.635],[-37.15,-7.71],[-37.15,-7.78],[-37.23,-7.805],[-37.245,-7.82],[-37.22,-7.845],[-37.25,-7.85],[-37.245,-7.875],[-37.275,-7.9],[-37.325,-7.91],[-37.31,-7.935],[-37.35,-7.945],[-37.355,-7.975],[-37.22,-7.975],[-37.205,-7.95],[-37.195,-7.985],[-37.15,-8.01],[-37.145,-8.125],[-37.165,-8.165],[-37.12,-8.175],[-37.125,-8.21],[-37.1,-8.235],[-37.065,-8.23],[-37.075,-8.27],[-37.04,-8.265],[-36.99,-8.305],[-36.64,-8.12],[-36.625,-8.105],[-36.66,-8.075],[-36.63,-8.055],[-36.615,-7.95],[-36.575,-7.96],[-36.565,-7.9],[-36.445,-7.915],[-36.425,-7.815],[-36.31,-7.805],[-36.255,-7.83],[-36.24,-7.82],[-36.255,-7.795],[-36.22,-7.765],[-36.2,-7.79],[-36.07,-7.78],[-36.005,-7.815],[-35.96,-7.785],[-35.905,-7.795],[-35.875,-7.75],[-35.78,-7.74],[-35.7,-7.69],[-35.685,-7.71],[-35.655,-7.7],[-35.615,-7.655],[-35.53,-7.655],[-35.515,-7.585],[-35.54,-7.585],[-35.495,-7.48],[-35.45,-7.455],[-35.42,-7.475],[-35.35,-7.44],[-35.335,-7.405],[-35.235,-7.375],[-35.19,-7.4],[-35.065,-7.4],[-34.985,-7.46],[-34.96,-7.54],[-34.835,-7.545],[-34.805,-7.62],[-34.85,-7.69],[-34.825,-7.725],[-34.845,-7.845],[-34.82,-7.935],[-34.84,-8.015],[-34.945,-8.255],[-34.94,-8.355],[-34.98,-8.38],[-34.96,-8.4],[-35,-8.48],[-35.005,-8.565],[-35.035,-8.57],[-35.09,-8.69],[-35.085,-8.75],[-35.135,-8.83],[-35.15,-8.915],[-35.17,-8.89],[-35.46,-8.84],[-35.465,-8.815],[-35.54,-8.82],[-35.64,-8.885],[-35.745,-8.915],[-35.785,-8.9],[-35.775,-8.86],[-35.795,-8.845],[-35.845,-8.875],[-35.895,-8.855],[-35.965,-8.905],[-36.065,-8.915],[-36.125,-8.955],[-36.11,-9.02],[-36.2,-9.045],[-36.235,-9.105],[-36.27,-9.105],[-36.26,-9.17],[-36.31,-9.17],[-36.365,-9.225],[-36.42,-9.23],[-36.435,-9.21],[-36.49,-9.24],[-36.495,-9.265],[-36.575,-9.295],[-36.565,-9.33],[-36.62,-9.325]];
+
+  // regra de camadas por figura (client-side disponível nesta 1ª versão marcado com *)
+  var D2MAP_REGRAS = {
+    f1:  null,
+    f2:  { cams:['area','faixa'] },
+    f2b: { cams:['area','faixa','sigef','car'] },
+    f3:  { cams:['area','desap','faixa'] },
+    f4:  { cams:['area','desap','faixa','drenagem'] },
+    f5:  { cams:['area','desap','faixa','vias'] },
+    f6:  { cams:['area','desap','faixa','rl','appcar'] },
+    f7:  { cams:['area','desap','faixa','appest'] }
+  };
+  // estilos e rótulos das camadas
+  var D2MAP_EST = {
+    area:  { nome:'Área total do imóvel',        tipo:'line', cor:'#00e0ff', peso:2.6 },
+    desap: { nome:'Área a ser desapropriada',    tipo:'fill', cor:'#ff2a30', op:.5, peso:2 },
+    vias:  { nome:'Vias de acesso',              tipo:'line', cor:'#ffd24a', peso:2.4, dash:'6 3' },
+    appest:{ nome:'APP estimada',                tipo:'fill', cor:'#00e676', op:.35, peso:1.6 },
+    app:   { nome:'APP (CAR)',                   tipo:'fill', cor:'#00e676', op:.3,  peso:1.4 },
+    rl:    { nome:'Reserva Legal (CAR)',         tipo:'fill', cor:'#b6ff00', op:.28, peso:1.4 },
+    benf:  { nome:'Benfeitorias',                tipo:'pt',   cor:'#ffffff', peso:1.4 },
+    faixa: { nome:'Faixa de domínio / eixo',     tipo:'faixa',cor:'#12d84a' },
+    sigef: { nome:'Parcela SIGEF (intercepta)',  tipo:'fill', cor:'#e879f9', op:.14, peso:1.4 },
+    car:   { nome:'Feição CAR (intercepta)',     tipo:'fill', cor:'#ffd24a', op:.14, peso:1.3, dash:'5 3' },
+    drenagem:{nome:'Trecho de drenagem (ANA)',   tipo:'line', cor:'#37a9ff', peso:2 }
+  };
+  // KMLs client-side por chave de camada
+  function d2mapFonteKML(cam){
+    try{
+      if(cam==='area')   return (window.IMV_get?window.IMV_get('area').kml:'');
+      if(cam==='vias')   return (window.IMV_get?window.IMV_get('vias').kml:'');
+      if(cam==='appest') return (window.IMV_get?window.IMV_get('app').kml:'');
+      if(cam==='benf')   return (window.IMV_get?window.IMV_get('benf').kml:'');
+      if(cam==='desap')  return (window.REL_getKML?window.REL_getKML().kml:'');
+    }catch(e){}
+    return '';
+  }
+  // parse KML -> {polys:[[[lon,lat]..]..], lines:[[[lon,lat]..]..], pts:[[lon,lat]..]}
+  function d2mapKML(txt){
+    var out={polys:[],lines:[],pts:[]};
+    if(!txt) return out;
+    var doc; try{ doc=new DOMParser().parseFromString(txt,'application/xml'); }catch(e){ return out; }
+    if(!doc||doc.getElementsByTagName('parsererror').length) return out;
+    function coords(s){ var o=[]; String(s||'').trim().split(/\s+/).forEach(function(t){ var q=t.split(','); if(q.length>=2){ var lo=+q[0],la=+q[1]; if(isFinite(lo)&&isFinite(la)) o.push([lo,la]); } }); return o; }
+    Array.prototype.forEach.call(doc.getElementsByTagNameNS('*','Polygon'),function(pg){
+      var ext=pg.getElementsByTagNameNS('*','outerBoundaryIs')[0]||pg.getElementsByTagNameNS('*','LinearRing')[0];
+      var c=ext&&ext.getElementsByTagNameNS('*','coordinates')[0]; if(c){ var r=coords(c.textContent); if(r.length>=3) out.polys.push(r); }
+    });
+    Array.prototype.forEach.call(doc.getElementsByTagNameNS('*','LineString'),function(ls){
+      var c=ls.getElementsByTagNameNS('*','coordinates')[0]; if(c){ var r=coords(c.textContent); if(r.length>=2) out.lines.push(r); }
+    });
+    Array.prototype.forEach.call(doc.getElementsByTagNameNS('*','Point'),function(p){
+      var c=p.getElementsByTagNameNS('*','coordinates')[0]; if(c){ var r=coords(c.textContent); if(r.length) out.pts.push(r[0]); }
+    });
+    return out;
+  }
+  // web mercator (px do mundo no zoom z)
+  function d2lonpx(lon,z){ return (lon+180)/360*256*Math.pow(2,z); }
+  function d2latpx(lat,z){ var s=Math.sin(lat*Math.PI/180); s=Math.max(-0.9999,Math.min(0.9999,s)); return (0.5-Math.log((1+s)/(1-s))/(4*Math.PI))*256*Math.pow(2,z); }
+  // UTM (WGS84/SIRGAS2000)
+  function d2utm(lon,lat){
+    var a=6378137,f=1/298.257223563,e2=f*(2-f),k0=0.9996;
+    var zone=Math.floor((lon+180)/6)+1, lon0=(zone*6-183)*Math.PI/180;
+    var rlat=lat*Math.PI/180,rlon=lon*Math.PI/180;
+    var N=a/Math.sqrt(1-e2*Math.pow(Math.sin(rlat),2)), T=Math.pow(Math.tan(rlat),2), C=e2/(1-e2)*Math.pow(Math.cos(rlat),2), A=Math.cos(rlat)*(rlon-lon0), ep2=e2/(1-e2);
+    var M=a*((1-e2/4-3*e2*e2/64-5*e2*e2*e2/256)*rlat-(3*e2/8+3*e2*e2/32+45*e2*e2*e2/1024)*Math.sin(2*rlat)+(15*e2*e2/256+45*e2*e2*e2/1024)*Math.sin(4*rlat)-(35*e2*e2*e2/3072)*Math.sin(6*rlat));
+    var E=k0*N*(A+(1-T+C)*Math.pow(A,3)/6+(5-18*T+T*T+72*C-58*ep2)*Math.pow(A,5)/120)+500000;
+    var Nn=k0*(M+N*Math.tan(rlat)*(A*A/2+(5-T+9*C+4*C*C)*Math.pow(A,4)/24+(61-58*T+T*T+600*C-330*ep2)*Math.pow(A,6)/720));
+    if(lat<0) Nn+=10000000;
+    return {E:E,N:Nn,zone:zone};
+  }
+  function d2utmInv(E,N,zone,south){
+    var a=6378137,f=1/298.257223563,e2=f*(2-f),k0=0.9996;
+    var e1=(1-Math.sqrt(1-e2))/(1+Math.sqrt(1-e2));
+    var x=E-500000,y=south?N-10000000:N,M=y/k0;
+    var mu=M/(a*(1-e2/4-3*e2*e2/64-5*e2*e2*e2/256));
+    var phi1=mu+(3*e1/2-27*Math.pow(e1,3)/32)*Math.sin(2*mu)+(21*e1*e1/16-55*Math.pow(e1,4)/32)*Math.sin(4*mu)+(151*Math.pow(e1,3)/96)*Math.sin(6*mu);
+    var ep2=e2/(1-e2),C1=ep2*Math.pow(Math.cos(phi1),2),T1=Math.pow(Math.tan(phi1),2);
+    var N1=a/Math.sqrt(1-e2*Math.pow(Math.sin(phi1),2)),R1=a*(1-e2)/Math.pow(1-e2*Math.pow(Math.sin(phi1),2),1.5),D=x/(N1*k0);
+    var lat=phi1-(N1*Math.tan(phi1)/R1)*(D*D/2-(5+3*T1+10*C1-4*C1*C1-9*ep2)*Math.pow(D,4)/24+(61+90*T1+298*C1+45*T1*T1-252*ep2-3*C1*C1)*Math.pow(D,6)/720);
+    var lon0=(zone*6-183);
+    var lon=lon0+(D-(1+2*T1+C1)*Math.pow(D,3)/6+(5-2*C1+28*T1-3*C1*C1+8*ep2+24*T1*T1)*Math.pow(D,5)/120)/Math.cos(phi1)*180/Math.PI;
+    return [lon,lat*180/Math.PI];
+  }
+  function d2carregarImg(src){ return new Promise(function(res,rej){ var i=new Image(); i.crossOrigin='anonymous'; i.onload=function(){res(i);}; i.onerror=function(){rej(new Error('tile'));}; i.src=src; }); }
+  // compõe satélite Esri para a bbox lon/lat -> {url,cw,ch,w0,n0,z}
+  async function d2satelite(bb){
+    var ESRI='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/';
+    var z=18;
+    for(; z>=10; z--){ var w=d2lonpx(bb.e,z)-d2lonpx(bb.w,z), h=d2latpx(bb.s,z)-d2latpx(bb.n,z); if(w<=1600&&h<=1600) break; }
+    var w0=d2lonpx(bb.w,z), w1=d2lonpx(bb.e,z), n0=d2latpx(bb.n,z), n1=d2latpx(bb.s,z);
+    var cw=Math.max(1,Math.round(w1-w0)), ch=Math.max(1,Math.round(n1-n0));
+    var cv=document.createElement('canvas'); cv.width=cw; cv.height=ch; var ctx=cv.getContext('2d'); ctx.fillStyle='#2b3a2b'; ctx.fillRect(0,0,cw,ch);
+    var tx0=Math.floor(w0/256),tx1=Math.floor(w1/256),ty0=Math.floor(n0/256),ty1=Math.floor(n1/256), jobs=[];
+    for(var tx=tx0;tx<=tx1;tx++) for(var ty=ty0;ty<=ty1;ty++){ (function(tx,ty){ jobs.push(d2carregarImg(ESRI+z+'/'+ty+'/'+tx).then(function(im){ ctx.drawImage(im,Math.round(tx*256-w0),Math.round(ty*256-n0)); }).catch(function(){})); })(tx,ty); }
+    await Promise.all(jobs);
+    return { url:cv.toDataURL('image/jpeg',0.9), cw:cw, ch:ch, w0:w0, n0:n0, z:z };
+  }
+  function d2esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  // monta o SVG completo do carimbo (retorna string)
+  function d2mapSVG(o){
+    var mapL=64,mapT=150,mapR=836,mapB=812,mapW=mapR-mapL,mapH=mapB-mapT;
+    var sat=o.sat, bb=o.bb;
+    function PX(lon,lat){ var px=d2lonpx(lon,sat.z)-sat.w0, py=d2latpx(lat,sat.z)-sat.n0; return [mapL+px/sat.cw*mapW, mapT+py/sat.ch*mapH]; }
+    var s='<svg id="svg" viewBox="0 0 900 1200" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">';
+    s+='<rect x="0" y="0" width="900" height="1200" fill="#fff"/>';
+    s+='<rect x="16" y="16" width="868" height="1168" fill="none" stroke="#22303d" stroke-width="1.4"/><rect x="22" y="22" width="856" height="1156" fill="none" stroke="#c3ccd4" stroke-width=".8"/>';
+    s+='<text x="450" y="64" text-anchor="middle" font-family="Arial,sans-serif" font-weight="700" font-size="16" fill="#16202b">'+d2esc(o.titulo)+'</text>';
+    s+='<line x1="64" y1="100" x2="836" y2="100" stroke="#c3ccd4" stroke-width=".8"/>';
+    s+='<clipPath id="mc"><rect x="'+mapL+'" y="'+mapT+'" width="'+mapW+'" height="'+mapH+'"/></clipPath>';
+    s+='<image x="'+mapL+'" y="'+mapT+'" width="'+mapW+'" height="'+mapH+'" preserveAspectRatio="none" clip-path="url(#mc)" xlink:href="'+sat.url+'"/>';
+    s+='<g clip-path="url(#mc)">';
+    // grade UTM
+    var uSW=d2utm(bb.w,bb.s), uNE=d2utm(bb.e,bb.n), zone=uSW.zone, south=bb.s<0;
+    var e0=Math.min(uSW.E,uNE.E),e1=Math.max(uSW.E,uNE.E),nn0=Math.min(uSW.N,uNE.N),nn1=Math.max(uSW.N,uNE.N);
+    var passos=[50,100,200,250,500,1000,2000,5000], pas=passos.find(function(p){ return (e1-e0)/p<=7; })||5000;
+    var gl='',gt='';
+    for(var E=Math.ceil(e0/pas)*pas; E<=e1; E+=pas){
+      var pA=PX.apply(null,d2utmInv(E,nn0,zone,south)), pB=PX.apply(null,d2utmInv(E,nn1,zone,south));
+      gl+='<line x1="'+pA[0].toFixed(1)+'" y1="'+pA[1].toFixed(1)+'" x2="'+pB[0].toFixed(1)+'" y2="'+pB[1].toFixed(1)+'" stroke="rgba(255,255,255,.5)" stroke-width=".7"/>';
+      gt+='<text x="'+pB[0].toFixed(1)+'" y="'+(mapT-4)+'" text-anchor="middle" font-family="monospace" font-size="9" fill="#16202b">'+Math.round(E)+'</text>';
+    }
+    for(var Nn=Math.ceil(nn0/pas)*pas; Nn<=nn1; Nn+=pas){
+      var qA=PX.apply(null,d2utmInv(e0,Nn,zone,south)), qB=PX.apply(null,d2utmInv(e1,Nn,zone,south));
+      gl+='<line x1="'+qA[0].toFixed(1)+'" y1="'+qA[1].toFixed(1)+'" x2="'+qB[0].toFixed(1)+'" y2="'+qB[1].toFixed(1)+'" stroke="rgba(255,255,255,.5)" stroke-width=".7"/>';
+      gt+='<text x="'+(mapL-6)+'" y="'+(qA[1]+3).toFixed(1)+'" text-anchor="end" font-family="monospace" font-size="9" fill="#16202b">'+Math.round(Nn)+'</text>';
+    }
+    s+=gl;
+    // camadas
+    function polyStr(r){ return r.map(function(p){ var q=PX(p[0],p[1]); return q[0].toFixed(1)+','+q[1].toFixed(1); }).join(' '); }
+    (o.camadas||[]).forEach(function(cm){
+      var e=D2MAP_EST[cm.cam]||{}, g=cm.geom;
+      if(e.tipo==='fill'){
+        (g.polys||[]).forEach(function(r){ s+='<polygon points="'+polyStr(r)+'" fill="'+e.cor+'" fill-opacity="'+(e.op||.4)+'" stroke="'+e.cor+'" stroke-width="'+(e.peso||1.6)+'"'+(e.dash?' stroke-dasharray="'+e.dash+'"':'')+'/>'; });
+      } else if(e.tipo==='line'){
+        (g.lines||[]).forEach(function(r){ s+='<polyline points="'+polyStr(r)+'" fill="none" stroke="'+e.cor+'" stroke-width="'+(e.peso||2)+'"'+(e.dash?' stroke-dasharray="'+e.dash+'"':'')+' stroke-linecap="round"/>'; });
+        (g.polys||[]).forEach(function(r){ s+='<polyline points="'+polyStr(r)+'" fill="none" stroke="'+e.cor+'" stroke-width="'+(e.peso||2)+'"/>'; });
+      } else if(e.tipo==='pt'){
+        (g.pts||[]).forEach(function(p){ var q=PX(p[0],p[1]); s+='<rect x="'+(q[0]-3).toFixed(1)+'" y="'+(q[1]-3).toFixed(1)+'" width="6" height="6" fill="'+e.cor+'" stroke="#111" stroke-width="1"/>'; });
+      }
+    });
+    s+='</g>';
+    s+=gt;
+    s+='<rect x="'+mapL+'" y="'+mapT+'" width="'+mapW+'" height="'+mapH+'" fill="none" stroke="#22303d" stroke-width="1.2"/>';
+    // norte magnético
+    var nx=800,ny=196;
+    s+='<g><polygon points="'+nx+','+(ny-24)+' '+(nx-8)+','+(ny+10)+' '+nx+','+(ny+2)+' '+(nx+8)+','+(ny+10)+'" fill="#16202b"/><polygon points="'+nx+','+(ny-24)+' '+nx+','+(ny+2)+' '+(nx+8)+','+(ny+10)+'" fill="#6b7885"/><text x="'+nx+'" y="'+(ny+26)+'" text-anchor="middle" font-family="Arial" font-weight="600" font-size="11" fill="#16202b">NM</text></g>';
+    // locator PE
+    var ix=76,iy=690,iw=150,ih=112;
+    s+='<rect x="'+ix+'" y="'+iy+'" width="'+iw+'" height="'+ih+'" fill="#fff" stroke="#22303d" stroke-width="1"/><text x="'+(ix+7)+'" y="'+(iy+15)+'" font-family="Arial" font-size="9" font-weight="500" fill="#4a5a6a">LOCALIZAÇÃO — PE</text>';
+    var mnx=1e9,mny=1e9,mxx=-1e9,mxy=-1e9; D2MAP_PE.forEach(function(p){ if(p[0]<mnx)mnx=p[0]; if(p[0]>mxx)mxx=p[0]; if(p[1]<mny)mny=p[1]; if(p[1]>mxy)mxy=p[1]; });
+    var padi=8,iw2=iw-padi*2,ih2=ih-24,sc=Math.min(iw2/(mxx-mnx),ih2/(mxy-mny)),ox=ix+padi+(iw2-(mxx-mnx)*sc)/2,oy=iy+20+(ih2-(mxy-mny)*sc)/2;
+    var pex=function(x){return ox+(x-mnx)*sc;}, pey=function(y){return oy+(mxy-y)*sc;};
+    s+='<polygon points="'+D2MAP_PE.map(function(p){return pex(p[0]).toFixed(1)+','+pey(p[1]).toFixed(1);}).join(' ')+'" fill="#eaf1f6" stroke="#1f4e79" stroke-width="1"/>';
+    var cxx=(bb.w+bb.e)/2, cyy=(bb.s+bb.n)/2;
+    s+='<circle cx="'+pex(cxx).toFixed(1)+'" cy="'+pey(cyy).toFixed(1)+'" r="4" fill="#d81f26" stroke="#fff" stroke-width="1.2"/>';
+    // escala gráfica
+    var mppx=(e1-e0)/mapW; var segM=pas; var segPx=segM/mppx; var sbx=560,sby=700;
+    s+='<text x="'+sbx+'" y="'+(sby-8)+'" font-family="Arial" font-size="9" font-weight="700" fill="#4a5a6a" letter-spacing=".6">ESCALA GRÁFICA</text>';
+    for(var i=0;i<4;i++){ s+='<rect x="'+(sbx+i*segPx).toFixed(1)+'" y="'+sby+'" width="'+segPx.toFixed(1)+'" height="7" fill="'+(i%2?'#fff':'#16202b')+'" stroke="#16202b" stroke-width=".8"/>'; s+='<text x="'+(sbx+i*segPx).toFixed(1)+'" y="'+(sby+20)+'" text-anchor="middle" font-family="monospace" font-size="9" fill="#4a5a6a">'+(i*segM)+'</text>'; }
+    s+='<text x="'+(sbx+4*segPx).toFixed(1)+'" y="'+(sby+20)+'" text-anchor="middle" font-family="monospace" font-size="9" fill="#4a5a6a">'+(4*segM)+' m</text>';
+    // carimbo inferior
+    var cy0=838; s+='<line x1="64" y1="'+cy0+'" x2="836" y2="'+cy0+'" stroke="#22303d" stroke-width="1"/>';
+    s+='<text x="64" y="'+(cy0+16)+'" font-family="Arial" font-size="9" font-weight="700" fill="#4a5a6a" letter-spacing=".6">LEGENDA</text>';
+    (o.legend||[]).forEach(function(it,i){ var row=cy0+34+i*23, sw=68;
+      if(it.tipo==='line'||it.tipo==='faixa'||it.tipo==='drenagem') s+='<line x1="'+sw+'" y1="'+(row-3)+'" x2="'+(sw+26)+'" y2="'+(row-3)+'" stroke="'+it.cor+'" stroke-width="3"'+(it.dash?' stroke-dasharray="'+it.dash+'"':'')+'/>';
+      else if(it.tipo==='pt') s+='<rect x="'+sw+'" y="'+(row-10)+'" width="12" height="12" fill="'+it.cor+'" stroke="#111"/>';
+      else s+='<rect x="'+sw+'" y="'+(row-11)+'" width="26" height="14" fill="'+it.cor+'" fill-opacity=".45" stroke="'+it.cor+'" stroke-width="1.4"'+(it.dash?' stroke-dasharray="'+it.dash+'"':'')+'/>';
+      s+='<text x="'+(sw+36)+'" y="'+row+'" font-family="Arial" font-size="11" font-weight="600" fill="#16202b">'+d2esc(it.nome)+'</text>';
+    });
+    s+='<rect x="520" y="'+(cy0+8)+'" width="316" height="250" fill="#f7f9fb" stroke="#c3ccd4" stroke-width=".8"/>';
+    function kv(k,lines,y){ var r='<text x="536" y="'+y+'" font-family="Arial" font-size="9" font-weight="700" fill="#4a5a6a" letter-spacing=".6">'+d2esc(k)+'</text>'; (lines||[]).forEach(function(ln,i){ r+='<text x="536" y="'+(y+18+i*16)+'" font-family="Arial" font-size="12" font-weight="600" fill="#16202b">'+d2esc(ln)+'</text>'; }); return r; }
+    s+=kv('PROCESSO ADMINISTRATIVO',(o.proc||'').split('\n').slice(0,2),cy0+30);
+    s+=kv('DADOS DA FERROVIA',(o.ferrovia||'').split('\n').slice(0,2),cy0+96);
+    // rodapé
+    var fy=1150; s+='<line x1="64" y1="'+(fy-22)+'" x2="836" y2="'+(fy-22)+'" stroke="#c3ccd4" stroke-width=".8"/>';
+    if(o.logoE) s+='<image x="64" y="'+(fy-20)+'" height="22" xlink:href="'+o.logoE+'"/>'; else s+='<text x="64" y="'+fy+'" font-family="Arial" font-weight="700" font-size="15" fill="#1f4e79" letter-spacing="1">ENPROL</text>';
+    if(o.logoI) s+='<image x="772" y="'+(fy-20)+'" height="22" xlink:href="'+o.logoI+'"/>'; else s+='<text x="836" y="'+fy+'" text-anchor="end" font-family="Arial" font-weight="700" font-size="15" fill="#16202b" letter-spacing="1">INFRA</text>';
+    s+='<text x="450" y="'+(fy-4)+'" text-anchor="middle" font-family="monospace" font-size="8.5" fill="#8a97a3">SIRGAS 2000 · UTM '+zone+(south?'S':'N')+' · UNIVERSAL TRANSVERSA DE MERCATOR</text>';
+    s+='</svg>';
+    return s;
+  }
+  // rasteriza SVG -> PNG dataURL
+  function d2svg2png(svg,scale){
+    return new Promise(function(res,rej){
+      var img=new Image();
+      img.onload=function(){ var c=document.createElement('canvas'); c.width=900*scale; c.height=1200*scale; var ctx=c.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height); ctx.drawImage(img,0,0,c.width,c.height); try{ res(c.toDataURL('image/jpeg',0.9)); }catch(e){ rej(e); } };
+      img.onerror=function(){ rej(new Error('svg')); };
+      img.src='data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(svg)));
+    });
+  }
+  function d2bboxDe(geoms){
+    var w=1e9,s=1e9,e=-1e9,n=-1e9,ok=false;
+    geoms.forEach(function(g){ ['polys','lines'].forEach(function(k){ (g[k]||[]).forEach(function(r){ r.forEach(function(p){ ok=true; if(p[0]<w)w=p[0]; if(p[0]>e)e=p[0]; if(p[1]<s)s=p[1]; if(p[1]>n)n=p[1]; }); }); }); (g.pts||[]).forEach(function(p){ ok=true; if(p[0]<w)w=p[0]; if(p[0]>e)e=p[0]; if(p[1]<s)s=p[1]; if(p[1]>n)n=p[1]; }); });
+    if(!ok) return null;
+    // padding 14% e força aspecto do mapa (772x662)
+    var padx=(e-w)*0.14||0.002, pady=(n-s)*0.14||0.002; w-=padx;e+=padx;s-=pady;n+=pady;
+    var arMap=772/662, cx=(w+e)/2, cy=(s+n)/2, ww=e-w, hh=n-s;
+    var arGeo=ww/(hh*Math.cos(cy*Math.PI/180));
+    if(arGeo<arMap){ ww=hh*Math.cos(cy*Math.PI/180)*arMap; w=cx-ww/2; e=cx+ww/2; } else { hh=ww/Math.cos(cy*Math.PI/180)/arMap; s=cy-hh/2; n=cy+hh/2; }
+    return {w:w,s:s,e:e,n:n};
+  }
+  async function d2logo(src){ if(!src) return null; try{ var im=await d2carregarImg(src); var c=document.createElement('canvas'); c.width=im.naturalWidth; c.height=im.naturalHeight; c.getContext('2d').drawImage(im,0,0); return c.toDataURL('image/png'); }catch(e){ return null; } }
+
+  window.D2MAP_abrir=async function(fid){
+    var regra=D2MAP_REGRAS[fid];
+    var meta=FIG_META[fid]||[fid,''];
+    if(!regra){ alert('A Figura 1 (Roteiro de acesso) ainda não tem geração automática definida.'); return; }
+    // monta overlay
+    var ov=document.getElementById('d2map_ov');
+    if(!ov){ ov=document.createElement('div'); ov.id='d2map_ov'; document.body.appendChild(ov); }
+    ov.setAttribute('style','position:fixed;inset:0;z-index:99999;background:rgba(12,18,26,.72);display:flex;align-items:center;justify-content:center;padding:20px;');
+    ov.innerHTML='<div style="background:#fff;border-radius:12px;max-width:560px;width:100%;max-height:92vh;overflow:auto;padding:20px 22px;font-family:Arial,sans-serif;">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;"><h3 style="margin:0;font-size:16px;color:#16202b;">Gerar mapa automático</h3><button onclick="document.getElementById(\'d2map_ov\').remove()" style="border:none;background:#eef2f6;border-radius:6px;padding:6px 10px;cursor:pointer;font-weight:700;">✕</button></div>'
+      +'<p style="font-size:12.5px;color:#4a5a6a;margin:8px 0 12px;">'+d2esc(meta[0])+'</p>'
+      +'<label style="font-size:11px;font-weight:700;color:#4a5a6a;">PROCESSO ADMINISTRATIVO (2 linhas)</label>'
+      +'<textarea id="d2map_proc" rows="2" style="width:100%;margin:4px 0 10px;border:1px solid #c3ccd4;border-radius:6px;padding:8px;font-size:12px;font-family:Arial;">'+d2esc(D2MAP_TXT.proc)+'</textarea>'
+      +'<label style="font-size:11px;font-weight:700;color:#4a5a6a;">DADOS DA FERROVIA (2 linhas)</label>'
+      +'<textarea id="d2map_ferr" rows="2" style="width:100%;margin:4px 0 12px;border:1px solid #c3ccd4;border-radius:6px;padding:8px;font-size:12px;font-family:Arial;">'+d2esc(D2MAP_TXT.ferrovia)+'</textarea>'
+      +'<div id="d2map_status" style="font-size:12px;color:#4a5a6a;min-height:18px;"></div>'
+      +'<div id="d2map_prev" style="margin:10px 0;"></div>'
+      +'<div style="display:flex;gap:8px;flex-wrap:wrap;"><button id="d2map_ger" style="background:#1f6fc0;color:#fff;border:none;border-radius:7px;padding:9px 14px;font-weight:700;cursor:pointer;">Gerar prévia</button>'
+      +'<button id="d2map_usar" style="background:#159a3c;color:#fff;border:none;border-radius:7px;padding:9px 14px;font-weight:700;cursor:pointer;display:none;">Usar nesta figura</button></div>';
+    function st(m){ var e=document.getElementById('d2map_status'); if(e) e.textContent=m||''; }
+    document.getElementById('d2map_ger').onclick=async function(){
+      D2MAP_TXT.proc=document.getElementById('d2map_proc').value; D2MAP_TXT.ferrovia=document.getElementById('d2map_ferr').value;
+      st('Lendo camadas…');
+      var geoms=[], camadas=[], legend=[], faltando=[];
+      regra.cams.forEach(function(cam){
+        var est=D2MAP_EST[cam]||{};
+        if(cam==='faixa'||cam==='sigef'||cam==='car'||cam==='drenagem'||cam==='rl'||cam==='appcar'){ faltando.push(est.nome||cam); return; }
+        var kml=d2mapFonteKML(cam);
+        var g=d2mapKML(kml);
+        if((g.polys.length+g.lines.length+g.pts.length)>0){ geoms.push(g); camadas.push({cam:cam,geom:g}); legend.push({nome:est.nome,tipo:est.tipo,cor:est.cor,dash:est.dash}); }
+      });
+      // benfeitorias sempre que houver
+      var gb=d2mapKML(d2mapFonteKML('benf')); if(gb.pts.length||gb.polys.length){ geoms.push(gb); camadas.push({cam:'benf',geom:gb}); legend.push({nome:D2MAP_EST.benf.nome,tipo:'pt',cor:D2MAP_EST.benf.cor}); }
+      var bb=d2bboxDe(geoms);
+      if(!bb){ st('Nenhum KML com geometria para este mapa. Insira ao menos "Área total do imóvel" em Técnica › Camadas do imóvel.'); return; }
+      st('Baixando satélite (Esri)…');
+      var sat; try{ sat=await d2satelite(bb); }catch(e){ st('Falha ao baixar o satélite: '+(e&&e.message||e)); return; }
+      st('Compondo o mapa…');
+      var logoE=await d2logo(window.__LOGO_ENPROL__), logoI=await d2logo(window.__LOGO_INFRA__);
+      var svg=d2mapSVG({ titulo:(meta[0]||'').toUpperCase(), sat:sat, bb:bb, camadas:camadas, legend:legend, proc:D2MAP_TXT.proc, ferrovia:D2MAP_TXT.ferrovia, logoE:logoE, logoI:logoI });
+      var png; try{ png=await d2svg2png(svg,2); }catch(e){ st('Falha ao rasterizar: '+(e&&e.message||e)); return; }
+      figsAuto[fid]=png;
+      var prev=document.getElementById('d2map_prev'); if(prev) prev.innerHTML='<img src="'+png+'" style="width:100%;border:1px solid #c3ccd4;border-radius:8px;">';
+      document.getElementById('d2map_usar').style.display='';
+      st(faltando.length?('Prévia pronta. Camadas ainda não incluídas nesta 1ª versão: '+faltando.join(', ')+'.'):'Prévia pronta.');
+    };
+    document.getElementById('d2map_usar').onclick=function(){
+      if(!figsAuto[fid]) return;
+      if(figs[fid] && !figManualBackup[fid]){ figManualBackup[fid]=figs[fid]; }   // preserva a manual
+      aplicarFig(fid, figsAuto[fid], 'mapa-automatico.png');
+      var o=document.getElementById('d2map_ov'); if(o) o.remove();
+    };
+  };
+  window.D2MAP_restaurarManual=function(fid){
+    if(figManualBackup[fid]){ aplicarFig(fid, figManualBackup[fid]); delete figManualBackup[fid]; }
+  };
   window.D2_carregarFig=function(fid,input){
     const f=input.files[0]; if(!f) return;
     const ehImagem=(f.type&&f.type.indexOf("image/")===0)||/\.(jpe?g|png|gif|webp|bmp|tif?f|heic|heif|svg)$/i.test(f.name||"");
