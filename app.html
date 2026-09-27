@@ -14442,7 +14442,8 @@ function AV_gerarDescSituacao(){
     if(!v){ el = document.getElementById('fb_uf'); v = el ? (el.value || '').trim() : ''; }
     return (v || 'PE').substring(0,2).toUpperCase();
   }
-  function _carFetchGeoJSON(url, tokRef, oldLayer, style, tooltip, cb){
+  function _carFetchGeoJSON(url, tokRef, oldLayer, style, tooltip, opts){
+    opts = opts || {};
     var tok = ++tokRef.v;
     fetch(url)
       .then(function(r){ return r.ok ? r.json() : Promise.reject(r.status); })
@@ -14453,10 +14454,11 @@ function AV_gerarDescSituacao(){
           pane:'carPane',
           style: function(){ return style; },
           onEachFeature: function(f, layer){
-            var t = tooltip(f); if(t) layer.bindTooltip(t, { permanent:true, direction:'center', className:'pgm-car-label' });
+            var t = tooltip(f); if(!t) return;
+            if(opts.popup) layer.bindPopup(t);
+            else layer.bindTooltip(t, { permanent:true, direction:'center', className:'pgm-car-label' });
           }
         }).addTo(mapa);
-        cb && cb(oldLayer.ref);
       })
       .catch(function(e){ console.warn('CAR erro:', e); });
   }
@@ -14470,7 +14472,7 @@ function AV_gerarDescSituacao(){
     var uf = carUf().toLowerCase();
     _carFetchGeoJSON('/api/mapa/car?uf=' + uf + '&bbox=' + bbox, _carRef, _carLRef,
       { color:'#e6a800', weight:1.5, fillColor:'#ffe066', fillOpacity:0.25, opacity:0.5 },
-      function(f){ return (f.properties && f.properties.cod_imovel) || ''; });
+      function(f){ return (f.properties && f.properties.cod_imovel) || ''; }, {popup:true});
   }
   function carregarCarRl(){
     if(mapa.getZoom() < CAR_ZOOM_MIN){ if(_carRlLRef.ref){ mapa.removeLayer(_carRlLRef.ref); _carRlLRef.ref=null; } return; }
