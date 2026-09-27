@@ -25233,6 +25233,8 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       +'<div style="flex:1;"><label style="font-size:11px;font-weight:700;color:#4a5a6a;">KM ENTRADA DO EIXO</label><input id="d2map_kment" value="'+d2esc(D2MAP_TXT.kmEnt||'000 + 000,00')+'" style="width:100%;margin:4px 0 12px;border:1px solid #c3ccd4;border-radius:6px;padding:8px;font-size:12px;font-family:Arial;"></div>'
       +'<div style="flex:1;"><label style="font-size:11px;font-weight:700;color:#4a5a6a;">KM SAÍDA DO EIXO</label><input id="d2map_kmsai" value="'+d2esc(D2MAP_TXT.kmSai||'000 + 000,00')+'" style="width:100%;margin:4px 0 12px;border:1px solid #c3ccd4;border-radius:6px;padding:8px;font-size:12px;font-family:Arial;"></div>'
       +'</div>'
+      +'<label style="font-size:11px;font-weight:700;color:#4a5a6a;">ENQUADRAMENTO</label>'
+      +'<select id="d2map_foco" style="width:100%;margin:4px 0 10px;border:1px solid #c3ccd4;border-radius:6px;padding:8px;font-size:12px;font-family:Arial;"><option value="area">Área total do imóvel</option><option value="desap">Foco na área desapropriada</option></select>'
       +'<label style="font-size:11px;font-weight:700;color:#4a5a6a;">BASE DO MAPA</label>'
       +'<select id="d2map_base" style="width:100%;margin:4px 0 12px;border:1px solid #c3ccd4;border-radius:6px;padding:8px;font-size:12px;font-family:Arial;"><option value="orto">Ortofoto do acervo (recomendado)</option><option value="sat">Satélite Esri</option></select>'
       +'<div id="d2map_status" style="font-size:12px;color:#4a5a6a;min-height:18px;"></div>'
@@ -25249,8 +25251,9 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       // ---- camadas client-side (KML) ----
       ['area','desap','vias','appest','hidro'].forEach(function(cam){ if(!need[cam]) return; var g=d2mapKML(d2mapFonteKML(cam)); if(g.polys.length+g.lines.length+g.pts.length) geom[cam]=g; });
       var gb=d2mapKML(d2mapFonteKML('benf')); if(gb.pts.length||gb.polys.length) geom.benf=gb;
-      // enquadramento por figura: Fig 2 e 2B mostram a ÁREA TOTAL; demais focam a ÁREA DESAPROPRIADA
-      var mostraTudo=(fid==='f2'||fid==='f2b');
+      // enquadramento escolhido no modal (padrão: área total do imóvel)
+      var foco=(document.getElementById('d2map_foco')||{}).value||'area';
+      var mostraTudo=(foco!=='desap');
       var focoCams = mostraTudo ? ['area'] : ['desap'];
       var focoGeoms=[]; focoCams.forEach(function(c){ if(geom[c]) focoGeoms.push(geom[c]); });
       if(!focoGeoms.length){ ['area','desap','vias','appest','hidro','benf'].forEach(function(c){ if(geom[c]) focoGeoms.push(geom[c]); }); }
