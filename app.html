@@ -17607,13 +17607,10 @@ function AV_gerarDescSituacao(){
       yy += hl;
     }
     function quebrar(){ if(typeof novaPag === "function"){ yy = novaPag(); } else { pdf.addPage(); yy = 20; } cabecalho(); }
-    // confrontante/matrícula só aparecem quando mudam (igual ao memorial)
-    var ultC = null, ultM = null;
     cabecalho();
     t.forEach(function(r, i){
-      var mostraC = (r.conf && r.conf !== ultC) ? r.conf : "";
-      var mostraM = (r.mat && (mostraC || r.mat !== ultM)) ? r.mat : "";
-      ultC = r.conf || ultC; ultM = r.mat || ultM;
+      var mostraC = r.conf || "";
+      var mostraM = r.mat || "";
       pdf.setFont("helvetica","normal"); pdf.setFontSize(FZ);
       var lsC = mostraM ? pdf.splitTextToSize(mostraM, W[6] - 2.4) : [""];
       var lsM = mostraC ? pdf.splitTextToSize(mostraC, W[7] - 2.4) : [""];
@@ -17648,11 +17645,9 @@ function AV_gerarDescSituacao(){
     var larg = [7,7,13,10,15.5,14.5,13,20];
     // cabeçalho repete em cada página; linha nunca é partida entre páginas
     var rows = [ new Tr({ tableHeader:true, cantSplit:true, children: cab.map(function(c,i){ return cel(c, {bold:true, shade:"1F4E79", cor:"FFFFFF", w:larg[i]}); }) }) ];
-    var ultC = null, ultM = null;
     t.forEach(function(r, i){
-      var mostraC = (r.conf && r.conf !== ultC) ? r.conf : "";
-      var mostraM = (r.mat && (mostraC || r.mat !== ultM)) ? r.mat : "";
-      ultC = r.conf || ultC; ultM = r.mat || ultM;
+      var mostraC = r.conf || "";
+      var mostraM = r.mat || "";
       var z = i % 2 ? "F2F6FA" : undefined;
       rows.push(new Tr({ cantSplit:true, children:[ cel(r.de,{w:larg[0],bold:true,shade:z}), cel(r.para,{w:larg[1],bold:true,shade:z}), cel(r.az,{w:larg[2],shade:z}),
         cel(r.dist,{al:AL.RIGHT,w:larg[3],shade:z}), cel(r.N,{al:AL.RIGHT,w:larg[4],shade:z}), cel(r.E,{al:AL.RIGHT,w:larg[5],shade:z}),
