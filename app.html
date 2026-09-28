@@ -25278,7 +25278,19 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     var img=await d2carregarImg(durl);
     var cv=document.createElement('canvas'); cv.width=img.naturalWidth; cv.height=img.naturalHeight;
     var cx=cv.getContext('2d'); cx.drawImage(img,0,0);
-    try{ var idt=cx.getImageData(0,0,cv.width,cv.height), dd=idt.data; for(var i=0;i<dd.length;i+=4){ if(dd[i]>=247&&dd[i+1]>=247&&dd[i+2]>=247) dd[i+3]=0; } cx.putImageData(idt,0,0); }catch(e){}
+    try{
+      var W=cv.width, H=cv.height, idt=cx.getImageData(0,0,W,H), dd=idt.data;
+      // nodata do recorte pode vir BRANCO ou PRETO (ex.: SPS-04): remove só o que está ligado
+      // às bordas da imagem (preenchimento), sem furar pixels claros/escuros dentro da foto
+      var preto=function(p){ var k=p*4; if(dd[k+3]===0) return false; var r=dd[k],g=dd[k+1],b=dd[k+2]; return (r<=14&&g<=14&&b<=14)||(r>=247&&g>=247&&b>=247); };
+      var vis=new Uint8Array(W*H), fila=new Int32Array(W*H), ini=0, fim=0;
+      var semear=function(p){ if(!vis[p] && preto(p)){ vis[p]=1; fila[fim++]=p; } };
+      for(var x=0;x<W;x++){ semear(x); semear((H-1)*W+x); }
+      for(var y=0;y<H;y++){ semear(y*W); semear(y*W+W-1); }
+      while(ini<fim){ var p=fila[ini++]; dd[p*4+3]=0; var px=p%W;
+        if(px>0) semear(p-1); if(px<W-1) semear(p+1); if(p>=W) semear(p-W); if(p<W*(H-1)) semear(p+W); }
+      cx.putImageData(idt,0,0);
+    }catch(e){}
     return { mode:'orto', e0:e0, e1:e1, n0:n0, n1:n1, url:cv.toDataURL('image/png') };
   }
   function d2esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
