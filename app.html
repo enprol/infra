@@ -6104,6 +6104,9 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
   #panel-desp1-planta .mdp-cam select{ padding:6px 9px; font-size:12.5px; }
   @media (max-width:760px){ #panel-desp1-planta .mdp-cam{ grid-template-columns:1fr; gap:6px; } }
 
+  #panel-desp1-planta .mdp-tab-topo{ display:flex; justify-content:flex-end; margin:0 0 8px; }
+  #panel-desp1-planta .mdp-tab input.mdp-kmauto-in{ background:#eef6ff; border-color:#9cc3ea; color:#175a9f; font-weight:600; }
+
   /* memorial */
   #panel-desp1-planta .mdp-prev{ background:#fbfdff; border:1px solid #e4ebf2; border-left:4px solid #1F6FC0; border-radius:8px; padding:16px 18px; font-size:13.5px; line-height:1.75; text-align:justify; color:#243447; max-height:420px; overflow:auto; }
 </style>
@@ -6137,7 +6140,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 <h2 class="vsec">3 · Vértices, confrontantes e tipo de divisa</h2>
 <div class="vcard">
   <datalist id="mdp_dl_conf"></datalist>
-  <p class="mdp-explica">Para cada trecho (vértice → vértice) escolha o <b>confrontante</b> e o <b>tipo de divisa</b>. Campo em branco = <b>mesmo do trecho anterior</b> (aparece em cinza); use <b>↓</b> para repetir nos seguintes. A lista de confrontantes traz os cadastros do mesmo SPS e as áreas remanescentes. O tipo de divisa define o símbolo desenhado na planta (cerca, divisa entre propriedades, faixa anterior…). Esta tabela vai para o memorial, a planta e o <b>DRL</b>. O <b>KM</b> do memorial é opcional; a coluna <b>KM no eixo</b> é calculada sozinha.</p>
+  <p class="mdp-explica">Para cada trecho (vértice → vértice) escolha o <b>confrontante</b> e o <b>tipo de divisa</b>. Campo em branco = <b>mesmo do trecho anterior</b> (aparece em cinza); use <b>↓</b> para repetir nos seguintes. A lista de confrontantes traz os cadastros do mesmo SPS e as áreas remanescentes. O tipo de divisa define o símbolo desenhado na planta (cerca, divisa entre propriedades, faixa anterior…). Esta tabela vai para o memorial, a planta e o <b>DRL</b>. O <b>P01</b> é o vértice sobre o eixo da ferrovia no KM inicial, seguindo no sentido horário. O <b>KM no memorial</b> vem preenchido (em azul) só nos vértices inicial e final sobre o eixo; os demais ficam em branco. A coluna <b>KM no eixo</b> é calculada sozinha.</p>
   <p class="hint-inline" style="margin:0 0 12px;" id="mdp_conf_aviso"></p>
   <div id="mdp_tabela"></div>
 </div>
@@ -15489,8 +15492,12 @@ function AV_gerarDescSituacao(){
     // sentido: o memorial aprovado descreve no sentido HORÁRIO; "inverter" troca
     var querHorario = !ST.inverter;
     if(horario !== querHorario) uv.reverse();
-    // P01 = vértice mais ao NORTE (é onde o memorial aprovado começa); "Mudar o P01" desloca a partir daí
-    var iN = 0; uv.forEach(function(p, k){ if(p.N > uv[iN].N) iN = k; });
+    // P01 = vértice gravado em extras.p1 (é a ordem em que confrontantes/KM foram salvos). Sem ele,
+    // o mais ao NORTE (regra antiga); quando a quilometragem chega, ancorarP1NoEixo() move o P01
+    // para o vértice sobre o eixo no KM inicial.
+    var ex0 = extras(), iN = -1;
+    if(ex0.p1 && ex0.p1.length === 2) uv.forEach(function(p, k){ if(iN < 0 && Math.abs(p.E - ex0.p1[0]) < 0.01 && Math.abs(p.N - ex0.p1[1]) < 0.01) iN = k; });
+    if(iN < 0){ iN = 0; uv.forEach(function(p, k){ if(p.N > uv[iN].N) iN = k; }); }
     var ini = ((iN + (ST.inicio||0)) % uv.length + uv.length) % uv.length;
     if(ini) uv = uv.slice(ini).concat(uv.slice(0, ini));
 
@@ -15575,7 +15582,43 @@ function AV_gerarDescSituacao(){
     if(!out[0]){ for(var k = out.length-1; k >= 0; k--){ if(out[k]){ out[0] = out[k]; break; } } }
     return out;
   }
-  function kmDe(i){ var c = conf(); return (c[i] && c[i].km) ? String(c[i].km).trim() : ""; }
+  function kmManual(i){ var c = conf(); return (c[i] && c[i].km) ? String(c[i].km).trim() : ""; }
+  // vértices sobre o eixo (|afastamento| ≤ 1 m) no menor e no maior KM; sem vértice no eixo, os extremos da faixa
+  function eixoIniFim(){
+    var km = kmAtual(); if(!G || !km) return null;
+    var eix = []; km.v.forEach(function(x, i){ if(x.ch != null && Math.abs(x.off) <= 1) eix.push(i); });
+    if(!eix.length){ return (km.iIni >= 0 || km.iFim >= 0) ? { ini:km.iIni, fim:km.iFim, km:km } : null; }
+    var ini = eix.reduce(function(m, i){ return km.v[i].ch < km.v[m].ch ? i : m; }), fim = eix.reduce(function(m, i){ return km.v[i].ch > km.v[m].ch ? i : m; });
+    return { ini:ini, fim:fim, km:km };
+  }
+  function kmAuto(i){ var e = eixoIniFim(); return (e && (i === e.ini || i === e.fim) && e.km.v[i].ch != null) ? kmTxt(e.km.v[i].ch) : ""; }
+  function kmDe(i){ return kmManual(i) || kmAuto(i); }
+  // os dados da tabela ficam por POSIÇÃO (trecho k / vértice k): ao trocar o P01 eles giram junto,
+  // para cada confrontante/divisa/KM continuar no mesmo trecho físico
+  function girarConf(s, n){
+    if(!s) return;
+    var c = conf(), o = {};
+    Object.keys(c).forEach(function(k){ var i = parseInt(k, 10); if(isNaN(i)){ o[k] = c[k]; return; } o[((i - s) % n + n) % n] = c[k]; });
+    setConf(o);
+  }
+  function mudarP1(s, manual){
+    if(!G) return;
+    var n = G.v.length; s = ((s % n) + n) % n;
+    var p = G.v[s];
+    girarConf(s, n);
+    setExtra("p1", [+p.E.toFixed(3), +p.N.toFixed(3)]);
+    setExtra("p1manual", !!manual);
+    analisar();
+    if(CTX.proj || CTX.fixo){ CTX.km = calcularKm(CTX.proj, CTX.fixo); CTX.chave = chaveG() + "|" + spsAtual(); G.km = CTX.km; }
+  }
+  // P01 = vértice do eixo no KM inicial, caminhamento horário (a menos que o usuário tenha escolhido outro)
+  function ancorarP1NoEixo(){
+    if(!G || extras().p1manual || ST.inverter) return false;
+    var e = eixoIniFim(); if(!e || e.ini == null || e.ini <= 0) return false;
+    mudarP1(e.ini, false);
+    return true;
+  }
+  async function prepararP1(){ if(!G) analisar(); if(!G) return; await carregarContexto(); ancorarP1NoEixo(); }
   // limites por rumo: usa o azimute de cada segmento (a face olha 90° à direita do caminhamento horário)
   function limites(){
     var ex = extras();
@@ -15623,6 +15666,53 @@ function AV_gerarDescSituacao(){
       return { de:a.nome, para:b.nome, az:dms(s.az), dist:br(s.dist,2), N:br(a.N,3), E:br(a.E,3), conf:cs[i]||"" };
     });
   };
+  // tabela de vértices em JPG (para colar em relatórios) — sem as colunas de KM
+  window.MDP_tabelaJpg = async function(){
+    try{ await prepararP1(); }catch(e){}
+    var t = window.MDP_tabela(); if(!t || !t.length){ alert("Insira o KML em Técnica › Áreas de Locação para gerar a tabela."); return; }
+    var S = 2, F = 'Calibri, Carlito, "Segoe UI", Arial, sans-serif';
+    var cab = ["Vértice","Vértice","Azimute","Distância (m)","Coord. N (m)","Coord. E (m)","Confrontante"];
+    var linhas = t.map(function(r){ return [r.de, r.para, r.az, r.dist, r.N, r.E, r.conf || "—"]; });
+    var cv = document.createElement("canvas"), cx = cv.getContext("2d");
+    var fs = 14, pad = 12, rowH = 28, headH = 34;
+    cx.font = "bold " + fs + "px " + F;
+    var larg = cab.map(function(h){ return cx.measureText(h).width + pad*2; });
+    cx.font = fs + "px " + F;
+    linhas.forEach(function(l){ l.forEach(function(v, j){ larg[j] = Math.max(larg[j], cx.measureText(String(v)).width + pad*2); }); });
+    larg[6] = Math.min(larg[6], 360);
+    // confrontante longo quebra em linhas
+    var quebra = function(txt, w){ var ps = String(txt).split(/\s+/), out = [], cur = ""; ps.forEach(function(p){ var tst = cur ? cur + " " + p : p; if(cx.measureText(tst).width > w && cur){ out.push(cur); cur = p; } else cur = tst; }); if(cur) out.push(cur); return out.length ? out : [""]; };
+    var confLs = linhas.map(function(l){ return quebra(l[6], larg[6] - pad*2); });
+    var alts = confLs.map(function(ls){ return Math.max(rowH, ls.length*18 + 10); });
+    var W = larg.reduce(function(a, b){ return a + b; }, 0), H = headH + alts.reduce(function(a, b){ return a + b; }, 0);
+    var M = 2;
+    cv.width = (W + M*2) * S; cv.height = (H + M*2) * S; cx.scale(S, S); cx.translate(M, M);
+    cx.fillStyle = "#fff"; cx.fillRect(-M, -M, W + M*2, H + M*2);
+    cx.fillStyle = "#1F4E79"; cx.fillRect(0, 0, W, headH);
+    cx.textBaseline = "middle"; cx.fillStyle = "#fff"; cx.font = "bold " + fs + "px " + F;
+    var x = 0; cab.forEach(function(h, j){ cx.textAlign = "center"; cx.fillText(h, x + larg[j]/2, headH/2); x += larg[j]; });
+    var y = headH;
+    linhas.forEach(function(l, i){
+      var h = alts[i];
+      cx.fillStyle = i % 2 ? "#f2f6fa" : "#fff"; cx.fillRect(0, y, W, h);
+      cx.fillStyle = "#1d2733"; x = 0;
+      l.forEach(function(v, j){
+        cx.font = (j < 2 ? "bold " : "") + fs + "px " + F;
+        if(j === 6){ cx.textAlign = "left"; var ls = confLs[i], y0 = y + h/2 - (ls.length - 1)*9; ls.forEach(function(s, k){ cx.fillText(s, x + pad, y0 + k*18); }); }
+        else { cx.textAlign = (j >= 3 && j <= 5) ? "right" : "center"; cx.fillText(String(v), j >= 3 && j <= 5 ? x + larg[j] - pad : x + larg[j]/2, y + h/2); }
+        x += larg[j];
+      });
+      y += h;
+    });
+    cx.strokeStyle = "#9fb3c8"; cx.lineWidth = 1;
+    x = 0; larg.forEach(function(w, j){ if(j){ cx.beginPath(); cx.moveTo(x + .5, 0); cx.lineTo(x + .5, H); cx.stroke(); } x += w; });
+    y = headH; alts.forEach(function(h){ cx.beginPath(); cx.moveTo(0, y + .5); cx.lineTo(W, y + .5); cx.stroke(); y += h; });
+    cx.strokeStyle = "#1F4E79"; cx.lineWidth = 1.5; cx.strokeRect(0, 0, W, H);
+    var blob = await new Promise(function(r){ cv.toBlob(r, "image/jpeg", 0.95); });
+    var nome = "Tabela_vertices_" + (window.__CTDsuf ? window.__CTDsuf() : "CTD") + ".jpg";
+    if(window.FS_salvar){ await window.FS_salvar(blob, nome); }
+    else { var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = nome; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function(){ URL.revokeObjectURL(a.href); }, 4000); }
+  };
 
   /* ---------------- texto do memorial (formato aprovado) ---------------- */
   // devolve a descrição em PARTES ({t:texto, b:negrito}) — os dados da tabela (vértice, coordenadas,
@@ -15633,6 +15723,7 @@ function AV_gerarDescSituacao(){
     var N = function(t){ out.push({ t:t, b:false }); }, B = function(t){ out.push({ t:t, b:true }); };
     var v0 = G.v[0];
     N("Inicia-se a descrição deste perímetro no vértice "); B(v0.nome);
+    var km0 = kmDe(0); if(km0){ N(", no KM="); B(km0); }
     N(", de coordenadas N "); B(br(v0.N,3) + "m"); N(" e E "); B(br(v0.E,3) + "m"); N("; ");
     G.segs.forEach(function(s, i){
       var b = G.v[s.para], nome = cs[i] || "";
@@ -15643,7 +15734,7 @@ function AV_gerarDescSituacao(){
       N("com azimute de "); B(dms(s.az));
       N(" por uma distância de "); B(br(s.dist,2) + "m");
       N("  até o vértice "); B(b.nome);
-      if(km){ N(", no KM="); B(km); }
+      if(km && !fim){ N(", no KM="); B(km); }
       if(fim){ N(", "); return; }
       N(", de coordenadas N "); B(br(b.N,3) + "m"); N(" e E "); B(br(b.E,3) + "m"); N("; ");
     });
@@ -15685,6 +15776,7 @@ function AV_gerarDescSituacao(){
 
   window.MDP_pdfMemorial = async function(opts){
     if(!G && (analisar().erro)){ alert("Importe/verifique o KML em Técnica › Áreas de Locação antes de gerar o memorial."); return; }
+    try{ await prepararP1(); }catch(e){}
     if(!window.jspdf){ alert("Biblioteca de PDF ainda carregando. Tente de novo em instantes."); return; }
     var jsPDF = window.jspdf.jsPDF, pdf = new jsPDF({unit:"mm", format:"a4", compress:true});
     var W = 210, H = 297, mL = 20, mR = 18, RW = W - mL - mR;
@@ -15839,6 +15931,7 @@ function AV_gerarDescSituacao(){
   /* ---------------- Word do memorial ---------------- */
   window.MDP_wordMemorial = async function(){
     if(!G && (analisar().erro)){ alert("Importe/verifique o KML em Técnica › Áreas de Locação antes de gerar o memorial."); return; }
+    try{ await prepararP1(); }catch(e){}
     var D = window.docx; if(!D){ alert("Biblioteca Word ainda carregando. Tente de novo em instantes."); return; }
     var P = D.Paragraph, T = D.TextRun, AL = D.AlignmentType;
     var b = blocos(), c = b.cad, K = [];
@@ -17106,7 +17199,7 @@ function AV_gerarDescSituacao(){
     var op = Object.assign({}, OPC, sobre || {});
     op.limGeo = limGeo(T);
     if(aviso) aviso("Carregando projeto, faixa de domínio e logotipos…");
-    await carregarContexto();
+    await carregarContexto(); ancorarP1NoEixo();
     op.projGrupo = op.projeto ? CTX.proj : null;
     op.fixoDados = op.fixo ? CTX.fixo : null;
     op.km = kmAtual();
@@ -17340,7 +17433,8 @@ function AV_gerarDescSituacao(){
     setConf(c); renderTabela(); renderMemorial(); agendarPreview(400);
   };
   window.MDP_inverter = function(){ ST.inverter = !ST.inverter; analisar(); renderTudo(); };
-  window.MDP_inicio = function(i){ ST.inicio = (ST.inicio||0) + i; analisar(); renderTudo(); };
+  window.MDP_inicio = function(i){ if(!G) analisar(); if(!G) return; mudarP1(i, true); renderTudo(); agendarPreview(200); };
+  window.MDP_p1Eixo = function(){ setExtra("p1manual", false); if(!ancorarP1NoEixo()){ analisar(); } renderTudo(); agendarPreview(200); };
   window.MDP_relerKml = function(){ CACHE_SAT.chave = ""; analisar(); renderTudo(); };
 
   window.MDP_usarKm = function(modo){
@@ -17368,7 +17462,9 @@ function AV_gerarDescSituacao(){
       return '<div class="mdp-num"><span>' + esc(n[0]) + '</span><b>' + esc(n[1]) + '</b></div>'; }).join("") + '</div>' +
       '<p class="hint-inline">Arquivo: <b>' + esc(G.nomeKml || "—") + '</b>' + (G.rotuloAnel ? (' · camada “' + esc(G.rotuloAnel) + '”') : '') +
       ' · sentido <b>' + (ST.inverter ? "anti-horário" : "horário") + '</b> · início em <b>' + esc(G.v[0].nome) + '</b>' +
-      ' (N ' + br(G.v[0].N,3) + ' / E ' + br(G.v[0].E,3) + ').</p>';
+      ' (N ' + br(G.v[0].N,3) + ' / E ' + br(G.v[0].E,3) + ')' +
+      (extras().p1manual ? ' — escolhido manualmente. <button type="button" class="vbtn vbtn-ghost vbtn-sm" style="margin-left:6px" onclick="MDP_p1Eixo()">↺ P01 no eixo (KM inicial)</button>'
+        : ((function(){ var e = eixoIniFim(); return (e && e.ini === 0) ? ' — vértice do eixo da ferrovia no KM inicial.' : ''; })())) + '</p>';
     var km = kmAtual();
     if(km){
       var eix = []; km.v.forEach(function(x, i){ if(x.ch != null && Math.abs(x.off) <= 1) eix.push({ ch:x.ch, nome:G.v[i].nome }); });
@@ -17397,7 +17493,8 @@ function AV_gerarDescSituacao(){
     var box = $("mdp_tabela"); if(!box) return;
     if(!G){ box.innerHTML = ""; return; }
     var c = conf(), cs = confrontantes(), dv = divisasDe(), km = kmAtual();
-    var h = '<div class="mdp-tab-wrap"><table class="mdp-tab"><thead><tr>' +
+    var h = '<div class="mdp-tab-topo"><button type="button" class="vbtn vbtn-ghost vbtn-sm" onclick="MDP_tabelaJpg()" title="Vértices, azimutes, distâncias, coordenadas e confrontantes — sem as colunas de KM">🖼️ Gerar imagem JPG da tabela</button></div>' +
+      '<div class="mdp-tab-wrap"><table class="mdp-tab"><thead><tr>' +
       '<th>Vért.</th><th>Vért.</th><th>Azimute</th><th>Dist. (m)</th><th>N (m)</th><th>E (m)</th><th>KM no eixo</th><th>KM no memorial</th><th>Tipo de divisa</th><th>Confrontante</th><th></th>' +
       '</tr></thead><tbody>';
     var nomeDiv = {}; DIVISAS.forEach(function(d){ nomeDiv[d[0]] = d[1]; });
@@ -17408,7 +17505,8 @@ function AV_gerarDescSituacao(){
       h += '<tr><td><b>' + a.nome + '</b></td><td>' + b.nome + '</td><td class="mdp-c">' + dms(s.az) + '</td>' +
         '<td class="mdp-r">' + br(s.dist,2) + '</td><td class="mdp-r">' + br(a.N,3) + '</td><td class="mdp-r">' + br(a.E,3) + '</td>' +
         '<td class="mdp-kmauto" title="' + (kv ? ('Distância ao eixo: ' + br(Math.abs(kv.off),1) + ' m') : '') + '">' + (kv ? (kmTxt(kv.ch) + (kv.noLim ? '<i title="toca o limite da faixa de domínio">●</i>' : '')) : '—') + '</td>' +
-        '<td><input type="text" value="' + esc((c[s.para] && c[s.para].km) || "") + '" placeholder="—" style="min-width:110px" title="KM da estaca neste vértice (sai no memorial)" oninput="MDP_confIn(' + s.para + ',\'km\',this.value)"></td>' +
+        (function(){ var man = kmManual(s.de), au = kmAuto(s.de);
+          return '<td><input type="text" value="' + esc(man || au) + '"' + (!man && au ? ' class="mdp-kmauto-in"' : '') + ' placeholder="—" style="min-width:110px" title="' + (au ? 'Vértice sobre o eixo da ferrovia — KM calculado (sai no memorial). Pode editar.' : 'Só os vértices inicial e final sobre o eixo levam KM no memorial') + '" oninput="MDP_confIn(' + s.de + ',\'km\',this.value)"></td>'; })() +
         '<td><select' + (ownD ? '' : ' class="mdp-herd"') + ' onchange="MDP_conf(' + i + ',\'d\',this.value)"><option value=""' + (ownD ? '' : ' selected') + '>' + (i === 0 && !ownD ? '(padrão) ' : '↑ ') + esc(nomeDiv[dv[i]] || "") + '</option>' +
           DIVISAS.map(function(d){ return '<option value="' + d[0] + '"' + (ownD === d[0] ? ' selected' : '') + '>' + esc(d[1]) + '</option>'; }).join("") + '</select></td>' +
         '<td><input type="text" list="mdp_dl_conf" value="' + esc(own) + '" placeholder="' + esc(own ? "" : (cs[i] ? ("↑ " + cs[i]) : "nome ou nº do CTD")) + '" oninput="MDP_confIn(' + i + ',\'c\',this.value)" onchange="MDP_confResolver(' + i + ',this.value)"' + (own ? '' : ' class="mdp-herd"') + '></td>' +
@@ -17458,7 +17556,8 @@ function AV_gerarDescSituacao(){
   function renderTudo(){
     var b = $("mdp_barra_prev"); if(b && !b.firstChild){ b.innerHTML = barraHtml(); sincronizarBarras(); }
     renderResumo(); renderTabela(); renderMemorial(); renderDatalist(); renderCamadas(); carregarConfrontantes();
-    if(G && !CTX.pronto) carregarContexto().then(function(){ renderResumo(); renderTabela(); agendarPreview(100); });
+    if(G && (!CTX.pronto || !kmAtual())) carregarContexto().then(function(){ ancorarP1NoEixo(); renderResumo(); renderTabela(); renderMemorial(); agendarPreview(100); });
+    else if(ancorarP1NoEixo()){ renderResumo(); renderTabela(); renderMemorial(); agendarPreview(100); }
   }
   window.MDP_render = function(){ analisar(); renderCampos(); renderTudo(); agendarPreview(250); };
 
