@@ -1828,6 +1828,14 @@ window.REL_baixarConjunto = async function(){
   #panel-desp1-vist .vsub{ margin-top:22px !important; }
   #panel-desp1-vist .vfield input[data-lock="1"]{ background:#eef2f6; color:#5a6b7c; }
   #panel-desp1-vist .vfield input.desbloqueado{ background:#fff !important; color:#243447 !important; }
+  /* Toggle CPF/CNPJ embutido no label */
+  #panel-desp1-vist select.doc-tipo-sel{
+    border:none !important; background:transparent !important; box-shadow:none !important;
+    padding:0 !important; font-size:11px !important; font-weight:700 !important;
+    text-transform:uppercase !important; letter-spacing:.4px !important;
+    color:var(--label) !important; cursor:pointer; width:auto !important;
+    outline:none !important; border-radius:0 !important;
+  }
 
   /* Correção definitiva: selects do Anexo B idênticos à Ficha da DESP 3 */
   #panel-desp1-vist select{
@@ -5598,7 +5606,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
     <div class="vrow">
       <div class="vfield grow"><label>Nome</label><input type="text" id="fb_nome" placeholder="Nome"></div>
       <div class="vfield"><label>RG</label><input type="text" id="fb_rg" placeholder="RG"></div>
-      <div class="vfield"><label>CPF</label><input type="text" id="fb_cpf" class="mask-cpf" inputmode="numeric" maxlength="14" placeholder="000.000.000-00"></div>
+      <div class="vfield"><label><select id="fb_cpf_tipo" class="doc-tipo-sel" data-target="fb_cpf"><option value="cpf">CPF</option><option value="cnpj">CNPJ</option></select></label><input type="text" id="fb_cpf" class="mask-cpf" inputmode="numeric" maxlength="14" placeholder="000.000.000-00"></div>
     </div>
     <div class="vrow">
       <div class="vfield"><label>Estado Civil</label><select id="fb_estcivil"><option value="">Selecione</option><option>SOLTEIRO(A)</option><option>CASADO(A)</option><option>DIVORCIADO(A)</option><option>VIÚVO(A)</option><option>UNIÃO ESTÁVEL</option></select></div>
@@ -5630,7 +5638,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
       <p class="hint-auto" style="margin:0 0 8px;">Dados completos do(a) informante acima, para quando ele(a) não é o(a) proprietário(a) (é o(a) ocupante do imóvel)</p>
       <div class="vrow">
         <div class="vfield"><label>RG</label><input type="text" id="fb_ocup_rg" placeholder="RG"></div>
-        <div class="vfield"><label>CPF</label><input type="text" id="fb_ocup_cpf" class="mask-cpf" inputmode="numeric" maxlength="14" placeholder="000.000.000-00"></div>
+        <div class="vfield"><label><select id="fb_ocup_cpf_tipo" class="doc-tipo-sel" data-target="fb_ocup_cpf"><option value="cpf">CPF</option><option value="cnpj">CNPJ</option></select></label><input type="text" id="fb_ocup_cpf" class="mask-cpf" inputmode="numeric" maxlength="14" placeholder="000.000.000-00"></div>
         <div class="vfield"><label>Estado Civil</label><select id="fb_ocup_estcivil"><option value="">Selecione</option><option>SOLTEIRO(A)</option><option>CASADO(A)</option><option>DIVORCIADO(A)</option><option>VIÚVO(A)</option><option>UNIÃO ESTÁVEL</option></select></div>
       </div>
       <div class="vrow">
@@ -19490,6 +19498,14 @@ function AV_gerarDescSituacao(){
     if(v.length>3) return v.replace(/(\d{3})(\d{1,3})/,"$1.$2");
     return v;
   }
+  function mascaraCNPJ(v){
+    v=(v||"").replace(/\D/g,"").slice(0,14);
+    if(v.length>12) return v.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{1,2})/,"$1.$2.$3/$4-$5");
+    if(v.length>8)  return v.replace(/(\d{2})(\d{3})(\d{3})(\d{1,4})/,"$1.$2.$3/$4");
+    if(v.length>5)  return v.replace(/(\d{2})(\d{3})(\d{1,3})/,"$1.$2.$3");
+    if(v.length>2)  return v.replace(/(\d{2})(\d{1,3})/,"$1.$2");
+    return v;
+  }
   function mascaraTel(v){
     v=(v||"").replace(/\D/g,"").slice(0,11);
     if(v.length>10) return v.replace(/(\d{2})(\d{5})(\d{1,4})/,"($1) $2-$3");
@@ -19500,7 +19516,19 @@ function AV_gerarDescSituacao(){
   }
   function ligarMascaras(){
     document.querySelectorAll("#panel-desp1-vist .mask-cpf").forEach(el=>{
-      el.addEventListener("input",function(){ this.value=mascaraCPF(this.value); });
+      el.addEventListener("input",function(){
+        this.value = this.dataset.docTipo==="cnpj" ? mascaraCNPJ(this.value) : mascaraCPF(this.value);
+      });
+    });
+    document.querySelectorAll("#panel-desp1-vist .doc-tipo-sel").forEach(sel=>{
+      sel.addEventListener("change",function(){
+        var inp=document.getElementById(this.dataset.target); if(!inp) return;
+        var isCNPJ=this.value==="cnpj";
+        inp.dataset.docTipo=this.value;
+        inp.maxLength=isCNPJ?18:14;
+        inp.placeholder=isCNPJ?"00.000.000/0000-00":"000.000.000-00";
+        inp.value="";
+      });
     });
     document.querySelectorAll("#panel-desp1-vist .mask-tel").forEach(el=>{
       el.addEventListener("input",function(){ this.value=mascaraTel(this.value); });
@@ -19921,7 +19949,7 @@ function AV_gerarDescSituacao(){
     (function(){ garantir(LH+1); F("bold"); pdf.setFontSize(FS); C(NAVY); const l="1.3 Proprietário(a) (SIM/NÃO):"; pdf.text(l, mL, y); let x=mL+pdf.getTextWidth(l)+3; C(BLK); F("bold"); const s=(/sim/i.test(gv("fb_11_dom"))||gv("fb_nome"))?"SIM":""; pdf.text(s, x, y); x+=pdf.getTextWidth(s||"")+6; F("italic"); C(BLK); pdf.text("(Se sim, preencher item 1.3.1; se não, item 1.3.2)", x, y); y+=LH; })();
     rv("1.3.1 Nome:", gv("fb_nome"), {navy2:true, valTab:23.5});
     rv("RG:", gv("fb_rg"), {navy2:true, valTab:23.5});
-    rv("CPF:", gv("fb_cpf"), {navy2:true, valTab:23.5});
+    rv((document.getElementById("fb_cpf_tipo")&&document.getElementById("fb_cpf_tipo").value==="cnpj"?"CNPJ:":"CPF:"), gv("fb_cpf"), {navy2:true, valTab:23.5});
     rv("Telefone:", gv("fb_telefone"), {navy2:true, valTab:23.5});
     rv("Estado Civil:", gv("fb_estcivil"), {navy2:true, valTab:23.5});
     rv("Cônjuge:", gv("fb_conjuge"), {navy2:true, valTab:23.5});
@@ -19933,7 +19961,7 @@ function AV_gerarDescSituacao(){
     if(gv("fb_ocup_e_prop")==="2 - Não"){
       y+=LH;
       rv("RG:", gv("fb_ocup_rg"), {navy2:true, valTab:44});
-      rv("CPF:", gv("fb_ocup_cpf"), {navy2:true, valTab:44});
+      rv((document.getElementById("fb_ocup_cpf_tipo")&&document.getElementById("fb_ocup_cpf_tipo").value==="cnpj"?"CNPJ:":"CPF:"), gv("fb_ocup_cpf"), {navy2:true, valTab:44});
       rv("Estado Civil:", gv("fb_ocup_estcivil"), {navy2:true, valTab:44});
       rv("Cônjuge:", gv("fb_ocup_conjuge"), {navy2:true, valTab:44});
       rv("Endereço:", gv("fb_ocup_endereco"), {navy2:true, valTab:44});
@@ -22590,9 +22618,11 @@ function DRL_identEndereco(){
 window.DRL_dados=function(){
   function v(){ for(var i=0;i<arguments.length;i++){ var e=document.getElementById(arguments[i]); if(e){ var val=((e.value!=null?e.value:e.textContent)||"").trim(); if(val) return val; } } return ""; }
   function ano(){ var d=v('rel_local_data','fb_data'); var m=d&&d.match(/(19|20)\d{2}/); return m?m[0]:""; }
+  var cpfTipo = (document.getElementById('fb_cpf_tipo')||{}).value||'cpf';
   return {
     nome: v('rel_nome','fb_nome'),
     cpf: v('fb_cpf','rel_cpf'),
+    cpfTipo: cpfTipo,
     denom: DRL_identEndereco() || v('rel_prop_id','av_denom'),
     matricula: v('fb_matricula','rel_matricula'),
     municipio: v('fb_prop_mun','fb_municipio','rel_municipio','av_comarca'),
@@ -22606,9 +22636,12 @@ function DRL_paragrafo(d){
   function _gid(id){ var e=document.getElementById(id); return e?((e.value||'').trim()):''; }
   var incra = d.incra ? ', cadastrado no INCRA sob o código nº '+DRL_bl(d.incra) : '';
   var nomeOcup = _gid('fb_inf_nome'), cpfOcup = _gid('fb_ocup_cpf');
+  var ocupCpfTipo = ((document.getElementById('fb_ocup_cpf_tipo')||{}).value||'cpf');
   var temOcup = _gid('fb_ocup_e_prop').charAt(0)==='2' && nomeOcup;
-  var ocupTxt = temOcup ? ', com ocupante identificado como '+DRL_bl(nomeOcup)+', inscrito(a) no Cadastro de Pessoa Física – CPF nº '+DRL_bl(cpfOcup) : '';
-  return 'Eu, '+DRL_bl(d.nome)+', inscrito(a) no Cadastro de Pessoa Física – CPF nº '+DRL_bl(d.cpf)+
+  var ocupDocLabel = ocupCpfTipo==='cnpj' ? 'Cadastro Nacional de Pessoa Jurídica – CNPJ' : 'Cadastro de Pessoa Física – CPF';
+  var ocupTxt = temOcup ? ', com ocupante identificado como '+DRL_bl(nomeOcup)+', inscrito(a) no '+ocupDocLabel+' nº '+DRL_bl(cpfOcup) : '';
+  var propDocLabel = (d.cpfTipo||'cpf')==='cnpj' ? 'Cadastro Nacional de Pessoa Jurídica – CNPJ' : 'Cadastro de Pessoa Física – CPF';
+  return 'Eu, '+DRL_bl(d.nome)+', inscrito(a) no '+propDocLabel+' nº '+DRL_bl(d.cpf)+
     ', proprietário(a) do imóvel denominado '+DRL_bl(d.denom)+', matrícula(s) nº(s) '+DRL_bl(d.matricula)+
     ' da comarca de '+DRL_bl(d.municipio)+'- '+DRL_bl(d.uf)+incra+ocupTxt+
     ', declaro, sob as penas da lei, que foram respeitados os limites das divisas in loco com os confrontantes abaixo relacionados durante a execução dos trabalhos técnicos na citada propriedade, não havendo qualquer litígio entre as partes.';
