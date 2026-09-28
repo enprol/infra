@@ -25397,7 +25397,9 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     s+='<circle cx="'+nx+'" cy="'+(ny+15)+'" r="2" fill="#16202b"/>';
     s+='<text x="'+nx+'" y="'+(ny+40)+'" text-anchor="middle" font-family="Arial" font-weight="600" font-size="8.5" fill="#16202b">NM</text>';
     // LOCALIZAÇÃO — canto inferior esquerdo, dentro do mapa
-    var iw=152,ih=116,ix=mapL+22,iy=mapB-22-ih;
+    // lado escolhido no modal (quando o minimapa cobre o perímetro); a escala vai para o canto oposto
+    var locDir=(o.locLado==='dir');
+    var iw=152,ih=116,ix=locDir?(mapR-22-iw):(mapL+22),iy=mapB-22-ih;
     s+='<rect x="'+ix+'" y="'+iy+'" width="'+iw+'" height="'+ih+'" fill="#fff" stroke="#22303d" stroke-width="1"/><text x="'+(ix+8)+'" y="'+(iy+15)+'" font-family="Arial" font-size="9" font-weight="600" fill="#4a5a6a">LOCALIZAÇÃO — PE</text>';
     var mnx=1e9,mny=1e9,mxx=-1e9,mxy=-1e9; D2MAP_PE.forEach(function(p){ if(p[0]<mnx)mnx=p[0]; if(p[0]>mxx)mxx=p[0]; if(p[1]<mny)mny=p[1]; if(p[1]>mxy)mxy=p[1]; });
     var padi=8,iw2=iw-padi*2,ih2=ih-26,sc=Math.min(iw2/(mxx-mnx),ih2/(mxy-mny)),ox=ix+padi+(iw2-(mxx-mnx)*sc)/2,oy=iy+22+(ih2-(mxy-mny)*sc)/2;
@@ -25410,7 +25412,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     var niceM=[10,20,25,50,100,200,250,500,1000,2000,5000];
     var segM=niceM.find(function(m){ return m/mppx>=30 && m/mppx<=58; }) || (function(){ var b=niceM[0]; niceM.forEach(function(m){ if(Math.abs(m/mppx-44)<Math.abs(b/mppx-44)) b=m; }); return b; })();
     var segPx=segM/mppx, nSeg=Math.max(2,Math.min(4,Math.floor(150/segPx))), barW=nSeg*segPx;
-    var sbx=mapR-48-barW, sby=mapB-42, bx=sbx-7, bw=barW+30;   // folga p/ não tocar a grade (base e lateral)
+    var sbx=locDir?(mapL+40):(mapR-48-barW), sby=mapB-42, bx=sbx-7, bw=barW+30;   // folga p/ não tocar a grade (base e lateral)
     s+='<rect x="'+bx.toFixed(1)+'" y="'+(sby-15)+'" width="'+bw.toFixed(1)+'" height="33" rx="3" fill="#ffffff" opacity=".55"/>';
     for(var i=0;i<nSeg;i++){ s+='<rect x="'+(sbx+i*segPx).toFixed(1)+'" y="'+sby+'" width="'+segPx.toFixed(1)+'" height="5" fill="'+(i%2?'#fff':'#16202b')+'" stroke="#16202b" stroke-width=".7"/>'; s+='<text x="'+(sbx+i*segPx).toFixed(1)+'" y="'+(sby+14)+'" text-anchor="middle" font-family="monospace" font-size="7.5" fill="#16202b">'+(i*segM)+'</text>'; }
     s+='<text x="'+(sbx+nSeg*segPx).toFixed(1)+'" y="'+(sby+14)+'" text-anchor="middle" font-family="monospace" font-size="7.5" fill="#16202b">'+(nSeg*segM)+' m</text>';
@@ -25501,6 +25503,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     }
     h+= fld('Base do mapa', sel('d2map_base',[['orto','Ortofoto do acervo + satélite'],['sat','Satélite Esri']],D2MAP_TXT.base||'orto'))
       + fld('Transparência da imagem', sel('d2map_transp',[[0,'0% (opaca)'],[25,'25%'],[50,'50%'],[75,'75%'],[100,'100% (sem imagem)']],D2MAP_TXT.transp==null?25:D2MAP_TXT.transp))
+      + fld('Mapa de localização (PE)', sel('d2map_loclado',[['esq','Lado esquerdo'],['dir','Lado direito']],D2MAP_TXT.locLado||'esq'))
       +'</div>'
       +'<div id="d2map_status" class="d2m-st" role="status" aria-live="polite"></div>'
       +'<div id="d2map_prev" class="d2m-prev"></div>'
@@ -25514,6 +25517,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       if(!rot){ D2MAP_TXT.areaLabel=v('d2map_arealbl'); D2MAP_TXT.desapLabel=v('d2map_desaplbl'); D2MAP_TXT.kmEnt=v('d2map_kment'); D2MAP_TXT.kmSai=v('d2map_kmsai'); D2MAP_TXT.foco=v('d2map_foco')||'area'; }
       D2MAP_TXT.base=v('d2map_base')||'orto';
       D2MAP_TXT.transp=parseInt(v('d2map_transp'),10); if(isNaN(D2MAP_TXT.transp)) D2MAP_TXT.transp=25;
+      D2MAP_TXT.locLado=v('d2map_loclado')||'esq';
       st('Lendo camadas do imóvel…');
       var need={}; (regra.cams||[]).forEach(function(c){ need[c]=true; });
       var geom={}, pinos=[], falhou=[];   // cam -> geometria
@@ -25593,7 +25597,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       if(base && base.mode==='orto'){ st('Baixando satélite (base de fundo)…'); try{ var satB=await d2satelite(bb); base.satUrl=satB.url; }catch(e){} }
       if(!base){ st('Baixando satélite (Esri)…'); try{ var sat=await d2satelite(bb); base={mode:'sat',sat:sat,url:sat.url}; }catch(e){ st('Falha ao baixar a base: '+(e&&e.message||e)); return; } }
       st('Compondo o mapa…');
-      var svg=d2mapSVG({ base:base, bb:bb, camadas:camadas, legend:legend, proc:D2MAP_TXT.proc, ferrovia:D2MAP_TXT.ferrovia, estacas:estacas, areaLabel:(rot?'':D2MAP_TXT.areaLabel), desapLabel:(rot?'':D2MAP_TXT.desapLabel), sigefCodes:sigefCodes, carCodes:carCodes, cruz:(rot?null:cruz), kmEnt:D2MAP_TXT.kmEnt, kmSai:D2MAP_TXT.kmSai, pinos:pinos, transp:D2MAP_TXT.transp });
+      var svg=d2mapSVG({ base:base, bb:bb, camadas:camadas, legend:legend, proc:D2MAP_TXT.proc, ferrovia:D2MAP_TXT.ferrovia, estacas:estacas, areaLabel:(rot?'':D2MAP_TXT.areaLabel), desapLabel:(rot?'':D2MAP_TXT.desapLabel), sigefCodes:sigefCodes, carCodes:carCodes, cruz:(rot?null:cruz), kmEnt:D2MAP_TXT.kmEnt, kmSai:D2MAP_TXT.kmSai, pinos:pinos, transp:D2MAP_TXT.transp, locLado:D2MAP_TXT.locLado });
       var png; try{ png=await d2svg2png(svg,2); }catch(e){ st('Falha ao rasterizar: '+(e&&e.message||e)); return; }
       figsAuto[fid]=png;
       var prev=document.getElementById('d2map_prev'); if(prev) prev.innerHTML='<img src="'+png+'" alt="Prévia do mapa gerado">';
