@@ -17634,16 +17634,6 @@ function AV_gerarDescSituacao(){
       for(var c = 0; c <= W.length; c++){ var xx = c < W.length ? xs(c) : x + larg; pdf.line(xx, yy, xx, yy + alt); }
       yy += alt;
     });
-    // confrontações (não separa o bloco do título)
-    yy += 5;
-    var lim = limites(), rot = {N:"NORTE",S:"SUL",L:"LESTE",O:"OESTE"};
-    pdf.setFontSize(10);
-    var itens = ["N","S","L","O"].map(function(b){ return pdf.splitTextToSize(rot[b] + ": " + (lim[b] || "—") + ";", larg - 30); });
-    var altB = 5 + itens.reduce(function(a, ls){ return a + ls.length*4.8; }, 0);
-    if(yy + altB > maxY){ if(typeof novaPag === "function") yy = novaPag(); else { pdf.addPage(); yy = 20; } }
-    pdf.setTextColor(0,0,0); pdf.setFont("helvetica","bold"); pdf.text("Confrontações:", x, yy);
-    pdf.setFont("helvetica","normal");
-    itens.forEach(function(ls){ ls.forEach(function(l){ pdf.text(l, x + 30, yy); yy += 4.8; }); });
     return { y:yy, ok:true };
   };
   window.MDP_drlTabelaWord = function(){
@@ -22618,9 +22608,14 @@ window.DRL_dados=function(){
 };
 function DRL_bl(x){ return (x&&(''+x).trim())?(''+x).trim():'____________'; }
 function DRL_paragrafo(d){
+  function _gid(id){ var e=document.getElementById(id); return e?((e.value||'').trim()):''; }
+  var incra = d.incra ? ', cadastrado no INCRA sob o código nº '+DRL_bl(d.incra) : '';
+  var nomeOcup = _gid('fb_inf_nome'), cpfOcup = _gid('fb_ocup_cpf');
+  var temOcup = _gid('fb_ocup_e_prop').charAt(0)==='2' && nomeOcup;
+  var ocupTxt = temOcup ? ', com ocupante identificado como '+DRL_bl(nomeOcup)+', inscrito(a) no Cadastro de Pessoa Física – CPF nº '+DRL_bl(cpfOcup) : '';
   return 'Eu, '+DRL_bl(d.nome)+', inscrito(a) no Cadastro de Pessoa Física – CPF nº '+DRL_bl(d.cpf)+
-    ', proprietário(a) e/ou possuidor(a) do imóvel denominado '+DRL_bl(d.denom)+', matrícula(s) nº(s) '+DRL_bl(d.matricula)+
-    ' da comarca de '+DRL_bl(d.municipio)+'- '+DRL_bl(d.uf)+
+    ', proprietário(a) do imóvel denominado '+DRL_bl(d.denom)+', matrícula(s) nº(s) '+DRL_bl(d.matricula)+
+    ' da comarca de '+DRL_bl(d.municipio)+'- '+DRL_bl(d.uf)+incra+ocupTxt+
     ', declaro, sob as penas da lei, que foram respeitados os limites das divisas in loco com os confrontantes abaixo relacionados durante a execução dos trabalhos técnicos na citada propriedade, não havendo qualquer litígio entre as partes.';
 }
 // valores editáveis da aba DRL (fallback ao automático)
@@ -22642,8 +22637,7 @@ window.DRL_gerarPDF=async function(opts){
 
   var texto=DRL_gv('drl_texto') || DRL_paragrafo(d);
   var confAImg=DRL_gv('drl_conf_abrangida_img');           // imagem da tabela de confrontantes
-  var anexos=['Planta planimétrica','Memorial descritivo']; // fixo
-  var nAc=3;                                                // fixo
+  var nAc=3;
   var localData=DRL_gv('drl_local_data') || DRL_localDataPadrao(d);
 
   var END=["Av. Des. Moreira, nº 1300, T. Norte, Conj. 1016/1021, Aldeota, 60.170-002, Fortaleza-CE","Rua Idelfonso Freire, nº 106, Sala 202, Centro, 56.506-520, Arcoverde-PE","Rua Pedro Batista Ferreira, nº 278, Centro, 76.500-000, Santa Terezinha de Goiás-GO","Rua Nilo Peçanha, nº 25, 1º Andar, Sala 07, Centro, 47.640-000, Santa Maria da Vitória-BA","Rua Irmã Ambrosina, nº 249, Conj 03 e 04, Centro, 61.760-405, Eusébio-CE","Rua dos Timbiras, nº 2213, Conj.1206/1209, Lourdes, 30.140-069, Belo Horizonte-MG"];
@@ -22678,13 +22672,34 @@ window.DRL_gerarPDF=async function(opts){
   function linha(txt){ garantir(6); pdf.setFont('helvetica','normal'); pdf.setFontSize(11); pdf.setTextColor(0,0,0); pdf.text(txt, mL, y); y+=6; }
   function assinatura(){ garantir(8); pdf.setFont('helvetica','normal'); pdf.setFontSize(11); pdf.text('__________________________________________________', W/2, y, {align:'center'}); y+=8; }
 
+  // ---- PÁGINA 1: título + texto + assinatura + De acordo + data ----
   cabecalho();
   y=40; pdf.setLineHeightFactor(1.5);
   bloco('DECLARAÇÃO DE RESPEITO DE LIMITES', {bold:true, size:13, center:true}); y+=10;
-  bloco(texto, {justify:true}); y+=8;
+  bloco(texto, {justify:true}); y+=12;
 
-  garantir(10 + 6.4 + 8);    // título + cabeçalho + 1ª linha da tabela juntos
-  pdf.setFont('helvetica','bold'); pdf.setFontSize(11); pdf.text('Confrontantes da Área Abrangida:', mL, y); y+=7;
+  // assinatura do proprietário
+  garantir(8+6+6);
+  assinatura();
+  bloco(DRL_bl(d.nome), {bold:true, center:true});
+  bloco('CPF nº: '+DRL_bl(d.cpf), {center:true}); y+=10;
+
+  // De acordo
+  if(nAc>0){
+    garantir(10 + nAc*8); pdf.setFont('helvetica','normal'); pdf.setFontSize(11); pdf.text('De acordo:', mL, y); y+=10;
+    for(var k=0;k<nAc;k++) assinatura();
+  }
+
+  // município, UF e data
+  y+=8; garantir(6); linha(localData);
+
+  // ---- PÁGINA 2+: Anexos ----
+  novaPagina();
+  pdf.setFont('helvetica','bold'); pdf.setFontSize(11); pdf.text('Anexos:', mL, y); y+=10;
+
+  // Anexo 1 — Confrontantes da Área Abrangida
+  garantir(10);
+  pdf.setFont('helvetica','bold'); pdf.setFontSize(11); pdf.text('1. Confrontantes da Área Abrangida:', mL, y); y+=7;
   var _usaTab = (DRL_gv('drl_conf_fonte') !== 'imagem') && window.MDP_temTabela && window.MDP_temTabela();
   if(_usaTab){
     var _r = window.MDP_drlTabelaPdf(pdf, mL, y, RW, botY, function(){ novaPagina(); return y; });
@@ -22700,24 +22715,11 @@ window.DRL_gerarPDF=async function(opts){
       y+=ih+4;
     } else { y+=6; }
   } else { y+=6; }
-  y+=14;
 
-  // blocos finais nunca se partem entre páginas (assinatura, "De acordo", anexos + data)
-  garantir(8 + 6 + 6);
-  assinatura();
-  bloco(DRL_bl(d.nome), {bold:true, center:true});
-  bloco('CPF nº: '+DRL_bl(d.cpf), {center:true}); y+=10;
-
-  if(nAc>0){
-    garantir(10 + nAc*8); pdf.setFont('helvetica','normal'); pdf.setFontSize(11); pdf.text('De acordo:', mL, y); y+=10;
-    for(var k=0;k<nAc;k++) assinatura();
-  }
-  y+=4;
-  garantir(7 + anexos.length*6 + 10 + 6); pdf.setFont('helvetica','bold'); pdf.setFontSize(11); pdf.text('Anexos:', mL, y); y+=7;
-  pdf.setFont('helvetica','normal');
-  for(var a=0;a<anexos.length;a++) linha(anexos[a]);
-  y+=10;
-  linha(localData);
+  // Anexos 2 e 3
+  y+=6; pdf.setFont('helvetica','normal'); pdf.setFontSize(11);
+  garantir(6); linha('2. Planta planimétrica');
+  garantir(6); linha('3. Memorial descritivo');
 
   rodape();
   var blob=pdf.output('blob');
