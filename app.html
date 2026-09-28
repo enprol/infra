@@ -15582,6 +15582,26 @@ function AV_gerarDescSituacao(){
     if(!out[0]){ for(var k = out.length-1; k >= 0; k--){ if(out[k]){ out[0] = out[k]; break; } } }
     return out;
   }
+  // matrícula do confrontante por trecho: em branco repete a do trecho anterior SÓ se o confrontante é o mesmo
+  function matriculas(){
+    if(!G) return [];
+    var c = conf(), cs = confrontantes(), n = G.segs.length, own = [], out = [];
+    for(var i = 0; i < n; i++) own.push((c[i] && c[i].m) ? String(c[i].m).trim() : "");
+    for(var p = 0; p < 2; p++){                                   // 2 passadas: o perímetro é circular
+      for(var j = 0; j < n; j++){
+        var ant = (j + n - 1) % n;
+        out[j] = own[j] || ((cs[j] && cs[j] === cs[ant]) ? (out[ant] || "") : "");
+      }
+    }
+    return out;
+  }
+  // confrontação com área remanescente (azul) ou com a faixa de domínio (vermelho) — usado na planta
+  function tipoConf(nome, divisa){
+    var t = String(nome || "").toLowerCase();
+    if(/remanescente/.test(t)) return "rem";
+    if(/faixa/.test(t) || divisa === "fd_ant") return "faixa";
+    return "";
+  }
   function kmManual(i){ var c = conf(); return (c[i] && c[i].km) ? String(c[i].km).trim() : ""; }
   // vértices sobre o eixo (|afastamento| ≤ 1 m) no menor e no maior KM; sem vértice no eixo, os extremos da faixa
   function eixoIniFim(){
@@ -15660,10 +15680,10 @@ function AV_gerarDescSituacao(){
   window.MDP_tabela = function(){
     if(!G && !analisar().v) return null;
     if(!G) return null;
-    var cs = confrontantes();
+    var cs = confrontantes(), ms = matriculas();
     return G.segs.map(function(s, i){
       var a = G.v[s.de], b = G.v[s.para];
-      return { de:a.nome, para:b.nome, az:dms(s.az), dist:br(s.dist,2), N:br(a.N,3), E:br(a.E,3), conf:cs[i]||"" };
+      return { de:a.nome, para:b.nome, az:dms(s.az), dist:br(s.dist,2), N:br(a.N,3), E:br(a.E,3), conf:cs[i]||"", mat:ms[i]||"" };
     });
   };
   // tabela de vértices em JPG (para colar em relatórios) — sem as colunas de KM
@@ -15671,19 +15691,20 @@ function AV_gerarDescSituacao(){
     try{ await prepararP1(); }catch(e){}
     var t = window.MDP_tabela(); if(!t || !t.length){ alert("Insira o KML em Técnica › Áreas de Locação para gerar a tabela."); return; }
     var S = 2, F = 'Calibri, Carlito, "Segoe UI", Arial, sans-serif';
-    var cab = ["Vértice","Vértice","Azimute","Distância (m)","Coord. N (m)","Coord. E (m)","Confrontante"];
-    var linhas = t.map(function(r){ return [r.de, r.para, r.az, r.dist, r.N, r.E, r.conf || "—"]; });
+    var cab = ["Vértice","Vértice","Azimute","Distância (m)","Coord. N (m)","Coord. E (m)","Confrontante","Matrícula"];
+    var linhas = t.map(function(r){ return [r.de, r.para, r.az, r.dist, r.N, r.E, r.conf || "—", r.mat || "—"]; });
     var cv = document.createElement("canvas"), cx = cv.getContext("2d");
     var fs = 14, pad = 12, rowH = 28, headH = 34;
     cx.font = "bold " + fs + "px " + F;
     var larg = cab.map(function(h){ return cx.measureText(h).width + pad*2; });
     cx.font = fs + "px " + F;
     linhas.forEach(function(l){ l.forEach(function(v, j){ larg[j] = Math.max(larg[j], cx.measureText(String(v)).width + pad*2); }); });
-    larg[6] = Math.min(larg[6], 360);
-    // confrontante longo quebra em linhas
+    larg[6] = Math.min(larg[6], 360); larg[7] = Math.min(larg[7], 220);
+    // confrontante / matrícula longos quebram em linhas
     var quebra = function(txt, w){ var ps = String(txt).split(/\s+/), out = [], cur = ""; ps.forEach(function(p){ var tst = cur ? cur + " " + p : p; if(cx.measureText(tst).width > w && cur){ out.push(cur); cur = p; } else cur = tst; }); if(cur) out.push(cur); return out.length ? out : [""]; };
     var confLs = linhas.map(function(l){ return quebra(l[6], larg[6] - pad*2); });
-    var alts = confLs.map(function(ls){ return Math.max(rowH, ls.length*18 + 10); });
+    var matLs = linhas.map(function(l){ return quebra(l[7], larg[7] - pad*2); });
+    var alts = confLs.map(function(ls, i){ return Math.max(rowH, Math.max(ls.length, matLs[i].length)*18 + 10); });
     var W = larg.reduce(function(a, b){ return a + b; }, 0), H = headH + alts.reduce(function(a, b){ return a + b; }, 0);
     var M = 2;
     cv.width = (W + M*2) * S; cv.height = (H + M*2) * S; cx.scale(S, S); cx.translate(M, M);
@@ -15698,7 +15719,7 @@ function AV_gerarDescSituacao(){
       cx.fillStyle = "#1d2733"; x = 0;
       l.forEach(function(v, j){
         cx.font = (j < 2 ? "bold " : "") + fs + "px " + F;
-        if(j === 6){ cx.textAlign = "left"; var ls = confLs[i], y0 = y + h/2 - (ls.length - 1)*9; ls.forEach(function(s, k){ cx.fillText(s, x + pad, y0 + k*18); }); }
+        if(j >= 6){ cx.textAlign = j === 6 ? "left" : "center"; var ls = (j === 6 ? confLs : matLs)[i], y0 = y + h/2 - (ls.length - 1)*9; ls.forEach(function(s, k){ cx.fillText(s, j === 6 ? x + pad : x + larg[j]/2, y0 + k*18); }); }
         else { cx.textAlign = (j >= 3 && j <= 5) ? "right" : "center"; cx.fillText(String(v), j >= 3 && j <= 5 ? x + larg[j] - pad : x + larg[j]/2, y + h/2); }
         x += larg[j];
       });
@@ -16989,13 +17010,15 @@ function AV_gerarDescSituacao(){
       var linhas = G.segs.length, reserva = 47;
       var alt = Math.min(4.7, Math.max(2.2, (TAB.y + TAB.h - reserva - y)/linhas));
       var tam = Math.min(TAM.tab, Math.max(3.6, alt*1.46));
+      var csT = confrontantes(), dvT = divisasDe(), COR_TIPO = { rem:"#1565c0", faixa:"#d32f2f" };
       G.segs.forEach(function(s, i){
         var a = G.v[s.de], b = G.v[s.para];
         if(i % 2) P.ret(TAB.x + 2, y, larg, alt, { peso:0, fill:"#f5f8fb" });
         var vals = [a.nome, b.nome, dms(s.az), br(s.dist,2), br(a.N,3), br(a.E,3)];
+        var corDist = COR_TIPO[tipoConf(csT[i], dvT[i])];
         vals.forEach(function(t, k){
           if(k <= 2) P.texto((CX[k]+CF[k])/2, y + alt*.5 + tam*.3528*.36, t, { tam:tam, align:"center" });
-          else P.texto(CF[k] - 1.2, y + alt*.5 + tam*.3528*.36, t, { tam:tam, align:"right" });
+          else P.texto(CF[k] - 1.2, y + alt*.5 + tam*.3528*.36, t, (k === 3 && corDist) ? { tam:tam, align:"right", cor:corDist, bold:true } : { tam:tam, align:"right" });
         });
         P.linha(TAB.x + 2, y + alt, TAB.x + 2 + larg, y + alt, { cor:"#c9d3de", peso:.08 });
         y += alt;
@@ -17398,7 +17421,8 @@ function AV_gerarDescSituacao(){
   }
   function renderDatalist(){
     var dl = $("mdp_dl_conf"); if(!dl) return;
-    var h = REMANESCENTES.map(function(t){ return '<option value="' + esc(t) + '">área remanescente</option>'; }).join("");
+    var h = REMANESCENTES.map(function(t){ return '<option value="' + esc(t) + '">área remanescente</option>'; }).join("")
+      + '<option value="Faixa de domínio da ferrovia">faixa de domínio</option>';
     h += LISTA_CONF.itens.map(function(it){
       return '<option value="' + esc(it.nome) + '">CTD ' + esc(it.ctd) + (it.posseiro ? (" · posseiro: " + esc(it.posseiro)) : "") + '</option>';
     }).join("");
@@ -17428,8 +17452,8 @@ function AV_gerarDescSituacao(){
   window.MDP_confAbaixo = function(i){
     var c = conf(), val = (c[i] && c[i].c) || "";
     if(!val || !G) return;
-    var dval = (c[i] && c[i].d) || "";
-    for(var k = i; k < G.segs.length; k++){ c[k] = c[k] || {}; c[k].c = val; if(dval) c[k].d = dval; }
+    var dval = (c[i] && c[i].d) || "", mval = (c[i] && c[i].m) || "";
+    for(var k = i; k < G.segs.length; k++){ c[k] = c[k] || {}; c[k].c = val; if(dval) c[k].d = dval; if(mval) c[k].m = mval; }
     setConf(c); renderTabela(); renderMemorial(); agendarPreview(400);
   };
   window.MDP_inverter = function(){ ST.inverter = !ST.inverter; analisar(); renderTudo(); };
@@ -17492,10 +17516,10 @@ function AV_gerarDescSituacao(){
   function renderTabela(){
     var box = $("mdp_tabela"); if(!box) return;
     if(!G){ box.innerHTML = ""; return; }
-    var c = conf(), cs = confrontantes(), dv = divisasDe(), km = kmAtual();
+    var c = conf(), cs = confrontantes(), dv = divisasDe(), km = kmAtual(), ms = matriculas();
     var h = '<div class="mdp-tab-topo"><button type="button" class="vbtn vbtn-ghost vbtn-sm" onclick="MDP_tabelaJpg()" title="Vértices, azimutes, distâncias, coordenadas e confrontantes — sem as colunas de KM">🖼️ Gerar imagem JPG da tabela</button></div>' +
       '<div class="mdp-tab-wrap"><table class="mdp-tab"><thead><tr>' +
-      '<th>Vért.</th><th>Vért.</th><th>Azimute</th><th>Dist. (m)</th><th>N (m)</th><th>E (m)</th><th>KM no eixo</th><th>KM no memorial</th><th>Tipo de divisa</th><th>Confrontante</th><th></th>' +
+      '<th>Vért.</th><th>Vért.</th><th>Azimute</th><th>Dist. (m)</th><th>N (m)</th><th>E (m)</th><th>KM no eixo</th><th>KM no memorial</th><th>Tipo de divisa</th><th>Confrontante</th><th>Matrícula</th><th></th>' +
       '</tr></thead><tbody>';
     var nomeDiv = {}; DIVISAS.forEach(function(d){ nomeDiv[d[0]] = d[1]; });
     G.segs.forEach(function(s, i){
@@ -17510,7 +17534,9 @@ function AV_gerarDescSituacao(){
         '<td><select' + (ownD ? '' : ' class="mdp-herd"') + ' onchange="MDP_conf(' + i + ',\'d\',this.value)"><option value=""' + (ownD ? '' : ' selected') + '>' + (i === 0 && !ownD ? '(padrão) ' : '↑ ') + esc(nomeDiv[dv[i]] || "") + '</option>' +
           DIVISAS.map(function(d){ return '<option value="' + d[0] + '"' + (ownD === d[0] ? ' selected' : '') + '>' + esc(d[1]) + '</option>'; }).join("") + '</select></td>' +
         '<td><input type="text" list="mdp_dl_conf" value="' + esc(own) + '" placeholder="' + esc(own ? "" : (cs[i] ? ("↑ " + cs[i]) : "nome ou nº do CTD")) + '" oninput="MDP_confIn(' + i + ',\'c\',this.value)" onchange="MDP_confResolver(' + i + ',this.value)"' + (own ? '' : ' class="mdp-herd"') + '></td>' +
-        '<td><button type="button" class="mdp-mini" title="Repetir confrontante e divisa nos trechos seguintes" onclick="MDP_confAbaixo(' + i + ')">↓</button></td></tr>';
+        (function(){ var ownM = (c[i] && c[i].m) ? c[i].m : "";
+          return '<td><input type="text" value="' + esc(ownM) + '" placeholder="' + esc(ownM ? "" : (ms[i] ? ("↑ " + ms[i]) : "nº da matrícula")) + '" style="min-width:110px" oninput="MDP_confIn(' + i + ',\'m\',this.value)" onchange="MDP_conf(' + i + ',\'m\',this.value)"' + (ownM ? '' : ' class="mdp-herd"') + '></td>'; })() +
+        '<td><button type="button" class="mdp-mini" title="Repetir confrontante, matrícula e divisa nos trechos seguintes" onclick="MDP_confAbaixo(' + i + ')">↓</button></td></tr>';
     });
     h += '</tbody></table></div>';
     var lim = limites();
@@ -17562,49 +17588,62 @@ function AV_gerarDescSituacao(){
   window.MDP_render = function(){ analisar(); renderCampos(); renderTudo(); agendarPreview(250); };
 
   /* ---- tabela de confrontação para o DRL (vetorial no PDF, tabela no Word) ---- */
-  window.MDP_drlTabelaPdf = function(pdf, x, y, larg, maxY){
+  // tabela legível: fonte fixa, linhas que continuam na página seguinte (cabeçalho repetido);
+  // uma linha nunca é partida e as colunas são sempre as mesmas em todas as páginas.
+  // novaPag(): fecha a página atual, abre outra e devolve o y inicial.
+  window.MDP_drlTabelaPdf = function(pdf, x, y, larg, maxY, novaPag){
     var t = window.MDP_tabela(); if(!t || !t.length) return { y:y, ok:false };
-    var cols = [.085,.085,.155,.115,.175,.175,.21];            // proporções
-    var cab = ["Vért.","Vért.","Azimute","Dist. (m)","N (m)","E (m)","Confr."];
+    var cols = [.07,.07,.13,.10,.155,.145,.20,.13];
+    var cab = ["Vért.","Vért.","Azimute","Dist. (m)","N (m)","E (m)","Confrontante","Matrícula"];
     var W = cols.map(function(f){ return f*larg; });
     function xs(i){ var s = x; for(var k = 0; k < i; k++) s += W[k]; return s; }
-    // cabe tudo no espaço que sobrou? se não, encolhe a linha e a fonte (nunca quebra a página do DRL)
-    var hl = 5, alt = 4.2, esp = maxY - y - 22;
-    if(t.length*alt > esp) alt = Math.max(2.2, esp/t.length);
-    var fz = Math.min(6.2, alt*1.45), yy = y;
+    var FZ = 8.5, LH = 3.6, PADV = 1.6, hl = 6.4, yy = y;
     function cabecalho(){
-      pdf.setFillColor(238,242,246); pdf.rect(x, yy, larg, hl, "F");
-      pdf.setDrawColor(120,130,140); pdf.setLineWidth(.2); pdf.rect(x, yy, larg, hl);
-      pdf.setFont("helvetica","bold"); pdf.setFontSize(6.4); pdf.setTextColor(0,0,0);
-      cab.forEach(function(c, i){ pdf.text(c, xs(i) + W[i]/2, yy + 3.4, {align:"center"}); });
+      pdf.setFillColor(31,78,121); pdf.rect(x, yy, larg, hl, "F");
+      pdf.setFont("helvetica","bold"); pdf.setFontSize(FZ); pdf.setTextColor(255,255,255);
+      cab.forEach(function(c, i){ pdf.text(c, xs(i) + W[i]/2, yy + hl/2 + 1.1, {align:"center"}); });
+      pdf.setDrawColor(31,78,121); pdf.setLineWidth(.25);
+      for(var i = 0; i <= W.length; i++){ var xx = i < W.length ? xs(i) : x + larg; pdf.line(xx, yy, xx, yy + hl); }
       yy += hl;
     }
-    // confrontação vira uma coluna com o nome só quando muda (igual ao memorial)
-    var ult = null;
+    function quebrar(){ if(typeof novaPag === "function"){ yy = novaPag(); } else { pdf.addPage(); yy = 20; } cabecalho(); }
+    // confrontante/matrícula só aparecem quando mudam (igual ao memorial)
+    var ultC = null, ultM = null;
     cabecalho();
     t.forEach(function(r, i){
-      if(i % 2){ pdf.setFillColor(248,250,252); pdf.rect(x, yy, larg, alt, "F"); }
-      pdf.setFont("helvetica","normal"); pdf.setFontSize(fz); pdf.setTextColor(0,0,0);
-      var mostra = (r.conf && r.conf !== ult) ? r.conf : "";
-      ult = r.conf || ult;
-      [r.de, r.para, r.az].forEach(function(v, k){ pdf.text(String(v), xs(k) + W[k]/2, yy + alt - .9, {align:"center"}); });
-      [r.dist, r.N, r.E].forEach(function(v, k){ pdf.text(String(v), xs(k+3) + W[k+3] - 1, yy + alt - .9, {align:"right"}); });
-      if(mostra){ pdf.setFontSize(fz*.92); pdf.text(pdf.splitTextToSize(mostra, W[6]-1.4)[0] || "", xs(6) + .7, yy + alt - .9); }
-      pdf.setDrawColor(200,210,220); pdf.setLineWidth(.08); pdf.line(x, yy + alt, x + larg, yy + alt);
+      var mostraC = (r.conf && r.conf !== ultC) ? r.conf : "";
+      var mostraM = (r.mat && (mostraC || r.mat !== ultM)) ? r.mat : "";
+      ultC = r.conf || ultC; ultM = r.mat || ultM;
+      pdf.setFont("helvetica","normal"); pdf.setFontSize(FZ);
+      var lsC = mostraC ? pdf.splitTextToSize(mostraC, W[6] - 2.4) : [""];
+      var lsM = mostraM ? pdf.splitTextToSize(mostraM, W[7] - 2.4) : [""];
+      var alt = Math.max(lsC.length, lsM.length, 1)*LH + PADV*2;
+      if(yy + alt > maxY) quebrar();
+      if(i % 2){ pdf.setFillColor(242,246,250); pdf.rect(x, yy, larg, alt, "F"); }
+      pdf.setFont("helvetica","normal"); pdf.setFontSize(FZ); pdf.setTextColor(0,0,0);
+      var yb = yy + PADV + LH - .75;
+      pdf.setFont("helvetica","bold");
+      [r.de, r.para].forEach(function(v, k){ pdf.text(String(v), xs(k) + W[k]/2, yb, {align:"center"}); });
+      pdf.setFont("helvetica","normal");
+      pdf.text(String(r.az), xs(2) + W[2]/2, yb, {align:"center"});
+      [r.dist, r.N, r.E].forEach(function(v, k){ pdf.text(String(v), xs(k+3) + W[k+3] - 1.4, yb, {align:"right"}); });
+      lsC.forEach(function(l, k){ pdf.text(l, xs(6) + 1.2, yb + k*LH); });
+      lsM.forEach(function(l, k){ pdf.text(l, xs(7) + W[7]/2, yb + k*LH, {align:"center"}); });
+      pdf.setDrawColor(150,165,180); pdf.setLineWidth(.15);
+      pdf.line(x, yy + alt, x + larg, yy + alt);
+      for(var c = 0; c <= W.length; c++){ var xx = c < W.length ? xs(c) : x + larg; pdf.line(xx, yy, xx, yy + alt); }
       yy += alt;
     });
-    pdf.setDrawColor(120,130,140); pdf.setLineWidth(.2); pdf.rect(x, y, larg, yy - y);
-    for(var i = 1; i < W.length; i++) pdf.line(xs(i), y, xs(i), yy);
-    // legenda das confrontações
-    yy += 3.4;
-    var lim = limites();
-    pdf.setFont("helvetica","bold"); pdf.setFontSize(7); pdf.text("Confrontações:", x, yy);
+    // confrontações (não separa o bloco do título)
+    yy += 5;
+    var lim = limites(), rot = {N:"NORTE",S:"SUL",L:"LESTE",O:"OESTE"};
+    pdf.setFontSize(10);
+    var itens = ["N","S","L","O"].map(function(b){ return pdf.splitTextToSize(rot[b] + ": " + (lim[b] || "—") + ";", larg - 30); });
+    var altB = 5 + itens.reduce(function(a, ls){ return a + ls.length*4.8; }, 0);
+    if(yy + altB > maxY){ if(typeof novaPag === "function") yy = novaPag(); else { pdf.addPage(); yy = 20; } }
+    pdf.setTextColor(0,0,0); pdf.setFont("helvetica","bold"); pdf.text("Confrontações:", x, yy);
     pdf.setFont("helvetica","normal");
-    var lx = x + 22;
-    ["N","S","L","O"].forEach(function(b){
-      var rot = ({N:"NORTE",S:"SUL",L:"LESTE",O:"OESTE"})[b];
-      pdf.text(rot + ": " + (lim[b] || "—") + ";", lx, yy); yy += 4;
-    });
+    itens.forEach(function(ls){ ls.forEach(function(l){ pdf.text(l, x + 30, yy); yy += 4.8; }); });
     return { y:yy, ok:true };
   };
   window.MDP_drlTabelaWord = function(){
@@ -17612,18 +17651,22 @@ function AV_gerarDescSituacao(){
     var D = window.docx; if(!D) return null;
     var P = D.Paragraph, T = D.TextRun, Tb = D.Table, Tr = D.TableRow, Tc = D.TableCell, WD = D.WidthType, AL = D.AlignmentType;
     var cel = function(txt, o){ o = o||{};
-      return new Tc({ children:[ new P({ alignment:o.al || AL.CENTER, spacing:{after:0}, children:[ new T({ text:String(txt==null?"":txt), font:"Arial", size:o.size||14, bold:!!o.bold }) ] }) ],
-        shading: o.shade ? { fill:o.shade } : undefined, width:{ size:o.w||14, type:WD.PERCENTAGE } });
+      return new Tc({ children:[ new P({ alignment:o.al || AL.CENTER, spacing:{before:30, after:30}, children:[ new T({ text:String(txt==null?"":txt), font:"Arial", size:o.size||17, bold:!!o.bold, color:o.cor }) ] }) ],
+        shading: o.shade ? { fill:o.shade } : undefined, width:{ size:o.w||14, type:WD.PERCENTAGE }, verticalAlign:(D.VerticalAlign ? D.VerticalAlign.CENTER : undefined) });
     };
-    var cab = ["Vért.","Vért.","Azimute","Dist. (m)","N (m)","E (m)","Confrontante"];
-    var larg = [8,8,15,12,19,19,19];
-    var rows = [ new Tr({ tableHeader:true, children: cab.map(function(c,i){ return cel(c, {bold:true, shade:"EEF2F6", w:larg[i]}); }) }) ];
-    var ult = null;
-    t.forEach(function(r){
-      var mostra = (r.conf && r.conf !== ult) ? r.conf : ""; ult = r.conf || ult;
-      rows.push(new Tr({ children:[ cel(r.de,{w:larg[0]}), cel(r.para,{w:larg[1]}), cel(r.az,{w:larg[2]}),
-        cel(r.dist,{al:AL.RIGHT,w:larg[3]}), cel(r.N,{al:AL.RIGHT,w:larg[4]}), cel(r.E,{al:AL.RIGHT,w:larg[5]}),
-        cel(mostra,{al:AL.LEFT,size:13,w:larg[6]}) ] }));
+    var cab = ["Vért.","Vért.","Azimute","Dist. (m)","N (m)","E (m)","Confrontante","Matrícula"];
+    var larg = [7,7,13,10,15.5,14.5,20,13];
+    // cabeçalho repete em cada página; linha nunca é partida entre páginas
+    var rows = [ new Tr({ tableHeader:true, cantSplit:true, children: cab.map(function(c,i){ return cel(c, {bold:true, shade:"1F4E79", cor:"FFFFFF", w:larg[i]}); }) }) ];
+    var ultC = null, ultM = null;
+    t.forEach(function(r, i){
+      var mostraC = (r.conf && r.conf !== ultC) ? r.conf : "";
+      var mostraM = (r.mat && (mostraC || r.mat !== ultM)) ? r.mat : "";
+      ultC = r.conf || ultC; ultM = r.mat || ultM;
+      var z = i % 2 ? "F2F6FA" : undefined;
+      rows.push(new Tr({ cantSplit:true, children:[ cel(r.de,{w:larg[0],bold:true,shade:z}), cel(r.para,{w:larg[1],bold:true,shade:z}), cel(r.az,{w:larg[2],shade:z}),
+        cel(r.dist,{al:AL.RIGHT,w:larg[3],shade:z}), cel(r.N,{al:AL.RIGHT,w:larg[4],shade:z}), cel(r.E,{al:AL.RIGHT,w:larg[5],shade:z}),
+        cel(mostraC,{al:AL.LEFT,w:larg[6],shade:z}), cel(mostraM,{w:larg[7],shade:z}) ] }));
     });
     return new Tb({ width:{ size:100, type:WD.PERCENTAGE }, rows:rows });
   };
@@ -22575,15 +22618,18 @@ window.DRL_gerarPDF=async function(opts){
     pdf.setDrawColor(31,111,192); pdf.setLineWidth(0.6); pdf.line(mL,25,W-mR,25);
   }
   var topY=34, botY=H-34, y=topY;
-  function novaPagina(){ rodape(); pdf.addPage(); pdf.setDrawColor(31,111,192); pdf.setLineWidth(0.6); pdf.line(mL,18,W-mR,18); y=24; }
+  function novaPagina(){ rodape(); pdf.addPage(); pdf.setDrawColor(31,111,192); pdf.setLineWidth(0.6); pdf.line(mL,18,W-mR,18); pdf.setTextColor(0,0,0); y=24; }
   function garantir(h){ if(y+h>botY) novaPagina(); }
   function bloco(str, o){ o=o||{}; pdf.setFont('helvetica', o.bold?'bold':'normal'); pdf.setFontSize(o.size||11); pdf.setTextColor(0,0,0);
-    var ls=pdf.splitTextToSize(String(str==null?'':str), RW);
-    for(var i=0;i<ls.length;i++){ garantir(6);
-      if(o.center) pdf.text(ls[i], W/2, y, {align:'center'});
-      else pdf.text(ls[i], mL, y);
-      y+=(o.size&&o.size>11)?7:5.9;
-    }
+    String(str==null?'':str).split('\n').forEach(function(par){
+      var ls=pdf.splitTextToSize(par, RW);
+      for(var i=0;i<ls.length;i++){ garantir(6);
+        if(o.center) pdf.text(ls[i], W/2, y, {align:'center'});
+        else if(o.justify && i<ls.length-1 && window.justificarLinha) window.justificarLinha(pdf, ls[i], mL, y, RW);
+        else pdf.text(ls[i], mL, y);
+        y+=(o.size&&o.size>11)?7:5.9;
+      }
+    });
   }
   function linha(txt){ garantir(6); pdf.setFont('helvetica','normal'); pdf.setFontSize(11); pdf.setTextColor(0,0,0); pdf.text(txt, mL, y); y+=6; }
   function assinatura(){ garantir(8); pdf.setFont('helvetica','normal'); pdf.setFontSize(11); pdf.text('__________________________________________________', W/2, y, {align:'center'}); y+=8; }
@@ -22591,12 +22637,13 @@ window.DRL_gerarPDF=async function(opts){
   cabecalho();
   y=40; pdf.setLineHeightFactor(1.5);
   bloco('DECLARAÇÃO DE RESPEITO DE LIMITES', {bold:true, size:13, center:true}); y+=10;
-  bloco(texto); y+=8;
+  bloco(texto, {justify:true}); y+=8;
 
-  garantir(10); pdf.setFont('helvetica','bold'); pdf.setFontSize(11); pdf.text('Confrontantes da Área Abrangida:', mL, y); y+=7;
+  garantir(10 + 6.4 + 8);    // título + cabeçalho + 1ª linha da tabela juntos
+  pdf.setFont('helvetica','bold'); pdf.setFontSize(11); pdf.text('Confrontantes da Área Abrangida:', mL, y); y+=7;
   var _usaTab = (DRL_gv('drl_conf_fonte') !== 'imagem') && window.MDP_temTabela && window.MDP_temTabela();
   if(_usaTab){
-    var _r = window.MDP_drlTabelaPdf(pdf, mL, y, RW, botY - 6);
+    var _r = window.MDP_drlTabelaPdf(pdf, mL, y, RW, botY, function(){ novaPagina(); return y; });
     y = _r.y + 2;
   } else if(confAImg){
     var _ci=await _drlImg(confAImg);
@@ -22611,16 +22658,18 @@ window.DRL_gerarPDF=async function(opts){
   } else { y+=6; }
   y+=14;
 
+  // blocos finais nunca se partem entre páginas (assinatura, "De acordo", anexos + data)
+  garantir(8 + 6 + 6);
   assinatura();
   bloco(DRL_bl(d.nome), {bold:true, center:true});
   bloco('CPF nº: '+DRL_bl(d.cpf), {center:true}); y+=10;
 
   if(nAc>0){
-    garantir(8); pdf.setFont('helvetica','normal'); pdf.setFontSize(11); pdf.text('De acordo:', mL, y); y+=10;
+    garantir(10 + nAc*8); pdf.setFont('helvetica','normal'); pdf.setFontSize(11); pdf.text('De acordo:', mL, y); y+=10;
     for(var k=0;k<nAc;k++) assinatura();
   }
   y+=4;
-  garantir(8); pdf.setFont('helvetica','bold'); pdf.setFontSize(11); pdf.text('Anexos:', mL, y); y+=7;
+  garantir(7 + anexos.length*6 + 10 + 6); pdf.setFont('helvetica','bold'); pdf.setFontSize(11); pdf.text('Anexos:', mL, y); y+=7;
   pdf.setFont('helvetica','normal');
   for(var a=0;a<anexos.length;a++) linha(anexos[a]);
   y+=10;
