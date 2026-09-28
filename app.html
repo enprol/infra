@@ -5657,7 +5657,24 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
       <textarea id="imv_kml_hidro_dados" style="display:none" aria-hidden="true"></textarea>
       <input type="hidden" id="imv_kml_hidro_nome">
     </div>
+    <div class="vfield grow">
+      <label>Cercas <span class="hint-auto"> linhas (.kml) — Figuras 2 a 7</span></label>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <button class="vbtn vbtn-ghost" type="button" data-imvbtn="cercas" onclick="IMV_pick('cercas')">📍 Escolher KML…</button>
+        <input type="file" data-imvfile="cercas" accept=".kml,application/vnd.google-earth.kml+xml,text/xml,application/xml" style="display:none" onchange="IMV_escolher('cercas',this)">
+        <span class="hint-inline" data-imvst="cercas" style="margin:0;">Nenhum arquivo inserido.</span>
+        <button class="vbtn vbtn-ghost vbtn-sm" type="button" data-imvrem="cercas" style="display:none" onclick="IMV_remover('cercas')">Remover</button>
+      </div>
+      <span class="imv-metros" id="imv_cercas_m"></span>
+      <textarea id="imv_kml_cercas_dados" style="display:none" aria-hidden="true"></textarea>
+      <input type="hidden" id="imv_kml_cercas_nome">
+    </div>
   </div>
+</div>
+<div class="vcard" id="d2map_quadro_card">
+  <div class="vsub">Quadro de camadas — estilos dos mapas automáticos</div>
+  <p class="hint-inline" style="margin-top:0;">Cor, espessura e tipo de linha de cada camada, como no quadro de layers do AutoCAD. Os estilos ficam <b>salvos no servidor</b> e valem para todos os cadastros.</p>
+  <div id="d2map_quadro"><p class="hint-inline">Carregando estilos…</p></div>
 </div>
 <div class="vcard"><div class="vrow"><div class="vfield"><label>Área Desap. (ha)</label><input type="text" id="fb_area_desap" class="num4" inputmode="decimal" placeholder="0,0000"></div><div id="remN_slot" style="display:contents"></div><div id="remS_slot" style="display:contents"></div></div></div>
 <div class="vcard"><div class="vsub">Georreferenciamento (Anexo B — Ficha de Vistoria)</div><div id="geo_row_slot"></div></div>
@@ -5777,7 +5794,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
    automaticamente pelo cadastro, como o rel_kml). IMV_get(key)/IMV_getAll() servem o gerador. */
 (function(){
   var MAX_MB = 25;
-  var SLOTS = { area:'Área total do imóvel', vias:'Vias de acesso', app:'APP estimada', benf:'Benfeitorias', hidro:'Hidrografia identificada' };
+  var SLOTS = { area:'Área total do imóvel', vias:'Vias de acesso', app:'APP estimada', benf:'Benfeitorias', hidro:'Hidrografia identificada', cercas:'Cercas' };
   function el(id){ return document.getElementById(id); }
   function q(attr,key){ return document.querySelector('['+attr+'="'+key+'"]'); }
   function fmtKB(n){ return n >= 1048576 ? (n/1048576).toFixed(1).replace('.',',') + ' MB' : Math.max(1, Math.round(n/1024)) + ' KB'; }
@@ -6505,6 +6522,128 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
       border-radius:8px; padding:8px 13px; margin:0 0 18px; font-weight:600;
     }
   </style>
+  <style>
+  /* =====================================================================
+     Técnica (DESP-1) — camada visual moderna: campos, selects, botões,
+     cartões, quadro de camadas, roteiro e o modal do mapa automático.
+     ===================================================================== */
+  #panel-desp1-tecnica{ --campo-borda:#d5dde7; --campo-borda-h:#b8c5d3; --foco:rgba(31,111,192,.16); --raio:10px; }
+  #panel-desp1-tecnica .vcard{ border-color:#e2e8ef; border-radius:14px; padding:20px 22px 22px;
+    box-shadow:0 1px 2px rgba(16,24,40,.04), 0 8px 24px rgba(16,24,40,.05); }
+  #panel-desp1-tecnica .vsub{ font-size:12px; text-transform:uppercase; letter-spacing:.6px; color:#1b4f86;
+    border-bottom:1px solid #e8edf3; padding-bottom:8px; margin-bottom:12px; }
+  #panel-desp1-tecnica .vfield>label, #panel-desp1-tecnica .vfield label{ font-size:10.5px; letter-spacing:.55px; color:#667689; margin-bottom:2px; }
+  /* campos de texto, número, data e selects */
+  #panel-desp1-tecnica input:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=file]):not([type=range]):not([type=button]):not([type=submit]):not([type=hidden]),
+  #panel-desp1-tecnica select{
+    width:100%; height:38px; box-sizing:border-box; border:1px solid var(--campo-borda); border-radius:var(--raio);
+    padding:0 12px; font:500 13.5px/1.2 "Segoe UI", Arial, sans-serif; color:#1f2d3d; background:#fff;
+    outline:none; box-shadow:0 1px 1.5px rgba(16,24,40,.04); transition:border-color .15s, box-shadow .15s, background .15s;
+  }
+  #panel-desp1-tecnica textarea{ border:1px solid var(--campo-borda); border-radius:var(--raio); padding:10px 12px;
+    font:500 13.5px/1.5 "Segoe UI", Arial, sans-serif; color:#1f2d3d; box-shadow:0 1px 1.5px rgba(16,24,40,.04); }
+  #panel-desp1-tecnica input:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=file]):hover,
+  #panel-desp1-tecnica select:hover, #panel-desp1-tecnica textarea:hover{ border-color:var(--campo-borda-h); }
+  #panel-desp1-tecnica input:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=file]):focus,
+  #panel-desp1-tecnica select:focus, #panel-desp1-tecnica textarea:focus{ border-color:var(--azul); box-shadow:0 0 0 3.5px var(--foco); }
+  #panel-desp1-tecnica input::placeholder, #panel-desp1-tecnica textarea::placeholder{ color:#a3afbc; font-weight:400; }
+  #panel-desp1-tecnica input[readonly], #panel-desp1-tecnica input.bloqueado{ background:#f3f6f9 !important; color:#607082 !important; }
+  #panel-desp1-tecnica select{ appearance:none; -webkit-appearance:none; padding-right:34px; cursor:pointer;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%235b6b7d' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 12px center; }
+  #panel-desp1-tecnica input[type=number]{ font-variant-numeric:tabular-nums; }
+  #panel-desp1-tecnica input[type=color]{ -webkit-appearance:none; appearance:none; width:34px; height:28px; padding:0;
+    border:1px solid var(--campo-borda); border-radius:8px; background:#fff; cursor:pointer; }
+  #panel-desp1-tecnica input[type=color]::-webkit-color-swatch-wrapper{ padding:3px; }
+  #panel-desp1-tecnica input[type=color]::-webkit-color-swatch{ border:none; border-radius:5px; }
+  #panel-desp1-tecnica input[type=checkbox], #panel-desp1-tecnica input[type=radio]{ accent-color:var(--azul); width:16px; height:16px; }
+  /* campos dentro de tabelas: mais compactos */
+  #panel-desp1-tecnica table input:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=file]),
+  #panel-desp1-tecnica table select{ height:32px; padding:0 9px; font-size:12.5px; border-radius:8px; }
+  #panel-desp1-tecnica table select{ padding-right:28px; background-position:right 9px center; }
+  /* botões */
+  #panel-desp1-tecnica .vbtn{ border-radius:10px; box-shadow:0 1px 2px rgba(16,24,40,.08), 0 4px 12px rgba(31,111,192,.22); transition:background .15s, transform .05s; }
+  #panel-desp1-tecnica .vbtn:active{ transform:translateY(1px); }
+  #panel-desp1-tecnica .vbtn-ghost{ background:#fff; color:#1f2d3d; border:1px solid var(--campo-borda); box-shadow:0 1px 2px rgba(16,24,40,.05); }
+  #panel-desp1-tecnica .vbtn-ghost:hover{ background:#f3f8fd; border-color:#9dbfe3; color:#175a9f; }
+  #panel-desp1-tecnica .vbtn-sm{ border-radius:9px; padding:7px 14px; }
+  #panel-desp1-tecnica .vbtn:focus-visible, #panel-desp1-tecnica .d2b:focus-visible{ outline:none; box-shadow:0 0 0 3.5px var(--foco); }
+  #panel-desp1-tecnica .d2b{ border-radius:8px; border-color:var(--campo-borda); padding:4px 11px; }
+  #panel-desp1-tecnica .d2-view{ border-color:#e2e8ef; border-radius:12px; background:#fbfcfe; padding:14px 16px; }
+  #panel-desp1-tecnica .d2t-row{ border-color:#e2e8ef; border-radius:14px; padding:16px 20px 18px;
+    box-shadow:0 1px 2px rgba(16,24,40,.04), 0 6px 18px rgba(16,24,40,.04); }
+  #panel-desp1-tecnica .img-drop{ border-radius:14px; border-width:1.5px; background:#f8fafc; }
+  /* slots de KML da Técnica */
+  #panel-desp1-tecnica .imv-kml-grade{ gap:16px 22px; }
+  #panel-desp1-tecnica .imv-kml-grade .vfield{ background:#f9fbfd; border:1px solid #e8edf3; border-radius:12px; padding:12px 14px; }
+  #panel-desp1-tecnica .imv-metros{ display:inline-block; margin-top:8px; font-size:12px; font-weight:700; color:#0e7a2c; }
+  #panel-desp1-tecnica .imv-metros:empty{ display:none; }
+  #panel-desp1-tecnica .imv-metros::before{ content:"📏 "; }
+  /* roteiro de acesso — Pontos A/B */
+  #panel-desp1-tecnica .d2plantas-grade{ grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
+  #panel-desp1-tecnica .d2-rta, #panel-desp2-relatorio .d2-rta{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:10px 14px; align-items:start;
+    background:#f6faff; border:1px solid #dbe8f6; border-radius:12px; padding:12px 14px; margin:0 0 12px; }
+  .d2-rta .vfield{ min-width:0 !important; }
+  .d2-rta .d2-rta-btn{ grid-column:1 / -1; justify-self:start; }
+  .d2-rta .d2-rta-hint{ font-size:11px; color:#0e7a2c; min-height:14px; margin-top:3px; }
+  .d2-rta .d2-rta-hint.bad{ color:#c0392b; }
+  .d2-rta input.d2-rta-ok{ border-color:#7cc596 !important; background:#f4fbf6 !important; }
+  .d2-rta input.d2-rta-bad{ border-color:#e2a3a3 !important; background:#fdf5f5 !important; }
+  .d2-rta .d2-rta-btn{ white-space:nowrap; }
+  @media (max-width:760px){ #panel-desp1-tecnica .d2-rta, #panel-desp2-relatorio .d2-rta{ grid-template-columns:1fr; } }
+  /* quadro de camadas (estilo AutoCAD) */
+  .d2q-wrap{ overflow-x:auto; border:1px solid #e2e8ef; border-radius:12px; }
+  table.d2q{ width:100%; border-collapse:collapse; font-size:12.5px; min-width:640px; }
+  table.d2q thead th{ background:#f4f7fa; color:#5b6b7d; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.5px;
+    text-align:left; padding:9px 10px; border-bottom:1px solid #e2e8ef; position:sticky; top:0; }
+  table.d2q td{ padding:6px 10px; border-bottom:1px solid #eef2f6; vertical-align:middle; }
+  table.d2q tbody tr:last-child td{ border-bottom:none; }
+  table.d2q tbody tr:hover td{ background:#fafcff; }
+  table.d2q .d2q-nome{ font-weight:600; color:#1f2d3d; white-space:nowrap; }
+  table.d2q td{ white-space:nowrap; }
+  #panel-desp1-tecnica table.d2q input[type=number]{ width:74px !important; display:inline-block; vertical-align:middle; }
+  #panel-desp1-tecnica table.d2q select{ width:160px !important; }
+  table.d2q .d2q-u{ margin-left:4px; color:#8a97a6; font-size:11.5px; }
+  table.d2q .d2q-na{ color:#b6c0cb; }
+  table.d2q .d2q-prev svg{ display:block; border-radius:5px; }
+  .d2q-act{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:12px; }
+  .d2q-status{ font-size:12px; color:#6b7887; }
+  .d2q-status.ok{ color:#0e7a2c; font-weight:600; }
+  .d2q-status.bad{ color:#c0392b; font-weight:600; }
+  /* modal do mapa automático */
+  #d2map_ov{ position:fixed; inset:0; z-index:99999; background:rgba(12,18,26,.62); backdrop-filter:blur(2px);
+    display:flex; align-items:center; justify-content:center; padding:20px; font-family:"Segoe UI", Arial, sans-serif; }
+  #d2map_ov .d2m-card{ background:#fff; border-radius:16px; width:100%; max-width:640px; max-height:92vh; overflow:auto;
+    padding:22px 24px 20px; box-shadow:0 24px 60px rgba(10,20,35,.35); }
+  #d2map_ov .d2m-top{ display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:14px; }
+  #d2map_ov .d2m-top h3{ margin:0; font-size:17px; color:#12203a; }
+  #d2map_ov .d2m-top p{ margin:4px 0 0; font-size:12.5px; color:#667689; }
+  #d2map_ov .d2m-x{ border:none; background:#f0f3f7; color:#445366; width:32px; height:32px; border-radius:9px; cursor:pointer; font-size:14px; flex:0 0 auto; }
+  #d2map_ov .d2m-x:hover{ background:#e3e9f0; }
+  #d2map_ov .d2m-grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px 14px; }
+  #d2map_ov .d2m-f{ display:flex; flex-direction:column; gap:5px; min-width:0; }
+  #d2map_ov .d2m-full{ grid-column:1 / -1; }
+  #d2map_ov .d2m-f label{ font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.55px; color:#667689; }
+  #d2map_ov .d2m-in{ width:100%; box-sizing:border-box; border:1px solid #d5dde7; border-radius:10px; padding:9px 12px;
+    font:500 13px/1.4 "Segoe UI", Arial, sans-serif; color:#1f2d3d; background:#fff; outline:none; transition:border-color .15s, box-shadow .15s; }
+  #d2map_ov select.d2m-in{ height:38px; padding:0 34px 0 12px; appearance:none; -webkit-appearance:none; cursor:pointer;
+    background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%235b6b7d' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 12px center; }
+  #d2map_ov input.d2m-in{ height:38px; padding:0 12px; }
+  #d2map_ov textarea.d2m-in{ resize:vertical; }
+  #d2map_ov .d2m-in:hover{ border-color:#b8c5d3; }
+  #d2map_ov .d2m-in:focus{ border-color:#1F6FC0; box-shadow:0 0 0 3.5px rgba(31,111,192,.16); }
+  #d2map_ov .d2m-note{ background:#f6faff; border:1px solid #dbe8f6; border-radius:10px; padding:10px 12px; font-size:12.5px; color:#2c3e55; }
+  #d2map_ov .d2m-st{ font-size:12.5px; color:#51637a; min-height:18px; margin-top:14px; }
+  #d2map_ov .d2m-prev img{ width:100%; display:block; border:1px solid #e2e8ef; border-radius:12px; margin-top:10px; }
+  #d2map_ov .d2m-act{ display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
+  #d2map_ov .d2m-b{ border:none; border-radius:10px; padding:10px 16px; font:700 13px "Segoe UI", Arial, sans-serif; cursor:pointer; color:#fff; }
+  #d2map_ov .d2m-b1{ background:#1F6FC0; box-shadow:0 4px 12px rgba(31,111,192,.28); }
+  #d2map_ov .d2m-b1:hover{ background:#175a9f; }
+  #d2map_ov .d2m-b2{ background:#159a3c; box-shadow:0 4px 12px rgba(21,154,60,.26); }
+  #d2map_ov .d2m-b2:hover{ background:#10802f; }
+  #d2map_ov .d2m-b:focus-visible, #d2map_ov .d2m-x:focus-visible{ outline:none; box-shadow:0 0 0 3.5px rgba(31,111,192,.3); }
+  @media (max-width:560px){ #d2map_ov .d2m-grid{ grid-template-columns:1fr; } }
+  </style>
   <div class="wrap">
     <h1>Parecer para Regularização Fundiária e Documental</h1>
     <p class="sub">Preenchido e atualizado automaticamente conforme a Ficha de Vistoria e o Relatório Técnico (DESP 1). Documento gerado sem capa.</p>
@@ -7021,6 +7160,23 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
         RTA_buscando = false;
         RTA_descEditadoManual = false;
         if(btnMini){ btnMini.disabled = false; btnMini.textContent = txtBtnAntigo; }
+      });
+    };
+
+    // reuso pela Técnica/DESP-2 (Figura 1): coordenadas + texto + geometria do percurso
+    window.RTA_parseCoord = parseCoord;
+    window.RTA_rota = function(a, b){
+      var url = 'https://router.project-osrm.org/route/v1/driving/' + a.lon + ',' + a.lat + ';' + b.lon + ',' + b.lat +
+        '?steps=true&overview=full&geometries=geojson&annotations=false';
+      return rtaFetchComTimeout(url, 9000).then(function(resp){
+        if(!resp.ok) throw new Error('HTTP ' + resp.status);
+        return resp.json();
+      }).then(function(data){
+        var rt = data && data.code === 'Ok' && data.routes && data.routes[0];
+        if(!rt || !rt.legs || !rt.legs[0]) throw new Error('Sem rota retornada');
+        return { texto: rtaTextoDaRota(a, b, rt.legs[0].steps || []), linha: (rt.geometry && rt.geometry.coordinates) || [[a.lon,a.lat],[b.lon,b.lat]], viaRota: true };
+      }).catch(function(){
+        return { texto: textoRetaSimples(a, b) + ' (rota de carro detalhada indisponível no momento — distância em linha reta.)', linha: [[a.lon,a.lat],[b.lon,b.lat]], viaRota: false };
       });
     };
 
@@ -15266,7 +15422,7 @@ function AV_gerarDescSituacao(){
       cartorio: gv("fb_cartorio"),
       areaTotal: gv("fb_area_total"),
       areaDesap: gv("fb_area_desap"),
-      acesso: gv("rel_roteiro_txt") || gv("d2_roteiro_txt") || ex.acesso || "",
+      acesso: (gv("rel_roteiro_txt") || gv("d2_roteiro_txt") || gv("d2_tx_roteiro_de_acesso") || ex.acesso || "").replace(/\*\*/g, "").replace(/^\s*localiza[çc][ãa]o\s+e\s+acesso\s*:\s*/i, "").trim(),
       resp: "ANTÔNIO CÉLITO DE ARAÚJO JÚNIOR", respCargo: "ENGENHEIRO AGRÔNOMO", respCrea: "CREA: 351993 V/MG"
     };
   }
@@ -24641,7 +24797,12 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       if(tp.id==="roteiro_de_acesso"){
         html+='<div id="d2_row_'+tp.id+'_marca"></div><div id="d2_row_'+tp.id+'">'
             + rowOpen(tp)
-            + '<p class="hint-auto" style="margin:0 0 8px;">Texto do roteiro de acesso — impresso no relatório junto com a imagem abaixo.</p>'
+            + '<div class="d2-rta">'
+              + '<div class="vfield grow"><label for="d2_rta_ptA">Ponto A — início <span class="hint-auto">cole do Google Maps</span></label><input type="text" id="d2_rta_ptA" placeholder="-8.061234, -37.262345" oninput="D2_rtaCoord(\'A\')"><span class="d2-rta-hint" id="d2_rta_hintA"></span></div>'
+              + '<div class="vfield grow"><label for="d2_rta_ptB">Ponto B — fim <span class="hint-auto">cole do Google Maps</span></label><input type="text" id="d2_rta_ptB" placeholder="-8.071234, -37.252345" oninput="D2_rtaCoord(\'B\')"><span class="d2-rta-hint" id="d2_rta_hintB"></span></div>'
+              + '<button type="button" class="vbtn vbtn-ghost vbtn-sm d2-rta-btn" onclick="D2_rtaGerarTexto()">🔄 Gerar texto do roteiro</button>'
+            + '</div>'
+            + '<p class="hint-auto" style="margin:0 0 8px;">Texto do roteiro de acesso — impresso no relatório (e no memorial descritivo) junto com o mapa abaixo. O mapa automático usa os Pontos A e B.</p>'
             + '<div class="d2-field">'
               + '<div class="d2-fhead"><span></span>'
               + '<span class="d2-tools"><button type="button" class="d2b d2b-bold" title="Negrito — selecione o texto e clique (Ctrl+B)" onclick="D2_bold(\''+tp.id+'\')">N</button><button type="button" class="d2b d2b-edit" onclick="D2_toggleEdit(\''+tp.id+'\',this)">✏️ Ativar edição</button></span></div>'
@@ -24854,31 +25015,35 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
 
   // regra de camadas por figura (client-side disponível nesta 1ª versão marcado com *)
   var D2MAP_REGRAS = {
-    f1:  null,
-    f2:  { cams:['area','faixa'] },
-    f2b: { cams:['area','faixa','sigef','car'] },
-    f3:  { cams:['area','desap','faixa'] },
-    f4:  { cams:['area','desap','faixa','drenagem','hidro'] },
-    f5:  { cams:['area','desap','faixa','vias'] },
-    f6:  { cams:['area','desap','faixa','rl','appcar'] },
-    f7:  { cams:['area','desap','faixa','appest'] }
+    f1:  { cams:['area','rota'], roteiro:true },
+    f2:  { cams:['area','faixa','cercas'] },
+    f2b: { cams:['area','faixa','sigef','car','cercas'] },
+    f3:  { cams:['area','desap','faixa','cercas'] },
+    f4:  { cams:['area','desap','faixa','drenagem','hidro','cercas'] },
+    f5:  { cams:['area','desap','faixa','vias','cercas'] },
+    f6:  { cams:['area','desap','faixa','rl','appcar','cercas'] },
+    f7:  { cams:['area','desap','faixa','appest','cercas'] }
   };
-  // estilos e rótulos das camadas
+  // estilos e rótulos das camadas (editáveis no Quadro de camadas da Técnica; salvos no servidor)
   var D2MAP_EST = {
     area:  { nome:'Área total do imóvel',        tipo:'line', cor:'#ff1e1e', peso:4.2 },
     desap: { nome:'Área a ser desapropriada',    tipo:'fill', cor:'#ff2a30', op:.5, peso:2 },
+    faixa: { nome:'Faixa de domínio',            tipo:'faixa',cor:'#12d84a', peso:3 },
+    eixo:  { nome:'Eixo da ferrovia',            tipo:'line', cor:'#ff8c1a', peso:1.8 },
+    cercas:{ nome:'Cercas',                      tipo:'line', cor:'#1f1f1f', peso:2.2, dash:'7 4' },
+    rota:  { nome:'Percurso (roteiro de acesso)',tipo:'line', cor:'#00e5ff', peso:4 },
+    pino:  { nome:'Pontos A (início) e B (fim)', tipo:'pino', cor:'#e8141b' },
     vias:  { nome:'Vias de acesso',              tipo:'line', cor:'#ffd24a', peso:2.4, dash:'6 3' },
     appest:{ nome:'APP estimada',                tipo:'fill', cor:'#00e676', op:.35, peso:1.6 },
-    app:   { nome:'APP (CAR)',                   tipo:'fill', cor:'#00e676', op:.3,  peso:1.4 },
     appcar:{ nome:'APP (CAR)',                   tipo:'fill', cor:'#22b1ff', op:.3,  peso:1.4 },
     rl:    { nome:'Reserva Legal (CAR)',         tipo:'fill', cor:'#b6ff00', op:.28, peso:1.4 },
     benf:  { nome:'Benfeitorias',                tipo:'pt',   cor:'#ffffff', peso:1.4 },
-    faixa: { nome:'Faixa de domínio / eixo',     tipo:'faixa',cor:'#12d84a' },
     sigef: { nome:'Parcela SIGEF (intercepta)',  tipo:'fill', cor:'#e879f9', op:.14, peso:1.4 },
     car:   { nome:'Feição CAR (intercepta)',     tipo:'fill', cor:'#ffd24a', op:.14, peso:1.3, dash:'5 3' },
     drenagem:{nome:'Trecho de drenagem (ANA)',   tipo:'line', cor:'#37a9ff', peso:2 },
-    hidro: { nome:'Hidrografia identificada',     tipo:'line', cor:'#00e5ff', peso:2, dash:'1.5 4' }
+    hidro: { nome:'Hidrografia identificada',    tipo:'line', cor:'#00e5ff', peso:2, dash:'1.5 4' }
   };
+  var D2MAP_EST_PADRAO = JSON.parse(JSON.stringify(D2MAP_EST));
   // KMLs client-side por chave de camada
   function d2mapFonteKML(cam){
     try{
@@ -24887,6 +25052,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       if(cam==='appest') return (window.IMV_get?window.IMV_get('app').kml:'');
       if(cam==='benf')   return (window.IMV_get?window.IMV_get('benf').kml:'');
       if(cam==='hidro')  return (window.IMV_get?window.IMV_get('hidro').kml:'');
+      if(cam==='cercas') return (window.IMV_get?window.IMV_get('cercas').kml:'');
       if(cam==='desap')  return (window.REL_getKML?window.REL_getKML().kml:'');
     }catch(e){}
     return '';
@@ -24950,6 +25116,36 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     var near=mk[0],nd=Math.abs(mk[0].chain-bestChain); mk.forEach(function(m){ var d=Math.abs(m.chain-bestChain); if(d<nd){ nd=d; near=m; } });
     return near.km+slope*(bestChain-near.chain);
   }
+  // comprimento (m) das linhas que fica DENTRO dos polígonos — recorta cada segmento nas arestas
+  function d2segT(a,b,c,d){ var r0=b[0]-a[0],r1=b[1]-a[1],s0=d[0]-c[0],s1=d[1]-c[1],den=r0*s1-r1*s0; if(Math.abs(den)<1e-12) return null; var t=((c[0]-a[0])*s1-(c[1]-a[1])*s0)/den, u=((c[0]-a[0])*r1-(c[1]-a[1])*r0)/den; return (t>=0&&t<=1&&u>=0&&u<=1)?t:null; }
+  function d2metrosDentro(lines, polys){
+    if(!lines||!lines.length||!polys||!polys.length) return 0;
+    var U=function(p){ var u=d2utm(p[0],p[1]); return [u.E,u.N]; };
+    var P=polys.map(function(r){ return r.map(U); });
+    function dentro(pt){ for(var i=0;i<P.length;i++){ if(d2ptIn(pt[0],pt[1],P[i])) return true; } return false; }
+    var tot=0;
+    lines.forEach(function(ln){ var L=ln.map(U);
+      for(var i=0;i<L.length-1;i++){ var a=L[i], b=L[i+1], ts=[0,1];
+        P.forEach(function(r){ for(var j=0;j<r.length;j++){ var t=d2segT(a,b,r[j],r[(j+1)%r.length]); if(t!=null) ts.push(t); } });
+        ts.sort(function(x,y){return x-y;}); var len=Math.hypot(b[0]-a[0],b[1]-a[1]);
+        for(var k=0;k<ts.length-1;k++){ var t0=ts[k],t1=ts[k+1]; if(t1-t0<1e-9) continue; var tm=(t0+t1)/2; if(dentro([a[0]+(b[0]-a[0])*tm, a[1]+(b[1]-a[1])*tm])) tot+=len*(t1-t0); }
+      }
+    });
+    return tot;
+  }
+  function d2fmtM(m){ return m.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+  // metros de cerca dentro da área desapropriada, com os KMLs atuais (null se faltar algum)
+  window.D2MAP_metrosCerca=function(){
+    var gc=d2mapKML(d2mapFonteKML('cercas')), gd=d2mapKML(d2mapFonteKML('desap'));
+    var linhas=gc.lines.concat(gc.polys); if(!linhas.length||!gd.polys.length) return null;
+    return d2metrosDentro(linhas, gd.polys);
+  };
+  window.D2MAP_atualizarMetrosCerca=function(){
+    var el=document.getElementById('imv_cercas_m'); if(!el) return;
+    var m=null; try{ m=window.D2MAP_metrosCerca(); }catch(e){}
+    el.textContent = (m==null) ? '' : ('Cerca dentro da área desapropriada: '+d2fmtM(m)+' m');
+  };
+  ['imv_kml_cercas_dados','rel_kml_dados'].forEach(function(id){ var e=document.getElementById(id); if(e){ e.addEventListener('input',window.D2MAP_atualizarMetrosCerca); e.addEventListener('change',window.D2MAP_atualizarMetrosCerca); } });
   function d2fmtKM(total){ if(total==null||!isFinite(total)) return null; var neg=total<0; total=Math.abs(total); var km=Math.floor(total/1000), m=total-km*1000; return (neg?'-':'')+km+' + '+m.toFixed(2).replace('.',','); }
   function d2fixoParse(txt){
     var out={limites:[],eixos:[]}; if(!txt) return out; var doc; try{doc=new DOMParser().parseFromString(txt,'application/xml');}catch(e){return out;}
@@ -25046,6 +25242,14 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     return { mode:'orto', e0:e0, e1:e1, n0:n0, n1:n1, url:cv.toDataURL('image/png') };
   }
   function d2esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function d2claro(hex){ var m=/^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex||''); if(!m) return false; return (0.299*parseInt(m[1],16)+0.587*parseInt(m[2],16)+0.114*parseInt(m[3],16))>200; }
+  // alfinete em gota: ponta em (x,y), cabeça circular com a letra
+  function d2pinoSVG(x,y,letra,cor){
+    var f=function(v){ return v.toFixed(1); }, hy=y-26;
+    return '<path d="M'+f(x)+','+f(y)+' C'+f(x-3)+','+f(y-8)+' '+f(x-11)+','+f(y-15)+' '+f(x-11)+','+f(hy)+' A11,11 0 1,1 '+f(x+11)+','+f(hy)+' C'+f(x+11)+','+f(y-15)+' '+f(x+3)+','+f(y-8)+' '+f(x)+','+f(y)+' Z" fill="'+cor+'" stroke="#7a0a0e" stroke-width="1.2" filter="url(#d2sh)"/>'
+      +'<circle cx="'+f(x)+'" cy="'+f(hy)+'" r="7.2" fill="#fff"/>'
+      +'<text x="'+f(x)+'" y="'+f(hy+3.9)+'" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="'+cor+'">'+d2esc(letra)+'</text>';
+  }
 
   // monta o SVG do mapa (figura compacta: entra DENTRO de uma página que já tem
   // cabeçalho/rodapé/logos/texto — por isso sem título, sem logos e sem moldura de página)
@@ -25059,13 +25263,18 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     // texto com halo escuro (legível sobre o satélite)
     function TH(x,y,txt,opt){ opt=opt||{}; var attr='x="'+x+'" y="'+y+'" text-anchor="'+(opt.anchor||'middle')+'" font-family="'+(opt.mono?'monospace':'Arial,sans-serif')+'" font-size="'+(opt.size||9)+'" font-weight="'+(opt.weight||'400')+'"'+(opt.ls?' letter-spacing="'+opt.ls+'"':''); if(opt.rot!=null) attr+=' transform="rotate('+opt.rot+' '+x+' '+y+')"'; return '<text '+attr+' fill="'+(opt.fill||'#fff')+'" stroke="#0d1620" stroke-width="'+(opt.halo||2.6)+'" stroke-linejoin="round" paint-order="stroke">'+d2esc(txt)+'</text>'; }
     var s='<svg id="svg" viewBox="0 0 900 940" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">';
-    s+='<defs><filter id="d2sh" x="-25%" y="-25%" width="150%" height="150%"><feDropShadow dx="0.8" dy="1.1" stdDeviation="1.1" flood-color="#000" flood-opacity="0.6"/></filter></defs>';
+    // região do filtro no espaço do desenho: com objectBoundingBox, linhas exatamente N–S/L–O (caixa de largura 0) sumiam
+    s+='<defs><filter id="d2sh" filterUnits="userSpaceOnUse" x="0" y="0" width="900" height="940"><feDropShadow dx="0.8" dy="1.1" stdDeviation="1.1" flood-color="#000" flood-opacity="0.6"/></filter></defs>';
     s+='<rect x="0" y="0" width="900" height="940" fill="#fff"/>';
     s+='<clipPath id="mc"><rect x="'+mapL+'" y="'+mapT+'" width="'+mapW+'" height="'+mapH+'"/></clipPath>';
     s+='<rect x="'+mapL+'" y="'+mapT+'" width="'+mapW+'" height="'+mapH+'" fill="#e9edf0"/>';
-    // satélite Esri ao fundo (sempre); ortofoto à frente com o branco transparente
-    if(base.satUrl) s+='<image x="'+mapL+'" y="'+mapT+'" width="'+mapW+'" height="'+mapH+'" preserveAspectRatio="none" clip-path="url(#mc)" opacity="0.8" xlink:href="'+base.satUrl+'"/>';
-    s+='<image x="'+mapL+'" y="'+mapT+'" width="'+mapW+'" height="'+mapH+'" preserveAspectRatio="none" clip-path="url(#mc)" opacity="'+(base.mode==='orto'?'1':'0.8')+'" xlink:href="'+base.url+'"/>';
+    // satélite Esri ao fundo; ortofoto à frente (branco transparente). A transparência escolhida
+    // (0/25/50/75/100 %) vale para as duas juntas — o grupo é composto e só depois esmaecido.
+    var tr=Math.max(0,Math.min(100, (o.transp==null?25:+o.transp)));
+    s+='<g clip-path="url(#mc)" opacity="'+(1-tr/100).toFixed(2)+'">';
+    if(base.satUrl) s+='<image x="'+mapL+'" y="'+mapT+'" width="'+mapW+'" height="'+mapH+'" preserveAspectRatio="none" xlink:href="'+base.satUrl+'"/>';
+    s+='<image x="'+mapL+'" y="'+mapT+'" width="'+mapW+'" height="'+mapH+'" preserveAspectRatio="none" xlink:href="'+base.url+'"/>';
+    s+='</g>';
     s+='<g clip-path="url(#mc)">';
     // grade UTM
     var uSW=d2utm(bb.w,bb.s), uNE=d2utm(bb.e,bb.n), zone=uSW.zone, south=bb.s<0;
@@ -25091,17 +25300,20 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     function polyStr(r){ return r.map(function(p){ var q=PX(p[0],p[1]); return q[0].toFixed(1)+','+q[1].toFixed(1); }).join(' '); }
     (o.camadas||[]).forEach(function(cm){
       var e=D2MAP_EST[cm.cam]||{}, g=cm.geom;
-      var sh=(cm.cam==='area'||cm.cam==='faixa')?' filter="url(#d2sh)"':'';   // sombra projetada p/ destacar do satélite
+      var sh=(cm.cam==='area'||cm.cam==='faixa'||cm.cam==='cercas'||cm.cam==='rota')?' filter="url(#d2sh)"':'';   // sombra projetada p/ destacar do satélite
       if(e.tipo==='fill'){
         (g.polys||[]).forEach(function(r){ s+='<polygon points="'+polyStr(r)+'" fill="'+e.cor+'" fill-opacity="'+(e.op||.4)+'" stroke="'+e.cor+'" stroke-width="'+(e.peso||1.6)+'"'+(e.dash?' stroke-dasharray="'+e.dash+'"':'')+sh+'/>'; });
       } else if(e.tipo==='line'){
+        // cercas: contorno de contraste por baixo (aparece em qualquer fundo e com qualquer cor escolhida)
+        if(cm.cam==='cercas'){ var cas=d2claro(e.cor)?'#1c1c1c':'#ffffff'; (g.lines||[]).concat(g.polys||[]).forEach(function(r){ s+='<polyline points="'+polyStr(r)+'" fill="none" stroke="'+cas+'" stroke-width="'+((e.peso||2)+2.4).toFixed(1)+'" stroke-linecap="round" stroke-linejoin="round" opacity=".9"/>'; }); }
         (g.lines||[]).forEach(function(r){ s+='<polyline points="'+polyStr(r)+'" fill="none" stroke="'+e.cor+'" stroke-width="'+(e.peso||2)+'"'+(e.dash?' stroke-dasharray="'+e.dash+'"':'')+' stroke-linecap="round"'+sh+'/>'; });
-        (g.polys||[]).forEach(function(r){ s+='<polyline points="'+polyStr(r)+'" fill="none" stroke="'+e.cor+'" stroke-width="'+(e.peso||2)+'" stroke-linejoin="round"'+sh+'/>'; });
+        (g.polys||[]).forEach(function(r){ s+='<polyline points="'+polyStr(r)+'" fill="none" stroke="'+e.cor+'" stroke-width="'+(e.peso||2)+'"'+(e.dash?' stroke-dasharray="'+e.dash+'"':'')+' stroke-linejoin="round"'+sh+'/>'; });
       } else if(e.tipo==='pt'){
         (g.pts||[]).forEach(function(p){ var q=PX(p[0],p[1]); s+='<rect x="'+(q[0]-3).toFixed(1)+'" y="'+(q[1]-3).toFixed(1)+'" width="6" height="6" fill="'+e.cor+'" stroke="#111" stroke-width="1"/>'; });
       } else if(e.tipo==='faixa'){
-        (g.limites||[]).forEach(function(r){ s+='<polyline points="'+polyStr(r)+'" fill="none" stroke="'+e.cor+'" stroke-width="3" stroke-linecap="round"'+sh+'/>'; });
-        (g.eixos||[]).forEach(function(r){ s+='<polyline points="'+polyStr(r)+'" fill="none" stroke="#ff8c1a" stroke-width="1.8"/>'; s+='<polyline points="'+polyStr(r)+'" fill="none" stroke="#ff8c1a" stroke-width="4" stroke-dasharray="1.5 7" opacity=".9"/>'; });
+        (g.limites||[]).forEach(function(r){ s+='<polyline points="'+polyStr(r)+'" fill="none" stroke="'+e.cor+'" stroke-width="'+(e.peso||3)+'"'+(e.dash?' stroke-dasharray="'+e.dash+'"':'')+' stroke-linecap="round"'+sh+'/>'; });
+        var ex=D2MAP_EST.eixo||{cor:'#ff8c1a',peso:1.8};
+        (g.eixos||[]).forEach(function(r){ s+='<polyline points="'+polyStr(r)+'" fill="none" stroke="'+ex.cor+'" stroke-width="'+(ex.peso||1.8)+'"'+(ex.dash?' stroke-dasharray="'+ex.dash+'"':'')+'/>'; s+='<polyline points="'+polyStr(r)+'" fill="none" stroke="'+ex.cor+'" stroke-width="'+((ex.peso||1.8)*2.2).toFixed(1)+'" stroke-dasharray="1.5 7" opacity=".9"/>'; });
       }
     });
     // texto das estacas ao longo do eixo ferroviário
@@ -25123,6 +25335,8 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
         lns.forEach(function(ln,i){ s+=TH(lx2, ly2-24+i*14, ln, {anchor:anchor,size:10,weight:'700',fill:(i===0?'#ffd7d7':'#ffffff')}); });
       });
     }
+    // alfinetes em gota (roteiro de acesso): ponta no ponto, cabeça com a letra
+    (o.pinos||[]).forEach(function(pn){ var q=PX(pn.lon,pn.lat); s+=d2pinoSVG(q[0],q[1],pn.letra,(D2MAP_EST.pino||{}).cor||'#e8141b'); s+=TH(q[0]+15,q[1]-27,pn.rotulo||'',{anchor:'start',size:11,weight:'700'}); });
     s+='</g>';
     s+=gt;
     s+='<rect x="'+mapL+'" y="'+mapT+'" width="'+mapW+'" height="'+mapH+'" fill="none" stroke="#22303d" stroke-width="1.2"/>';
@@ -25149,7 +25363,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     var niceM=[10,20,25,50,100,200,250,500,1000,2000,5000];
     var segM=niceM.find(function(m){ return m/mppx>=30 && m/mppx<=58; }) || (function(){ var b=niceM[0]; niceM.forEach(function(m){ if(Math.abs(m/mppx-44)<Math.abs(b/mppx-44)) b=m; }); return b; })();
     var segPx=segM/mppx, nSeg=Math.max(2,Math.min(4,Math.floor(150/segPx))), barW=nSeg*segPx;
-    var sbx=mapR-26-barW, sby=mapB-30, bx=sbx-7, bw=barW+14;
+    var sbx=mapR-48-barW, sby=mapB-42, bx=sbx-7, bw=barW+30;   // folga p/ não tocar a grade (base e lateral)
     s+='<rect x="'+bx.toFixed(1)+'" y="'+(sby-15)+'" width="'+bw.toFixed(1)+'" height="33" rx="3" fill="#ffffff" opacity=".55"/>';
     for(var i=0;i<nSeg;i++){ s+='<rect x="'+(sbx+i*segPx).toFixed(1)+'" y="'+sby+'" width="'+segPx.toFixed(1)+'" height="5" fill="'+(i%2?'#fff':'#16202b')+'" stroke="#16202b" stroke-width=".7"/>'; s+='<text x="'+(sbx+i*segPx).toFixed(1)+'" y="'+(sby+14)+'" text-anchor="middle" font-family="monospace" font-size="7.5" fill="#16202b">'+(i*segM)+'</text>'; }
     s+='<text x="'+(sbx+nSeg*segPx).toFixed(1)+'" y="'+(sby+14)+'" text-anchor="middle" font-family="monospace" font-size="7.5" fill="#16202b">'+(nSeg*segM)+' m</text>';
@@ -25171,7 +25385,10 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       var col=Math.floor(i/rowsPerCol), rowi=i%rowsPerCol;
       var sw=lx+14+col*colW, row=cy0+44+rowi*lrow;
       if(it.tipo==='txt'){ s+='<text x="'+sw+'" y="'+row+'" font-family="monospace" font-size="'+(lfs-1)+'" font-weight="700" fill="#16202b">'+d2esc(it.nome.length>34?it.nome.slice(0,33)+'…':it.nome)+'</text>'; return; }
-      if(it.tipo==='line'||it.tipo==='faixa'||it.tipo==='drenagem') s+='<line x1="'+sw+'" y1="'+(row-3)+'" x2="'+(sw+sww)+'" y2="'+(row-3)+'" stroke="'+it.cor+'" stroke-width="3"'+(it.dash?' stroke-dasharray="'+it.dash+'"':'')+'/>';
+      if(it.tipo==='pino'){ var px0=sw+sww/2, py0=row+3; s+='<path d="M'+px0+','+py0+' C'+(px0-2)+','+(py0-5)+' '+(px0-6)+','+(py0-8)+' '+(px0-6)+','+(py0-13)+' A6,6 0 1,1 '+(px0+6)+','+(py0-13)+' C'+(px0+6)+','+(py0-8)+' '+(px0+2)+','+(py0-5)+' '+px0+','+py0+' Z" fill="'+it.cor+'" stroke="#7a0a0e" stroke-width=".8"/><circle cx="'+px0+'" cy="'+(py0-13)+'" r="2.6" fill="#fff"/>'; }
+      else if(it.tipo==='line'||it.tipo==='faixa'||it.tipo==='drenagem'){ var lw=Math.max(2,Math.min(4,it.peso||3));
+        if(d2claro(it.cor)) s+='<line x1="'+sw+'" y1="'+(row-3)+'" x2="'+(sw+sww)+'" y2="'+(row-3)+'" stroke="#3a4652" stroke-width="'+(lw+2)+'"/>';
+        s+='<line x1="'+sw+'" y1="'+(row-3)+'" x2="'+(sw+sww)+'" y2="'+(row-3)+'" stroke="'+it.cor+'" stroke-width="'+lw+'"'+(it.dash?' stroke-dasharray="'+it.dash+'"':'')+'/>'; }
       else if(it.tipo==='pt') s+='<rect x="'+sw+'" y="'+(row-9)+'" width="11" height="11" fill="'+it.cor+'" stroke="#111"/>';
       else s+='<rect x="'+sw+'" y="'+(row-10)+'" width="'+sww+'" height="13" fill="'+it.cor+'" fill-opacity=".45" stroke="'+it.cor+'" stroke-width="1.4"'+(it.dash?' stroke-dasharray="'+it.dash+'"':'')+'/>';
       s+='<text x="'+(sw+sww+8)+'" y="'+row+'" font-family="Arial" font-size="'+lfs+'" font-weight="600" fill="#16202b">'+d2esc(it.nome)+'</text>';
@@ -25207,61 +25424,76 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
   window.D2MAP_abrir=async function(fid){
     var regra=D2MAP_REGRAS[fid];
     var meta=FIG_META[fid]||[fid,''];
-    if(!regra){ alert('A Figura 1 (Roteiro de acesso) ainda não tem geração automática definida.'); return; }
+    if(!regra) return;
+    var rot=!!regra.roteiro;   // Figura 1: roteiro de acesso (Pontos A/B + percurso)
     // preenchimento automático a partir das abas (assistência social / identificação)
     function _campo(id){ var el=document.getElementById(id); return el?((el.value||'').trim()||(el.placeholder||'').trim()):''; }
     var autoProc=((document.getElementById('fb_proc_preview')||{}).value||'').replace(/^\s*processo administrativo:\s*/i,'').trim();
     var autoFerr=[_campo('d2_ferrovia'),_campo('d2_codFerrovia')].filter(Boolean).join('\n');
     if(autoProc) D2MAP_TXT.proc=autoProc;
     if(autoFerr) D2MAP_TXT.ferrovia=autoFerr;
-    // monta overlay
+    function sel(id,opts,val){ return '<select id="'+id+'" class="d2m-in">'+opts.map(function(o){ return '<option value="'+o[0]+'"'+(String(o[0])===String(val)?' selected':'')+'>'+o[1]+'</option>'; }).join('')+'</select>'; }
+    function fld(lbl,inner,cls){ return '<div class="d2m-f'+(cls||'')+'"><label>'+lbl+'</label>'+inner+'</div>'; }
     var ov=document.getElementById('d2map_ov');
     if(!ov){ ov=document.createElement('div'); ov.id='d2map_ov'; document.body.appendChild(ov); }
-    ov.setAttribute('style','position:fixed;inset:0;z-index:99999;background:rgba(12,18,26,.72);display:flex;align-items:center;justify-content:center;padding:20px;');
-    ov.innerHTML='<div style="background:#fff;border-radius:12px;max-width:560px;width:100%;max-height:92vh;overflow:auto;padding:20px 22px;font-family:Arial,sans-serif;">'
-      +'<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;"><h3 style="margin:0;font-size:16px;color:#16202b;">Gerar mapa automático</h3><button onclick="document.getElementById(\'d2map_ov\').remove()" style="border:none;background:#eef2f6;border-radius:6px;padding:6px 10px;cursor:pointer;font-weight:700;">✕</button></div>'
-      +'<p style="font-size:12.5px;color:#4a5a6a;margin:8px 0 12px;">'+d2esc(meta[0])+'</p>'
-      +'<label style="font-size:11px;font-weight:700;color:#4a5a6a;">PROCESSO ADMINISTRATIVO (2 linhas)</label>'
-      +'<textarea id="d2map_proc" rows="2" style="width:100%;margin:4px 0 10px;border:1px solid #c3ccd4;border-radius:6px;padding:8px;font-size:12px;font-family:Arial;">'+d2esc(D2MAP_TXT.proc)+'</textarea>'
-      +'<label style="font-size:11px;font-weight:700;color:#4a5a6a;">DADOS DA FERROVIA (2 linhas)</label>'
-      +'<textarea id="d2map_ferr" rows="2" style="width:100%;margin:4px 0 10px;border:1px solid #c3ccd4;border-radius:6px;padding:8px;font-size:12px;font-family:Arial;">'+d2esc(D2MAP_TXT.ferrovia)+'</textarea>'
-      +'<label style="font-size:11px;font-weight:700;color:#4a5a6a;">TEXTO DA ÁREA TOTAL (dentro do polígono)</label>'
-      +'<textarea id="d2map_arealbl" rows="2" placeholder="Ex.: ÁREA TOTAL&#10;17,6639 ha" style="width:100%;margin:4px 0 10px;border:1px solid #c3ccd4;border-radius:6px;padding:8px;font-size:12px;font-family:Arial;">'+d2esc(D2MAP_TXT.areaLabel||'')+'</textarea>'
-      +'<label style="font-size:11px;font-weight:700;color:#4a5a6a;">TEXTO DA ÁREA DESAPROPRIADA (dentro do polígono)</label>'
-      +'<textarea id="d2map_desaplbl" rows="2" placeholder="Ex.: ÁREA A DESAPROPRIAR&#10;2,3842 ha" style="width:100%;margin:4px 0 12px;border:1px solid #c3ccd4;border-radius:6px;padding:8px;font-size:12px;font-family:Arial;">'+d2esc(D2MAP_TXT.desapLabel||'')+'</textarea>'
-      +'<div style="display:flex;gap:10px;">'
-      +'<div style="flex:1;"><label style="font-size:11px;font-weight:700;color:#4a5a6a;">KM ENTRADA DO EIXO</label><input id="d2map_kment" value="'+d2esc(D2MAP_TXT.kmEnt||'000 + 000,00')+'" style="width:100%;margin:4px 0 12px;border:1px solid #c3ccd4;border-radius:6px;padding:8px;font-size:12px;font-family:Arial;"></div>'
-      +'<div style="flex:1;"><label style="font-size:11px;font-weight:700;color:#4a5a6a;">KM SAÍDA DO EIXO</label><input id="d2map_kmsai" value="'+d2esc(D2MAP_TXT.kmSai||'000 + 000,00')+'" style="width:100%;margin:4px 0 12px;border:1px solid #c3ccd4;border-radius:6px;padding:8px;font-size:12px;font-family:Arial;"></div>'
+    var h='<div class="d2m-card" role="dialog" aria-modal="true" aria-label="Gerar mapa automático">'
+      +'<div class="d2m-top"><div><h3>Gerar mapa automático</h3><p>'+d2esc(meta[0])+'</p></div><button type="button" class="d2m-x" aria-label="Fechar" onclick="document.getElementById(\'d2map_ov\').remove()">✕</button></div>'
+      +'<div class="d2m-grid">'
+      + fld('Processo administrativo','<textarea id="d2map_proc" rows="2" class="d2m-in">'+d2esc(D2MAP_TXT.proc)+'</textarea>',' d2m-full')
+      + fld('Dados da ferrovia','<textarea id="d2map_ferr" rows="2" class="d2m-in">'+d2esc(D2MAP_TXT.ferrovia)+'</textarea>',' d2m-full');
+    if(rot){
+      var _a=d2rtaPonto('A'), _b=d2rtaPonto('B');
+      h+='<div class="d2m-note d2m-full">'+((_a&&_b) ? ('Pontos do roteiro (definidos na Técnica): <b>A</b> '+_a.lat.toFixed(6)+', '+_a.lon.toFixed(6)+' &nbsp;→&nbsp; <b>B</b> '+_b.lat.toFixed(6)+', '+_b.lon.toFixed(6)) : '⚠️ Informe os <b>Pontos A e B</b> no tópico "Roteiro de acesso" (Técnica) antes de gerar.')+'</div>';
+    } else {
+      h+= fld('Texto da área total (no polígono)','<textarea id="d2map_arealbl" rows="2" class="d2m-in" placeholder="Ex.: ÁREA TOTAL&#10;17,6639 ha">'+d2esc(D2MAP_TXT.areaLabel||'')+'</textarea>')
+        + fld('Texto da área desapropriada (no polígono)','<textarea id="d2map_desaplbl" rows="2" class="d2m-in" placeholder="Ex.: ÁREA A DESAPROPRIAR&#10;2,3842 ha">'+d2esc(D2MAP_TXT.desapLabel||'')+'</textarea>')
+        + fld('KM entrada do eixo','<input id="d2map_kment" class="d2m-in" value="'+d2esc(D2MAP_TXT.kmEnt||'000 + 000,00')+'">')
+        + fld('KM saída do eixo','<input id="d2map_kmsai" class="d2m-in" value="'+d2esc(D2MAP_TXT.kmSai||'000 + 000,00')+'">')
+        + fld('Enquadramento', sel('d2map_foco',[['area','Área total do imóvel'],['desap','Foco na área desapropriada']],D2MAP_TXT.foco||'area'));
+    }
+    h+= fld('Base do mapa', sel('d2map_base',[['orto','Ortofoto do acervo + satélite'],['sat','Satélite Esri']],D2MAP_TXT.base||'orto'))
+      + fld('Transparência da imagem', sel('d2map_transp',[[0,'0% (opaca)'],[25,'25%'],[50,'50%'],[75,'75%'],[100,'100% (sem imagem)']],D2MAP_TXT.transp==null?25:D2MAP_TXT.transp))
       +'</div>'
-      +'<label style="font-size:11px;font-weight:700;color:#4a5a6a;">ENQUADRAMENTO</label>'
-      +'<select id="d2map_foco" style="width:100%;margin:4px 0 10px;border:1px solid #c3ccd4;border-radius:6px;padding:8px;font-size:12px;font-family:Arial;"><option value="area">Área total do imóvel</option><option value="desap">Foco na área desapropriada</option></select>'
-      +'<label style="font-size:11px;font-weight:700;color:#4a5a6a;">BASE DO MAPA</label>'
-      +'<select id="d2map_base" style="width:100%;margin:4px 0 12px;border:1px solid #c3ccd4;border-radius:6px;padding:8px;font-size:12px;font-family:Arial;"><option value="orto">Ortofoto do acervo (recomendado)</option><option value="sat">Satélite Esri</option></select>'
-      +'<div id="d2map_status" style="font-size:12px;color:#4a5a6a;min-height:18px;"></div>'
-      +'<div id="d2map_prev" style="margin:10px 0;"></div>'
-      +'<div style="display:flex;gap:8px;flex-wrap:wrap;"><button id="d2map_ger" style="background:#1f6fc0;color:#fff;border:none;border-radius:7px;padding:9px 14px;font-weight:700;cursor:pointer;">Gerar prévia</button>'
-      +'<button id="d2map_usar" style="background:#159a3c;color:#fff;border:none;border-radius:7px;padding:9px 14px;font-weight:700;cursor:pointer;display:none;">Usar nesta figura</button></div>';
+      +'<div id="d2map_status" class="d2m-st" role="status" aria-live="polite"></div>'
+      +'<div id="d2map_prev" class="d2m-prev"></div>'
+      +'<div class="d2m-act"><button type="button" id="d2map_ger" class="d2m-b d2m-b1">Gerar prévia</button><button type="button" id="d2map_usar" class="d2m-b d2m-b2" style="display:none;">Usar nesta figura</button></div>'
+      +'</div>';
+    ov.innerHTML=h;
     function st(m){ var e=document.getElementById('d2map_status'); if(e) e.textContent=m||''; }
+    function v(id){ var e=document.getElementById(id); return e?e.value:''; }
     document.getElementById('d2map_ger').onclick=async function(){
-      D2MAP_TXT.proc=document.getElementById('d2map_proc').value; D2MAP_TXT.ferrovia=document.getElementById('d2map_ferr').value; D2MAP_TXT.areaLabel=document.getElementById('d2map_arealbl').value; D2MAP_TXT.desapLabel=document.getElementById('d2map_desaplbl').value;
-      D2MAP_TXT.kmEnt=(document.getElementById('d2map_kment')||{}).value||''; D2MAP_TXT.kmSai=(document.getElementById('d2map_kmsai')||{}).value||'';
+      D2MAP_TXT.proc=v('d2map_proc'); D2MAP_TXT.ferrovia=v('d2map_ferr');
+      if(!rot){ D2MAP_TXT.areaLabel=v('d2map_arealbl'); D2MAP_TXT.desapLabel=v('d2map_desaplbl'); D2MAP_TXT.kmEnt=v('d2map_kment'); D2MAP_TXT.kmSai=v('d2map_kmsai'); D2MAP_TXT.foco=v('d2map_foco')||'area'; }
+      D2MAP_TXT.base=v('d2map_base')||'orto';
+      D2MAP_TXT.transp=parseInt(v('d2map_transp'),10); if(isNaN(D2MAP_TXT.transp)) D2MAP_TXT.transp=25;
       st('Lendo camadas do imóvel…');
       var need={}; (regra.cams||[]).forEach(function(c){ need[c]=true; });
-      var geom={};   // cam -> geometria
+      var geom={}, pinos=[], falhou=[];   // cam -> geometria
       // ---- camadas client-side (KML) ----
-      ['area','desap','vias','appest','hidro'].forEach(function(cam){ if(!need[cam]) return; var g=d2mapKML(d2mapFonteKML(cam)); if(g.polys.length+g.lines.length+g.pts.length) geom[cam]=g; });
-      var gb=d2mapKML(d2mapFonteKML('benf')); if(gb.pts.length||gb.polys.length) geom.benf=gb;
-      // enquadramento escolhido no modal (padrão: área total do imóvel)
-      var foco=(document.getElementById('d2map_foco')||{}).value||'area';
-      var mostraTudo=(foco!=='desap');
-      var focoCams = mostraTudo ? ['area'] : ['desap'];
-      var focoGeoms=[]; focoCams.forEach(function(c){ if(geom[c]) focoGeoms.push(geom[c]); });
-      if(!focoGeoms.length){ ['area','desap','vias','appest','hidro','benf'].forEach(function(c){ if(geom[c]) focoGeoms.push(geom[c]); }); }
-      var bb=d2bboxDe(focoGeoms, mostraTudo?0.12:0.30);
+      ['area','desap','vias','appest','hidro','cercas'].forEach(function(cam){ if(!need[cam]) return; var g=d2mapKML(d2mapFonteKML(cam)); if(g.polys.length+g.lines.length+g.pts.length) geom[cam]=g; });
+      if(!rot){ var gb=d2mapKML(d2mapFonteKML('benf')); if(gb.pts.length||gb.polys.length) geom.benf=gb; }
+      var bb;
+      if(rot){
+        // Figura 1: percurso A→B (rota de carro via OSRM; sem rota, linha reta) + alfinetes
+        var pa=d2rtaPonto('A'), pb=d2rtaPonto('B');
+        if(!pa||!pb){ st('Informe os Pontos A (início) e B (fim) no tópico "Roteiro de acesso" da Técnica.'); return; }
+        if(!window.RTA_rota){ st('Módulo de roteiro indisponível.'); return; }
+        st('Traçando o percurso…');
+        var rr=await window.RTA_rota(pa,pb);
+        if(!rr.viaRota) falhou.push('rota de carro (usada linha reta)');
+        geom.rota={polys:[],lines:[rr.linha],pts:[]};
+        pinos=[{lon:pa.lon,lat:pa.lat,letra:'A',rotulo:'INÍCIO'},{lon:pb.lon,lat:pb.lat,letra:'B',rotulo:'FIM'}];
+        bb=d2bboxDe([geom.rota], 0.16);
+      } else {
+        // enquadramento escolhido no modal (padrão: área total do imóvel)
+        var mostraTudo=((D2MAP_TXT.foco||'area')!=='desap');
+        var focoGeoms=[]; (mostraTudo?['area']:['desap']).forEach(function(c){ if(geom[c]) focoGeoms.push(geom[c]); });
+        if(!focoGeoms.length){ ['area','desap','vias','appest','hidro','benf','cercas'].forEach(function(c){ if(geom[c]) focoGeoms.push(geom[c]); }); }
+        bb=d2bboxDe(focoGeoms, mostraTudo?0.12:0.30);
+      }
       if(!bb){ st('Insira ao menos o KML de "Área total do imóvel" (ou da área a desapropriar) em Técnica › Camadas do imóvel.'); return; }
       // polígono de referência p/ interseção (cadastro = área total, senão desapropriada)
       var refPolys=(geom.area&&geom.area.polys.length)?geom.area.polys:((geom.desap&&geom.desap.polys)||null);
-      var falhou=[];
       // ---- camadas do servidor ----
       var estacas=[];
       if(need.faixa){ st('Buscando faixa de domínio / eixo…'); try{ var fx=await d2fetchFixo(bb); if(fx.limites.length||fx.eixos.length) geom.faixa=fx; }catch(e){ falhou.push('faixa/eixo'); }
@@ -25288,27 +25520,33 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       if(need.appcar){ st('Buscando APP (CAR)…'); try{ var gja=await d2fetchJSON('/api/mapa/car-app?bbox='+d2bboxStr(bb)); var ga=d2geojson(gja,null); if(ga.polys.length) geom.appcar=ga; }catch(e){ falhou.push('APP (CAR)'); } }
       if(need.drenagem) falhou.push('trecho de drenagem (ANA — WMS, próxima etapa)');
       // ---- ordem de desenho (contexto embaixo, destaques em cima) ----
-      var ORDER=['sigef','car','rl','appcar','appest','drenagem','hidro','faixa','area','vias','desap','benf'];
+      // metros de cerca dentro da área desapropriada
+      var metrosCerca=null;
+      if(geom.cercas){ var dpz=d2mapKML(d2mapFonteKML('desap')); if(dpz.polys.length) metrosCerca=d2metrosDentro(geom.cercas.lines.concat(geom.cercas.polys), dpz.polys); }
+      var ORDER=['sigef','car','rl','appcar','appest','drenagem','hidro','faixa','area','vias','rota','desap','cercas','benf'];
       var camadas=[], legend=[];
       ORDER.forEach(function(cam){ if(!geom[cam]) return; var est=D2MAP_EST[cam]||{}; camadas.push({cam:cam,geom:geom[cam]});
-        if(cam==='faixa'){ legend.push({nome:'Faixa de domínio',tipo:'line',cor:est.cor}); if(geom.faixa.eixos&&geom.faixa.eixos.length) legend.push({nome:'Eixo da ferrovia',tipo:'line',cor:'#ff8c1a'}); }
-        else legend.push({nome:est.nome,tipo:est.tipo,cor:est.cor,dash:est.dash});
+        if(cam==='faixa'){ legend.push({nome:est.nome,tipo:'line',cor:est.cor,peso:est.peso,dash:est.dash}); if(geom.faixa.eixos&&geom.faixa.eixos.length){ var ex=D2MAP_EST.eixo; legend.push({nome:ex.nome,tipo:'line',cor:ex.cor,peso:ex.peso,dash:ex.dash}); } }
+        else if(cam==='cercas'){ legend.push({nome:est.nome+(metrosCerca!=null?(' — '+d2fmtM(metrosCerca)+' m (área desapr.)'):''),tipo:'line',cor:est.cor,peso:est.peso,dash:est.dash}); }
+        else legend.push({nome:est.nome,tipo:est.tipo,cor:est.cor,peso:est.peso,dash:est.dash});
       });
+      if(pinos.length){ var ep=D2MAP_EST.pino; legend.push({nome:ep.nome,tipo:'pino',cor:ep.cor}); }
       // Figura 2B: códigos dos interceptados na legenda
       if(sigefCodes.length) legend.push({nome:'SIGEF: '+sigefCodes.join(' · '),tipo:'txt'});
       if(carCodes.length) legend.push({nome:'CAR: '+carCodes.join(' · '),tipo:'txt'});
-      var basePref=(document.getElementById('d2map_base')||{}).value||'orto';
+      var basePref=D2MAP_TXT.base||'orto';
       var base=null;
       if(basePref==='orto'){ var sps=d2sps(); if(sps){ st('Baixando ortofoto (SPS '+sps+')…'); try{ base=await d2ortofoto(bb,sps); }catch(e){ falhou.push('ortofoto (usando satélite)'); } } else falhou.push('ortofoto (SPS não identificado — usando satélite)'); }
       if(base && base.mode==='orto'){ st('Baixando satélite (base de fundo)…'); try{ var satB=await d2satelite(bb); base.satUrl=satB.url; }catch(e){} }
       if(!base){ st('Baixando satélite (Esri)…'); try{ var sat=await d2satelite(bb); base={mode:'sat',sat:sat,url:sat.url}; }catch(e){ st('Falha ao baixar a base: '+(e&&e.message||e)); return; } }
       st('Compondo o mapa…');
-      var svg=d2mapSVG({ base:base, bb:bb, camadas:camadas, legend:legend, proc:D2MAP_TXT.proc, ferrovia:D2MAP_TXT.ferrovia, estacas:estacas, areaLabel:D2MAP_TXT.areaLabel, desapLabel:D2MAP_TXT.desapLabel, sigefCodes:sigefCodes, carCodes:carCodes, cruz:cruz, kmEnt:D2MAP_TXT.kmEnt, kmSai:D2MAP_TXT.kmSai });
+      var svg=d2mapSVG({ base:base, bb:bb, camadas:camadas, legend:legend, proc:D2MAP_TXT.proc, ferrovia:D2MAP_TXT.ferrovia, estacas:estacas, areaLabel:(rot?'':D2MAP_TXT.areaLabel), desapLabel:(rot?'':D2MAP_TXT.desapLabel), sigefCodes:sigefCodes, carCodes:carCodes, cruz:(rot?null:cruz), kmEnt:D2MAP_TXT.kmEnt, kmSai:D2MAP_TXT.kmSai, pinos:pinos, transp:D2MAP_TXT.transp });
       var png; try{ png=await d2svg2png(svg,2); }catch(e){ st('Falha ao rasterizar: '+(e&&e.message||e)); return; }
       figsAuto[fid]=png;
-      var prev=document.getElementById('d2map_prev'); if(prev) prev.innerHTML='<img src="'+png+'" style="width:100%;border:1px solid #c3ccd4;border-radius:8px;">';
+      var prev=document.getElementById('d2map_prev'); if(prev) prev.innerHTML='<img src="'+png+'" alt="Prévia do mapa gerado">';
       document.getElementById('d2map_usar').style.display='';
-      st(falhou.length?('Prévia pronta. Não incluído: '+falhou.join(', ')+'.'):'Prévia pronta.');
+      var extra=(metrosCerca!=null)?(' Cerca dentro da área desapropriada: '+d2fmtM(metrosCerca)+' m.'):'';
+      st((falhou.length?('Prévia pronta. Não incluído: '+falhou.join(', ')+'.'):'Prévia pronta.')+extra);
     };
     document.getElementById('d2map_usar').onclick=function(){
       if(!figsAuto[fid]) return;
@@ -25319,6 +25557,94 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
   };
   window.D2MAP_restaurarManual=function(fid){
     if(figManualBackup[fid]){ aplicarFig(fid, figManualBackup[fid]); delete figManualBackup[fid]; }
+  };
+
+  /* ---- Quadro de camadas (estilo AutoCAD): cor/espessura/tipo de linha, salvo no servidor ---- */
+  var D2MAP_DASH=[['','Contínua'],['8 4','Tracejada'],['6 3','Tracejada média'],['5 3','Tracejada curta'],['7 4','Cerca'],['1.5 4','Pontilhada'],['10 3 2 3','Traço-ponto']];
+  function d2aplicarEstilos(obj){
+    if(!obj||!obj.estilos) return;
+    Object.keys(obj.estilos).forEach(function(k){ var s=obj.estilos[k], d=D2MAP_EST[k]; if(!s||!d) return;
+      if(/^#[0-9a-f]{6}$/i.test(s.cor||'')) d.cor=s.cor;
+      if(isFinite(s.peso)&&s.peso>0) d.peso=+s.peso;
+      if(typeof s.dash==='string') d.dash=s.dash||undefined;
+      if(isFinite(s.op)) d.op=Math.max(0,Math.min(1,+s.op));
+    });
+  }
+  function d2coletarEstilos(){ var o={}; Object.keys(D2MAP_EST).forEach(function(k){ var e=D2MAP_EST[k]; o[k]={cor:e.cor}; if(e.peso!=null) o[k].peso=e.peso; o[k].dash=e.dash||''; if(e.op!=null) o[k].op=e.op; }); return { versao:1, atualizado:new Date().toISOString(), estilos:o }; }
+  function d2amostra(e){
+    var svg='<svg width="64" height="20" viewBox="0 0 64 20" aria-hidden="true"><rect width="64" height="20" rx="4" fill="#5b6b5a"/>';
+    if(e.tipo==='fill') svg+='<rect x="8" y="4" width="48" height="12" fill="'+e.cor+'" fill-opacity="'+(e.op==null?.4:e.op)+'" stroke="'+e.cor+'" stroke-width="'+Math.min(3,e.peso||1.5)+'"'+(e.dash?' stroke-dasharray="'+e.dash+'"':'')+'/>';
+    else if(e.tipo==='pino') svg+='<path d="M32,18 C30,13 26,11 26,7 A6,6 0 1,1 38,7 C38,11 34,13 32,18 Z" fill="'+e.cor+'"/><circle cx="32" cy="7" r="2.4" fill="#fff"/>';
+    else if(e.tipo==='pt') svg+='<rect x="28" y="6" width="8" height="8" fill="'+e.cor+'" stroke="#111"/>';
+    else svg+='<line x1="6" y1="10" x2="58" y2="10" stroke="'+e.cor+'" stroke-width="'+Math.min(6,e.peso||2)+'"'+(e.dash?' stroke-dasharray="'+e.dash+'"':'')+' stroke-linecap="round"/>';
+    return svg+'</svg>';
+  }
+  function d2qStatus(t,ok){ var e=document.getElementById('d2q_status'); if(e){ e.textContent=t||''; e.className='d2q-status'+(ok===false?' bad':(ok?' ok':'')); } }
+  window.D2MAP_renderQuadro=function(){
+    var box=document.getElementById('d2map_quadro'); if(!box) return;
+    var h='<div class="d2q-wrap"><table class="d2q"><thead><tr><th>Camada</th><th>Cor</th><th>Espessura</th><th>Tipo de linha</th><th>Preench.</th><th>Prévia</th></tr></thead><tbody>';
+    Object.keys(D2MAP_EST).forEach(function(k){ var e=D2MAP_EST[k];
+      var temLinha=(e.tipo!=='pino'), temPeso=(e.tipo!=='pino'), temFill=(e.tipo==='fill');
+      var dashOpts=D2MAP_DASH.slice(); if(e.dash && !dashOpts.some(function(d){return d[0]===e.dash;})) dashOpts.push([e.dash,'Personalizada ('+e.dash+')']);
+      h+='<tr data-k="'+k+'"><td class="d2q-nome">'+d2esc(e.nome)+'</td>'
+        +'<td><input type="color" data-p="cor" value="'+e.cor+'" aria-label="Cor — '+d2esc(e.nome)+'"></td>'
+        +'<td>'+(temPeso?'<input type="number" data-p="peso" min="0.2" max="12" step="0.2" value="'+(e.peso||1)+'" aria-label="Espessura — '+d2esc(e.nome)+'">':'<span class="d2q-na">—</span>')+'</td>'
+        +'<td>'+(temLinha&&e.tipo!=='pt'?('<select data-p="dash" aria-label="Tipo de linha — '+d2esc(e.nome)+'">'+dashOpts.map(function(d){ return '<option value="'+d[0]+'"'+(((e.dash||'')===d[0])?' selected':'')+'>'+d[1]+'</option>'; }).join('')+'</select>'):'<span class="d2q-na">—</span>')+'</td>'
+        +'<td>'+(temFill?'<input type="number" data-p="op" min="0" max="100" step="5" value="'+Math.round((e.op==null?.4:e.op)*100)+'" aria-label="Preenchimento % — '+d2esc(e.nome)+'"><span class="d2q-u">%</span>':'<span class="d2q-na">—</span>')+'</td>'
+        +'<td class="d2q-prev">'+d2amostra(e)+'</td></tr>';
+    });
+    h+='</tbody></table></div>'
+      +'<div class="d2q-act"><button type="button" class="vbtn vbtn-sm" onclick="D2MAP_salvarEstilos()">💾 Salvar no servidor</button>'
+      +'<button type="button" class="vbtn vbtn-ghost vbtn-sm" onclick="D2MAP_restaurarEstilos()">↺ Restaurar padrão</button>'
+      +'<span class="d2q-status" id="d2q_status" role="status" aria-live="polite"></span></div>';
+    box.innerHTML=h;
+  };
+  // edição ao vivo (delegação): atualiza o estilo e a prévia da linha
+  (function(){ var box=document.getElementById('d2map_quadro'); if(!box) return;
+    function aoEditar(ev){ var t=ev.target, tr=t.closest&&t.closest('tr[data-k]'); if(!tr) return; var k=tr.getAttribute('data-k'), e=D2MAP_EST[k], p=t.getAttribute('data-p'); if(!e||!p) return;
+      if(p==='cor') e.cor=t.value; else if(p==='peso'){ var n=parseFloat(t.value); if(n>0) e.peso=n; } else if(p==='dash') e.dash=t.value||undefined; else if(p==='op'){ var o=parseFloat(t.value); if(isFinite(o)) e.op=Math.max(0,Math.min(100,o))/100; }
+      var pv=tr.querySelector('.d2q-prev'); if(pv) pv.innerHTML=d2amostra(e);
+      d2qStatus('Alterações não salvas.');
+    }
+    box.addEventListener('input', aoEditar);
+    box.addEventListener('change', aoEditar);
+  })();
+  window.D2MAP_salvarEstilos=async function(){
+    d2qStatus('Salvando…');
+    try{ var r=await fetch('/api/mapa-estilos',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(d2coletarEstilos())});
+      if(!r.ok) throw new Error('HTTP '+r.status); d2qStatus('✓ Estilos salvos no servidor.', true);
+    }catch(e){ d2qStatus('Não foi possível salvar no servidor ('+(e.message||e)+').', false); }
+  };
+  window.D2MAP_restaurarEstilos=function(){
+    if(!confirm('Restaurar as cores e espessuras padrão? (só fica valendo após "Salvar no servidor")')) return;
+    Object.keys(D2MAP_EST_PADRAO).forEach(function(k){ D2MAP_EST[k]=JSON.parse(JSON.stringify(D2MAP_EST_PADRAO[k])); });
+    window.D2MAP_renderQuadro(); d2qStatus('Padrão restaurado — clique em "Salvar no servidor" para gravar.');
+  };
+  // carrega os estilos salvos no servidor e desenha o quadro
+  (function(){ window.D2MAP_renderQuadro();
+    fetch('/api/mapa-estilos',{cache:'no-cache'}).then(function(r){ return r.ok?r.json():null; }).then(function(o){ d2aplicarEstilos(o); window.D2MAP_renderQuadro(); if(o&&o.atualizado) d2qStatus('Estilos do servidor carregados.'); }).catch(function(){ d2qStatus('Servidor indisponível — usando estilos padrão.', false); });
+  })();
+
+  /* ---- Roteiro de acesso (Figura 1): Pontos A/B, texto via rota (OSRM) ---- */
+  function d2rtaPonto(q){ var el=document.getElementById('d2_rta_pt'+q); return (el && window.RTA_parseCoord) ? window.RTA_parseCoord(el.value) : null; }
+  window.D2_rtaCoord=function(q){
+    var el=document.getElementById('d2_rta_pt'+q), h=document.getElementById('d2_rta_hint'+q); if(!el) return;
+    var ok=d2rtaPonto(q), raw=(el.value||'').trim();
+    el.classList.toggle('d2-rta-ok', !!ok); el.classList.toggle('d2-rta-bad', !!raw && !ok);
+    if(h){ h.textContent = !raw ? '' : (ok ? '✓ coordenada reconhecida' : 'formato esperado: -8.061234, -37.262345'); h.className='d2-rta-hint'+(raw&&!ok?' bad':''); }
+  };
+  window.D2_rtaGerarTexto=async function(){
+    var a=d2rtaPonto('A'), b=d2rtaPonto('B');
+    if(!a||!b){ alert('Informe os Pontos A (início) e B (fim) com coordenadas válidas.'); return; }
+    if(!window.RTA_rota){ alert('Módulo de roteiro indisponível.'); return; }
+    var btn=document.querySelector('.d2-rta-btn'), txt0=btn?btn.textContent:'';
+    if(btn){ btn.disabled=true; btn.textContent='Buscando rota…'; }
+    try{
+      var r=await window.RTA_rota(a,b);
+      var ta=document.getElementById('d2_tx_roteiro_de_acesso');
+      if(ta){ ta.value=r.texto; ta.dispatchEvent(new Event('input',{bubbles:true})); }
+      if(window.D2_renderView) window.D2_renderView('roteiro_de_acesso');
+    } finally { if(btn){ btn.disabled=false; btn.textContent=txt0; } }
   };
   window.D2_carregarFig=function(fid,input){
     const f=input.files[0]; if(!f) return;
