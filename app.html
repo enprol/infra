@@ -22633,17 +22633,10 @@ window.DRL_dados=function(){
 };
 function DRL_bl(x){ return (x&&(''+x).trim())?(''+x).trim():'____________'; }
 function DRL_paragrafo(d){
-  function _gid(id){ var e=document.getElementById(id); return e?((e.value||'').trim()):''; }
   var incra = d.incra ? ', cadastrado no INCRA sob o código nº '+DRL_bl(d.incra) : '';
-  var nomeOcup = _gid('fb_inf_nome'), cpfOcup = _gid('fb_ocup_cpf');
-  var ocupCpfTipo = ((document.getElementById('fb_ocup_cpf_tipo')||{}).value||'cpf');
-  var temOcup = _gid('fb_ocup_e_prop').charAt(0)==='2' && nomeOcup;
-  var ocupDocLabel = ocupCpfTipo==='cnpj' ? 'Cadastro Nacional de Pessoa Jurídica – CNPJ' : 'Cadastro de Pessoa Física – CPF';
-  var ocupTxt = temOcup ? ', com ocupante identificado como '+DRL_bl(nomeOcup)+', inscrito(a) no '+ocupDocLabel+' nº '+DRL_bl(cpfOcup) : '';
-  var propDocLabel = (d.cpfTipo||'cpf')==='cnpj' ? 'Cadastro Nacional de Pessoa Jurídica – CNPJ' : 'Cadastro de Pessoa Física – CPF';
-  return 'Eu, '+DRL_bl(d.nome)+', inscrito(a) no '+propDocLabel+' nº '+DRL_bl(d.cpf)+
-    ', proprietário(a) do imóvel denominado '+DRL_bl(d.denom)+', matrícula(s) nº(s) '+DRL_bl(d.matricula)+
-    ' da comarca de '+DRL_bl(d.municipio)+'- '+DRL_bl(d.uf)+incra+ocupTxt+
+  return 'Eu, __________________________________, inscrito(a) no Cadastro de Pessoa Física – CPF nº ____________________________, '+
+    'ocupante do imóvel denominado '+DRL_bl(d.denom)+', matrícula(s) nº(s) '+DRL_bl(d.matricula)+
+    ' da comarca de '+DRL_bl(d.municipio)+'- '+DRL_bl(d.uf)+incra+
     ', declaro, sob as penas da lei, que foram respeitados os limites das divisas in loco com os confrontantes abaixo relacionados durante a execução dos trabalhos técnicos na citada propriedade, não havendo qualquer litígio entre as partes.';
 }
 // valores editáveis da aba DRL (fallback ao automático)
@@ -22706,11 +22699,11 @@ window.DRL_gerarPDF=async function(opts){
   bloco('DECLARAÇÃO DE RESPEITO DE LIMITES', {bold:true, size:13, center:true}); y+=10;
   bloco(texto, {justify:true}); y+=12;
 
-  // assinatura do proprietário
-  garantir(8+6+6);
-  assinatura();
-  bloco(DRL_bl(d.nome), {bold:true, center:true});
-  bloco('CPF nº: '+DRL_bl(d.cpf), {center:true}); y+=10;
+  // campos para assinatura a próprio punho
+  garantir(16);
+  pdf.setFont('helvetica','normal'); pdf.setFontSize(11); pdf.setTextColor(0,0,0);
+  pdf.text('Declarante: __________________________________________________', mL, y); y+=8;
+  pdf.text('CPF: _____________________________________________________________', mL, y); y+=10;
 
   // De acordo
   if(nAc>0){
