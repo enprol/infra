@@ -280,7 +280,11 @@ window.REL_baixarConjunto = async function(){
       if(window.showSaveFilePicker){
         var ext=(nome.split('.').pop()||'').toLowerCase();
         var accept = ext==='pdf'?{'application/pdf':['.pdf']} : (ext==='zip'?{'application/zip':['.zip']} : (ext==='doc'?{'application/msword':['.doc']} : {'application/vnd.openxmlformats-officedocument.wordprocessingml.document':['.docx']}));
-        var h=await window.showSaveFilePicker({suggestedName:nome, types:[{description:'Arquivo', accept:accept}]});
+        // abre na pasta do último arquivo salvo (ex.: o Word da DESP-2 cai ao lado do PDF)
+        var popt={suggestedName:nome, types:[{description:'Arquivo', accept:accept}]};
+        if(window.__FS_ultimo) popt.startIn=window.__FS_ultimo;
+        var h=await window.showSaveFilePicker(popt);
+        window.__FS_ultimo=h;
         var w=await h.createWritable(); await w.write(blob); await w.close(); return true;
       }
     }catch(e){ if(e&&e.name==='AbortError') return false; }
@@ -25867,7 +25871,11 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     // como "colado" e entrava o respiro de 10mm inteiro entre o título e o
     // subtítulo seguinte (23/09/2026, pedido do usuário: "4." e "4.1" muito longe).
     function gapTopico(farGap){ if(yc<=topY+0.5) return; yc += (Math.abs(yc-_headEndY)<3 ? 2.5 : (farGap!==undefined?farGap:6.5)); }
-    function titulo(t){ gapTopico(); ensure(20); pdf.setFont(FONT,"bold"); pdf.setFontSize(13.5); pdf.setTextColor(0,0,0);
+    // título nunca fica sozinho no pé da página: reserva também ~2 linhas do texto que vem depois
+    const KEEP_NEXT=12;
+    // mapas: altura máxima (sobra espaço para texto) e mínima ao reduzir para caber na página
+    const FIG_MAXH=130, FIG_MINH=90, FIG_CAP=15;
+    function titulo(t){ gapTopico(); ensure(20+KEEP_NEXT); pdf.setFont(FONT,"bold"); pdf.setFontSize(13.5); pdf.setTextColor(0,0,0);
       const m=String(t).match(/^(\d+)\.\s*(.*)$/);
       if(m){ pdf.text(m[1]+".", mL, yc); pdf.text(m[2].toUpperCase(), mL+11, yc); } else { pdf.text(String(t).toUpperCase(), mL, yc); }
       yc+=2.6; pdf.setDrawColor(70,70,70); pdf.setLineWidth(0.3); pdf.line(mL,yc,W-mR,yc); yc+=7; _headEndY=yc;
@@ -25876,11 +25884,11 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       const m=String(t).match(/^(\d+\.\d+)\.?\s*(.*)$/);
       const nm=m?(m[1]+"."):""; const tit=(m?m[2]:String(t)).toUpperCase();
       const x0=mL+(nm?12:0); const ls=pdf.splitTextToSize(tit, W-mR-x0);
-      gapTopico(); ensure(ls.length*5.6+4); yc+=1; if(nm) pdf.text(nm, mL, yc);
+      gapTopico(); ensure(ls.length*5.6+4+KEEP_NEXT); yc+=1; if(nm) pdf.text(nm, mL, yc);
       ls.forEach(function(l){ pdf.text(l, x0, yc); yc+=5.6; }); yc+=1.5; _headEndY=yc;
     }
     function h4b(t){ pdf.setFont(FONT,"bold"); pdf.setFontSize(10.5); pdf.setTextColor(20,41,74);
-      const ls=pdf.splitTextToSize(String(t), cw); gapTopico(); ensure(ls.length*5+2.5);
+      const ls=pdf.splitTextToSize(String(t), cw); gapTopico(); ensure(ls.length*5+2.5+KEEP_NEXT);
       ls.forEach(function(l){ pdf.text(l, mL, yc); yc+=5; }); yc+=1.2; pdf.setTextColor(0,0,0); _headEndY=yc;
     }
     /* cabeçalho com letra (a, b, c...): "x)  TÍTULO EM CAIXA ALTA" — quebras de linha
@@ -25890,7 +25898,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       pdf.setFont(FONT,"bold"); pdf.setFontSize(10.5);
       const tit=String(t).toUpperCase();
       const ls=pdf.splitTextToSize(tit, cw-7);
-      gapTopico(opts&&opts.gap); ensure(ls.length*5+3.5); yc+=1;
+      gapTopico(opts&&opts.gap); ensure(ls.length*5+3.5+KEEP_NEXT); yc+=1;
       pdf.setFont(FONT,"normal"); pdf.setTextColor(0,0,0); pdf.text(String(letra)+")", xLet, yc);
       pdf.setFont(FONT,"bold"); pdf.setTextColor(20,41,74);
       ls.forEach(function(l){ pdf.text(l, xTit, yc); yc+=5; });
@@ -26025,9 +26033,18 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       // Isso é rascunho de preenchimento, não algo pra entregar ao cliente.
       if(!figs[fid]) return;
       const meta=FIG_META[fid]||[fid,""];
-      let iw=cw, ih=iw*0.6;
-      try{ const p=pdf.getImageProperties(figs[fid]); if(p&&p.width&&p.height){ ih=iw*(p.height/p.width); if(ih>210){ih=210; iw=ih*(p.width/p.height);} } }catch(e){}
-      ensure(ih+12); const fmt=/^data:image\/png/i.test(figs[fid])?"PNG":"JPEG";
+      // mapa colado ao texto: altura máxima menor (sobra espaço para o texto seguinte) e,
+      // se não couber no resto da página, o mapa é reduzido até FIG_MINH em vez de pular
+      // de página deixando um buraco em branco (e o item seguinte isolado na próxima).
+      let iw=cw, ih=iw*0.6, ar=0.6;
+      try{ const p=pdf.getImageProperties(figs[fid]); if(p&&p.width&&p.height){ ar=p.height/p.width; ih=iw*ar; if(ih>FIG_MAXH){ih=FIG_MAXH; iw=ih/ar;} } }catch(e){}
+      if(yc>topY+5) yc-=3;   // encosta o mapa no parágrafo anterior (o respiro pós-parágrafo já basta)
+      const sobra=botY-yc-FIG_CAP;
+      if(ih>sobra){
+        if(sobra>=FIG_MINH && yc>topY+0.5){ ih=sobra; iw=ih/ar; if(iw>cw){ iw=cw; ih=iw*ar; } }
+        else { rod(); nova(); }
+      }
+      const fmt=/^data:image\/png/i.test(figs[fid])?"PNG":"JPEG";
       try{ pdf.addImage(figs[fid],fmt,mL+(cw-iw)/2,yc,iw,ih); }catch(e){}
       yc+=ih+3.5;
       pdf.setFont(FONT,"bolditalic"); pdf.setFontSize(9.5); pdf.setTextColor(0,0,0);
@@ -26079,16 +26096,29 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     /* ---- corpo: percorre os tópicos na ordem do Word (começa na página após a capa) ---- */
     pdf.addPage(); cab(); yc=topY;
     function figImg(src){ if(!src) return; var iw=cw*0.86, ih=iw*0.6; try{var pr=pdf.getImageProperties(src); if(pr&&pr.width){ih=iw*(pr.height/pr.width); if(ih>120){ih=120; iw=ih*(pr.width/pr.height);}}}catch(e){} ensure(ih+6); try{ pdf.addImage(src,/^data:image\/png/i.test(src)?"PNG":"JPEG",mL+(cw-iw)/2,yc,iw,ih); }catch(e){} yc+=ih+5; }
-    // grupos que devem começar em página nova para permanecerem juntos numa única
-    // página: [3.1+a)] [b)+c)] [d)+e)] [f)+g)] [h)] [i)+j)+3.2]
-    // "h)" (Reserva Legal/APP) deixou de forçar página nova: quando "g)" (pouquíssimo
-    // texto) cai sozinho no topo de uma página, h) agora continua nela mesma, em vez
-    // de abrir mais uma página só para g) ficar isolado.
-    const QUEBRA_ANTES=new Set(["caracteriza_o_do_im_vel","diagn_stico_produtivo_e_ambi","planta_contendo_a_dimens_o_d","planta_com_indica_o_das_font","planta_contendo_a_disposi_o","conclus_o","anexos"]);
+    // Itens com letra (a…i) não forçam página nova: seguem o fluxo, com o mapa reduzido
+    // para caber junto do texto (ver figura()) — assim item curto (ex.: e), g)) não fica
+    // isolado numa página quase vazia. Só as seções principais começam página nova.
+    const QUEBRA_ANTES=new Set(["caracteriza_o_do_im_vel","diagn_stico_produtivo_e_ambi","conclus_o","anexos"]);
+    // altura aproximada de um bloco de texto (mesma fonte/largura do parRich) — só para decidir quebra
+    function alturaTexto(text){
+      pdf.setFont(FONT,"normal"); pdf.setFontSize(11); let h=0;
+      String(text||"").split("\n").forEach(function(ln){
+        const t=ln.trim().replace(/\*\*/g,""); if(!t){ h+=2.4; return; }
+        const rec=/^(§[RACL]|• )/.test(t)?14:0;
+        h+=pdf.splitTextToSize(t.replace(/^(§[RAC] |§L:. |• )/,""), cw-rec).length*5.8+3.2;
+      });
+      return h;
+    }
     DESP2_TOPICOS.forEach(function(tp){
       if(QUEBRA_ANTES.has(tp.id) && yc>topY+0.01){ rod(); nova(); }
-      // "Roteiro de acesso": não separar o título da imagem que vem logo abaixo
-      if(tp.id==="roteiro_de_acesso"){ ensure(150); }
+      // item com mapa: título + texto + mapa (no mínimo FIG_MINH) ficam juntos — se não
+      // couberem no resto da página, o item inteiro começa na próxima (mapa colado ao texto)
+      if((tp.figs||[]).some(function(f){ return figs[f]; }) && yc>topY+0.5){
+        let txt=TX(tp.id); if(COMMENT_APPEND[tp.id]){ const c=kf(COMMENT_APPEND[tp.id]); if(c) txt+="\n"+c; }
+        const need=18+alturaTexto(txt)+FIG_MINH+FIG_CAP;
+        if(need<=botY-topY && yc+need>botY){ rod(); nova(); }
+      }
       const label=(tp.num?(tp.num+" "):"")+tp.head;
       if(tp.level===1) titulo(label);
       else if(tp.level===2) subt(label);
@@ -26160,7 +26190,207 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     rod();
     const _blob=pdf.output("blob"); const _nome="DESP2_"+(window.__CTDsuf?window.__CTDsuf():"CTD 000")+".pdf";
     if(opts&&opts.retornar) return {blob:_blob,nome:_nome};
+    // junto com o PDF sai o Word (.docx) editável, com a mesma estrutura
+    let _word=null;
+    try{ _word=await window.D2_gerarWord({retornar:true, jaSincronizado:true}); }catch(e){ console.error("DESP-2 Word:",e); }
     if(window.FS_salvar){ await window.FS_salvar(_blob,_nome); } else { pdf.save(_nome); }
+    if(_word){ await window.FS_salvar(_word.blob,_word.nome); }
+  };
+
+  /* ---------- WORD (.docx) — mesma estrutura do PDF, com estilos reais do Word
+     (Título 1/2/3, listas com marcador/numeração, legendas) para editar e acrescentar itens ---------- */
+  window.D2_gerarWord=async function(opts){
+    opts=opts||{};
+    if(!opts.jaSincronizado){
+      window.D2_puxar(false);
+      if(window.D2_rebuild) window.D2_rebuild("descri_o_do_tipo_de_atividad");
+      DESP2_TOPICOS.forEach(function(tp){ var v=document.getElementById('d2_view_'+tp.id); if(v && v.getAttribute('contenteditable')==='true') window.D2_syncFromView(tp.id); });
+    }
+    const D=window.docx;
+    if(!D){ alert("Biblioteca Word ainda carregando. Tente novamente em instantes."); return; }
+    const {Document,Packer,Paragraph,TextRun,Table,TableRow,TableCell,WidthType,BorderStyle,AlignmentType,ImageRun,ShadingType,VerticalAlign,Header,Footer,HeadingLevel,LevelFormat,TabStopType,PageNumber,TableLayoutType,HeightRule}=D;
+    const FONT="Calibri", NAVY="14294A", CW=9071;   // largura útil: A4 − 3cm − 2cm (igual ao PDF)
+    const FIX=(TableLayoutType&&TableLayoutType.FIXED)||undefined;
+    const mm=function(v){ return Math.round(v*56.7); };           // mm -> twips
+    const px=function(v){ return Math.round(v*3.7795); };         // mm -> px (imagens)
+    function b64u8(d){ if(!d) return null; try{ const b=atob(d.split(",")[1]); const u=new Uint8Array(b.length); for(let i=0;i<b.length;i++) u[i]=b.charCodeAt(i); return u; }catch(e){ return null; } }
+    function dims(src){ return new Promise(function(r){ const im=new Image(); im.onload=function(){ r({w:im.naturalWidth,h:im.naturalHeight}); }; im.onerror=function(){ r({w:0,h:0}); }; im.src=src; }); }
+    function imgRun(src,wmm,hmm){ const u=b64u8(src); if(!u) return null; return new ImageRun({data:u, type:(/^data:image\/png/i.test(src)?"png":"jpg"), transformation:{width:px(wmm),height:px(hmm)}}); }
+    async function imgAjustada(src,maxW,maxH){ const d=await dims(src); let w=maxW, h=(d.w&&d.h)?(w*d.h/d.w):(w*0.6); if(h>maxH){ h=maxH; w=(d.w&&d.h)?(h*d.w/d.h):w; } return imgRun(src,w,h); }
+    const R=function(t,o){ o=o||{}; return new TextRun({text:(t==null?"":String(t)), font:FONT, size:o.size||22, bold:!!o.bold, italics:!!o.italics, color:o.color||"000000"}); };
+    // **negrito** do texto do laudo -> TextRun em negrito (mesma regra do PDF)
+    function runs(s,o){ o=o||{}; const out=[]; String(s).split("**").forEach(function(seg,i){ if(seg==="") return; out.push(R(seg,{bold:(i%2===1)||!!o.bold, italics:o.italics, size:o.size, color:o.color})); }); return out.length?out:[R(String(s),o)]; }
+    const K=[];
+    const PAR={alignment:AlignmentType.JUSTIFIED, spacing:{after:120, line:300}};
+    function par(t,o){ o=o||{}; K.push(new Paragraph(Object.assign({children:runs(t,o)},PAR,o.p||{}))); }
+
+    // ---- títulos (estilos do Word: aparecem no painel de navegação / sumário) ----
+    function h1(t){ const m=String(t).match(/^(\d+)\.\s*(.*)$/);
+      K.push(new Paragraph({heading:HeadingLevel.HEADING_1, border:{bottom:{style:BorderStyle.SINGLE,size:6,color:"464646",space:3}},
+        children: m?[R(m[1]+".  ",{bold:true,size:27}),R(m[2].toUpperCase(),{bold:true,size:27})]:[R(String(t).toUpperCase(),{bold:true,size:27})]})); }
+    function h2(t){ const m=String(t).match(/^(\d+\.\d+)\.?\s*(.*)$/);
+      K.push(new Paragraph({heading:HeadingLevel.HEADING_2, indent:{left:mm(12),hanging:mm(12)},
+        children:[R(m?(m[1]+".\t"):"",{bold:true,size:23}),R((m?m[2]:String(t)).toUpperCase(),{bold:true,size:23})]})); }
+    function h3(letra,t){
+      K.push(new Paragraph({heading:HeadingLevel.HEADING_3, indent:letra?{left:mm(7),hanging:mm(7)}:undefined,
+        children:(letra?[R(letra+")\t",{size:21})]:[]).concat([R(String(t).toUpperCase(),{bold:true,size:21,color:NAVY})])})); }
+    function h4(t){ K.push(new Paragraph({heading:HeadingLevel.HEADING_4, children:[R(t,{bold:true,size:21,color:NAVY})]})); }
+
+    // ---- corpo de texto: mesmos marcadores do PDF (§R romano, §A seta, §C citação, §L:x item de citação, • marcador) ----
+    let romanoInst=0;
+    function bloco(text){
+      let emRomano=false;
+      String(text||"").split("\n").forEach(function(ln){
+        const t=ln.trim();
+        if(!t){ emRomano=false; return; }
+        if(/^Tabela\s*1\b/i.test(t.replace(/\*/g,""))){ emRomano=false; K.push(new Paragraph({alignment:AlignmentType.CENTER, keepNext:true, spacing:{before:120,after:80}, children:[R(t.replace(/\*/g,""),{bold:true,italics:true,size:19})]})); return; }
+        if(t.indexOf("§R ")===0){ if(!emRomano){ romanoInst++; emRomano=true; }
+          K.push(new Paragraph(Object.assign({children:runs(t.slice(3)), numbering:{reference:"d2-romano", level:0, instance:romanoInst}},PAR,{spacing:{after:60,line:288}}))); return; }
+        emRomano=false;
+        if(t.indexOf("§A ")===0){ K.push(new Paragraph(Object.assign({children:runs(t.slice(3)), numbering:{reference:"d2-seta", level:0}},PAR,{spacing:{after:60,line:288}}))); return; }
+        if(t.indexOf("• ")===0){ K.push(new Paragraph(Object.assign({children:runs(t.slice(2)), numbering:{reference:"d2-marcador", level:0}},PAR,{spacing:{after:60,line:288}}))); return; }
+        if(t.indexOf("§C ")===0){ K.push(new Paragraph({children:runs(t.slice(3),{italics:true,size:21,color:"282828"}), alignment:AlignmentType.JUSTIFIED, indent:{left:mm(14)}, spacing:{after:100,line:276}})); return; }
+        if(t.indexOf("§L:")===0){ K.push(new Paragraph({children:[R(t.charAt(3)+")\t",{italics:true,size:21,color:"282828"})].concat(runs(t.slice(5),{italics:true,size:21,color:"282828"})), alignment:AlignmentType.JUSTIFIED, indent:{left:mm(20),hanging:mm(6)}, spacing:{after:60,line:276}})); return; }
+        par(t);
+      });
+    }
+    function marcador(t){ K.push(new Paragraph(Object.assign({children:runs(t), numbering:{reference:"d2-marcador", level:0}},PAR,{spacing:{after:60,line:288}}))); }
+    async function figura(fid){
+      if(!figs[fid]) return;
+      const meta=FIG_META[fid]||[fid,""];
+      const im=await imgAjustada(figs[fid],160,130);   // mesmos limites do PDF
+      if(!im) return;
+      K.push(new Paragraph({alignment:AlignmentType.CENTER, keepNext:true, spacing:{before:60,after:60}, children:[im]}));
+      K.push(new Paragraph({alignment:AlignmentType.CENTER, keepNext:true, spacing:{after:0}, children:[R(meta[0],{bold:true,italics:true,size:19})]}));
+      K.push(new Paragraph({alignment:AlignmentType.CENTER, spacing:{after:200}, children:[R("Fonte: "+(meta[1]||""),{italics:true,size:17,color:"5A6473"})]}));
+    }
+
+    // ================= CAPA (mesmo conteúdo da capa do PDF) =================
+    const uI=b64u8(window.__LOGO_INFRA__), uE=b64u8(window.__LOGO_ENPROL__);
+    const _sigla=(function(){ const f=C("ferrovia")||""; const m=f.match(/[–-]\s*([A-Z]{2,6})\s*$/); return m?m[1]:(C("codFerrovia")||""); })();
+    const _posseiro=gid("fb_ocup_e_prop")==="2 - Não" ? gid("fb_inf_nome") : "";
+    const dataCapa=(new Date()).toLocaleDateString("pt-BR",{month:"long",year:"numeric"}).toUpperCase().replace(" DE ","/");
+    const cc=function(kids,sp){ return new Paragraph({children:kids, alignment:AlignmentType.CENTER, spacing:sp||{after:80}}); };
+    const NB={style:BorderStyle.NONE,size:0,color:"FFFFFF"}, noB={top:NB,bottom:NB,left:NB,right:NB,insideHorizontal:NB,insideVertical:NB};
+    const capa=[];
+    capa.push(new Paragraph({tabStops:[{type:TabStopType.RIGHT,position:7500}], spacing:{before:300,after:900}, children:[ uI?new ImageRun({data:uI,transformation:{width:150,height:42}}):R(""), new TextRun({text:"\t"}), uE?new ImageRun({data:uE,transformation:{width:150,height:42}}):R("") ]}));
+    capa.push(cc([R("INFRA S.A.",{bold:true,color:NAVY,size:30})],{after:120}));
+    capa.push(cc([R("DIREM - DIRETORIA DE EMPREENDIMENTOS",{bold:true,size:18,color:NAVY})]));
+    capa.push(cc([R("SUGAT – SUPERINTENDÊNCIA DE GESTÃO AMBIENTAL E TERRITORIAL",{bold:true,size:18,color:NAVY})]));
+    capa.push(new Paragraph({alignment:AlignmentType.CENTER, spacing:{after:1000}, border:{bottom:{style:BorderStyle.SINGLE,size:8,color:NAVY,space:4}}, children:[R("GEDAF – GERÊNCIA DE DESAPROPRIAÇÃO E ASSUNTOS FUNDIÁRIOS",{bold:true,size:18,color:NAVY})]}));
+    capa.push(cc([R("RELATÓRIO DE ANÁLISE DE IMPACTO E TRANSPOSIÇÃO DA FAIXA DE DOMÍNIO",{bold:true,color:NAVY,size:38})],{after:240}));
+    capa.push(cc([R("DESP-2",{bold:true,color:"282828",size:26})],{after:600}));
+    capa.push(cc([R((C("ferrovia")||"FERROVIA").toUpperCase(),{size:24})],{after:240}));
+    if(C("trecho")) capa.push(cc([R(_sigla+" (Lote: "+C("trecho")+")",{bold:true,size:24})],{after:500}));
+    capa.push(cc([R("Processo administrativo:",{bold:true,size:22})],{after:60}));
+    capa.push(cc([R("INFRA S.A. CTD "+(C("cadastro")||"___")+" - "+(C("trecho")||"SPS-__")+" – "+_sigla,{size:22})],{after:400}));
+    if(C("proprietario")) capa.push(cc([R("PROPRIETÁRIO: "+C("proprietario"),{size:20})],{after:160}));
+    if(_posseiro) capa.push(cc([R("POSSEIRO: "+_posseiro,{size:20})],{after:160}));
+    if(C("km")) capa.push(cc([R("TRECHO: "+C("km"),{bold:true,size:20})],{after:160}));
+    if(C("contrato")) capa.push(new Paragraph({alignment:AlignmentType.JUSTIFIED, indent:{left:mm(70)}, spacing:{before:900}, children:[R("Contrato nº "+C("contrato")+" – Cujo objeto é a prestação de serviços especializados de engenharia consultiva para a execução das atividades de desapropriação, ocupação temporária ou constituição de servidão administrativa de imóveis, gestão fundiária e regularização de passivos de desapropriação.",{size:15})]}));
+    const faixa=new TableCell({shading:{type:ShadingType.CLEAR,fill:"3C5A82",color:"auto"}, verticalAlign:VerticalAlign.BOTTOM, margins:{top:100,bottom:900,left:160,right:80}, borders:noB,
+      children:[ new Paragraph({alignment:AlignmentType.CENTER, children:[R("DESP-2",{bold:true,color:"FFFFFF",size:28})]}), new Paragraph({alignment:AlignmentType.CENTER, children:[R(dataCapa,{bold:true,color:"FFFFFF",size:26})]}) ]});
+    const corpoCapa=new TableCell({verticalAlign:VerticalAlign.TOP, margins:{top:180,bottom:200,left:300,right:500}, borders:noB, children:capa});
+    const PGW=11906, c0=Math.round(PGW*0.21);
+    const Kcapa=[ new Table({width:{size:PGW,type:WidthType.DXA}, layout:FIX, columnWidths:[c0,PGW-c0], borders:noB,
+      // altura < página: o Word precisa de um parágrafo (quebra de seção) depois da tabela;
+      // com a tabela na altura exata da folha ele vaza e gera uma página em branco
+      rows:[new TableRow({height:(HeightRule?{value:15600,rule:HeightRule.EXACT}:undefined), children:[faixa,corpoCapa]})]}) ];   // 780pt: o Word soma ~46pt; acima disso a quebra de seção vaza p/ pág. 2
+    // cabeçalho/rodapé da capa com altura ~zero (os vazios padrão roubam ~35pt e a capa vazava)
+    const minimo=function(){ return [new Paragraph({spacing:{before:0,after:0,line:20,lineRule:"exact"}, children:[new TextRun({text:"",size:2})]})]; };
+    const capaHeader=new Header({children:minimo()}), capaFooter=new Footer({children:minimo()});
+
+    // ================= CORPO — mesma ordem e conteúdo do PDF =================
+    for(const tp of DESP2_TOPICOS){
+      const label=(tp.num?(tp.num+" "):"")+tp.head;
+      if(tp.level===1) h1(label); else if(tp.level===2) h2(label); else h3(tp.letra||"", tp.head);
+      if(tp.id==="ressalvas_t_cnicas_e_observa"){
+        const rrs=(window.D2_getRessalvas?window.D2_getRessalvas():[]);
+        if(!rrs.length) par("[Sem ressalvas registradas.]");
+        for(let i=0;i<rrs.length;i++){ const rr=rrs[i]; h4("Ressalva "+((i+1)<10?"0":"")+(i+1)); if(rr.texto) bloco(rr.texto);
+          if(rr.img){ const im=await imgAjustada(rr.img,138,120); if(im) K.push(new Paragraph({alignment:AlignmentType.CENTER, spacing:{before:60,after:160}, children:[im]})); } }
+        continue;
+      }
+      bloco(TX(tp.id));
+      if(COMMENT_APPEND[tp.id]){ const c=kf(COMMENT_APPEND[tp.id]); if(c) bloco(c); }
+      for(const fid of (tp.figs||[])) await figura(fid);
+      if(tp.id==="planta_de_localiza_o_das_rea"){
+        marcador("Área de pastagem atingida: "+nOrZero(kf("past"))+" ha");
+        marcador("Área de formação savânica (Caatinga) atingida: "+nOrZero(kf("caat"))+" ha");
+        marcador("Área de Preservação Permanente (APP) atingida: "+nOrZero(kf("app"))+" ha");
+        marcador("Área de Reserva Legal (RL) atingida: "+nOrZero(kf("rl"))+" ha");
+        (window.D2_getAtividades?window.D2_getAtividades():[]).filter(function(a){ return (a.nome||"").trim()||(a.area||"").trim(); })
+          .forEach(function(a){ marcador("Área de "+(a.nome||"—")+" atingida: "+(a.area||"—")+" ha"); });
+      }
+      if(tp.id==="anexo_2_relat_rio_fotogr_fic"){
+        const fts=(window.D2_getFotos?window.D2_getFotos():[]).filter(function(f){ return f && (f.src || f.legenda); });
+        if(!fts.length){ par("[Sem fotos inseridas.]"); }
+        else {
+          const linhas=[];
+          for(let i=0;i<fts.length;i+=2){
+            const cels=[];
+            for(let j=i;j<i+2;j++){
+              const f=fts[j]; const kids=[];
+              if(f){ const im=f.src?imgRun(f.src,76,55):null;
+                if(im) kids.push(new Paragraph({alignment:AlignmentType.CENTER, spacing:{after:40}, children:[im]}));
+                kids.push(new Paragraph({alignment:AlignmentType.CENTER, spacing:{after:160}, children:[R("Foto "+(j+1)+(f.legenda?(" – "+f.legenda):""),{size:17,color:"464646"})]})); }
+              else kids.push(new Paragraph({children:[R("")]}));
+              cels.push(new TableCell({borders:noB, width:{size:50,type:WidthType.PERCENTAGE}, children:kids}));
+            }
+            linhas.push(new TableRow({cantSplit:true, children:cels}));
+          }
+          K.push(new Table({width:{size:CW,type:WidthType.DXA}, layout:FIX, columnWidths:[Math.round(CW/2),CW-Math.round(CW/2)], borders:noB, rows:linhas}));
+        }
+      }
+      if(tp.id==="conclus_o"){
+        const resp=(document.getElementById("d2_resp_sel")||{}).value;
+        if(resp==="antonio" && window.__ASSINATURA_CELITO__){ const im=imgRun(window.__ASSINATURA_CELITO__,55,55*144/1208); if(im) K.push(new Paragraph({alignment:AlignmentType.CENTER, keepNext:true, spacing:{before:240,after:0}, children:[im]})); }
+        K.push(new Paragraph({alignment:AlignmentType.CENTER, keepNext:true, spacing:{after:40}, children:[R("________________________________________")]}));
+        if(C("responsavel")) K.push(new Paragraph({alignment:AlignmentType.CENTER, keepNext:true, spacing:{after:0}, children:[R(C("responsavel"),{bold:true})]}));
+        if(C("crea")) K.push(new Paragraph({alignment:AlignmentType.CENTER, keepNext:true, spacing:{after:0}, children:[R(C("crea"))]}));
+        K.push(new Paragraph({alignment:AlignmentType.CENTER, spacing:{after:200}, children:[R("Responsável Técnico",{size:19,color:"46505F"})]}));
+      }
+    }
+
+    // ================= CABEÇALHO / RODAPÉ (iguais ao PDF) =================
+    const cab=new Table({width:{size:CW,type:WidthType.DXA}, layout:FIX, columnWidths:[Math.round(CW/2),CW-Math.round(CW/2)], borders:noB, rows:[new TableRow({children:[
+      new TableCell({borders:noB, children:[new Paragraph({children: uI?[new ImageRun({data:uI,transformation:{width:100,height:28}})]:[R("")]})]}),
+      new TableCell({borders:noB, children:[new Paragraph({alignment:AlignmentType.RIGHT, children: uE?[new ImageRun({data:uE,transformation:{width:100,height:28}})]:[R("")]})]}) ]})]});
+    const docId="DESP-2 (Análise de Impacto e Transposição): INFRA S.A. CTD-"+C("cadastro")+(C("sei")?(" (SEI nº "+C("sei")+")"):"");
+    const header=new Header({children:[cab, new Paragraph({tabStops:[{type:TabStopType.RIGHT,position:CW}], border:{bottom:{color:"1F6FC0",space:2,style:BorderStyle.SINGLE,size:6}},
+      children:[R(docId,{size:14,color:"5A5A5A"}), new TextRun({text:"\t"}), R("Página | ",{size:14,color:"5A5A5A"}), new TextRun({children:[PageNumber.CURRENT],size:14,color:"5A5A5A",font:FONT})]})]});
+    const END=["Av. Des. Moreira, n° 1300, T. Norte, Conj. 1016/1021, Aldeota, 60.170-002, Fortaleza-CE","Rua Irmã Ambrosina, nº 249, Conj 03 e 04, Centro, 61.760-405, Eusébio-CE","Rua Araguari, nº 358, Conj.1903/1904, Barro Preto, 30.190-110, Belo Horizonte-MG","Rua Des. Mário da Silva Nunes, nº 120, Sala 201, Enseada do Suá, 29.050-240, Vitória-ES","Rua Avertano Rocha, n°192, Campina, 66.023-120, Belém-PA"];
+    const TEL=["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 31) 3253-5500","(+55 27) 3029-5540","(+55 94) 3346-8994"];
+    const footer=new Footer({children:[new Paragraph({border:{top:{color:"1F6FC0",space:2,style:BorderStyle.SINGLE,size:6}}, spacing:{after:0,line:20}, children:[R("",{size:2})]})]
+      .concat(END.map(function(l,i){ return new Paragraph({spacing:{after:0,line:150}, tabStops:[{type:TabStopType.RIGHT,position:CW}], children:[R(l,{size:11,color:"5A6470"}), new TextRun({text:"\t"}), R(TEL[i]+"   comercial@enprol.com.br",{size:11,color:"5A6470"})]}); }))});
+
+    const lista=function(ref,fmt,txt,al,left,hang){ return {reference:ref, levels:[{level:0, format:fmt, text:txt, alignment:al, style:{paragraph:{indent:{left:mm(left),hanging:mm(hang)}}}}]}; };
+    const doc=new Document({
+      creator:"ENPROL", title:"DESP-2 — "+(window.__CTDsuf?window.__CTDsuf():""),
+      styles:{
+        default:{document:{run:{font:FONT,size:22}}},
+        paragraphStyles:[
+          {id:"Heading1",name:"Heading 1",basedOn:"Normal",next:"Normal",quickFormat:true,run:{font:FONT,size:27,bold:true,color:"000000"},paragraph:{spacing:{before:320,after:180},keepNext:true,keepLines:true}},
+          {id:"Heading2",name:"Heading 2",basedOn:"Normal",next:"Normal",quickFormat:true,run:{font:FONT,size:23,bold:true,color:"000000"},paragraph:{spacing:{before:220,after:100},keepNext:true,keepLines:true}},
+          {id:"Heading3",name:"Heading 3",basedOn:"Normal",next:"Normal",quickFormat:true,run:{font:FONT,size:21,bold:true,color:NAVY},paragraph:{spacing:{before:220,after:80},keepNext:true,keepLines:true}},
+          {id:"Heading4",name:"Heading 4",basedOn:"Normal",next:"Normal",quickFormat:true,run:{font:FONT,size:21,bold:true,color:NAVY},paragraph:{spacing:{before:160,after:60},keepNext:true,keepLines:true}}
+        ]
+      },
+      numbering:{config:[
+        lista("d2-marcador", LevelFormat.BULLET, "•", AlignmentType.LEFT, 8, 4),
+        lista("d2-seta", LevelFormat.BULLET, "➢", AlignmentType.LEFT, 10, 5),
+        lista("d2-romano", LevelFormat.UPPER_ROMAN, "%1.", AlignmentType.RIGHT, 13, 5)
+      ]},
+      sections:[
+        { properties:{page:{size:{width:11906,height:16838}, margin:{top:0,bottom:0,left:0,right:0,header:0,footer:0}}}, headers:{default:capaHeader}, footers:{default:capaFooter}, children:Kcapa },
+        { properties:{page:{size:{width:11906,height:16838}, margin:{top:1701,left:1701,bottom:900,right:1134,header:454,footer:820}, pageNumbers:{start:1}}},
+          headers:{default:header}, footers:{default:footer}, children:K }
+      ]
+    });
+    const blob=await Packer.toBlob(doc);
+    const nome="DESP2_"+(window.__CTDsuf?window.__CTDsuf():"CTD 000")+".docx";
+    if(opts.retornar) return {blob:blob, nome:nome};
+    await window.FS_salvar(blob,nome);
   };
 
   window.D2_limpar=function(){
