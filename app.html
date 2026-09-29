@@ -5602,13 +5602,14 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
     <div class="vsub">1.3 Proprietário(a)</div>
     <div class="vrow">
       <div class="vfield grow"><label>O ocupante é o(a) proprietário(a)?</label><select id="fb_ocup_e_prop"><option value="">Selecione</option><option>1 - Sim</option><option>2 - Não</option></select></div>
+      <div class="vfield"><label>Tipo</label><span class="fb-checks" style="display:flex;gap:12px;margin-top:2px"><label style="font-weight:400;cursor:pointer"><input type="radio" name="fb_pf_pj" id="fb_pf_pj_pf" value="PF" checked> PF</label><label style="font-weight:400;cursor:pointer"><input type="radio" name="fb_pf_pj" id="fb_pf_pj_pj" value="PJ"> PJ</label></span></div>
     </div>
     <div class="vrow">
-      <div class="vfield grow"><label>Nome</label><input type="text" id="fb_nome" placeholder="Nome"></div>
-      <div class="vfield"><label>RG</label><input type="text" id="fb_rg" placeholder="RG"></div>
+      <div class="vfield grow"><label>Nome / Razão Social</label><input type="text" id="fb_nome" placeholder="Nome / Razão Social"></div>
+      <div class="vfield fb-campo-pf"><label>RG</label><input type="text" id="fb_rg" placeholder="RG"></div>
       <div class="vfield"><label><select id="fb_cpf_tipo" class="doc-tipo-sel" data-target="fb_cpf"><option value="cpf">CPF</option><option value="cnpj">CNPJ</option></select></label><input type="text" id="fb_cpf" class="mask-cpf" inputmode="numeric" maxlength="14" placeholder="000.000.000-00"></div>
     </div>
-    <div class="vrow">
+    <div class="vrow fb-row-pf">
       <div class="vfield"><label>Estado Civil</label><select id="fb_estcivil"><option value="">Selecione</option><option>SOLTEIRO(A)</option><option>CASADO(A)</option><option>DIVORCIADO(A)</option><option>VIÚVO(A)</option><option>UNIÃO ESTÁVEL</option></select></div>
       <div class="vfield grow"><label>Cônjuge</label><input type="text" id="fb_conjuge" placeholder="Cônjuge"></div>
     </div>
@@ -19804,10 +19805,12 @@ function AV_gerarDescSituacao(){
     K.push(P([R("1.1 Documentos dominiais (SIM/NÃO):",{bold:true,color:NAVY}),R("  "),R(snW("fb_11_dom"),{bold:true}),R("    Quais? "),R(gvW("fb_11_quais"),{bold:true})]));
     K.push(new Paragraph({spacing:{before:60,after:0,line:264},children:[R("1.2 Notificação Proprietário (SIM/NÃO):",{bold:true,color:NAVY}),R("  "),R(snW("fb_12_notif"),{bold:true}),R("    Quais? "),R(gvW("fb_12_quais"),{bold:true})]}));
     K.push(new Paragraph({spacing:{before:60,after:0,line:264},children:[R("1.3 Proprietário(a) (SIM/NÃO):",{bold:true,color:NAVY}),R("  "),R((gvW("fb_nome")?"SIM":""),{bold:true}),R("   "),R("(Se sim, preencher item 1.3.1; se não, item 1.3.2)",{italics:true})]}));
-    rv("1.3.1 Nome:",gvW("fb_nome"),{tab:TW(34)});
-    line2("RG:",gvW("fb_rg"),"CPF:",gvW("fb_cpf"),TW(34),TW(112));
+    var _isPJw = document.getElementById("fb_pf_pj_pj") && document.getElementById("fb_pf_pj_pj").checked;
+    rv(_isPJw ? "1.3.1 Razão Social:" : "1.3.1 Nome:",gvW("fb_nome"),{tab:TW(34)});
+    if(_isPJw){ rv("CNPJ:",gvW("fb_cpf"),{tab:TW(34)}); }
+    else { line2("RG:",gvW("fb_rg"),(document.getElementById("fb_cpf_tipo")&&document.getElementById("fb_cpf_tipo").value==="cnpj"?"CNPJ:":"CPF:"),gvW("fb_cpf"),TW(34),TW(112));
     rv("Estado Civil (Casado, solteiro, viúvo, divorciado ou união estável):",gvW("fb_estcivil"));
-    rv("Cônjuge:",gvW("fb_conjuge"),{tab:TW(34)});
+    rv("Cônjuge:",gvW("fb_conjuge"),{tab:TW(34)}); }
     rv("Endereço:",gvW("fb_endereco"),{tab:TW(34)});
     line2("Município:",gvW("fb_municipio"),"Telefone:",gvW("fb_telefone"),TW(34),TW(112));
     rv("1.3.2 Informante (nome):",gvW("fb_inf_nome"),{tab:TW(44)});
@@ -20123,6 +20126,40 @@ function AV_gerarDescSituacao(){
     }
     ligarEstadoCivilConjuge("fb_estcivil","fb_conjuge");
     ligarEstadoCivilConjuge("fb_ocup_estcivil","fb_ocup_conjuge");
+    // PF / PJ — alterna campos de pessoa física vs jurídica no 1.3 Proprietário
+    (function(){
+      var radios = document.querySelectorAll('input[name="fb_pf_pj"]');
+      var camposPF = document.querySelectorAll('#panel-desp1-vist .fb-campo-pf');
+      var rowsPF   = document.querySelectorAll('#panel-desp1-vist .fb-row-pf');
+      var selTipo  = document.getElementById('fb_cpf_tipo');
+      var inpDoc   = document.getElementById('fb_cpf');
+      function aplicar(){
+        var pj = document.getElementById('fb_pf_pj_pj').checked;
+        camposPF.forEach(function(el){ el.style.display = pj ? 'none' : ''; });
+        rowsPF.forEach(function(el){ el.style.display = pj ? 'none' : ''; });
+        if(pj){
+          var rg = document.getElementById('fb_rg');
+          if(rg){ rg.value = 'n/a'; rg.disabled = true; rg.classList.add('bloqueado'); }
+          var ec = document.getElementById('fb_estcivil');
+          if(ec){ ec.value = ''; ec.disabled = true; ec.classList.add('bloqueado'); }
+          var cj = document.getElementById('fb_conjuge');
+          if(cj){ cj.value = 'n/a'; cj.disabled = true; cj.classList.add('bloqueado'); }
+          if(selTipo) selTipo.value = 'cnpj';
+          if(inpDoc){ inpDoc.dataset.docTipo = 'cnpj'; inpDoc.maxLength = 18; inpDoc.placeholder = '00.000.000/0000-00'; inpDoc.value = ''; }
+        } else {
+          var rg = document.getElementById('fb_rg');
+          if(rg){ if(rg.value==='n/a') rg.value=''; rg.disabled = false; rg.classList.remove('bloqueado'); }
+          var ec = document.getElementById('fb_estcivil');
+          if(ec){ ec.disabled = false; ec.classList.remove('bloqueado'); }
+          var cj = document.getElementById('fb_conjuge');
+          if(cj){ if(cj.value==='n/a') cj.value=''; cj.disabled = false; cj.classList.remove('bloqueado'); }
+          if(selTipo) selTipo.value = 'cpf';
+          if(inpDoc){ inpDoc.dataset.docTipo = 'cpf'; inpDoc.maxLength = 14; inpDoc.placeholder = '000.000.000-00'; inpDoc.value = ''; }
+          ligarEstadoCivilConjuge("fb_estcivil","fb_conjuge");
+        }
+      }
+      radios.forEach(function(r){ r.addEventListener('change', aplicar); });
+    })();
     // 4.8.1 D) Outros → especificar
     const outros = document.getElementById("fb_481_3"); // índice 3 = "Outros"
     const outrosWrap = document.getElementById("fb_481_esp_wrap");
@@ -20494,12 +20531,13 @@ function AV_gerarDescSituacao(){
     y+=2;
     // 1.3 Proprietário(a)
     (function(){ garantir(LH+1); F("bold"); pdf.setFontSize(FS); C(NAVY); const l="1.3 Proprietário(a) (SIM/NÃO):"; pdf.text(l, mL, y); let x=mL+pdf.getTextWidth(l)+3; C(BLK); F("bold"); const s=(/sim/i.test(gv("fb_11_dom"))||gv("fb_nome"))?"SIM":""; pdf.text(s, x, y); x+=pdf.getTextWidth(s||"")+6; F("italic"); C(BLK); pdf.text("(Se sim, preencher item 1.3.1; se não, item 1.3.2)", x, y); y+=LH; })();
-    rv("1.3.1 Nome:", gv("fb_nome"), {navy2:true, valTab:23.5});
-    rv("RG:", gv("fb_rg"), {navy2:true, valTab:23.5});
-    rv((document.getElementById("fb_cpf_tipo")&&document.getElementById("fb_cpf_tipo").value==="cnpj"?"CNPJ:":"CPF:"), gv("fb_cpf"), {navy2:true, valTab:23.5});
+    var _isPJ = document.getElementById("fb_pf_pj_pj") && document.getElementById("fb_pf_pj_pj").checked;
+    rv(_isPJ ? "1.3.1 Razão Social:" : "1.3.1 Nome:", gv("fb_nome"), {navy2:true, valTab:23.5});
+    if(!_isPJ) rv("RG:", gv("fb_rg"), {navy2:true, valTab:23.5});
+    rv(_isPJ ? "CNPJ:" : (document.getElementById("fb_cpf_tipo")&&document.getElementById("fb_cpf_tipo").value==="cnpj"?"CNPJ:":"CPF:"), gv("fb_cpf"), {navy2:true, valTab:23.5});
     rv("Telefone:", gv("fb_telefone"), {navy2:true, valTab:23.5});
-    rv("Estado Civil:", gv("fb_estcivil"), {navy2:true, valTab:23.5});
-    rv("Cônjuge:", gv("fb_conjuge"), {navy2:true, valTab:23.5});
+    if(!_isPJ){ rv("Estado Civil:", gv("fb_estcivil"), {navy2:true, valTab:23.5});
+    rv("Cônjuge:", gv("fb_conjuge"), {navy2:true, valTab:23.5}); }
     rv("Endereço:", gv("fb_endereco"), {navy2:true, valTab:23.5, gapTop:LH});
     rv2("Município:", gv("fb_municipio"), "UF:", gv("fb_uf"), {navy:true, valTab:23.5});
     rv("1.3.2 Informante (nome):", gv("fb_inf_nome"), {navy2:true, valTab:44, gapTop:LH});
@@ -20729,6 +20767,12 @@ function AV_gerarDescSituacao(){
     if(v.length>6) return v.replace(/(\d{3})(\d{3})(\d{1,3})/,"$1.$2.$3");
     if(v.length>3) return v.replace(/(\d{3})(\d{1,3})/,"$1.$2");
     return v; }
+  function mCNPJ(v){ v=(v||"").replace(/\D/g,"").slice(0,14);
+    if(v.length>12) return v.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{1,2})/,"$1.$2.$3/$4-$5");
+    if(v.length>8)  return v.replace(/(\d{2})(\d{3})(\d{3})(\d{1,4})/,"$1.$2.$3/$4");
+    if(v.length>5)  return v.replace(/(\d{2})(\d{3})(\d{1,3})/,"$1.$2.$3");
+    if(v.length>2)  return v.replace(/(\d{2})(\d{1,3})/,"$1.$2");
+    return v; }
   function mTEL(v){ v=(v||"").replace(/\D/g,"").slice(0,11);
     if(v.length>10) return v.replace(/(\d{2})(\d{5})(\d{1,4})/,"($1) $2-$3");
     if(v.length>6) return v.replace(/(\d{2})(\d{4})(\d{1,4})/,"($1) $2-$3");
@@ -20737,7 +20781,7 @@ function AV_gerarDescSituacao(){
   function ligar(){
     document.querySelectorAll("input.mask-cpf").forEach(el=>{
       if(el.dataset.mkc) return; el.dataset.mkc="1";
-      el.addEventListener("input", function(){ this.value=mCPF(this.value); });
+      el.addEventListener("input", function(){ this.value = this.dataset.docTipo==="cnpj" ? mCNPJ(this.value) : mCPF(this.value); });
     });
     document.querySelectorAll("input.mask-tel").forEach(el=>{
       if(el.dataset.mkt) return; el.dataset.mkt="1";
