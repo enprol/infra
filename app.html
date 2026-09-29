@@ -15686,9 +15686,22 @@ function AV_gerarDescSituacao(){
     analisar();
     if(CTX.proj || CTX.fixo){ CTX.km = calcularKm(CTX.proj, CTX.fixo); CTX.chave = chaveG() + "|" + spsAtual(); G.km = CTX.km; }
   }
+  // G pode ter sido analisado ANTES de o P01 gravado chegar: ao abrir o cadastro, o KML da Técnica é
+  // restaurado primeiro (dispara analisar() com extras vazio → P01 = vértice mais ao norte) e a
+  // quilometragem chega depois, assíncrona. Reancorar sobre esse G velho girava (girarConf) os
+  // confrontantes/matrículas/divisas que já tinham sido restaurados na ordem certa — BUG 29/09/2026.
+  // Antes de decidir qualquer giro, G e a quilometragem são refeitos a partir do P01 gravado.
+  function sincronizarG(){
+    var p = extras().p1;
+    if(!G || !p || p.length !== 2) return;
+    if(Math.abs(G.v[0].E - p[0]) < .01 && Math.abs(G.v[0].N - p[1]) < .01) return;
+    analisar();
+    if(G && (CTX.proj || CTX.fixo)){ CTX.km = calcularKm(CTX.proj, CTX.fixo); CTX.chave = chaveG() + "|" + spsAtual(); G.km = CTX.km; }
+  }
   // P01 = vértice do eixo no KM inicial, caminhamento horário (a menos que o usuário tenha escolhido outro)
   function ancorarP1NoEixo(){
     if(!G || extras().p1manual || ST.inverter) return false;
+    sincronizarG(); if(!G) return false;
     var e = eixoIniFim(); if(!e || e.ini == null || e.ini <= 0) return false;
     mudarP1(e.ini, false);
     return true;
@@ -16776,8 +16789,12 @@ function AV_gerarDescSituacao(){
       var p = mm([t[0], t[1]]); if(!noMapa(p, -3)) return;
       var a = ((t[4] % 360) + 360) % 360; if(a > 90 && a <= 270) a -= 180;
       P.texto(p[0], p[1] + 1, String(t[2]), { tam:TAM.estaca, rot:a, align:"center", cor:"#111", halo:true });
+      // caixa ocupada (o rótulo de KM do eixo não pode cair em cima do número da estaca)
+      var we = P.largura(String(t[2]), { tam:TAM.estaca }) + 1, he = TAM.estaca*.3528*.78 + .8;
+      CAIXAS_ESTACA.push(caixaRot(p[0], p[1] + 1 - he/2 + .4, we, he, a));
     });
   }
+  var CAIXAS_ESTACA = [];   // zerada a cada folha (desenharFolha)
   function desenharFixo(P, T, f){
     var mmp = function(l){ return l.map(function(p){ return [T.x(p[0]), T.y(p[1])]; }); };
     f.limites.forEach(function(l){ recortar(mmp(l), 5).forEach(function(r){ tracar(P, r, "fd"); }); });
@@ -17118,6 +17135,55 @@ function AV_gerarDescSituacao(){
     });
   }
 
+  /* KM inicial e final do eixo da ferrovia na área desapropriada: marca no vértice (o mesmo KM do
+     memorial/carimbo — kmDe: manual da tabela ou calculado) + chamada até o rótulo. O rótulo vai
+     FORA do polígono, sem cobrir outros rótulos e, se couber, fora da faixa de domínio (40 m do eixo). */
+  function desenharKmEixo(P, T, pol, caixas){
+    var e = eixoIniFim(); if(!e) return;
+    var alvos = [];
+    [[e.ini, "KM INICIAL"], [e.fim, "KM FINAL"]].forEach(function(a){
+      var i = a[0]; if(i == null || i < 0 || !G.v[i] || alvos.some(function(x){ return x.i === i; })) return;
+      var txt = kmDe(i) || (e.km.v[i] && e.km.v[i].ch != null ? kmTxt(e.km.v[i].ch) : "");
+      if(txt) alvos.push({ i:i, txt:a[1] + " = " + txt.replace(/^\s*KM\s*=?\s*/i, "") });
+    });
+    if(!alvos.length) return;
+    // eixo em mm (para evitar a faixa de domínio)
+    var eixo = [];
+    ((CTX.fixo && CTX.fixo.eixos) || []).forEach(function(l){ for(var k = 1; k < l.length; k++){ var A = [T.x(l[k-1][0]), T.y(l[k-1][1])], B = [T.x(l[k][0]), T.y(l[k][1])]; if(segNoMapa(A, B, 60)) eixo.push([A, B]); } });
+    var meia = 40*T.mmPorM + 1.5;
+    function distEixo(x, y){ var m = Infinity; eixo.forEach(function(sg){ var A = sg[0], B = sg[1], vx = B[0]-A[0], vy = B[1]-A[1], l2 = vx*vx + vy*vy, t = l2 ? ((x-A[0])*vx + (y-A[1])*vy)/l2 : 0; t = t < 0 ? 0 : (t > 1 ? 1 : t); var d = Math.hypot(A[0] + t*vx - x, A[1] + t*vy - y); if(d < m) m = d; }); return m; }
+    var cgx = 0, cgy = 0; pol.forEach(function(p){ cgx += p[0]; cgy += p[1]; }); cgx /= pol.length; cgy /= pol.length;
+    var tam = TAM.dist + .8, hh = tam*.3528*.78, COR_KM = "#b3141b";
+    alvos.forEach(function(a){
+      var q = pol[a.i], w = P.largura(a.txt, { tam:tam, bold:true }) + 1.4, melhor = null;
+      var fora = [q[0] - cgx, q[1] - cgy], fl = Math.hypot(fora[0], fora[1]) || 1; fora = [fora[0]/fl, fora[1]/fl];
+      for(var ai = 0; ai < 24; ai++){
+        var ang = ai*Math.PI/12, dx = Math.cos(ang), dy = Math.sin(ang);
+        for(var d = 7; d <= 90; d += 3){
+          var cx = q[0] + dx*(d + w/2*Math.abs(dx)), cy = q[1] + dy*(d + hh*Math.abs(dy));
+          var bb = [cx - w/2, cy - hh/2 - .5, cx + w/2, cy + hh/2 + .5];
+          if(!noMapa([bb[0], bb[1]], -1.5) || !noMapa([bb[2], bb[3]], -1.5)) continue;
+          if([[bb[0],bb[1]],[bb[2],bb[1]],[bb[0],bb[3]],[bb[2],bb[3]],[cx,cy]].some(function(pt){ return ptEmPoli(pt[0], pt[1], pol); })) continue;
+          if(caixas.some(function(b){ return caixasSeCruzam(bb, b, .5); })) continue;
+          var sobreEstaca = CAIXAS_ESTACA.some(function(b){ return caixasSeCruzam(bb, b, .6); });
+          var atravessa = false; for(var t = .2; t < 1; t += .1){ if(ptEmPoli(q[0] + (cx - q[0])*t, q[1] + (cy - q[1])*t, pol)){ atravessa = true; break; } }
+          if(atravessa) continue;
+          // número de estaca: evitado com força (400), mas nunca deixa o KM sem rótulo
+          var custo = d - (dx*fora[0] + dy*fora[1])*6 + (sobreEstaca ? 400 : 0);
+          if(eixo.length && [[bb[0],bb[1]],[bb[2],bb[1]],[bb[0],bb[3]],[bb[2],bb[3]],[cx,cy]].some(function(pt){ return distEixo(pt[0], pt[1]) < meia; })) custo += 200;
+          if(!melhor || custo < melhor.custo) melhor = { cx:cx, cy:cy, bb:bb, custo:custo };
+        }
+      }
+      P.circ(q[0], q[1], 1.5, { cor:COR_KM, peso:.35, fill:"#fff" });
+      if(!melhor) return;
+      caixas.push(melhor.bb);
+      // chamada até a borda da caixa mais próxima do vértice
+      var ex = Math.max(melhor.bb[0], Math.min(q[0], melhor.bb[2])), ey = Math.max(melhor.bb[1], Math.min(q[1], melhor.bb[3]));
+      P.linha(q[0], q[1], ex, ey, { cor:COR_KM, peso:.3 });
+      P.texto(melhor.cx, melhor.cy + hh/2, a.txt, { tam:tam, bold:true, align:"center", cor:COR_KM, halo:true });
+    });
+  }
+
   /* Cotas da faixa de domínio: 40 m de cada lado do eixo, 80 m no total.
      Desenhadas sobre o eixo visível na janela, perpendicular ao traçado. */
   function desenharCotasFaixa(P, T, fixo){
@@ -17286,6 +17352,7 @@ function AV_gerarDescSituacao(){
     }
 
     /* ---------- janela do mapa ---------- */
+    CAIXAS_ESTACA = [];
     P.ret(MAPA.x, MAPA.y, MAPA.w, MAPA.h, { peso:.3 });
     P.clip(MAPA.x, MAPA.y, MAPA.w, MAPA.h);
     if((op.satelite || op.ortofoto) && op.rasterSat) P.img({ el:op.rasterSatEl, url:op.rasterSat }, MAPA.x, MAPA.y, MAPA.w, MAPA.h);
@@ -17344,6 +17411,7 @@ function AV_gerarDescSituacao(){
       if(op.rotulos) caixasRot = desenharRotulos(P, T, op, pol) || [];
     }
     if(op.confMapa !== false) desenharConfrontantesMapa(P, T, pol, caixasRot, cs);
+    if(op.km) desenharKmEixo(P, T, pol, caixasRot);
     if(op.fixo && op.fixoDados) desenharCotasFaixa(P, T, op.fixoDados);
     P.clipOff();
 
@@ -18087,7 +18155,12 @@ function AV_gerarDescSituacao(){
     var lim = limites();
     h += '<div class="mdp-lim"><b>Limites (calculados pelos azimutes):</b> ' +
       ["N","S","L","O"].map(function(b){ return '<span>' + ({N:"NORTE",S:"SUL",L:"LESTE",O:"OESTE"})[b] + ': ' + esc(lim[b] || "—") + '</span>'; }).join("") + '</div>';
+    // redesenhar a tabela zerava a rolagem interna (.mdp-tab-wrap, max-height 460px) e ela "subia"
+    // até o P01 a cada tipo de divisa escolhido — guarda e devolve a posição (e a da página)
+    var w0 = box.querySelector(".mdp-tab-wrap"), sT = w0 ? w0.scrollTop : 0, sL = w0 ? w0.scrollLeft : 0, pX = window.scrollX, pY = window.scrollY;
     box.innerHTML = h;
+    var w1 = box.querySelector(".mdp-tab-wrap"); if(w1){ w1.scrollTop = sT; w1.scrollLeft = sL; }
+    if(window.scrollX !== pX || window.scrollY !== pY) window.scrollTo(pX, pY);
   }
   function renderMemorial(){
     var box = $("mdp_mem_prev"); if(!box) return;
