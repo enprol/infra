@@ -26297,16 +26297,33 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     rotuloNoPoligono('area',o.areaLabel);
     rotuloNoPoligono('desap',o.desapLabel,'#ffd7d7');
     // entrada/saída do eixo no cadastro — bloco KM/coordenada UTM, FORA do perímetro
+    // Leader puxa texto pro lado oposto ao de entrância: usa direção do eixo (ent→sai)
+    // para separar entrada e saída em lados opostos, com componente perpendicular
+    // afastando do centróide do polígono. Anti-colisão se os blocos ficarem próximos.
     if(o.cruz){
       var cadC=null, cc=(o.camadas||[]).filter(function(c){return c.cam==='desap'||c.cam==='area';})[0];
       if(cc&&cc.geom.polys&&cc.geom.polys.length){ var rg=cc.geom.polys[0],ccx=0,ccy=0; rg.forEach(function(p){ccx+=p[0];ccy+=p[1];}); cadC=PX(ccx/rg.length,ccy/rg.length); }
-      [[o.cruz.ent,o.kmEnt],[o.cruz.sai,o.kmSai]].forEach(function(it){ if(!it[0]) return; var q=PX(it[0][0],it[0][1]), u=d2utm(it[0][0],it[0][1]);
-        var dx=1,dy=0; if(cadC){ dx=q[0]-cadC[0]; dy=q[1]-cadC[1]; var L=Math.hypot(dx,dy)||1; dx/=L; dy/=L; }
-        var off=52, lx2=q[0]+dx*off, ly2=q[1]+dy*off, anchor=(dx<0)?'end':'start';
-        s+='<line x1="'+q[0].toFixed(1)+'" y1="'+q[1].toFixed(1)+'" x2="'+lx2.toFixed(1)+'" y2="'+ly2.toFixed(1)+'" stroke="#ff020c" stroke-width="1.6"/>';
-        s+='<circle cx="'+q[0].toFixed(1)+'" cy="'+q[1].toFixed(1)+'" r="4.5" fill="#fff" stroke="#ff020c" stroke-width="2.2"/>';
-        var lns=['KM= '+(it[1]||'000 + 000,00'),'(PROJETO ATUAL)','E= '+u.E.toFixed(3),'N= '+u.N.toFixed(3)];
-        lns.forEach(function(ln,i){ s+=TH(lx2, ly2-24+i*14, ln, {anchor:anchor,size:10,weight:'700',fill:(i===0?'#ffd7d7':'#ffffff')}); });
+      var _qE=o.cruz.ent?PX(o.cruz.ent[0],o.cruz.ent[1]):null, _qS=o.cruz.sai?PX(o.cruz.sai[0],o.cruz.sai[1]):null;
+      var _usaEixo=(_qE&&_qS&&Math.hypot(_qS[0]-_qE[0],_qS[1]-_qE[1])>20);
+      var _lbls=[];
+      [[o.cruz.ent,o.kmEnt,true],[o.cruz.sai,o.kmSai,false]].forEach(function(it){ if(!it[0]) return; var q=PX(it[0][0],it[0][1]), u=d2utm(it[0][0],it[0][1]);
+        var dx,dy,L;
+        if(_usaEixo){
+          if(it[2]){ dx=_qE[0]-_qS[0]; dy=_qE[1]-_qS[1]; } else { dx=_qS[0]-_qE[0]; dy=_qS[1]-_qE[1]; }
+          L=Math.hypot(dx,dy)||1; dx/=L; dy/=L;
+          if(cadC){ var px=q[0]-cadC[0],py=q[1]-cadC[1],pL=Math.hypot(px,py)||1; px/=pL; py/=pL; dx=dx*.6+px*.4; dy=dy*.6+py*.4; L=Math.hypot(dx,dy)||1; dx/=L; dy/=L; }
+        } else { dx=1; dy=0; if(cadC){ dx=q[0]-cadC[0]; dy=q[1]-cadC[1]; L=Math.hypot(dx,dy)||1; dx/=L; dy/=L; } }
+        var off=72, lx2=q[0]+dx*off, ly2=q[1]+dy*off;
+        if(lx2<mapL+70) lx2=mapL+70; if(lx2>mapR-70) lx2=mapR-70; if(ly2<mapT+40) ly2=mapT+40; if(ly2>mapB-60) ly2=mapB-60;
+        _lbls.push({q:q,u:u,km:it[1],lx:lx2,ly:ly2,dx:dx});
+      });
+      if(_lbls.length===2){ var _dd=Math.hypot(_lbls[1].lx-_lbls[0].lx,_lbls[1].ly-_lbls[0].ly); if(_dd<76){ var _sh=(76-_dd)/2+8; if(_lbls[0].ly<=_lbls[1].ly){_lbls[0].ly-=_sh;_lbls[1].ly+=_sh;}else{_lbls[0].ly+=_sh;_lbls[1].ly-=_sh;} } }
+      _lbls.forEach(function(lb){
+        var anchor=(lb.dx<0)?'end':'start';
+        s+='<line x1="'+lb.q[0].toFixed(1)+'" y1="'+lb.q[1].toFixed(1)+'" x2="'+lb.lx.toFixed(1)+'" y2="'+lb.ly.toFixed(1)+'" stroke="#ff020c" stroke-width="1.6"/>';
+        s+='<circle cx="'+lb.q[0].toFixed(1)+'" cy="'+lb.q[1].toFixed(1)+'" r="4.5" fill="#fff" stroke="#ff020c" stroke-width="2.2"/>';
+        var lns=['KM= '+(lb.km||'000 + 000,00'),'(PROJETO ATUAL)','E= '+lb.u.E.toFixed(3),'N= '+lb.u.N.toFixed(3)];
+        lns.forEach(function(ln,i){ s+=TH(lb.lx, lb.ly-24+i*14, ln, {anchor:anchor,size:10,weight:'700',fill:(i===0?'#ffd7d7':'#ffffff')}); });
       });
     }
     // alfinetes em gota (roteiro de acesso): ponta no ponto, cabeça com a letra
