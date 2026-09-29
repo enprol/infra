@@ -26451,16 +26451,34 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     s+=kv(mapL,'PROCESSO ADMINISTRATIVO',(o.proc||'').split('\n').slice(0,2),cy0+24);
     s+=kv(mapL,'DADOS DA FERROVIA',(o.ferrovia||'').split('\n').slice(0,2),cy0+74);
     // DIREITA: legenda (quebra em colunas quando houver muitos itens; nada sai do quadro)
-    var lx=470, lw=mapR-lx, items=o.legend||[];
+    var lx=470, lw=mapR-lx, todos=o.legend||[];
+    // símbolos em colunas; códigos (SIGEF/CAR, tipo 'txt') em largura total logo abaixo, COMPLETOS:
+    // quebra de linha entre códigos (nunca no meio de um), linhas seguintes alinhadas após o prefixo
+    var items=todos.filter(function(it){ return it.tipo!=='txt'; }), txts=todos.filter(function(it){ return it.tipo==='txt'; });
     var nCols = items.length>6 ? 2 : 1, rowsPerCol = Math.ceil(items.length/nCols) || 1;
-    var colW=(lw-24)/nCols, lrow=18, lh=Math.max(60, 34+rowsPerCol*lrow);
+    var colW=(lw-24)/nCols, lrow=18;
+    var tfs=9, tlh=12, tmax=Math.max(20,Math.floor((lw-28)/(tfs*0.6))), tlin=[];
+    txts.forEach(function(it){
+      var m=/^([^:]{1,12}:\s*)([\s\S]*)$/.exec(it.nome), pre=m?m[1]:'', resto=m?m[2]:it.nome, ind=new Array(pre.length+1).join(' ');
+      var cods=resto.split(/\s*·\s*/).filter(Boolean), ln=pre;
+      cods.forEach(function(c,k){
+        var add=(ln.trim()===pre.trim()?'':' · ')+c;
+        if(ln.length+add.length>tmax && ln.trim()!==pre.trim()){ tlin.push(ln+' ·'); ln=ind+c; }
+        else ln+=add;
+        while(ln.length>tmax){ tlin.push(ln.slice(0,tmax)); ln=ind+ln.slice(tmax); }   // código maior que a linha (raro)
+      });
+      tlin.push(ln);
+    });
+    var ultSimb=cy0+44+(rowsPerCol-1)*lrow, ultBase=tlin.length?(ultSimb+lrow+(tlin.length-1)*tlh):ultSimb;
+    var lh=Math.max(60, ultBase+10-(cy0+8));
+    var svgH=Math.max(940, Math.ceil(cy0+8+lh+10));
     s+='<rect x="'+lx+'" y="'+(cy0+8)+'" width="'+lw+'" height="'+lh+'" fill="#f7f9fb" stroke="#c3ccd4" stroke-width=".8"/>';
     s+='<text x="'+(lx+14)+'" y="'+(cy0+26)+'" font-family="Arial" font-size="9.5" font-weight="700" fill="#4a5a6a" letter-spacing=".6">LEGENDA</text>';
+    tlin.forEach(function(t,i){ s+='<text x="'+(lx+14)+'" y="'+(ultSimb+lrow+i*tlh)+'" font-family="monospace" font-size="'+tfs+'" font-weight="700" fill="#16202b" xml:space="preserve">'+d2esc(t)+'</text>'; });
     var lfs = nCols>1 ? 10 : 11, sww = nCols>1 ? 20 : 26;
     items.forEach(function(it,i){
       var col=Math.floor(i/rowsPerCol), rowi=i%rowsPerCol;
       var sw=lx+14+col*colW, row=cy0+44+rowi*lrow;
-      if(it.tipo==='txt'){ s+='<text x="'+sw+'" y="'+row+'" font-family="monospace" font-size="'+(lfs-1)+'" font-weight="700" fill="#16202b">'+d2esc(it.nome.length>34?it.nome.slice(0,33)+'…':it.nome)+'</text>'; return; }
       if(it.tipo==='pino'){ var px0=sw+sww/2, py0=row+3; s+='<path d="M'+px0+','+py0+' C'+(px0-2)+','+(py0-5)+' '+(px0-6)+','+(py0-8)+' '+(px0-6)+','+(py0-13)+' A6,6 0 1,1 '+(px0+6)+','+(py0-13)+' C'+(px0+6)+','+(py0-8)+' '+(px0+2)+','+(py0-5)+' '+px0+','+py0+' Z" fill="'+it.cor+'" stroke="#7a0a0e" stroke-width=".8"/><circle cx="'+px0+'" cy="'+(py0-13)+'" r="2.6" fill="#fff"/>'; }
       else if(it.tipo==='line'||it.tipo==='faixa'||it.tipo==='drenagem'){ var lw=Math.max(2,Math.min(4,it.peso||3));
         if(d2claro(it.cor)) s+='<line x1="'+sw+'" y1="'+(row-3)+'" x2="'+(sw+sww)+'" y2="'+(row-3)+'" stroke="#3a4652" stroke-width="'+(lw+2)+'"/>';
@@ -26473,13 +26491,15 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     // georref discreta — logo abaixo dos textos do carimbo
     s+='<text x="'+mapL+'" y="'+(cy0+128)+'" font-family="monospace" font-size="9" fill="#8a97a3">SIRGAS 2000 · UTM '+zone+(south?'S':'N')+' · Universal Transversa de Mercator</text>';
     s+='</svg>';
+    // legenda com muitos códigos: a figura cresce só o necessário (viewBox, fundo e filtro)
+    if(svgH>940) s=s.replace('viewBox="0 0 900 940"','viewBox="0 0 900 '+svgH+'"').split('height="940"').join('height="'+svgH+'"');
     return s;
   }
-  // rasteriza SVG -> PNG dataURL
+  // rasteriza SVG -> PNG dataURL (altura lida do viewBox: a legenda pode esticar a figura)
   function d2svg2png(svg,scale){
     return new Promise(function(res,rej){
-      var img=new Image();
-      img.onload=function(){ var c=document.createElement('canvas'); c.width=900*scale; c.height=940*scale; var ctx=c.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height); ctx.drawImage(img,0,0,c.width,c.height); try{ res(c.toDataURL('image/jpeg',0.9)); }catch(e){ rej(e); } };
+      var img=new Image(), mH=/viewBox="0 0 900 (\d+)"/.exec(svg), H=mH?+mH[1]:940;
+      img.onload=function(){ var c=document.createElement('canvas'); c.width=900*scale; c.height=H*scale; var ctx=c.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height); ctx.drawImage(img,0,0,c.width,c.height); try{ res(c.toDataURL('image/jpeg',0.9)); }catch(e){ rej(e); } };
       img.onerror=function(){ rej(new Error('svg')); };
       img.src='data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(svg)));
     });
