@@ -16574,6 +16574,17 @@ function AV_gerarDescSituacao(){
     return [cx - hw, cy - hh, cx + hw, cy + hh];
   }
   function noMapa(p, m){ return p[0] >= MAPA.x - m && p[0] <= MAPA.x + MAPA.w + m && p[1] >= MAPA.y - m && p[1] <= MAPA.y + MAPA.h + m; }
+  // um polígono maior que a janela não tem vértice nenhum dentro dela: compara caixas
+  function caixaCruzaMapa(pts, m){
+    if(!pts || !pts.length) return false;
+    var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for(var i = 0; i < pts.length; i++){
+      var p = pts[i];
+      if(p[0] < x0) x0 = p[0]; if(p[0] > x1) x1 = p[0];
+      if(p[1] < y0) y0 = p[1]; if(p[1] > y1) y1 = p[1];
+    }
+    return !(x1 < MAPA.x - m || x0 > MAPA.x + MAPA.w + m || y1 < MAPA.y - m || y0 > MAPA.y + MAPA.h + m);
+  }
   function segNoMapa(a, b, m){
     return !(Math.max(a[0], b[0]) < MAPA.x - m || Math.min(a[0], b[0]) > MAPA.x + MAPA.w + m ||
              Math.max(a[1], b[1]) < MAPA.y - m || Math.min(a[1], b[1]) > MAPA.y + MAPA.h + m);
@@ -16772,6 +16783,45 @@ function AV_gerarDescSituacao(){
     f.eixos.forEach(function(l){ recortar(mmp(l), 5).forEach(function(r){ tracar(P, r, "eixo"); }); });
   }
 
+  /* ---- APP e Reserva Legal: polígonos do CAR (servidor) + APP estimada
+         (KML enviado em Imóvel › APP estimada) ---- */
+  function geoJsonAneis(gj){
+    var out = [];
+    function poli(cs){ if(cs && cs[0] && cs[0].length >= 3) out.push(cs[0]); }   // só o anel externo
+    (((gj && gj.features) || [])).forEach(function(f){
+      var g = f && f.geometry; if(!g) return;
+      if(g.type === "Polygon") poli(g.coordinates);
+      else if(g.type === "MultiPolygon") (g.coordinates || []).forEach(poli);
+    });
+    return out;
+  }
+  async function carregarAmbientais(limGeo){
+    var bb = [limGeo.lo0, limGeo.la0, limGeo.lo1, limGeo.la1].map(function(v){ return v.toFixed(6); }).join(",");
+    async function pega(url){
+      try{ var r = await fetch(url, { cache:"no-cache" }); if(!r.ok) return []; return geoJsonAneis(await r.json()); }
+      catch(e){ console.warn("planta/CAR:", e.message || e); return []; }
+    }
+    var rl = await pega("/api/mapa/car-rl?bbox=" + bb);
+    var app = await pega("/api/mapa/car-app?bbox=" + bb);
+    var est = [];
+    var txt = gv("imv_kml_app_dados");
+    if(txt) est = aneisDoKml(txt).map(function(a){ return a.pts; });
+    var pu = function(an){ return an.map(function(p){ var u = utm(p[0], p[1], G.fuso); return [u.E, u.N]; }); };
+    return { rl:rl.map(pu), app:app.map(pu), est:est.map(pu) };
+  }
+  function desenharAmbientais(P, T, A){
+    if(!A) return;
+    function mm(an){ return an.map(function(p){ return [T.x(p[0]), T.y(p[1])]; }); }
+    (A.rl || []).forEach(function(an){ var po = mm(an); if(caixaCruzaMapa(po, 40)) preencher(P, [po], "rl"); });
+    (A.app || []).forEach(function(an){ var po = mm(an); if(caixaCruzaMapa(po, 40)) preencher(P, [po], "app"); });
+    // APP estimada: mesma trama da APP, contorno tracejado para distinguir da declarada no CAR
+    (A.est || []).forEach(function(an){
+      var po = mm(an); if(!caixaCruzaMapa(po, 40)) return;
+      hachurar(P, po, 135, 1.7, { cor:CORES.verde, peso:.12 });
+      P.poli(po, { cor:"#1565c0", peso:.35, tracejado:[2,1.4] });
+    });
+  }
+
   /* ---- camadas adicionais (GeoPackage / KML) ---- */
   var CAM = { arquivos:[] };
   function camadasLer(){ try{ var o = JSON.parse(gv("mdp_camadas") || "null"); if(o && o.arquivos) CAM = o; else CAM = { arquivos:[] }; }catch(e){ CAM = { arquivos:[] }; } return CAM; }
@@ -16787,7 +16837,7 @@ function AV_gerarDescSituacao(){
           var mmp = function(l){ return l.map(function(p){ return [T.x(p[0]), T.y(p[1])]; }); };
           if(f.k === "pl"){
             f.c.forEach(function(aneis){
-              var an = aneis.map(mmp); if(!an[0] || !an[0].some(function(p){ return noMapa(p, 60); })) return;
+              var an = aneis.map(mmp); if(!an[0] || !caixaCruzaMapa(an[0], 60)) return;
               if(AREAS[c.tipo]) preencher(P, an, c.tipo);
               else an.forEach(function(r){ tracar(P, r.concat([r[0]]), c.tipo); });
             });
@@ -17071,7 +17121,7 @@ function AV_gerarDescSituacao(){
      Desenhadas sobre o eixo visível na janela, perpendicular ao traçado. */
   function desenharCotasFaixa(P, T, fixo){
     if(!fixo || !fixo.eixos || !fixo.eixos.length) return;
-    var meiaL = 40, totL = 80;                                  // metros
+    var meiaL = 40, totL = 80;                                  // nominal: 40 m por lado, 80 m no total
     var melhor = null;
     fixo.eixos.forEach(function(l){
       for(var i = 0; i + 1 < l.length; i++){
@@ -17085,8 +17135,32 @@ function AV_gerarDescSituacao(){
     var mx = (melhor.A[0]+melhor.B[0])/2, my = (melhor.A[1]+melhor.B[1])/2;
     var dx = melhor.B[0]-melhor.A[0], dy = melhor.B[1]-melhor.A[1], L = melhor.L;
     var nx = -dy/L, ny = dx/L;                                   // perpendicular unitária
-    var r = meiaL*T.mmPorM;                                      // 40 m em mm de folha
-    var P1 = [mx - nx*r, my - ny*r], P2 = [mx + nx*r, my + ny*r];
+
+    // Mede a distância real do eixo até cada limite da faixa: a cota tem de bater
+    // com as linhas desenhadas, não com o nominal. Sem geometria, cai nos 40/80 m.
+    function bateNaFaixa(sinal){
+      var melhorD = 0;
+      (fixo.limites || []).forEach(function(l){
+        for(var i = 0; i + 1 < l.length; i++){
+          var A = [T.x(l[i][0]), T.y(l[i][1])], B = [T.x(l[i+1][0]), T.y(l[i+1][1])];
+          var ex1 = B[0]-A[0], ey1 = B[1]-A[1];
+          var den = ex1*nx + ey1*ny;                             // corta a perpendicular?
+          if(Math.abs(den) < 1e-6) continue;
+          var t = ((mx - A[0])*nx + (my - A[1])*ny)/den;
+          if(t < 0 || t > 1) continue;
+          var px = A[0] + ex1*t, py = A[1] + ey1*t;
+          var d = (px - mx)*nx + (py - my)*ny;
+          if(d*sinal <= .3) continue;
+          d = Math.abs(d);
+          if(!melhorD || d < melhorD) melhorD = d;               // o limite mais próximo do eixo
+        }
+      });
+      return melhorD;
+    }
+    var rNom = meiaL*T.mmPorM;
+    var rA = bateNaFaixa(-1) || rNom, rB = bateNaFaixa(1) || rNom;
+    var mA = rA/T.mmPorM, mB = rB/T.mmPorM;
+    var P1 = [mx - nx*rA, my - ny*rA], P2 = [mx + nx*rB, my + ny*rB];
     if(!noMapa(P1, -2) || !noMapa(P2, -2)) return;
     var COTA = "#0a5c86", ext = 2.6;
     function tick(p){ P.linha(p[0] - dx/L*ext, p[1] - dy/L*ext, p[0] + dx/L*ext, p[1] + dy/L*ext, { cor:COTA, peso:.25 }); }
@@ -17097,12 +17171,13 @@ function AV_gerarDescSituacao(){
     function rotulo(px, py, txt){
       P.texto(px - up[0]*1.3, py - up[1]*1.3, txt, { tam:TAM.cota, rot:ang, align:"center", cor:COTA, bold:true, halo:true });
     }
-    rotulo((P1[0]+mx)/2, (P1[1]+my)/2, br(meiaL,2) + " m");
-    rotulo((P2[0]+mx)/2, (P2[1]+my)/2, br(meiaL,2) + " m");
-    // cota total, deslocada para fora da linha de cota (longe do limite da faixa)
-    var ox = nx*(r + 8), oy = ny*(r + 8);
+    rotulo((P1[0]+mx)/2, (P1[1]+my)/2, br(mA,2) + " m");         // eixo → limite, de cada lado
+    rotulo((P2[0]+mx)/2, (P2[1]+my)/2, br(mB,2) + " m");
+    // cota total da faixa, fora da linha de cota
+    var rMax = Math.max(rA, rB), sg = rB >= rA ? 1 : -1;
+    var ox = nx*(rMax + 8)*sg, oy = ny*(rMax + 8)*sg;
     if(noMapa([mx + ox, my + oy], -2))
-      P.texto(mx + ox, my + oy, "FAIXA DE DOMÍNIO " + br(totL,2) + " m", { tam:TAM.cota, rot:ang, align:"center", cor:COTA, bold:true, halo:true });
+      P.texto(mx + ox, my + oy, "FAIXA DE DOMÍNIO " + br(mA + mB, 2) + " m", { tam:TAM.cota, rot:ang, align:"center", cor:COTA, bold:true, halo:true });
   }
 
   /* ---- grade de coordenadas: um bloco de linhas em qualquer retângulo ----
@@ -17213,6 +17288,7 @@ function AV_gerarDescSituacao(){
     P.ret(MAPA.x, MAPA.y, MAPA.w, MAPA.h, { peso:.3 });
     P.clip(MAPA.x, MAPA.y, MAPA.w, MAPA.h);
     if((op.satelite || op.ortofoto) && op.rasterSat) P.img({ el:op.rasterSatEl, url:op.rasterSat }, MAPA.x, MAPA.y, MAPA.w, MAPA.h);
+    if(op.ambiental) desenharAmbientais(P, T, op.ambientais);
     if(op.projeto && op.projGrupo) desenharProjeto(P, T, op.projGrupo, op.limGeo);
     if(op.fixo && op.fixoDados) desenharFixo(P, T, op.fixoDados);
     // estaqueamento acompanha o eixo: aparece se "Projeto revisado" OU "Faixa e eixo" estiver ligado
@@ -17359,6 +17435,17 @@ function AV_gerarDescSituacao(){
       P.linha(x + w/2, cy - 3, x + w/2, cy + 3, { cor:CORES.vermelho, peso:.4 });
     } else tracar(P, [[x, cy], [x + w, cy]], tipo);
   }
+  /* quebra o texto em linhas que cabem na largura (por palavra) */
+  function quebrar(P, txt, maxW, o){
+    var pal = String(txt == null ? "" : txt).split(/\s+/).filter(Boolean), out = [], cur = "";
+    pal.forEach(function(p){
+      var t = cur ? (cur + " " + p) : p;
+      if(cur && P.largura(t, o) > maxW){ out.push(cur); cur = p; } else cur = t;
+    });
+    if(cur) out.push(cur);
+    return out.length ? out : [""];
+  }
+
   /* reduz o corpo até o texto caber (nomes não podem sair cortados);
      só corta se nem no corpo mínimo couber */
   function caber(P, txt, maxW, tam, bold, minTam){
@@ -17404,37 +17491,51 @@ function AV_gerarDescSituacao(){
     // porque a data é a da própria assinatura.
     var c1 = x + 66*KL, c2 = c1 + 84*KL, c3 = c2 + 68*KL;
     [c1, c2, c3].forEach(function(cx){ P.linha(cx, y, cx, y + h, { peso:.25 }); });
+    var hcab = 6.6;                                   // altura do cabeçalho, igual em todas as colunas
     function tit(tx, ty, t){ P.texto(tx + 1.8, ty + 4.4, t, { tam:6.9, bold:true }); }
 
-    /* OBSERVAÇÃO — observações livres + benfeitorias numeradas com quantidade */
+    /* OBSERVAÇÃO — observações livres + benfeitorias numeradas com quantidade.
+       O texto quebra em várias linhas; com muitos itens o corpo diminui até caber. */
     tit(x, y, "OBSERVAÇÃO:");
-    var wObs = c1 - x - 3.6, oy = y + 10.4;
+    P.linha(x, y + hcab, c1, y + hcab, { peso:.25 });
+    var wObs = c1 - x - 3.6, oyIni = y + hcab + 4.2;
     var itens = (ex.obs || []).filter(Boolean).map(function(t){ return { desc:t }; }).concat(obsBenfeitorias());
-    var fimObs = y + h - 17.5*V, cabem = Math.max(0, Math.floor((fimObs - oy)/4.9));
-    itens.slice(0, cabem).forEach(function(o, i){
-      P.ret(x + 1.8, oy - 2.9, 4.6, 3.9, { peso:.12 });
-      P.texto(x + 4.1, oy, String(i+1).padStart(2,"0"), { tam:5.1, align:"center" });
-      var t = o.desc + (o.qtd ? ("  —  " + o.qtd + (o.unid ? " " + o.unid : "")) : "");
-      P.texto(x + 7.8, oy, cortar(P, t, wObs - 7.8, { tam:6.15 }), { tam:6.15 });
-      oy += 4.9;
+    var rodape = 14.6*V, fimObs = y + h - rodape;
+    var oTam = 6.15, oLin = [], oLH = 0;
+    for(;;){
+      oLH = oTam*.3528*1.26;
+      oLin = itens.map(function(o){
+        var t = o.desc + (o.qtd ? ("  —  " + o.qtd + (o.unid ? " " + o.unid : "")) : "");
+        return quebrar(P, t, wObs - 7.8, { tam:oTam });
+      });
+      var alt = oLin.reduce(function(a, l){ return a + l.length*oLH + oLH*.35; }, 0);
+      if(oTam <= 3.6 || oyIni + alt <= fimObs) break;
+      oTam -= .15;
+    }
+    var oy = oyIni;
+    oLin.forEach(function(ls, i){
+      if(oy + ls.length*oLH > fimObs) return;
+      P.ret(x + 1.8, oy - oLH*.72, 4.6, oLH*.98, { peso:.12 });
+      P.texto(x + 4.1, oy, String(i+1).padStart(2,"0"), { tam:Math.min(5.1, oTam*.85), align:"center" });
+      ls.forEach(function(t, k){ P.texto(x + 7.8, oy + k*oLH, t, { tam:oTam }); });
+      oy += ls.length*oLH + oLH*.35;
     });
-    if(itens.length > cabem)
-      P.texto(x + 7.8, oy, "(+ " + (itens.length - cabem) + " item(ns) — ver memorial)", { tam:5.4, cor:"#5a6b7c" });
-    oy = y + h - 16.2*V;
+    oy = y + h - rodape + 3.4;
     [["ÁREA DA RESERVA LEGAL:", (ex.reserva || "0,0000") + " ha"],
      ["ÁREA DE APP:", (ex.app || "0,0000") + " ha"],
      ["REFERÊNCIA BASE DO CAR:", ex.car_ref || ""]].forEach(function(r){
-      P.texto(x + 1.8, oy, r[0], { tam:6.15 });
-      P.texto(c1 - 1.8, oy, r[1], { tam:6.15, align:"right" });
-      oy += 5.2*V;
+      P.texto(x + 1.8, oy, r[0], { tam:5.6 });
+      P.texto(c1 - 1.8, oy, r[1], { tam:5.6, align:"right" });
+      oy += 3.8*V;                                    // campos mais juntos, como pedido
     });
 
     /* LEGENDA — símbolos e textos como no desenho aprovado (posições do DXF, reescaladas) */
     tit(c1, y, "LEGENDA:");
-    var fy = h/59, fx = (c2 - c1)/66.3, legT = Math.min(5.85, 3.9*Math.max(1, h/56)), legG = 1.9*(h/56);
-    var XY = function(dy){ return y + (69.5 - dy)*fy; }, XX = function(dx){ return c1 + (dx + 100.3)*fx; };
-    P.linha(c1, XY(65.1), c2, XY(65.1), { peso:.25 });
-    P.linha(XX(-70.2), XY(65.1), XX(-70.2), y + h, { peso:.25 });
+    var hLeg = h - hcab, fy = hLeg/56.5, fx = (c2 - c1)/66.3;
+    var legT = Math.min(5.85, 3.9*Math.max(1, hLeg/53)), legG = 1.9*(hLeg/53);
+    var XY = function(dy){ return y + hcab + (65.1 - dy)*fy; }, XX = function(dx){ return c1 + (dx + 100.3)*fx; };
+    P.linha(c1, y + hcab, c2, y + hcab, { peso:.25 });
+    P.linha(XX(-70.2), y + hcab, XX(-70.2), y + h, { peso:.25 });
     LEG1.forEach(function(it){
       amostraLegenda(P, it[0], XX(-97), XY(it[2]), 8.4*fx);
       var n = it[1].length, t0 = XY(it[2]) - (n - 1)*legG/2 + legG*.26;
@@ -17448,7 +17549,6 @@ function AV_gerarDescSituacao(){
 
     /* RESPONSÁVEL + DATA — um quadro só: cada assinatura leva a sua própria data */
     var cd = c3 - 22*KL;                              // divisória da sub-coluna de datas
-    var hcab = 6.6;
     tit(c2, y, "RESPONSÁVEL");
     P.texto(cd + 1.8, y + 4.4, "DATA", { tam:6.9, bold:true });
     P.linha(c2, y + hcab, c3, y + hcab, { peso:.25 });
@@ -17479,48 +17579,56 @@ function AV_gerarDescSituacao(){
     P.texto(tm, y + 19*V, ex.ferrovia_tit || "FERROVIA TRANSNORDESTINA - EF - 232", { tam:10, align:"center" });
     P.linha(tx, y + 22*V, x + w, y + 22*V, { peso:.25 });
 
+    // Grade de dados na disposição do carimbo aprovado: três faixas com células
+    // de largura fixa e divisórias verticais (rótulo em cima, valor embaixo).
     var seg = ex.segmento || ((op && op.km) ? ("KM=" + op.km.txt + " = " + br(op.km.ext,0) + "m") : "");
-    var campos = [
-      ["Trecho:", ex.trecho || ""],
-      ["Município:", (c.municipio ? (c.municipio[0] + c.municipio.slice(1).toLowerCase()) : "") + (c.uf ? " - " + c.uf : "")],
-      ["Processo:", "CTD-" + (c.ctd || "")],
-      ["Lote:", "SPS-" + (c.lote || "")],
-      ["Segmento:", seg],
-      ["Área Total da Propriedade:", ex.area_total_prop || c.areaTotal || ""],
-      ["Área Total a Desapropriar:", ex.area_total_desap || ""],
-      ["Área da Parcela/Lote:", ex.area_parcela || c.areaTotal || ""],
-      ["Área a Desapropriar:", br(G.area_ha,4) + " ha"],
-      ["Área Remanescente:", ex.area_remanescente || ""],
-      ["Perímetro:", br(G.perim,2) + " m"],
-      ["Propriedade:", c.denominacao || ""],
-      ["Matrícula:", c.matricula || ""],
-      ["Datum:", "SIRGAS 2000 UTM " + G.fuso + "S"],
-      ["Escala:", "1/" + br(T.esc,0)],
-      ["Data:", ex.data || ""],
-      ["Folha:", pg.n + "/" + pg.total],
-      ["Rev:", ex.rev || "0"],
-      ["Expropriado(a):", c.expropriado || ""]
+    var mun = (c.municipio ? (c.municipio[0] + c.municipio.slice(1).toLowerCase()) : "") + (c.uf ? " - " + c.uf : "");
+    var faixas = [
+      { p:1.00, cel:[
+        { f:.42, l:"Trecho:", v:ex.trecho || "" },
+        { f:.13, l:"Município:", v:mun },
+        { f:.10, l:"Processo:", v:"CTD-" + (c.ctd || "") },
+        { f:.08, l:"Lote:", v:"SPS-" + (c.lote || "") },
+        { f:.27, l:"Segmento:", v:seg } ] },
+      { p:1.10, cel:[
+        { f:.20, l:"Área Total da Propriedade\nMatrícula:", v:ex.area_total_prop || c.areaTotal || "" },
+        { f:.16, l:"Área Total a Desapropriar:", v:ex.area_total_desap || "" },
+        { f:.17, l:"Área Total da Propriedade\nParcela/Lote:", v:ex.area_parcela || "" },
+        { f:.16, l:"Área a Desapropriar:\nParcela/Lote:", v:br(G.area_ha,4) + " ha" },
+        { f:.19, l:"Área Remanescente da\nPropriedade Parcela/Lote:", v:ex.area_remanescente || "" },
+        { f:.12, l:"Perímetro:", v:br(G.perim,2) + " m" } ] },
+      { p:1.55, cel:[
+        { f:.42, dupla:[ { l:"Propriedade:", v:c.denominacao || "" },
+                         { l:c.posseiro ? "Posseiro(a):" : "Expropriado(a):", v:c.posseiro || c.expropriado || "" } ] },
+        { f:.11, l:"Matrícula:", v:c.matricula || "" },
+        { f:.20, l:"Datum:", v:"SIRGAS 2000 UTM " + G.fuso + "S" },
+        { f:.09, l:"Escala:", v:"1/" + br(T.esc,0) },
+        { f:.09, l:"Data:", v:ex.data || "" },
+        { f:.05, l:"Folha:", v:pg.n + "/" + pg.total },
+        { f:.04, l:"Rev:", v:ex.rev || "0" } ] }
     ];
-    if(c.posseiro) campos.push(["Posseiro(a):", c.posseiro]);
-    var TL = 5.85, TV = 6.45, gut = 5.5, disp = tw - 4, linhasD = [], atual = [], usado = 0;
-    campos.forEach(function(f){
-      var v = cortar(P, f[1], disp - gut, { tam:TV, bold:true });
-      var wq = Math.min(disp, Math.max(P.largura(f[0], { tam:TL }), P.largura(v, { tam:TV, bold:true })) + gut);
-      if(usado + wq > disp && atual.length){ linhasD.push(atual); atual = []; usado = 0; }
-      atual.push({ l:f[0], v:v, w:wq }); usado += wq;
-    });
-    if(atual.length) linhasD.push(atual);
-    var dy0 = y + 25.4*V, dispH = y + h - 1.8 - dy0;
-    var passoD = Math.min(11.5*V, Math.max(6.8, dispH/Math.max(1, linhasD.length)));
-    dy0 += Math.max(0, (dispH - passoD*linhasD.length)/2);        // centraliza a sobra nos formatos grandes
-    linhasD.forEach(function(ln, i){
-      var cx = tx + 2, yy = dy0 + i*passoD;
-      ln.forEach(function(f){
-        P.texto(cx, yy, f.l, { tam:TL, cor:"#4a5a6a" });
-        P.texto(cx, yy + passoD*.45, f.v, { tam:TV, bold:true });
-        cx += f.w;
+    var TL = 5.6, TV = 6.45;
+    var dy0 = y + 23.2*V, dispH = y + h - 1 - dy0;
+    var somaP = faixas.reduce(function(a, r){ return a + r.p; }, 0), yy = dy0;
+    function celula(cel, cx, cw, cy, ch){
+      var ls = String(cel.l).split("\n"), tl = ls.length > 1 ? 4.9 : TL, gl = tl*.3528*1.3;
+      ls.forEach(function(t, k){ P.texto(cx + 1.8, cy + 2.8 + k*gl, cortar(P, t, cw - 3, { tam:tl }), { tam:tl, cor:"#4a5a6a" }); });
+      var vv = caber(P, cel.v, cw - 6.4, TV, true, 4.2);
+      // valor logo abaixo do rótulo, não no pé da célula
+      var vy = Math.min(cy + ch - 1.4, cy + 2.8 + ls.length*gl + TV*.3528*.95);
+      P.texto(cx + 4.4, vy, vv.txt, { tam:vv.tam, bold:true });
+    }
+    faixas.forEach(function(row, ri){
+      var hr = dispH*row.p/somaP, cx = tx;
+      row.cel.forEach(function(cel, ci){
+        var cw = tw*cel.f;
+        if(ci) P.linha(cx, yy, cx, yy + hr, { cor:"#9aa7b5", peso:.1 });
+        if(cel.dupla) cel.dupla.forEach(function(d, k){ celula(d, cx, cw, yy + k*hr/2, hr/2); });
+        else celula(cel, cx, cw, yy, hr);
+        cx += cw;
       });
-      if(i < linhasD.length - 1) P.linha(tx, yy + passoD - 2.4, x + w, yy + passoD - 2.4, { cor:"#9aa7b5", peso:.1 });
+      yy += hr;
+      if(ri < faixas.length - 1) P.linha(tx, yy, x + w, yy, { cor:"#9aa7b5", peso:.1 });
     });
   }
 
@@ -17531,11 +17639,13 @@ function AV_gerarDescSituacao(){
   /* =======================================================================
      PRÉ-VISUALIZAÇÃO NO PAINEL + JANELA DA PLANTA + PDF A3
      ======================================================================= */
-  var OPC = { satelite:true, ortofoto:false, projeto:true, fixo:true, extras:true, malha:true, vertices:true, rotulos:true, medidas:true, confMapa:true, escala:0, formato:"a3", folha:0 };
+  var OPC = { satelite:true, ortofoto:false, projeto:true, fixo:true, extras:true, ambiental:true, malha:true, vertices:true, rotulos:true, medidas:true, confMapa:true, escala:0, formato:"a3", folha:0 };
   var CACHE_SAT = { chave:"", url:null };
   var BARRA = [["satelite","Satélite","Imagem de satélite (Esri World Imagery)"], ["ortofoto","Ortofoto","Recorte da ortofoto do acervo (servidor) — precisa do GDAL com driver ECW"],
                ["projeto","Projeto revisado","Camadas do projeto revisado (aterro, corte, ferrovia, rodovia, estacas…)"], ["fixo","Faixa e eixo","Faixa de domínio (verde) e eixo (laranja) do SPS, com as cotas de 40/80 m"],
-               ["extras","Camadas extras","Camadas enviadas em GeoPackage/KML"], ["malha","Malha UTM","Malha de coordenadas"], ["medidas","Medidas","Distâncias sobre os lados"],
+               ["extras","Camadas extras","Camadas enviadas em GeoPackage/KML"],
+               ["ambiental","APP e reserva legal","Reserva legal e APP do CAR, mais a APP estimada enviada em Imóvel"],
+               ["malha","Malha UTM","Malha de coordenadas"], ["medidas","Medidas","Distâncias sobre os lados"],
                ["confMapa","Confrontantes","Nome do confrontante ao longo do perímetro"]];
   function barraHtml(){
     return BARRA.map(function(b){ return '<label class="mdp-chk" title="' + esc(b[2]) + '"><input type="checkbox" data-opc="' + b[0] + '"' + (OPC[b[0]] ? " checked" : "") + '> ' + b[1] + '</label>'; }).join("") +
@@ -17624,6 +17734,10 @@ function AV_gerarDescSituacao(){
     op.fixoDados = op.fixo ? CTX.fixo : null;
     op.km = kmAtual();
     var lg = await carregarLogos(); op.logoI = lg.i; op.logoE = lg.e;
+    if(op.ambiental){
+      if(aviso) aviso("Buscando APP e reserva legal…");
+      op.ambientais = await carregarAmbientais(op.limGeo);
+    }
     if(op.ortofoto){
       if(aviso) aviso("Pedindo o recorte da ortofoto ao servidor…");
       var sps = spsAtual() || "04";
@@ -17795,10 +17909,10 @@ function AV_gerarDescSituacao(){
     ["ferrovia_tit","Ferrovia (3ª linha do título)","text","FERROVIA TRANSNORDESTINA - EF - 232"],
     ["trecho","Trecho","text","Salgueiro/PE, km 348+956,000 AO km 402+384,698 - Suape/PE"],
     ["segmento","Segmento","text","KM=227+574,41 ao KM=227+872,41 = 298m"],
-    ["area_total_prop","Área total da propriedade","text","0,0000 ha"],
+    ["area_total_prop","Área total da propriedade (matrícula)","text","0,0000 ha"],
     ["area_total_desap","Área total a desapropriar","text","0,0000 ha"],
-    ["area_parcela","Área total da parcela/lote","text","0,0000 ha"],
-    ["area_remanescente","Área remanescente","text","0,0000 ha"],
+    ["area_parcela","Área total da propriedade (parcela/lote)","text","0,0000 ha"],
+    ["area_remanescente","Área remanescente da propriedade (parcela/lote)","text","0,0000 ha"],
     ["desenhista","Desenhista","text",""],
     ["aprovacao","Aprovação","text",""],
     ["data","Data","text","dd/mm/aaaa"],
