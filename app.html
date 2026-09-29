@@ -15497,21 +15497,72 @@ function AV_gerarDescSituacao(){
     el.value = JSON.stringify(o);
     el.dispatchEvent(new Event("input", {bubbles:true}));
   }
-  // confrontantes/KM por segmento: {"<idx>": {c:"nome", km:"227+872,41"}}.
-  // Com várias poligonais, cada área extra guarda os seus em "areaN" — a área 0
-  // continua na raiz, para os cadastros já gravados seguirem lendo igual.
+  /* Confrontante / matrícula / tipo de divisa / KM da tabela — GUARDADOS PELA COORDENADA (29/09/2026).
+     Antes eram guardados pelo NÚMERO do trecho ("0" = P01→P02...). Como o P01 é escolhido pelo app
+     (vértice do eixo no KM inicial), qualquer mudança/recálculo do P01 deslocava a numeração e os dados
+     tinham de ser "girados" — um giro fora de hora pôs a cerca do 006A em outro trecho. Agora:
+       "s:E1,N1|E2,N2" → {c, d, m} do TRECHO entre esses dois vértices (sem ordem: vale nos dois sentidos)
+       "v:E,N"         → {km} do VÉRTICE
+     e "_v":2 marca o formato. O P01 passa a ser só um nome: trocá-lo não mexe em dado nenhum.
+     conf()/setConf() continuam falando "por índice" com o resto do módulo (tabela, planta, memorial,
+     DRL); a conversão para coordenada acontece só aqui dentro. Formato antigo (por índice) é lido pela
+     numeração do P01 gravado e convertido no primeiro salvamento. Várias poligonais: "areaN" como antes. */
+  var CONF_V = 2;
   function confRaiz(){
     var o = {};
     try{ o = JSON.parse(gv("mdp_confront") || "{}") || {}; }catch(e){}
     return o;
   }
-  function conf(){
+  function confBruto(){
     var r = confRaiz();
     if(ST.area) return r["area" + ST.area] || {};
     var o = {}; Object.keys(r).forEach(function(k){ if(!/^area\d+$/.test(k)) o[k] = r[k]; });
     return o;
   }
-  function setConf(o){
+  function kPt(p){ return p.E.toFixed(3) + "," + p.N.toFixed(3); }
+  function kSeg(a, b){ var x = kPt(a), y = kPt(b); return "s:" + (x < y ? x + "|" + y : y + "|" + x); }
+  function confLegado(o){ return o && o._v !== CONF_V && Object.keys(o).some(function(k){ return /^\d+$/.test(k); }); }
+  // procura a chave exata; se o KML foi relido com arredondamento diferente, aceita vértices a menos de 5 cm
+  function confAchar(o, chave){
+    if(o[chave]) return o[chave];
+    var pt = function(s){ var q = s.split(","); return [+q[0], +q[1]]; };
+    var perto = function(a, b){ a = pt(a); b = pt(b); return Math.abs(a[0]-b[0]) < .05 && Math.abs(a[1]-b[1]) < .05; };
+    var tipo = chave.slice(0, 2), corpo = chave.slice(2);
+    for(var k in o){
+      if(k.slice(0, 2) !== tipo) continue;
+      var c2 = k.slice(2);
+      if(tipo === "v:"){ if(perto(corpo, c2)) return o[k]; continue; }
+      var A = corpo.split("|"), B = c2.split("|");
+      if((perto(A[0], B[0]) && perto(A[1], B[1])) || (perto(A[0], B[1]) && perto(A[1], B[0]))) return o[k];
+    }
+    return null;
+  }
+  // índice (na ordem atual de G) → coordenadas
+  function confParaCoord(idx){
+    var out = { _v:CONF_V }; if(!G) return out;
+    var n = G.v.length;
+    Object.keys(idx || {}).forEach(function(k){
+      if(!/^\d+$/.test(k)) return;
+      var i = +k, d = idx[k] || {}; if(i >= n) return;
+      var seg = {}; ["c","d","m"].forEach(function(f){ if(d[f] != null && String(d[f]) !== "") seg[f] = d[f]; });
+      if(Object.keys(seg).length) out[kSeg(G.v[i], G.v[(i+1)%n])] = seg;
+      if(d.km != null && String(d.km).trim() !== "") out["v:" + kPt(G.v[i])] = { km:d.km };
+    });
+    return out;
+  }
+  function conf(){
+    var o = confBruto();
+    if(confLegado(o)){ if(G) sincronizarG(); return o; }   // formato antigo: numeração do P01 gravado
+    if(!G) return {};
+    var n = G.v.length, idx = {};
+    for(var i = 0; i < n; i++){
+      var s = confAchar(o, kSeg(G.v[i], G.v[(i+1)%n])), v = confAchar(o, "v:" + kPt(G.v[i]));
+      if(s || (v && v.km != null)) idx[i] = Object.assign({}, s || {}, (v && v.km != null) ? { km:v.km } : {});
+    }
+    return idx;
+  }
+  function setConf(idx){ gravarConfBruto(confParaCoord(idx)); }
+  function gravarConfBruto(o){
     var r = confRaiz(), novo;
     if(ST.area){ r["area" + ST.area] = o; novo = r; }
     else {
@@ -15671,19 +15722,18 @@ function AV_gerarDescSituacao(){
   }
   function kmAuto(i){ var e = eixoIniFim(); return (e && (i === e.ini || i === e.fim) && e.km.v[i].ch != null) ? kmTxt(e.km.v[i].ch) : ""; }
   function kmDe(i){ return kmManual(i) || kmAuto(i); }
-  // os dados da tabela ficam por POSIÇÃO (trecho k / vértice k): ao trocar o P01 eles giram junto,
-  // para cada confrontante/divisa/KM continuar no mesmo trecho físico
-  function girarConf(s, n){
-    if(!s) return;
-    var c = conf(), o = {};
-    Object.keys(c).forEach(function(k){ var i = parseInt(k, 10); if(isNaN(i)){ o[k] = c[k]; return; } o[((i - s) % n + n) % n] = c[k]; });
-    setConf(o);
+  // Os dados da tabela são guardados pela coordenada (ver conf()): trocar o P01 NÃO gira nada.
+  // Só um cadastro ainda no formato antigo (por número de trecho) é convertido aqui, ANTES de o P01
+  // mudar — com a numeração do P01 atual, que é a do dado gravado.
+  function migrarConf(){
+    var o = confBruto(); if(!confLegado(o) || !G) return;
+    sincronizarG(); gravarConfBruto(confParaCoord(o));
   }
   function mudarP1(s, manual){
     if(!G) return;
     var n = G.v.length; s = ((s % n) + n) % n;
-    var p = G.v[s];
-    girarConf(s, n);
+    var p = G.v[s];            // coordenada do novo P01 (vale mesmo se a migração refizer G)
+    migrarConf();
     setExtra("p1", [+p.E.toFixed(3), +p.N.toFixed(3)]);
     setExtra("p1manual", !!manual);
     analisar();
