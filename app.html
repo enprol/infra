@@ -26296,16 +26296,89 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     function rotuloNoPoligono(cam,label,cor){ if(!label) return; var ac=(o.camadas||[]).filter(function(c){return c.cam===cam;})[0]; if(!ac||!ac.geom.polys||!ac.geom.polys.length) return; var ring=ac.geom.polys[0],cx=0,cy=0; ring.forEach(function(p){cx+=p[0];cy+=p[1];}); cx/=ring.length; cy/=ring.length; var qc=PX(cx,cy); var ls=String(label).split('\n').slice(0,3); ls.forEach(function(ln,i){ s+=TH(qc[0],qc[1]+(i-(ls.length-1)/2)*18,ln,{size:15,weight:'700',fill:cor||'#fff'}); }); }
     rotuloNoPoligono('area',o.areaLabel);
     rotuloNoPoligono('desap',o.desapLabel,'#ffd7d7');
-    // entrada/saída do eixo no cadastro — bloco KM/coordenada UTM, FORA do perímetro
-    // Leader puxa texto pro lado oposto ao de entrância: usa direção do eixo (ent→sai)
-    // para separar entrada e saída em lados opostos, com componente perpendicular
-    // afastando do centróide do polígono. Anti-colisão se os blocos ficarem próximos.
+    // entrada/saída do eixo no cadastro — bloco KM/coordenada UTM, posicionado AUTOMATICAMENTE:
+    // busca (24 direções × 9 distâncias) sobre uma máscara de obstáculos desenhada num canvas
+    // a 1/2 escala. PROIBIDO: perímetro analisado (desapropriada; sem ela, a área total), faixa de
+    // domínio (preenchida entre cada limite e o eixo), texto das estacas, norte, localização,
+    // escala e o outro rótulo. EVITADO (tolerado se não houver espaço): área total do imóvel.
+    // Direção preferida = regra anterior (lados opostos ao longo do eixo, longe do centróide).
     if(o.cruz){
       var cadC=null, cc=(o.camadas||[]).filter(function(c){return c.cam==='desap'||c.cam==='area';})[0];
       if(cc&&cc.geom.polys&&cc.geom.polys.length){ var rg=cc.geom.polys[0],ccx=0,ccy=0; rg.forEach(function(p){ccx+=p[0];ccy+=p[1];}); cadC=PX(ccx/rg.length,ccy/rg.length); }
       var _qE=o.cruz.ent?PX(o.cruz.ent[0],o.cruz.ent[1]):null, _qS=o.cruz.sai?PX(o.cruz.sai[0],o.cruz.sai[1]):null;
       var _usaEixo=(_qE&&_qS&&Math.hypot(_qS[0]-_qE[0],_qS[1]-_qE[1])>20);
-      var _lbls=[];
+      // ---- máscara: R = proibido (faixa/estacas/quadros), B = perímetro analisado, G = evitar ----
+      var MK=.5, MW=Math.ceil(900*MK), MH=Math.ceil(940*MK), _cv=document.createElement('canvas'); _cv.width=MW; _cv.height=MH;
+      var mx=_cv.getContext('2d'); mx.setTransform(MK,0,0,MK,0,0); mx.lineJoin='round'; mx.lineCap='round'; mx.globalCompositeOperation='lighter';
+      var C_R='rgb(255,0,0)', C_B='rgb(0,0,255)', C_G='rgb(0,255,0)';
+      var mPath=function(pts,fechar){ mx.beginPath(); pts.forEach(function(q,i){ if(i) mx.lineTo(q[0],q[1]); else mx.moveTo(q[0],q[1]); }); if(fechar) mx.closePath(); };
+      var pxs=function(r){ return r.map(function(p){ return PX(p[0],p[1]); }); };
+      var perto=function(a,b){ return !(Math.max(a[0],b[0])<-300||Math.min(a[0],b[0])>1200||Math.max(a[1],b[1])<-300||Math.min(a[1],b[1])>1240); };
+      var _temDesap=(o.camadas||[]).some(function(c){ return c.cam==='desap'&&c.geom.polys&&c.geom.polys.length; });
+      (o.camadas||[]).forEach(function(cm){
+        if(cm.cam!=='desap'&&cm.cam!=='area') return;
+        var duro=(cm.cam==='desap')||!_temDesap;
+        mx.fillStyle=mx.strokeStyle=(duro?C_B:C_G); mx.lineWidth=(duro?12:4);
+        (cm.geom.polys||[]).forEach(function(r){ mPath(pxs(r),true); mx.fill(); mx.stroke(); });
+      });
+      var _fx=(o.camadas||[]).filter(function(c){ return c.cam==='faixa'; })[0];
+      if(_fx){
+        var _eix=(_fx.geom.eixos||[]).map(pxs), _lim=(_fx.geom.limites||[]).map(pxs), _sg=[];
+        _eix.forEach(function(r){ for(var i=1;i<r.length;i++) if(perto(r[i-1],r[i])) _sg.push([r[i-1],r[i]]); });
+        var _proj=function(p){ var bq=null,bd=1e18; _sg.forEach(function(sg){ var a=sg[0],b=sg[1],vx=b[0]-a[0],vy=b[1]-a[1],l2=vx*vx+vy*vy,t=l2?((p[0]-a[0])*vx+(p[1]-a[1])*vy)/l2:0; t=t<0?0:(t>1?1:t); var x=a[0]+t*vx,y=a[1]+t*vy,d=(x-p[0])*(x-p[0])+(y-p[1])*(y-p[1]); if(d<bd){ bd=d; bq=[x,y]; } }); return bq?{q:bq,d:Math.sqrt(bd)}:null; };
+        var _dens=function(r){ var out=[]; for(var i=0;i<r.length;i++){ if(i&&perto(r[i-1],r[i])){ var a=r[i-1],b=r[i],n=Math.min(400,Math.ceil(Math.hypot(b[0]-a[0],b[1]-a[1])/12)); for(var k=1;k<n;k++) out.push([a[0]+(b[0]-a[0])*k/n,a[1]+(b[1]-a[1])*k/n]); } out.push(r[i]); } return out; };
+        mx.fillStyle=mx.strokeStyle=C_R;
+        var _med=0;
+        if(_sg.length){
+          // faixa = quadriláteros entre cada trecho de limite e sua projeção no eixo
+          var _ds=[], _pares=[];
+          _lim.forEach(function(r){ var ant=null, antP=null;
+            _dens(r).forEach(function(p){ var dentro=p[0]>-300&&p[0]<1200&&p[1]>-300&&p[1]<1240, pp=dentro?_proj(p):null;
+              if(pp) _ds.push(pp.d); if(ant&&antP&&pp) _pares.push([ant,p,pp.q,antP.q,Math.max(pp.d,antP.d)]); ant=p; antP=pp; });
+          });
+          _ds.sort(function(a,b){ return a-b; }); _med=_ds.length?_ds[_ds.length>>1]:0;
+          var _dMax=Math.max(_med*2.5,_med+30);
+          _pares.forEach(function(pr){ if(pr[4]>_dMax) return; mPath([pr[0],pr[1],pr[2],pr[3]],true); mx.fill(); });
+        }
+        // eixo com a meia-largura típica (cobre trecho sem limite no mapa) + os próprios limites
+        mx.lineWidth=_med>0?Math.min(2*_med+8,300):16; _eix.forEach(function(r){ mPath(r,false); mx.stroke(); });
+        mx.lineWidth=14; _lim.forEach(function(r){ mPath(r,false); mx.stroke(); });
+      }
+      mx.fillStyle=C_R; mx.font='bold 11px Arial';
+      (o.estacas||[]).forEach(function(t){ var q=PX(t.lon,t.lat); if(q[0]<mapL-80||q[0]>mapR+80||q[1]<mapT-80||q[1]>mapB+80) return; var a=((t.ang%360)+360)%360; if(a>90&&a<=270) a-=180; var w=mx.measureText(String(t.txt)).width+10; mx.save(); mx.translate(q[0],q[1]); mx.rotate(-a*Math.PI/180); mx.fillRect(-w/2,-14,w,20); mx.restore(); });
+      // quadros fixos: norte, localização e escala (mesmas posições desenhadas mais abaixo)
+      var _locD=(o.locLado==='dir'), _iw=152, _ih=116, _ix=_locD?(mapR-22-_iw):(mapL+22), _iy=mapB-22-_ih;
+      mx.fillRect(mapL+22,mapT+20,48,82); mx.fillRect(_ix-6,_iy-6,_iw+12,_ih+12); mx.fillRect(_locD?(mapL+26):(mapR-218),mapB-62,210,50);
+      var _dd=mx.getImageData(0,0,MW,MH).data, _W1=MW+1, _I=new Float64Array(_W1*(MH+1));
+      for(var _y=0;_y<MH;_y++){ var _ac=0; for(var _x=0;_x<MW;_x++){ var _k=(_y*MW+_x)*4; _ac+=((_dd[_k]>40||_dd[_k+2]>40)?10:0)+(_dd[_k+1]>40?2:0); _I[(_y+1)*_W1+_x+1]=_I[_y*_W1+_x+1]+_ac; } }
+      var somaCx=function(b){ var x0=Math.max(0,Math.floor(b[0]*MK)), y0=Math.max(0,Math.floor(b[1]*MK)), x1=Math.min(MW,Math.ceil(b[2]*MK)), y1=Math.min(MH,Math.ceil(b[3]*MK)); if(x1<=x0||y1<=y0) return 0; return _I[y1*_W1+x1]-_I[y0*_W1+x1]-_I[y1*_W1+x0]+_I[y0*_W1+x0]; };
+      var noPerim=function(x,y){ var xi=Math.floor(x*MK), yi=Math.floor(y*MK); if(xi<0||yi<0||xi>=MW||yi>=MH) return 0; return _dd[(yi*MW+xi)*4+2]>40?1:0; };
+      mx.font='bold 10px Arial';
+      // caixa do bloco de 4 linhas (TH, 10 px, linhas em ly-24 … ly+18) + halo
+      var caixa=function(lx,ly,w,anc){ return anc==='end'?[lx-w,ly-36,lx+3,ly+23]:[lx-3,ly-36,lx+w,ly+23]; };
+      var candidatos=function(q,pref,w){
+        var out=[];
+        for(var ai=0;ai<24;ai++){ var ang=ai*Math.PI/12, dx=Math.cos(ang), dy=Math.sin(ang), ancs=dx<-.35?['end']:(dx>.35?['start']:['start','end']);
+          [56,72,90,110,135,165,200,240,290].forEach(function(dist){ ancs.forEach(function(anc){
+            var lx=q[0]+dx*dist, ly=q[1]+dy*dist, b=caixa(lx,ly,w,anc);
+            if(b[0]<mapL+22||b[2]>mapR-22||b[1]<mapT+24||b[3]>mapB-14) return;
+            var c=somaCx(b);
+            for(var t=14;t<dist;t+=4) c+=noPerim(q[0]+dx*t,q[1]+dy*t)*6;   // chamada não atravessa o perímetro
+            c+=dist*.35+(1-(dx*pref[0]+dy*pref[1]))*40;
+            out.push({lx:lx,ly:ly,dx:(anc==='end'?-1:1),box:b,custo:c});
+          }); });
+        }
+        out.sort(function(a,b){ return a.custo-b.custo; });
+        out=out.slice(0,40);
+        // reserva: regra antiga (nunca fica sem posição)
+        var rx=Math.max(mapL+70,Math.min(mapR-70,q[0]+pref[0]*72)), ry=Math.max(mapT+40,Math.min(mapB-60,q[1]+pref[1]*72)), ra=pref[0]<0?'end':'start';
+        out.push({lx:rx,ly:ry,dx:(ra==='end'?-1:1),box:caixa(rx,ry,w,ra),custo:1e7});
+        return out;
+      };
+      var cruzaSeg=function(a,b,c,d){ var o1=(b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0]), o2=(b[0]-a[0])*(d[1]-a[1])-(b[1]-a[1])*(d[0]-a[0]), o3=(d[0]-c[0])*(a[1]-c[1])-(d[1]-c[1])*(a[0]-c[0]), o4=(d[0]-c[0])*(b[1]-c[1])-(d[1]-c[1])*(b[0]-c[0]); return (o1*o2<0)&&(o3*o4<0); };
+      var sobre=function(b1,b2,folga){ var w=Math.min(b1[2],b2[2])-Math.max(b1[0],b2[0])+folga, h=Math.min(b1[3],b2[3])-Math.max(b1[1],b2[1])+folga; return (w>0&&h>0)?w*h:0; };
+      var chamadaNaCaixa=function(q,c,b){ var n=0; for(var t=.15;t<=1;t+=.05){ var x=q[0]+(c.lx-q[0])*t, y=q[1]+(c.ly-q[1])*t; if(x>b[0]&&x<b[2]&&y>b[1]&&y<b[3]) n++; } return n; };
+      var _its=[];
       [[o.cruz.ent,o.kmEnt,true],[o.cruz.sai,o.kmSai,false]].forEach(function(it){ if(!it[0]) return; var q=PX(it[0][0],it[0][1]), u=d2utm(it[0][0],it[0][1]);
         var dx,dy,L;
         if(_usaEixo){
@@ -26313,11 +26386,21 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
           L=Math.hypot(dx,dy)||1; dx/=L; dy/=L;
           if(cadC){ var px=q[0]-cadC[0],py=q[1]-cadC[1],pL=Math.hypot(px,py)||1; px/=pL; py/=pL; dx=dx*.6+px*.4; dy=dy*.6+py*.4; L=Math.hypot(dx,dy)||1; dx/=L; dy/=L; }
         } else { dx=1; dy=0; if(cadC){ dx=q[0]-cadC[0]; dy=q[1]-cadC[1]; L=Math.hypot(dx,dy)||1; dx/=L; dy/=L; } }
-        var off=72, lx2=q[0]+dx*off, ly2=q[1]+dy*off;
-        if(lx2<mapL+70) lx2=mapL+70; if(lx2>mapR-70) lx2=mapR-70; if(ly2<mapT+40) ly2=mapT+40; if(ly2>mapB-60) ly2=mapB-60;
-        _lbls.push({q:q,u:u,km:it[1],lx:lx2,ly:ly2,dx:dx});
+        var lns=['KM= '+(it[1]||'000 + 000,00'),'(PROJETO ATUAL)','E= '+u.E.toFixed(3),'N= '+u.N.toFixed(3)], w=0;
+        lns.forEach(function(l){ w=Math.max(w,mx.measureText(l).width); });
+        _its.push({q:q,u:u,km:it[1],cands:candidatos(q,[dx,dy],w+6)});
       });
-      if(_lbls.length===2){ var _dd=Math.hypot(_lbls[1].lx-_lbls[0].lx,_lbls[1].ly-_lbls[0].ly); if(_dd<76){ var _sh=(76-_dd)/2+8; if(_lbls[0].ly<=_lbls[1].ly){_lbls[0].ly-=_sh;_lbls[1].ly+=_sh;}else{_lbls[0].ly+=_sh;_lbls[1].ly-=_sh;} } }
+      // melhor PAR de posições: sem sobrepor as caixas, sem cruzar as chamadas
+      var _esc=_its.map(function(it){ return it.cands[0]; });
+      if(_its.length===2){ var _bst=1e18;
+        _its[0].cands.forEach(function(a){ _its[1].cands.forEach(function(b){
+          var c=a.custo+b.custo+sobre(a.box,b.box,8)*20;
+          if(cruzaSeg(_its[0].q,[a.lx,a.ly],_its[1].q,[b.lx,b.ly])) c+=3000;
+          c+=(chamadaNaCaixa(_its[0].q,a,b.box)+chamadaNaCaixa(_its[1].q,b,a.box))*200;
+          if(c<_bst){ _bst=c; _esc=[a,b]; }
+        }); });
+      }
+      var _lbls=_its.map(function(it,i){ var c=_esc[i]; return {q:it.q,u:it.u,km:it.km,lx:c.lx,ly:c.ly,dx:c.dx}; });
       _lbls.forEach(function(lb){
         var anchor=(lb.dx<0)?'end':'start';
         s+='<line x1="'+lb.q[0].toFixed(1)+'" y1="'+lb.q[1].toFixed(1)+'" x2="'+lb.lx.toFixed(1)+'" y2="'+lb.ly.toFixed(1)+'" stroke="#ff020c" stroke-width="1.6"/>';
