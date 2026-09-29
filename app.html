@@ -20677,61 +20677,22 @@ function AV_gerarDescSituacao(){
       }
       if(col===1) y+=fh+(linTem?lh:0)+5;
     }
-    // Assinatura — De acordo (esq.) | Vistoriador (dir.) + Testemunhas
-    var _hasOcup = gv("fb_ocup_e_prop") === "2 - Não";
-    var _nomeProp = gv("fb_nome") || gv("fb_41_nome");
-    var _cpfProp  = gv("fb_cpf");
-    var _nomeOcup = gv("fb_inf_nome");
-    var _cpfOcup  = gv("fb_ocup_cpf");
-    y += 6; garantir(_hasOcup ? 90 : 70);
-    var _xL = mL, _xR = W/2 + 5, _cW = contentW/2 - 5;
-    var _y0 = y;
+    // Assinatura — apenas anuência do(a) vistoriador(a)
+    y += 6; garantir(55);
+    var _xC = mL + contentW/4, _cW = contentW/2;
     var _ldSign = (window.__localData ? window.__localData('fb_ass_local','fb_prop_mun','fb_prop_uf','fb_data') : (gv("fb_data")||""));
 
-    // Coluna esquerda — De acordo
     F("bold"); pdf.setFontSize(FS); C(NAVY);
-    pdf.text("De acordo:", _xL, y); y += 6;
-    if(_ldSign){ F("normal"); C(BLK); pdf.text(_ldSign, _xL + _cW/2, y, {align:"center"}); }
-    y += 14;
-    pdf.setDrawColor(60,60,60); pdf.setLineWidth(0.3); pdf.line(_xL, y, _xL + _cW, y); y += 5;
-    F("normal"); C(BLK);
-    if(_nomeProp){ pdf.text(_nomeProp, _xL + _cW/2, y, {align:"center"}); y += LH+0.6; }
-    if(_cpfProp){ pdf.text("CPF: " + _cpfProp, _xL + _cW/2, y, {align:"center"}); y += LH+0.6; }
-    if(_hasOcup && _nomeOcup){
-      y += 5;
-      F("bold"); C(NAVY); pdf.text("Ocupante:", _xL, y); y += 6;
-      pdf.setDrawColor(60,60,60); pdf.setLineWidth(0.3); pdf.line(_xL, y, _xL + _cW, y); y += 5;
-      F("normal"); C(BLK); pdf.text(_nomeOcup, _xL + _cW/2, y, {align:"center"}); y += LH+0.6;
-      if(_cpfOcup){ pdf.text("CPF: " + _cpfOcup, _xL + _cW/2, y, {align:"center"}); y += LH+0.6; }
-    }
-    var _yEndL = y;
-
-    // Coluna direita — Assinatura do vistoriador
-    y = _y0;
-    F("bold"); pdf.setFontSize(FS); C(NAVY);
-    pdf.text("Assinatura do(a) vistoriador(a)", _xR + _cW/2, y, {align:"center"}); y += 6;
-    if(_ldSign){ F("normal"); C(BLK); pdf.text(_ldSign, _xR + _cW/2, y, {align:"center"}); } y += 8;
+    pdf.text("Assinatura do(a) vistoriador(a)", _xC + _cW/2, y, {align:"center"}); y += 6;
+    if(_ldSign){ F("normal"); C(BLK); pdf.text(_ldSign, _xC + _cW/2, y, {align:"center"}); } y += 8;
     var _imv = window.__getAssin ? window.__getAssin('fb') : null;
-    if(_imv){ try{ var _fmtv=/^data:image\/png/i.test(_imv)?"PNG":"JPEG"; pdf.addImage(_imv,_fmtv,_xR+_cW/2-20,y,40,15); }catch(e){} y+=17; } else { y+=6; }
-    pdf.setDrawColor(60,60,60); pdf.setLineWidth(0.3); pdf.line(_xR, y, _xR + _cW, y); y += 5;
+    if(_imv){ try{ var _fmtv=/^data:image\/png/i.test(_imv)?"PNG":"JPEG"; pdf.addImage(_imv,_fmtv,_xC+_cW/2-20,y,40,15); }catch(e){} y+=17; } else { y+=6; }
+    pdf.setDrawColor(60,60,60); pdf.setLineWidth(0.3); pdf.line(_xC, y, _xC + _cW, y); y += 5;
     F("bold"); C(BLK); pdf.setFontSize(FS);
-    if(gv("fb_ass_nome")){ pdf.text(gv("fb_ass_nome"), _xR + _cW/2, y, {align:"center"}); y+=LH+0.6; }
+    if(gv("fb_ass_nome")){ pdf.text(gv("fb_ass_nome"), _xC + _cW/2, y, {align:"center"}); y+=LH+0.6; }
     F("normal");
-    if(gv("fb_ass_cargo")){ pdf.text(gv("fb_ass_cargo"), _xR + _cW/2, y, {align:"center"}); y+=LH+0.6; }
-    if(gv("fb_ass_reg")){ pdf.text(gv("fb_ass_reg"), _xR + _cW/2, y, {align:"center"}); y+=LH+0.6; }
-    var _yEndR = y;
-
-    // Testemunha
-    y = Math.max(_yEndL, _yEndR) + 10;
-    garantir(25);
-    F("bold"); pdf.setFontSize(FS); C(NAVY); pdf.text("Testemunha:", mL, y); y += 8;
-    var _wT = (contentW - 10) / 2;
-    pdf.setDrawColor(60,60,60); pdf.setLineWidth(0.3);
-    pdf.line(mL, y, mL + _wT, y);
-    pdf.line(mL + _wT + 10, y, mL + contentW, y);
-    y += 5; F("normal"); C(BLK);
-    pdf.text("Nome:", mL, y); pdf.text("Nome:", mL + _wT + 10, y); y += LH+0.6;
-    pdf.text("CPF:", mL, y); pdf.text("CPF:", mL + _wT + 10, y); y += LH;
+    if(gv("fb_ass_cargo")){ pdf.text(gv("fb_ass_cargo"), _xC + _cW/2, y, {align:"center"}); y+=LH+0.6; }
+    if(gv("fb_ass_reg")){ pdf.text(gv("fb_ass_reg"), _xC + _cW/2, y, {align:"center"}); y+=LH+0.6; }
 
     rodape();
     const _blob=pdf.output("blob"); const _nomeF="Ficha_"+(window.__CTDsuf?window.__CTDsuf():"CTD 000")+".pdf"; if(opts&&opts.retornar) return {blob:_blob, nome:_nomeF}; await FS_salvar(_blob, _nomeF);
