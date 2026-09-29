@@ -26315,7 +26315,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
   // monta o SVG do mapa (figura compacta: entra DENTRO de uma página que já tem
   // cabeçalho/rodapé/logos/texto — por isso sem título, sem logos e sem moldura de página)
   function d2mapSVG(o){
-    var mapL=18,mapT=30,mapR=882,mapB=560,mapW=mapR-mapL,mapH=mapB-mapT;   // 29/09/2026: mapa largo (900×730) → figura ocupa a largura toda da página com ≤130 mm de altura
+    var mapL=18,mapT=30,mapR=882,mapB=719,mapW=mapR-mapL,mapH=mapB-mapT;   // 29/09/2026: mapa de margem a margem (900×889; altura do quadro 1,3× a de 900×730) — figura 160×158 mm
     var base=o.base, bb=o.bb;
     function PX(lon,lat){
       if(base.mode==='orto'){ var u=d2utm(lon,lat); return [mapL+(u.E-base.e0)/(base.e1-base.e0)*mapW, mapT+(base.n1-u.N)/(base.n1-base.n0)*mapH]; }
@@ -26323,10 +26323,10 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     }
     // texto com halo escuro (legível sobre o satélite)
     function TH(x,y,txt,opt){ opt=opt||{}; var attr='x="'+x+'" y="'+y+'" text-anchor="'+(opt.anchor||'middle')+'" font-family="'+(opt.mono?'monospace':'Arial,sans-serif')+'" font-size="'+(opt.size||9)+'" font-weight="'+(opt.weight||'400')+'"'+(opt.ls?' letter-spacing="'+opt.ls+'"':''); if(opt.rot!=null) attr+=' transform="rotate('+opt.rot+' '+x+' '+y+')"'; return '<text '+attr+' fill="'+(opt.fill||'#fff')+'" stroke="#0d1620" stroke-width="'+(opt.halo||2.6)+'" stroke-linejoin="round" paint-order="stroke">'+d2esc(txt)+'</text>'; }
-    var s='<svg id="svg" viewBox="0 0 900 730" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">';
+    var s='<svg id="svg" viewBox="0 0 900 889" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">';
     // região do filtro no espaço do desenho: com objectBoundingBox, linhas exatamente N–S/L–O (caixa de largura 0) sumiam
-    s+='<defs><filter id="d2sh" filterUnits="userSpaceOnUse" x="0" y="0" width="900" height="730"><feDropShadow dx="0.8" dy="1.1" stdDeviation="1.1" flood-color="#000" flood-opacity="0.6"/></filter></defs>';
-    s+='<rect x="0" y="0" width="900" height="730" fill="#fff"/>';
+    s+='<defs><filter id="d2sh" filterUnits="userSpaceOnUse" x="0" y="0" width="900" height="889"><feDropShadow dx="0.8" dy="1.1" stdDeviation="1.1" flood-color="#000" flood-opacity="0.6"/></filter></defs>';
+    s+='<rect x="0" y="0" width="900" height="889" fill="#fff"/>';
     s+='<clipPath id="mc"><rect x="'+mapL+'" y="'+mapT+'" width="'+mapW+'" height="'+mapH+'"/></clipPath>';
     s+='<rect x="'+mapL+'" y="'+mapT+'" width="'+mapW+'" height="'+mapH+'" fill="#e9edf0"/>';
     // satélite Esri ao fundo; ortofoto à frente (branco transparente). A transparência escolhida
@@ -26402,7 +26402,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       var _qE=o.cruz.ent?PX(o.cruz.ent[0],o.cruz.ent[1]):null, _qS=o.cruz.sai?PX(o.cruz.sai[0],o.cruz.sai[1]):null;
       var _usaEixo=(_qE&&_qS&&Math.hypot(_qS[0]-_qE[0],_qS[1]-_qE[1])>20);
       // ---- máscara: R = proibido (faixa/estacas/quadros), B = perímetro analisado, G = evitar ----
-      var MK=.5, MW=Math.ceil(900*MK), MH=Math.ceil(730*MK), _cv=document.createElement('canvas'); _cv.width=MW; _cv.height=MH;
+      var MK=.5, MW=Math.ceil(900*MK), MH=Math.ceil(889*MK), _cv=document.createElement('canvas'); _cv.width=MW; _cv.height=MH;
       var mx=_cv.getContext('2d'); mx.setTransform(MK,0,0,MK,0,0); mx.lineJoin='round'; mx.lineCap='round'; mx.globalCompositeOperation='lighter';
       var C_R='rgb(255,0,0)', C_B='rgb(0,0,255)', C_G='rgb(0,255,0)';
       var mPath=function(pts,fechar){ mx.beginPath(); pts.forEach(function(q,i){ if(i) mx.lineTo(q[0],q[1]); else mx.moveTo(q[0],q[1]); }); if(fechar) mx.closePath(); };
@@ -26565,7 +26565,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     });
     var ultSimb=cy0+44+(rowsPerCol-1)*lrow, ultBase=tlin.length?(ultSimb+lrow+(tlin.length-1)*tlh):ultSimb;
     var lh=Math.max(60, ultBase+10-(cy0+8));
-    var svgH=Math.max(730, Math.ceil(cy0+8+lh+10));
+    var svgH=Math.max(889, Math.ceil(cy0+8+lh+10));
     s+='<rect x="'+lx+'" y="'+(cy0+8)+'" width="'+lw+'" height="'+lh+'" fill="#f7f9fb" stroke="#c3ccd4" stroke-width=".8"/>';
     s+='<text x="'+(lx+14)+'" y="'+(cy0+26)+'" font-family="Arial" font-size="9.5" font-weight="700" fill="#4a5a6a" letter-spacing=".6">LEGENDA</text>';
     tlin.forEach(function(t,i){ s+='<text x="'+(lx+14)+'" y="'+(ultSimb+lrow+i*tlh)+'" font-family="monospace" font-size="'+tfs+'" font-weight="700" fill="#16202b" xml:space="preserve">'+d2esc(t)+'</text>'; });
@@ -26586,13 +26586,13 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     s+='<text x="'+mapL+'" y="'+(cy0+128)+'" font-family="monospace" font-size="9" fill="#8a97a3">SIRGAS 2000 · UTM '+zone+(south?'S':'N')+' · Universal Transversa de Mercator</text>';
     s+='</svg>';
     // legenda com muitos códigos: a figura cresce só o necessário (viewBox, fundo e filtro)
-    if(svgH>730) s=s.replace('viewBox="0 0 900 730"','viewBox="0 0 900 '+svgH+'"').split('height="730"').join('height="'+svgH+'"');
+    if(svgH>889) s=s.replace('viewBox="0 0 900 889"','viewBox="0 0 900 '+svgH+'"').split('height="889"').join('height="'+svgH+'"');
     return s;
   }
   // rasteriza SVG -> PNG dataURL (altura lida do viewBox: a legenda pode esticar a figura)
   function d2svg2png(svg,scale){
     return new Promise(function(res,rej){
-      var img=new Image(), mH=/viewBox="0 0 900 (\d+)"/.exec(svg), H=mH?+mH[1]:730;
+      var img=new Image(), mH=/viewBox="0 0 900 (\d+)"/.exec(svg), H=mH?+mH[1]:889;
       img.onload=function(){ var c=document.createElement('canvas'); c.width=900*scale; c.height=H*scale; var ctx=c.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height); ctx.drawImage(img,0,0,c.width,c.height); try{ res(c.toDataURL('image/jpeg',0.9)); }catch(e){ rej(e); } };
       img.onerror=function(){ rej(new Error('svg')); };
       img.src='data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(svg)));
@@ -26605,7 +26605,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     if(!ok) return null;
     // padding e força aspecto do mapa
     var padx=(e-w)*padFrac||0.002, pady=(n-s)*padFrac||0.002; w-=padx;e+=padx;s-=pady;n+=pady;
-    var arMap=864/530, cx=(w+e)/2, cy=(s+n)/2, ww=e-w, hh=n-s;
+    var arMap=864/689, cx=(w+e)/2, cy=(s+n)/2, ww=e-w, hh=n-s;
     var arGeo=ww/(hh*Math.cos(cy*Math.PI/180));
     if(arGeo<arMap){ ww=hh*Math.cos(cy*Math.PI/180)*arMap; w=cx-ww/2; e=cx+ww/2; } else { hh=ww/Math.cos(cy*Math.PI/180)/arMap; s=cy-hh/2; n=cy+hh/2; }
     return {w:w,s:s,e:e,n:n};
@@ -27039,7 +27039,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     // título nunca fica sozinho no pé da página: reserva também ~2 linhas do texto que vem depois
     const KEEP_NEXT=12;
     // mapas: altura máxima (sobra espaço para texto) e mínima ao reduzir para caber na página
-    const FIG_MAXH=130, FIG_MINH=90, FIG_CAP=15;
+    const FIG_MAXH=160, FIG_MINH=90, FIG_CAP=15;   // 160: mapa 900×889 sai de margem a margem (160×158 mm)
     function titulo(t){ gapTopico(); ensure(20+KEEP_NEXT); pdf.setFont(FONT,"bold"); pdf.setFontSize(13.5); pdf.setTextColor(0,0,0);
       const m=String(t).match(/^(\d+)\.\s*(.*)$/);
       if(m){ pdf.text(m[1]+".", mL, yc); pdf.text(m[2].toUpperCase(), mL+11, yc); } else { pdf.text(String(t).toUpperCase(), mL, yc); }
@@ -27437,7 +27437,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     async function figura(fid){
       if(!figs[fid]) return;
       const meta=figMeta(fid);
-      const im=await imgAjustada(figs[fid],160,130);   // mesmos limites do PDF
+      const im=await imgAjustada(figs[fid],160,160);   // mesmos limites do PDF
       if(!im) return;
       K.push(new Paragraph({alignment:AlignmentType.CENTER, keepNext:true, spacing:{before:60,after:60}, children:[im]}));
       K.push(new Paragraph({alignment:AlignmentType.CENTER, keepNext:true, spacing:{after:0}, children:[R(meta[0],{bold:true,italics:true,size:19})]}));
