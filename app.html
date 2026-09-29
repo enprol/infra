@@ -25108,6 +25108,14 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
   /* ---------- leitura ---------- */
   function gid(id){ const e=document.getElementById(id); if(!e) return ""; if(e.tagName==="SELECT"){const o=e.options[e.selectedIndex];return (o&&o.value)?o.text.trim():"";} return (e.value||"").trim(); }
   function C(id){ return gid("d2_"+id); }
+  // capa (PDF e Word): o MESMO processo administrativo da Ficha de Vistoria (Montar Processo Nº) —
+  // "INFRA S.A. CTD 006A - SPS-04 – PE - 50050.004743/2026-89". Antes a capa montava o seu próprio
+  // texto com a sigla da ferrovia ("– FTN") e sem o SEI.
+  function procCapa(){
+    var p=String(gid("fb_processo")||"").trim(); if(p) return p;
+    var sei=String(gid("fb_proc_sei")||C("sei")||"").trim();
+    return "INFRA S.A. CTD "+(C("cadastro")||"___")+" - "+(C("trecho")||"SPS-__")+" – "+(window.FB_ufProcesso?window.FB_ufProcesso():"PE")+(sei?(" - "+sei):"");
+  }
   function setC(id,v){ const e=document.getElementById("d2_"+id); if(e && e.value!==v) e.value=v; }
   function TX(id){ const e=document.getElementById("d2_tx_"+id); return e?e.value:""; }
   // Modo Conteúdo: ovr = texto fixado à mão (pausa o automático), heads = títulos renomeados,
@@ -27001,7 +27009,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       pdf.setFont("helvetica","bold");
       pdf.text("Processo administrativo:", cxC, y, {align:"center"}); y+=6;
       pdf.setFont("helvetica","normal");
-      const _procD2="INFRA S.A. CTD "+(C("cadastro")||"___")+" - "+(C("trecho")||"SPS-__")+" – "+_sigla;
+      const _procD2=procCapa();
       const _procLsD2=pdf.splitTextToSize(_procD2, W-cxL-mR-6);
       _procLsD2.forEach(function(l){ pdf.text(l, cxC, y, {align:"center"}); y+=5.4; });
       y+=8;
@@ -27485,7 +27493,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     capa.push(cc([R((C("ferrovia")||"FERROVIA").toUpperCase(),{size:24})],{after:240}));
     if(C("trecho")) capa.push(cc([R(_sigla+" (Lote: "+C("trecho")+")",{bold:true,size:24})],{after:500}));
     capa.push(cc([R("Processo administrativo:",{bold:true,size:22})],{after:60}));
-    capa.push(cc([R("INFRA S.A. CTD "+(C("cadastro")||"___")+" - "+(C("trecho")||"SPS-__")+" – "+_sigla,{size:22})],{after:400}));
+    capa.push(cc([R(procCapa(),{size:22})],{after:400}));
     if(C("proprietario")) capa.push(cc([R("PROPRIETÁRIO: "+C("proprietario"),{size:20})],{after:160}));
     if(_posseiro) capa.push(cc([R("POSSEIRO: "+_posseiro,{size:20})],{after:160}));
     if(C("km")) capa.push(cc([R("TRECHO: "+C("km"),{bold:true,size:20})],{after:160}));
