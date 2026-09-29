@@ -4103,6 +4103,8 @@ igual DESP 3) */
       #panel-desp2-relatorio .dl[data-k="L"]::before{ content:attr(data-l) ")"; position:absolute; left:52px; }
 
       #panel-desp2-relatorio .dd-fig{ margin:14px 0 18px; text-align:center; }
+      #panel-desp2-relatorio .dd-img .dd-cap[data-ph]:empty::before{ content:attr(data-ph); color:#9aa8b6; font-weight:400; }
+      #panel-desp2-relatorio .dd-img .dd-cap[data-imgcap="leg"]{ min-width:220px; display:inline-block; }
       #panel-desp2-relatorio .dd-fig img{ max-width:100%; max-height:460px; border-radius:6px; box-shadow:0 2px 10px rgba(20,41,74,.12); display:block; margin:0 auto; }
       #panel-desp2-relatorio .dd-fig.falta .dd-fig-vazio{ border:2px dashed #cdd7e2; border-radius:10px; padding:34px 16px; color:#8a98a8; font:13px "Segoe UI",Arial,sans-serif; background:#fafcfe; }
       #panel-desp2-relatorio .dd-fig-acts{ display:flex; justify-content:center; gap:6px; margin:8px 0 6px; flex-wrap:wrap; }
@@ -4213,7 +4215,8 @@ igual DESP 3) */
               <button type="button" onmousedown="event.preventDefault()" onclick="D2DOC_estilo('C')" title="Citação (itálico, recuada) — ETP, NBR...">❝ Citação</button>
               <button type="button" onmousedown="event.preventDefault()" onclick="D2DOC_estilo('L')" title="Alínea de citação: a), b), c)...">a) Alínea</button>
               <span class="dd-bar-sep"></span>
-              <button type="button" class="dd-bold" onmousedown="event.preventDefault()" onclick="D2DOC_estilo('bold')" title="Negrito (Ctrl+B)">N</button>
+              <button type="button" class="dd-bold" onmousedown="event.preventDefault()" onclick="D2DOC_estilo('bold')" title="Negrito — selecione o trecho e clique (ou Ctrl+B)"><b>N</b> Negrito</button>
+              <button type="button" onmousedown="event.preventDefault()" onclick="D2DOC_inserirImg()" title="Insere uma imagem com legenda no tópico onde está o cursor">🖼 Imagem</button>
               <span class="dd-bar-dica">Enter cria novo parágrafo · Enter num item vazio encerra a lista</span>
             </div>
             <div id="d2doc_main" class="dd-doc"></div>
@@ -25120,7 +25123,8 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
   function TX(id){ const e=document.getElementById("d2_tx_"+id); return e?e.value:""; }
   // Modo Conteúdo: ovr = texto fixado à mão (pausa o automático), heads = títulos renomeados,
   // hide = tópicos fora do relatório, caps = legendas/fontes das figuras, extras = subtópicos novos
-  var D2DOC={ovr:{},heads:{},hide:{},caps:{},extras:[]};
+  // imgs: imagens avulsas com legenda inseridas no modo Conteúdo — [{id, topico, src, leg, fonte}] (29/09/2026)
+  var D2DOC={ovr:{},heads:{},hide:{},caps:{},extras:[],imgs:[]};
   function num(v){ if(v==null) return NaN; return parseFloat(String(v).replace(/\./g,'').replace(',','.')); }
   function ha(n){ return isNaN(n)?'':n.toLocaleString('pt-BR',{minimumFractionDigits:4,maximumFractionDigits:4}); }
 
@@ -27248,6 +27252,27 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       pdf.setFont(FONT,"italic"); pdf.setFontSize(8.5); pdf.setTextColor(90,100,115);
       pdf.text("Fonte: "+(meta[1]||""),W/2,yc,{align:"center"}); yc+=6.5; pdf.setTextColor(0,0,0);
     }
+    // imagens avulsas do tópico (modo Conteúdo › "🖼 + Imagem"): mesmo desenho de figura(), legenda livre
+    function imgsTopico(topico){
+      (D2DOC.imgs||[]).filter(function(x){ return x.topico===topico && x.src; }).forEach(function(x){
+        let iw=cw, ih=iw*0.6, ar=0.6;
+        try{ const p=pdf.getImageProperties(x.src); if(p&&p.width&&p.height){ ar=p.height/p.width; ih=iw*ar; if(ih>FIG_MAXH){ih=FIG_MAXH; iw=ih/ar;} } }catch(e){}
+        const leg=String(x.leg||"").trim(), fonte=String(x.fonte||"").trim();
+        const capH=(leg?4.4*Math.max(1,pdf.splitTextToSize(leg,cw-8).length):0)+(fonte?6.5:2);
+        if(yc>topY+5) yc-=3;
+        const sobra=botY-yc-capH;
+        if(ih>sobra){
+          if(sobra>=FIG_MINH && yc>topY+0.5){ ih=sobra; iw=ih/ar; if(iw>cw){ iw=cw; ih=iw*ar; } }
+          else { rod(); nova(); }
+        }
+        const fmt=/^data:image\/png/i.test(x.src)?"PNG":"JPEG";
+        try{ pdf.addImage(x.src,fmt,mL+(cw-iw)/2,yc,iw,ih); }catch(e){}
+        yc+=ih+3.5;
+        if(leg){ pdf.setFont(FONT,"bolditalic"); pdf.setFontSize(9.5); pdf.setTextColor(0,0,0); pdf.splitTextToSize(leg,cw-8).forEach(function(l){ pdf.text(l,W/2,yc,{align:"center"}); yc+=4.4; }); }
+        if(fonte){ pdf.setFont(FONT,"italic"); pdf.setFontSize(8.5); pdf.setTextColor(90,100,115); pdf.text("Fonte: "+fonte,W/2,yc,{align:"center"}); yc+=6.5; pdf.setTextColor(0,0,0); }
+        else yc+=2;
+      });
+    }
     function tabela1(){
       const linhas=[
         ["Alternativa 01 (Antes e Depois – Depreciação)","Indenização por depreciação de isolamento/encravamento do remanescente.", "R$ 69.858,34"],
@@ -27325,10 +27350,12 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
         var rrs=(window.D2_getRessalvas?window.D2_getRessalvas():[]);
         if(!rrs.length){ parRich("[Sem ressalvas registradas.]"); }
         rrs.forEach(function(rr,i){ h4b("Ressalva "+((i+1)<10?"0":"")+(i+1)); if(rr.texto) bloco(rr.texto); if(rr.img) figImg(rr.img); });
+        imgsTopico(tp.id);
         return;
       }
       { const _tx=textoImpresso(tp); if(String(_tx||"").trim()) bloco(_tx); }   // texto vazio não abre linha em branco
       (tp.figs||[]).forEach(figura);
+      imgsTopico(tp.id);
       // item h) — áreas atingidas (ha): campos movidos do item c) + eventual lista de atividades exploradas
       if(tp.id==="planta_de_localiza_o_das_rea"){
         bulletRich("Área de pastagem atingida: "+nOrZero(kf("past"))+" ha");
@@ -27474,6 +27501,16 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       K.push(new Paragraph({alignment:AlignmentType.CENTER, keepNext:true, spacing:{after:0}, children:[R(meta[0],{bold:true,italics:true,size:19})]}));
       K.push(new Paragraph({alignment:AlignmentType.CENTER, spacing:{after:200}, children:[R("Fonte: "+(meta[1]||""),{italics:true,size:17,color:"5A6473"})]}));
     }
+    // imagens avulsas do tópico (modo Conteúdo): mesmo formato das figuras, legenda livre
+    async function imgsTopicoW(topico){
+      for(const x of (D2DOC.imgs||[]).filter(function(z){ return z.topico===topico && z.src; })){
+        const im=await imgAjustada(x.src,160,160); if(!im) continue;
+        const leg=String(x.leg||"").trim(), fonte=String(x.fonte||"").trim();
+        K.push(new Paragraph({alignment:AlignmentType.CENTER, keepNext:!!(leg||fonte), spacing:{before:60,after:60}, children:[im]}));
+        if(leg) K.push(new Paragraph({alignment:AlignmentType.CENTER, keepNext:!!fonte, spacing:{after:0}, children:[R(leg,{bold:true,italics:true,size:19})]}));
+        if(fonte) K.push(new Paragraph({alignment:AlignmentType.CENTER, spacing:{after:200}, children:[R("Fonte: "+fonte,{italics:true,size:17,color:"5A6473"})]}));
+      }
+    }
 
     // ================= CAPA (mesmo conteúdo da capa do PDF) =================
     const uI=b64u8(window.__LOGO_INFRA__), uE=b64u8(window.__LOGO_ENPROL__);
@@ -27519,10 +27556,12 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
         if(!rrs.length) par("[Sem ressalvas registradas.]");
         for(let i=0;i<rrs.length;i++){ const rr=rrs[i]; h4("Ressalva "+((i+1)<10?"0":"")+(i+1)); if(rr.texto) bloco(rr.texto);
           if(rr.img){ const im=await imgAjustada(rr.img,138,120); if(im) K.push(new Paragraph({alignment:AlignmentType.CENTER, spacing:{before:60,after:160}, children:[im]})); } }
+        await imgsTopicoW(tp.id);
         continue;
       }
       bloco(textoImpresso(tp));
       for(const fid of (tp.figs||[])) await figura(fid);
+      await imgsTopicoW(tp.id);
       if(tp.id==="planta_de_localiza_o_das_rea"){
         marcador("Área de pastagem atingida: "+nOrZero(kf("past"))+" ha");
         marcador("Área de formação savânica (Caatinga) atingida: "+nOrZero(kf("caat"))+" ha");
@@ -27646,6 +27685,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     o=o||{};
     D2DOC.ovr=Object.assign({},o.ovr||{}); D2DOC.heads=Object.assign({},o.heads||{}); D2DOC.hide=Object.assign({},o.hide||{});
     D2DOC.caps=Object.assign({},o.caps||{}); D2DOC.extras=(o.extras||[]).map(function(x){ return {id:x.id, after:x.after, level:x.level||3, head:x.head||"", txt:x.txt||""}; });
+    D2DOC.imgs=(o.imgs||[]).filter(function(x){ return x && x.src; }).map(function(x){ return {id:x.id, topico:x.topico, src:x.src, leg:x.leg||"", fonte:x.fonte||""}; });
     renderAll(); D2DOC_renderSeVisivel();
   };
 
@@ -27716,6 +27756,44 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       +'</figure>';
   }
   function docEditor(attrs,md){ return '<div class="dd-ed" contenteditable="true" spellcheck="true" '+attrs+'>'+docMdToHtml(md)+'</div>'; }
+  // imagens avulsas do tópico (inseridas pelo usuário), com legenda e fonte editáveis
+  function docImgsHtml(topico){
+    return D2DOC.imgs.filter(function(x){ return x.topico===topico; }).map(function(x){
+      return '<figure class="dd-fig dd-img" data-img="'+esc(x.id)+'">'
+        +'<img src="'+x.src+'" alt="">'
+        +'<div class="dd-fig-acts">'
+          +'<label class="dd-b">Trocar imagem<input type="file" accept="image/*" class="dd-imgin" data-img="'+esc(x.id)+'"></label>'
+          +ddBtn('imgup','↑','Mover a imagem para cima',' data-img="'+esc(x.id)+'"')+ddBtn('imgdown','↓','Mover a imagem para baixo',' data-img="'+esc(x.id)+'"')
+          +ddBtn('imgrm','🗑 Remover','Tira esta imagem do relatório',' data-img="'+esc(x.id)+'"')
+        +'</div>'
+        +'<figcaption><span class="dd-cap" contenteditable="true" spellcheck="true" data-imgcap="leg" data-img="'+esc(x.id)+'" data-ph="Legenda — ex.: Figura 11 – Vista da cerca na divisa leste">'+esc(x.leg)+'</span>'
+        +'<span class="dd-fonte">Fonte: <span class="dd-cap" contenteditable="true" data-imgcap="fonte" data-img="'+esc(x.id)+'" data-ph="Autor, 2026">'+esc(x.fonte)+'</span></span></figcaption>'
+        +'</figure>';
+    }).join('');
+  }
+  function docImg(id){ for(var i=0;i<D2DOC.imgs.length;i++) if(D2DOC.imgs[i].id===id) return D2DOC.imgs[i]; return null; }
+  function docLerImg(file){ return new Promise(function(ok,falha){ var fr=new FileReader(); fr.onload=function(){ var u=fr.result; (window.AV_normalizarImagem?window.AV_normalizarImagem(u,{maxLado:1600,q:.82}):Promise.resolve(u)).then(ok,function(){ ok(u); }); }; fr.onerror=falha; fr.readAsDataURL(file); }); }
+  // escolhe arquivo(s) e insere no fim do tópico
+  function docNovaImg(topico){
+    var inp=document.createElement("input"); inp.type="file"; inp.accept="image/*"; inp.multiple=true;
+    inp.onchange=function(){
+      var fs=Array.prototype.slice.call(inp.files||[]); if(!fs.length) return;
+      Promise.all(fs.map(docLerImg)).then(function(srcs){
+        var ultimo=null;
+        srcs.forEach(function(src){ var x={id:"i_"+Date.now().toString(36)+Math.random().toString(36).slice(2,6), topico:topico, src:src, leg:"", fonte:"Autor, 2026"}; D2DOC.imgs.push(x); ultimo=x; });
+        try{ if(window.CAD_marcarSujo) window.CAD_marcarSujo(); }catch(e){}
+        D2DOC_render();
+        if(ultimo){ var c=document.querySelector('#d2doc [data-imgcap="leg"][data-img="'+ultimo.id+'"]'); if(c){ c.scrollIntoView({block:"center"}); c.focus(); } }
+      });
+    };
+    inp.click();
+  }
+  window.D2DOC_inserirImg=function(){
+    var s=getSelection(), n=s.rangeCount?s.getRangeAt(0).startContainer:null; if(n && n.nodeType!==1) n=n.parentNode;
+    var sec=n && n.closest ? n.closest("#d2doc .dd-top") : null;
+    if(!sec){ alert("Clique primeiro dentro do texto do tópico onde a imagem deve entrar (ou use “🖼 + Imagem” no próprio tópico)."); return; }
+    docNovaImg(sec.getAttribute("data-id"));
+  };
   function docCorpoEspecial(tp){
     var h="";
     if(tp.id==="ressalvas_t_cnicas_e_observa"){
@@ -27751,16 +27829,18 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     var num=tp._oculto?"—":(tp.level===3?(tp.letra?tp.letra+")":""):(tp.num||""));
     var cls="dd-top lv"+tp.level+(tp.letra?" com-letra":"")+(ex?" is-extra":"")+(tp._oculto?" is-oculto":"")+(manual?" is-manual":"")+(auto?" is-auto":"");
     var acts=ddBtn('auto','↺ Voltar ao automático','Descarta a edição manual e volta a gerar o texto a partir dos dados')
+      +ddBtn('addimg','🖼 + Imagem','Insere uma imagem com legenda no fim deste tópico')
       +ddBtn('add','+ Inserir abaixo','Novo tópico, subtópico ou subtítulo logo abaixo deste');
     if(ex) acts+=ddBtn('up','↑','Mover para cima')+ddBtn('down','↓','Mover para baixo')+ddBtn('nivel','Nível','Alterna Seção / Subseção / Subtítulo')+ddBtn('del','🗑','Excluir este tópico');
     else acts+=ddBtn(tp._oculto?'show':'hide',tp._oculto?'👁 Incluir no relatório':'Ocultar','Tira/põe este tópico no PDF e no Word');
     var menu='<div class="dd-menu" hidden><span>Inserir abaixo:</span>'
       +ddBtn('addx','Seção <small>(N.)</small>','',' data-lv="1"')+ddBtn('addx','Subseção <small>(N.n)</small>','',' data-lv="2"')+ddBtn('addx','Subtítulo','',' data-lv="3"')+'</div>';
     var corpo;
-    if(id==="ressalvas_t_cnicas_e_observa") corpo=docCorpoEspecial(tp);
+    if(id==="ressalvas_t_cnicas_e_observa") corpo=docCorpoEspecial(tp)+docImgsHtml(id);
     else {
       corpo=docEditor('data-id="'+id+'"',textoImpresso(tp));
       (tp.figs||[]).forEach(function(fid){ corpo+=docFigHtml(fid); });
+      corpo+=docImgsHtml(id);
       corpo+=docCorpoEspecial(tp);
     }
     return '<section class="'+cls+'" id="dd_'+id+'" data-id="'+id+'">'
@@ -27873,6 +27953,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       var ed=e.target.closest(".dd-ed");
       if(ed){ docNormalizar(ed); var key=ed.getAttribute("data-id")||("r"+ed.getAttribute("data-ress")); clearTimeout(_ddTimers[key]); _ddTimers[key]=setTimeout(function(){ docSalvarEditor(ed); },250); return; }
       var cap=e.target.closest(".dd-cap");
+      if(cap && cap.hasAttribute("data-imgcap")){ var xi=docImg(cap.getAttribute("data-img")); if(xi){ xi[cap.getAttribute("data-imgcap")]=cap.textContent.replace(/\s+/g," ").trim(); } return; }
       if(cap && cap.hasAttribute("data-foto")){ window.D2_setFotoLegenda(+cap.getAttribute("data-foto"), cap.textContent.trim()); return; }
       if(cap){ var fid=cap.getAttribute("data-fid"), fig=cap.closest(".dd-fig"), m=FIG_META[fid]||[fid,""];
         var t=fig.querySelector('[data-cap="t"]').textContent.trim(), f=fig.querySelector('[data-cap="f"]').textContent.trim();
@@ -27909,6 +27990,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     box.addEventListener("change",function(e){
       var inp=e.target;
       if(inp.classList.contains("dd-figin")){ window.D2_carregarFig(inp.getAttribute("data-fid"),inp); }
+      if(inp.classList.contains("dd-imgin") && inp.files && inp.files[0]){ var xt=docImg(inp.getAttribute("data-img")); if(xt) docLerImg(inp.files[0]).then(function(src){ xt.src=src; try{ if(window.CAD_marcarSujo) window.CAD_marcarSujo(); }catch(e){} D2DOC_render(); }); }
       if(inp.classList.contains("dd-ressin")){ var i=+inp.getAttribute("data-i"); window.D2_ressalvaImg(i,inp); var n=0, iv=setInterval(function(){ n++; if((D2_ressalvas[i]&&D2_ressalvas[i].img)||n>40){ clearInterval(iv); D2DOC_render(); } },150); }
     });
     box.addEventListener("click",function(e){
@@ -27917,6 +27999,15 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       var b=e.target.closest("[data-act]"); if(!b) return;
       var act=b.getAttribute("data-act"), sec=b.closest(".dd-top"), id=sec?sec.getAttribute("data-id"):null;
       if(act==="add"){ var mn=sec.querySelector(".dd-menu"); mn.hidden=!mn.hidden; return; }
+      if(act==="addimg"){ docNovaImg(id); return; }
+      if(act==="imgup"||act==="imgdown"||act==="imgrm"){
+        var xm=docImg(b.getAttribute("data-img")); if(!xm) return;
+        if(act==="imgrm"){ if(!confirm("Remover esta imagem do relatório?")) return; D2DOC.imgs.splice(D2DOC.imgs.indexOf(xm),1); }
+        else { var irm=D2DOC.imgs.filter(function(z){ return z.topico===xm.topico; }), k=irm.indexOf(xm), o=irm[k+(act==="imgup"?-1:1)];
+          if(!o) return; var a1=D2DOC.imgs.indexOf(xm), b1=D2DOC.imgs.indexOf(o); D2DOC.imgs[a1]=o; D2DOC.imgs[b1]=xm; }
+        try{ if(window.CAD_marcarSujo) window.CAD_marcarSujo(); }catch(e){}
+        D2DOC_render(); return;
+      }
       if(act==="addx"){ docNovoExtra(id,+b.getAttribute("data-lv")); return; }
       if(act==="auto"){ if(!confirm("Descartar a edição manual deste tópico e voltar ao texto automático?")) return; delete D2DOC.ovr[id]; D2_rebuild(id); D2DOC_render(); return; }
       if(act==="hide"){ D2DOC.hide[id]=true; D2DOC_render(); return; }
