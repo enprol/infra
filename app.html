@@ -26995,7 +26995,8 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     // linha em branco antes do próximo título — sem essa folga, isso não contava
     // como "colado" e entrava o respiro de 10mm inteiro entre o título e o
     // subtítulo seguinte (23/09/2026, pedido do usuário: "4." e "4.1" muito longe).
-    function gapTopico(farGap){ if(yc<=topY+0.5) return; yc += (Math.abs(yc-_headEndY)<3 ? 2.5 : (farGap!==undefined?farGap:6.5)); }
+    // colado a outro título: 1mm (era 2,5 — 29/09/2026, "6." e "6.1" ainda pareciam distantes)
+    function gapTopico(farGap){ if(yc<=topY+0.5) return; yc += (Math.abs(yc-_headEndY)<3 ? 1 : (farGap!==undefined?farGap:6.5)); }
     // título nunca fica sozinho no pé da página: reserva também ~2 linhas do texto que vem depois
     const KEEP_NEXT=12;
     // mapas: altura máxima (sobra espaço para texto) e mínima ao reduzir para caber na página
@@ -27005,11 +27006,11 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       if(m){ pdf.text(m[1]+".", mL, yc); pdf.text(m[2].toUpperCase(), mL+11, yc); } else { pdf.text(String(t).toUpperCase(), mL, yc); }
       yc+=2.6; pdf.setDrawColor(70,70,70); pdf.setLineWidth(0.3); pdf.line(mL,yc,W-mR,yc); yc+=7; _headEndY=yc;
     }
-    function subt(t){ pdf.setFont(FONT,"bold"); pdf.setFontSize(11.5); pdf.setTextColor(0,0,0);
+    function subt(t,farGap){ pdf.setFont(FONT,"bold"); pdf.setFontSize(11.5); pdf.setTextColor(0,0,0);
       const m=String(t).match(/^(\d+\.\d+)\.?\s*(.*)$/);
       const nm=m?(m[1]+"."):""; const tit=(m?m[2]:String(t)).toUpperCase();
       const x0=mL+(nm?12:0); const ls=pdf.splitTextToSize(tit, W-mR-x0);
-      gapTopico(); ensure(ls.length*5.6+4+KEEP_NEXT); yc+=1; if(nm) pdf.text(nm, mL, yc);
+      gapTopico(farGap); ensure(ls.length*5.6+4+KEEP_NEXT); yc+=1; if(nm) pdf.text(nm, mL, yc);
       ls.forEach(function(l){ pdf.text(l, x0, yc); yc+=5.6; }); yc+=1.5; _headEndY=yc;
     }
     function h4b(t){ pdf.setFont(FONT,"bold"); pdf.setFontSize(10.5); pdf.setTextColor(20,41,74);
@@ -27246,7 +27247,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       }
       const label=(tp.num?(tp.num+" "):"")+tp.head;
       if(tp.level===1) titulo(label);
-      else if(tp.level===2) subt(label);
+      else if(tp.level===2) subt(label, tp.id==="anexo_2_relat_rio_fotogr_fic"?0:undefined);   // 6.1 perto do texto do "6."
       else if(tp.letra) letraHead(tp.letra, tp.head, {gap: tp.id==="planta_da_rea_total_do_im_ve"?4:undefined});
       else h4b(tp.head);
       // 3.2 RESSALVAS — lista dinâmica numerada
@@ -27256,7 +27257,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
         rrs.forEach(function(rr,i){ h4b("Ressalva "+((i+1)<10?"0":"")+(i+1)); if(rr.texto) bloco(rr.texto); if(rr.img) figImg(rr.img); });
         return;
       }
-      bloco(textoImpresso(tp));
+      { const _tx=textoImpresso(tp); if(String(_tx||"").trim()) bloco(_tx); }   // texto vazio não abre linha em branco
       (tp.figs||[]).forEach(figura);
       // item h) — áreas atingidas (ha): campos movidos do item c) + eventual lista de atividades exploradas
       if(tp.id==="planta_de_localiza_o_das_rea"){
@@ -27267,25 +27268,40 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
         var ats=(window.D2_getAtividades?window.D2_getAtividades():[]).filter(function(a){ return (a.nome||"").trim()||(a.area||"").trim(); });
         ats.forEach(function(a){ bulletRich("Área de "+(a.nome||"—")+" atingida: "+(a.area||"—")+" ha"); });
       }
-      // 6.1 ANEXO 1 - RELATÓRIO FOTOGRÁFICO — 4 fotos por página (2 col x 2 lin), com legenda
+      // 6.1 ANEXO 1 - RELATÓRIO FOTOGRÁFICO — 6 fotos por página (2 col x 3 lin). A descrição vai
+      // INTEIRA logo abaixo da foto e a linha (fotos + descrições) nunca é partida entre páginas.
+      // Tamanho único para todas as páginas, calculado para caberem 3 linhas já na 1ª (abaixo do "6.1").
       if(tp.id==="anexo_2_relat_rio_fotogr_fic"){
         var D2fts=(window.D2_getFotos?window.D2_getFotos():[]).filter(function(f){ return f && (f.src || f.legenda); });
         if(!D2fts.length){ parRich("[Sem fotos inseridas.]"); }
         else {
-          var gap=8, fw=(cw-gap)/2, fh=fw*0.72, cellH=fh+13;
-          for(var fi=0; fi<D2fts.length; fi++){
-            var colF=fi%2;
-            if(fi>0 && fi%4===0){ rod(); nova(); }        // 4 fotos por página
-            var fx=mL+colF*(fw+gap), fy=yc;
-            if(D2fts[fi].src){ try{ pdf.addImage(D2fts[fi].src, /^data:image\/png/i.test(D2fts[fi].src)?"PNG":"JPEG", fx, fy, fw, fh); }catch(e){} }
-            pdf.setDrawColor(150,150,150); pdf.setLineWidth(0.2); pdf.rect(fx,fy,fw,fh);
-            pdf.setFont(FONT,"normal"); pdf.setFontSize(8.5); pdf.setTextColor(70,70,70);
-            var lg=pdf.splitTextToSize("Foto "+(fi+1)+(D2fts[fi].legenda?(" – "+D2fts[fi].legenda):""), fw);
-            pdf.text(lg[0], fx+fw/2, fy+fh+4, {align:"center"});
-            pdf.setTextColor(0,0,0);
-            if(colF===1) yc+=cellH;                        // fecha a linha
+          var gap=8, CAP_FS=8.5, CAP_LH=3.6, CAP_MAX=4, fwMax=(cw-gap)/2;
+          pdf.setFont(FONT,"normal"); pdf.setFontSize(CAP_FS);
+          var capTxt=function(fi){ return "Foto "+(fi+1<10?"0":"")+(fi+1)+(D2fts[fi].legenda?(" – "+String(D2fts[fi].legenda).trim()):""); };
+          // linhas da descrição na largura máxima (define a reserva de altura; nunca corta: > 4 linhas reduz o corpo)
+          var capLinhas=function(fi,w,fs){ pdf.setFontSize(fs); return pdf.splitTextToSize(capTxt(fi), w); };
+          var nCap=1; for(var ci=0; ci<D2fts.length; ci++) nCap=Math.max(nCap, Math.min(CAP_MAX, capLinhas(ci,fwMax,CAP_FS).length));
+          var capH=2.2+nCap*CAP_LH, rowGap=5;
+          var alturaLinha=function(fh){ return fh+capH+rowGap; };
+          // 3 linhas no espaço que sobra nesta página; se ficar pequeno demais, usa a página cheia
+          var disp=botY-yc, fh=Math.min(fwMax*0.72, disp/3-capH-rowGap);
+          if(fh<44) fh=Math.min(fwMax*0.72, (botY-topY)/3-capH-rowGap);
+          var fw=Math.min(fwMax, fh/0.72), rowH=alturaLinha(fh), x0=mL+(cw-(fw*2+gap))/2, linhasPag=0;
+          for(var fi=0; fi<D2fts.length; fi+=2){
+            if(linhasPag===3 || yc+rowH-rowGap>botY+0.01){ rod(); nova(); linhasPag=0; }   // 6 por página, linha inteira
+            for(var k=0; k<2 && fi+k<D2fts.length; k++){
+              var f=D2fts[fi+k], fx=x0+k*(fw+gap), fy=yc;
+              if(f.src){ try{ pdf.addImage(f.src, /^data:image\/png/i.test(f.src)?"PNG":"JPEG", fx, fy, fw, fh); }catch(e){} }
+              pdf.setDrawColor(150,150,150); pdf.setLineWidth(0.2); pdf.rect(fx,fy,fw,fh);
+              var fs=CAP_FS, lg=capLinhas(fi+k,fw,fs);
+              while(lg.length>nCap && fs>6.5){ fs-=0.5; lg=capLinhas(fi+k,fw,fs); }
+              if(lg.length>nCap){ lg=lg.slice(0,nCap); lg[nCap-1]=lg[nCap-1].replace(/.{0,2}$/,"…"); }
+              pdf.setFont(FONT,"normal"); pdf.setFontSize(fs); pdf.setTextColor(70,70,70);
+              lg.forEach(function(l,li){ pdf.text(l, fx+fw/2, fy+fh+2.2+CAP_LH*0.8+li*CAP_LH*(fs/CAP_FS), {align:"center"}); });
+              pdf.setTextColor(0,0,0);
+            }
+            yc+=rowH; linhasPag++;
           }
-          if(D2fts.length%2===1) yc+=cellH;                // última foto ímpar
         }
       }
       // assinatura do responsável após a CONCLUSÃO
@@ -27456,7 +27472,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
               const f=fts[j]; const kids=[];
               if(f){ const im=f.src?imgRun(f.src,76,55):null;
                 if(im) kids.push(new Paragraph({alignment:AlignmentType.CENTER, spacing:{after:40}, children:[im]}));
-                kids.push(new Paragraph({alignment:AlignmentType.CENTER, spacing:{after:160}, children:[R("Foto "+(j+1)+(f.legenda?(" – "+f.legenda):""),{size:17,color:"464646"})]})); }
+                kids.push(new Paragraph({alignment:AlignmentType.CENTER, spacing:{after:160}, children:[R("Foto "+(j+1<10?"0":"")+(j+1)+(f.legenda?(" – "+f.legenda):""),{size:17,color:"464646"})]})); }
               else kids.push(new Paragraph({children:[R("")]}));
               cels.push(new TableCell({borders:noB, width:{size:50,type:WidthType.PERCENTAGE}, children:kids}));
             }
@@ -27524,7 +27540,17 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
   // comparação sem espaços: "**X **" e "**X** " imprimem igual no PDF
   function D2DOC_norm(s){ return String(s||"").split("\n").map(function(l){ return l.replace(/\s+/g,""); }).filter(function(l){ return l; }).join("\n"); }
   function textoAuto(id){ var t=TX(id); if(COMMENT_APPEND[id]){ var c=kf(COMMENT_APPEND[id]); if(c) t+="\n"+c; } return t; }
-  function textoImpresso(tp){ if(tp._extra) return tp.txt||""; if(D2DOC.ovr[tp.id]!=null) return D2DOC.ovr[tp.id]; return textoAuto(tp.id); }
+  function textoImpresso(tp){ var t; if(tp._extra) t=tp.txt||""; else if(D2DOC.ovr[tp.id]!=null) t=D2DOC.ovr[tp.id]; else t=textoAuto(tp.id);
+    return tp.id==="conclus_o" ? comDataDeHoje(t) : t; }
+  // CONCLUSÃO: a linha "Local, dd de mês de aaaa." sai com a data do dia em que o material é gerado
+  // (PDF/Word), mantendo o local digitado — pedido do usuário, 29/09/2026. O texto salvo não muda.
+  function comDataDeHoje(t){
+    var d=new Date(), hoje=d.getDate()+" de "+window.__MESES__[d.getMonth()]+" de "+d.getFullYear();
+    return String(t||"").split("\n").map(function(l){
+      if(l.indexOf("[dia] de [mês] de [ano]")>=0) return l.replace("[dia] de [mês] de [ano]", hoje);
+      return l.replace(/^(\s*[^,\n]{2,80},\s*)\d{1,2}º?\s+de\s+[A-Za-zÀ-ÿ]+\s+de\s+\d{4}(\s*\.?\s*)$/, function(_,a,b){ return a+hoje+b; });
+    }).join("\n");
+  }
   function figMeta(fid){ var m=FIG_META[fid]||[fid,""], c=D2DOC.caps[fid]||{}; return [(c.t||m[0]), (c.f!=null&&c.f!==""?c.f:m[1])]; }
   // tópicos que o sistema reescreve sozinho — editar aqui precisa "fixar" o texto
   function D2DOC_autoGerado(id){ var m=D2_UI[id]; return (!!m && m!=="freetext") || !!COMMENT_APPEND[id]; }
