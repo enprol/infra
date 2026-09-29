@@ -17713,6 +17713,20 @@ function AV_gerarDescSituacao(){
   }
 
   window.MDP_ctx = function(){ return { ctx:CTX, km:kmAtual(), g:G }; };
+  // KM inicial/final da área desapropriada no eixo = vértices que tocam o eixo (os mesmos da planta e do
+  // memorial; KM manual da tabela, se houver). Usado pelos mapas automáticos da DESP-2 (29/09/2026).
+  window.MDP_kmEixo = async function(){
+    if(!G) analisar(); if(!G) return null;
+    await carregarContexto(); ancorarP1NoEixo();
+    var e = eixoIniFim(); if(!e) return null;
+    function pt(i){
+      if(i == null || i < 0 || !G.v[i]) return null;
+      var v = G.v[i], t = kmDe(i) || (e.km.v[i] && e.km.v[i].ch != null ? kmTxt(e.km.v[i].ch) : "");
+      return { i:i, nome:v.nome, lon:v.lon, lat:v.lat, E:v.E, N:v.N, km:t };
+    }
+    var a = pt(e.ini), b = pt(e.fim);
+    return { ini:a, fim:(b && a && b.i === a.i) ? null : b };
+  };
   window.MDP_layout = { FL:FL, MAPA:MAPA, TAB:TAB, CAR:CAR, formatos:FORMATOS };
   window.MDP_dbgSat = function(esc){ var T = enquadrar({escala:esc||0}); return rasterSatelite(T, 96, function(f,t){ console.log("tile",f,"/",t); }).then(function(u){ console.log("satélite:", u ? (Math.round(u.length/1024)+" KB") : "NULO"); return u; }); };
 
@@ -26734,12 +26748,21 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
         st('Buscando estacas do eixo…'); try{ estacas=await d2fetchEstacas(bb); }catch(e){} }
       // entrada/saída do eixo no cadastro (oeste→leste) — coordenadas UTM com seta
       var cruz=null;
-      if(geom.faixa && geom.faixa.eixos && geom.faixa.eixos.length){
+      // 29/09/2026: KM inicial/final = VÉRTICES DA ÁREA DESAPROPRIADA QUE TOCAM O EIXO — o mesmo ponto e
+      // o mesmo KM da planta de situação e do memorial (MDP). Só sem isso cai no cruzamento eixo × polígono.
+      var kmMdp=null;
+      if(!rot && window.MDP_kmEixo){ st('Buscando o KM do eixo (planta de situação)…'); try{ kmMdp=await window.MDP_kmEixo(); }catch(e){ kmMdp=null; } }
+      var fmtKmMdp=function(t){ return String(t||'').replace(/^\s*KM\s*=?\s*/i,'').replace(/\s*\+\s*/,' + ').trim(); };
+      if(kmMdp && (kmMdp.ini || kmMdp.fim)){
+        cruz={ ent:kmMdp.ini?[kmMdp.ini.lon,kmMdp.ini.lat]:null, sai:(kmMdp.fim && kmMdp.fim!==kmMdp.ini)?[kmMdp.fim.lon,kmMdp.fim.lat]:null };
+        if(kmMdp.ini && kmMdp.ini.km) D2MAP_TXT.kmEnt=fmtKmMdp(kmMdp.ini.km);
+        if(kmMdp.fim && kmMdp.fim.km) D2MAP_TXT.kmSai=fmtKmMdp(kmMdp.fim.km);
+      } else if(geom.faixa && geom.faixa.eixos && geom.faixa.eixos.length){
         var cadPolys=(geom.desap&&geom.desap.polys.length)?geom.desap.polys:((geom.area&&geom.area.polys)||null);
         if(cadPolys){ var xs=d2crossings(geom.faixa.eixos,cadPolys); if(xs.length){ xs.sort(function(a,b){return a[0]-b[0];}); cruz={ent:xs[0],sai:(xs.length>1?xs[xs.length-1]:null)}; } }
       }
       // KM automático no cruzamento (só sobrescreve se o campo estiver no placeholder)
-      if(cruz && geom.faixa && geom.faixa.eixos){
+      if(!kmMdp && cruz && geom.faixa && geom.faixa.eixos){
         if(cruz.ent){ var _kE=d2fmtKM(d2kmNoEixo(cruz.ent,geom.faixa.eixos,estacas)); if(_kE && (!D2MAP_TXT.kmEnt||D2MAP_TXT.kmEnt==='000 + 000,00')) D2MAP_TXT.kmEnt=_kE; }
         if(cruz.sai){ var _kS=d2fmtKM(d2kmNoEixo(cruz.sai,geom.faixa.eixos,estacas)); if(_kS && (!D2MAP_TXT.kmSai||D2MAP_TXT.kmSai==='000 + 000,00')) D2MAP_TXT.kmSai=_kS; }
       }
