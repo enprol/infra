@@ -23448,6 +23448,11 @@ window.DRL_dados=function(){
     propId: v('fb_prop_id','rel_prop_id','av_denom'),
     propEnd: v('fb_prop_end'),
     sigef: v('fb_sigef'),
+    // ocupante ≠ proprietário (Ficha 1.3 "O ocupante é o(a) proprietário(a)?" = Não): nome no Informante
+    ocupDif: /^\s*2\b|n[ãa]o/i.test(v('fb_ocup_e_prop')),
+    ocupNome: v('fb_inf_nome'),
+    ocupCpf: v('fb_ocup_cpf'),
+    ocupCpfTipo: (document.getElementById('fb_ocup_cpf_tipo')||{}).value||'cpf',
     ano: ano()
   };
 };
@@ -23458,7 +23463,32 @@ function DRL_modelo(){ var e=document.getElementById('drl_modelo'); return (e &&
 // SIGEF da aba Técnica: só entra no texto se for um código (não "Não possui", "N/A"…)
 function DRL_sigefCodigo(s){ s=(s||'').trim(); return (!s || /^(n[ãa]o\b|n\/?a\b|sem\b|inexist|-+$)/i.test(s)) ? '' : s; }
 function DRL_docRotulo(d){ return d.cpfTipo==='cnpj' ? 'Cadastro Nacional da Pessoa Jurídica – CNPJ' : 'Cadastro de Pessoa Física – CPF'; }
-function DRL_paragrafoSemAnuencia(d){
+// Texto do modelo "sem anuência" em trechos [texto, negrito?]. Ocupante e proprietário podem ser
+// pessoas diferentes (30/09/2026): aí entram os dois. CPF/CNPJ vazio = o trecho do documento some.
+function DRL_trechosSemAnuencia(d){
+  var sig = DRL_sigefCodigo(d.sigef), T = [];
+  function doc(num, tipo){ if(num && num.trim()){ T.push([', no '+DRL_docRotulo({cpfTipo:tipo})+' nº ']); T.push([num.trim(), true]); } }
+  T.push(['A ENPROL ENGENHARIA E PROJETOS LTDA, declara que esteve presente na área avaliada de ocupação de ']);
+  if(d.ocupDif){
+    T.push([DRL_bl(d.ocupNome), true]); doc(d.ocupCpf, d.ocupCpfTipo);
+    T.push([', do imóvel de propriedade de ']); T.push([DRL_bl(d.nome), true]); doc(d.cpf, d.cpfTipo);
+    T.push([', denominado ']);
+  } else {
+    T.push([DRL_bl(d.nome), true]); doc(d.cpf, d.cpfTipo);
+    T.push([', do imóvel denominado ']);
+  }
+  T.push([DRL_bl(d.propId), true]);
+  if(d.propEnd) T.push([', '+d.propEnd]);
+  T.push([', matrícula(s) nº(s) ']); T.push([DRL_bl(d.matricula), true]);
+  T.push([', da comarca de ']); T.push([DRL_bl(d.municipio), true]);
+  if(sig){ T.push([', cadastrado no INCRA sob o código nº ']); T.push([sig, true]); }
+  T.push([', declara, sob as penas da lei, que foram respeitados os limites das divisas in loco com os confrontantes abaixo relacionados durante a execução dos trabalhos técnicos na citada propriedade, não havendo qualquer litígio entre as partes.']);
+  return T;
+}
+function DRL_paragrafoSemAnuencia(d){ return DRL_trechosSemAnuencia(d).map(function(t){ return t[0]; }).join(''); }
+// versão anterior do texto automático (só 1 pessoa, CPF sempre presente) — texto salvo igual a ela é
+// automático antigo, não edição do usuário: é trocado pelo novo sem perguntar
+function DRL_paragrafoSemAnuenciaV1(d){
   var sig = DRL_sigefCodigo(d.sigef);
   return 'A ENPROL ENGENHARIA E PROJETOS LTDA, declara que esteve presente na área avaliada de ocupação de '+DRL_bl(d.nome)+
     ', no '+DRL_docRotulo(d)+' nº '+DRL_bl(d.cpf)+', do imóvel denominado '+DRL_bl(d.propId)+(d.propEnd ? ', '+d.propEnd : '')+
@@ -23477,7 +23507,7 @@ window.DRL_trocarModelo=function(){
   var e=document.getElementById('drl_texto'), d=window.DRL_dados();
   if(e){
     var t=(e.value||'').trim();
-    var auto = !t || t===DRL_paragrafo(d).trim() || t===DRL_paragrafoSemAnuencia(d).trim();
+    var auto = !t || t===DRL_paragrafo(d).trim() || t===DRL_paragrafoSemAnuencia(d).trim() || t===DRL_paragrafoSemAnuenciaV1(d).trim();
     if(auto || confirm('O texto da declaração foi editado.\n\nSubstituir pelo texto automático do modelo escolhido?')){
       e.value=DRL_textoAuto(d); e.dispatchEvent(new Event('input',{bubbles:true}));
     }
@@ -23511,6 +23541,7 @@ window.DRL_gerarPDF=async function(opts){
 
   var modelo=DRL_modelo();
   var texto=DRL_gv('drl_texto') || DRL_textoAuto(d, modelo);
+  if(modelo==='sem_anuencia' && texto.trim()===DRL_paragrafoSemAnuenciaV1(d).trim()) texto=DRL_paragrafoSemAnuencia(d);   // automático antigo -> novo
   var confAImg=DRL_gv('drl_conf_abrangida_img');           // imagem da tabela de confrontantes
   var nAc=3;
   var localData=DRL_gv('drl_local_data') || DRL_localDataPadrao(d);
@@ -25082,6 +25113,12 @@ window.DRL_gerarPDF=async function(opts){
   function _set(id,v){ var e=document.getElementById(id); if(e && !((e.value||'').trim())){ e.value=v; } }
   function preencherPadrao(){
     _set('drl_texto', DRL_textoAuto(window.DRL_dados()));
+    try{
+      var _t=document.getElementById('drl_texto'), _d=window.DRL_dados();
+      if(_t && DRL_modelo()==='sem_anuencia' && (_t.value||'').trim()===DRL_paragrafoSemAnuenciaV1(_d).trim() && _t.value.trim()!==DRL_paragrafoSemAnuencia(_d).trim()){
+        _t.value=DRL_paragrafoSemAnuencia(_d); _t.dispatchEvent(new Event('input',{bubbles:true}));
+      }
+    }catch(e){}
     if(window.DRL_avisoModelo) window.DRL_avisoModelo();
     _set('drl_local_data', DRL_localDataPadrao(window.DRL_dados()));
   }
@@ -25166,16 +25203,10 @@ window.DRL_gerarWord=async function(opts){
   var K=[];
   K.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{before:120,after:280},children:[R("DECLARAÇÃO DE RESPEITO DE LIMITES",{bold:true,size:26})]}));
   if(_modelo==='sem_anuencia'){
-    var _sig=DRL_sigefCodigo(d.sigef);
-    if(_txtEdit && _txtEdit!==DRL_paragrafoSemAnuencia(d)){
+    if(_txtEdit && _txtEdit!==DRL_paragrafoSemAnuencia(d) && _txtEdit!==DRL_paragrafoSemAnuenciaV1(d)){
       K.push(new Paragraph({alignment:AlignmentType.JUSTIFIED,spacing:{after:220,line:288},children:[R(_txtEdit)]}));
     } else {
-      var _runs=[R("A ENPROL ENGENHARIA E PROJETOS LTDA, declara que esteve presente na área avaliada de ocupação de "),R(val(d.nome),{bold:true}),
-        R(", no "+DRL_docRotulo(d)+" nº "),R(val(d.cpf),{bold:true}),R(", do imóvel denominado "),R(val(d.propId),{bold:true})];
-      if(d.propEnd){ _runs.push(R(", "+d.propEnd)); }
-      _runs.push(R(", matrícula(s) nº(s) "),R(val(d.matricula),{bold:true}),R(", da comarca de "),R(val(d.municipio),{bold:true}));
-      if(_sig){ _runs.push(R(", cadastrado no INCRA sob o código nº "),R(_sig,{bold:true})); }
-      _runs.push(R(", declara, sob as penas da lei, que foram respeitados os limites das divisas in loco com os confrontantes abaixo relacionados durante a execução dos trabalhos técnicos na citada propriedade, não havendo qualquer litígio entre as partes."));
+      var _runs=DRL_trechosSemAnuencia(d).map(function(t){ return R(t[0], t[1]?{bold:true}:{}); });
       K.push(new Paragraph({alignment:AlignmentType.JUSTIFIED,spacing:{after:220,line:288},children:_runs}));
     }
   } else if(_txtEdit && _txtEdit!==DRL_paragrafo(d)){
