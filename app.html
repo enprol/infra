@@ -290,6 +290,31 @@ window.REL_baixarConjunto = async function(){
     }catch(e){ if(e&&e.name==='AbortError') return false; }
     var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=nome; document.body.appendChild(a); a.click(); setTimeout(function(){URL.revokeObjectURL(a.href); a.remove();},1500); return true;
   };
+  // Vários arquivos na MESMA pasta com uma escolha só (30/09/2026 — ex.: PDF + Word da DESP-2).
+  // O navegador só abre a janela de salvar logo após um clique: a 2ª janela "Salvar como" era
+  // recusada e o Word caía em Downloads. Aqui escolhe-se a PASTA uma vez e grava tudo nela.
+  // arqs = [{blob, nome}]. Devolve true (salvou), false (cancelou) ou null (navegador sem suporte).
+  window.FS_salvarVarios = async function(arqs){
+    arqs=(arqs||[]).filter(function(x){ return x && x.blob && x.nome; });
+    if(!arqs.length) return true;
+    if(!window.showDirectoryPicker) return null;
+    var dir;
+    try{
+      var popt={id:'enprol-docs', mode:'readwrite'};
+      if(window.__FS_dirUltimo) popt.startIn=window.__FS_dirUltimo; else if(window.__FS_ultimo) popt.startIn=window.__FS_ultimo;
+      dir=await window.showDirectoryPicker(popt);
+    }catch(e){ if(e&&e.name==='AbortError') return false; return null; }
+    window.__FS_dirUltimo=dir;
+    var existentes=[];
+    for(var i=0;i<arqs.length;i++){ try{ await dir.getFileHandle(arqs[i].nome); existentes.push(arqs[i].nome); }catch(e){} }
+    if(existentes.length && !confirm('Já existe(m) nesta pasta:\n\n'+existentes.join('\n')+'\n\nSubstituir?')) return false;
+    for(var k=0;k<arqs.length;k++){
+      var fh=await dir.getFileHandle(arqs[k].nome, {create:true});
+      var w=await fh.createWritable(); await w.write(arqs[k].blob); await w.close();
+      window.__FS_ultimo=fh;
+    }
+    return true;
+  };
   var _crcT=(function(){var t=[],c,n,k;for(n=0;n<256;n++){c=n;for(k=0;k<8;k++){c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1);}t[n]=c>>>0;}return t;})();
   function crc32(u8){var c=0xFFFFFFFF;for(var i=0;i<u8.length;i++){c=_crcT[(c^u8[i])&0xFF]^(c>>>8);}return (c^0xFFFFFFFF)>>>0;}
   function s2u8(s){return new TextEncoder().encode(s);}
@@ -27681,8 +27706,12 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     // junto com o PDF sai o Word (.docx) editável, com a mesma estrutura
     let _word=null;
     try{ _word=await window.D2_gerarWord({retornar:true, jaSincronizado:true}); }catch(e){ console.error("DESP-2 Word:",e); }
-    if(window.FS_salvar){ await window.FS_salvar(_blob,_nome); } else { pdf.save(_nome); }
-    if(_word){ await window.FS_salvar(_word.blob,_word.nome); }
+    // PDF e Word na mesma pasta, escolhida uma vez só
+    var _salvou = window.FS_salvarVarios ? await window.FS_salvarVarios([{blob:_blob,nome:_nome}, _word]) : null;
+    if(_salvou === null){
+      if(window.FS_salvar){ await window.FS_salvar(_blob,_nome); } else { pdf.save(_nome); }
+      if(_word){ await window.FS_salvar(_word.blob,_word.nome); }
+    }
   };
 
   /* ---------- WORD (.docx) — mesma estrutura do PDF, com estilos reais do Word
