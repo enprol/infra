@@ -2861,7 +2861,7 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
             <th></th><th></th><th></th><th></th>
             <th colspan="2"></th>
             <th colspan="4" class="pg-grupo-th" id="pgGrupoEtapas" onclick="PG_toggleGrupo()" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();PG_toggleGrupo();}"><span id="pgGrupoTxt">▾ Andamento por etapa</span></th>
-            <th colspan="5"></th>
+            <th colspan="7"></th>
           </tr>
           <tr class="pg-cabecalho">
             <th>Medição</th>
@@ -2876,6 +2876,8 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
             <th class="pg-status-th pg-col-st">JURÍDICA</th>
             <th class="pg-col-resumo" aria-hidden="true"></th>
             <th class="pg-status-th">Melhorias</th>
+            <th>Área total (ha)</th>
+            <th>Área desapropriada (ha)</th>
             <th>R$ Terra nua</th>
             <th>R$ Benf. reprodutivas</th>
             <th>R$ Benf. não reprodutivas</th>
@@ -2893,11 +2895,11 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
             <th class="pg-col-st"><button type="button" class="pg-filtbtn" id="pgFiltBtnTecnica" onclick="PG_toggleFiltro(event,'tecnica')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
             <th class="pg-col-st"><button type="button" class="pg-filtbtn" id="pgFiltBtnJuridica" onclick="PG_toggleFiltro(event,'juridica')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
             <th class="pg-col-resumo"></th>
-            <th><button type="button" class="pg-filtbtn" id="pgFiltBtnMelhorias" onclick="PG_toggleFiltro(event,'melhorias')">Todos <span class="pg-filtbtn-seta">▾</span></button></th><th></th><th></th><th></th><th></th>
+            <th><button type="button" class="pg-filtbtn" id="pgFiltBtnMelhorias" onclick="PG_toggleFiltro(event,'melhorias')">Todos <span class="pg-filtbtn-seta">▾</span></button></th><th></th><th></th><th></th><th></th><th></th><th></th>
           </tr>
         </thead>
         <tbody id="pgCorpo">
-          <tr><td colspan="16" class="pg-vazio">Carregando…</td></tr>
+          <tr><td colspan="18" class="pg-vazio">Carregando…</td></tr>
         </tbody>
         <tfoot id="pgRodape"></tfoot>
       </table>
@@ -5745,9 +5747,15 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 <h1>Técnica</h1>
 <p class="sub">Áreas de locação e área a desapropriar (preenchimento único, usado nos demais documentos) e as Benfeitorias da Avaliação (DESP 3) — o que for preenchido aqui ou lá aparece nos dois lugares.</p>
 <div class="vcard"><div class="vsub">Áreas de Locação</div><div class="rel-areas" id="rel_areas"></div><div class="vactions" style="margin-top:6px;"><button class="vbtn vbtn-ghost" type="button" onclick="REL_addArea()">+ Adicionar área</button></div>
-  <div class="vfield grow" style="margin-top:16px;">
-    <label for="rel_kml_btn">KML <span class="hint-auto"> perímetro do trecho (arquivo .kml)</span></label>
-    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+  <div class="tec-areas-ha vrow"><div class="vfield"><label>Área Desap. (ha)</label><input type="text" id="fb_area_desap" class="num4" inputmode="decimal" placeholder="0,0000"></div><div class="vfield"><label>Remanescente norte (ha)</label><input type="text" id="d2_kf_remN" class="num4" inputmode="decimal" placeholder="0,0000"></div><div class="vfield"><label>Remanescente sul / sede (ha)</label><input type="text" id="d2_kf_remS" class="num4" inputmode="decimal" placeholder="0,0000"></div></div>
+  <div class="vsub tec-geo-sub">Georreferenciamento (Anexo B — Ficha de Vistoria)</div><div id="geo_row_slot"></div>
+</div>
+<div class="vcard" id="tec_kmls_card"><div class="vsub">Arquivos KML do imóvel</div>
+  <p class="hint-inline" style="margin-top:0;">Todos os KMLs do cadastro. O da <b>área desapropriada</b> alimenta a planta, o memorial descritivo e o Mapa Geral; os demais (opcionais) entram nos <b>mapas automáticos do DESP-2</b> conforme a regra de cada figura.</p>
+  <div class="imv-kml-grade">
+    <div class="vfield grow">
+    <label for="rel_kml_btn">Área desapropriada <span class="hint-auto"> perímetro do trecho (.kml) — planta, memorial e mapas</span></label>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
       <button class="vbtn vbtn-ghost" type="button" id="rel_kml_btn" onclick="document.getElementById('rel_kml_file').click()">📍 Escolher arquivo KML…</button>
       <input type="file" id="rel_kml_file" accept=".kml,application/vnd.google-earth.kml+xml,text/xml,application/xml" style="display:none" onchange="REL_kmlEscolher(this)">
       <span id="rel_kml_status" class="hint-inline" style="margin:0;">Nenhum arquivo inserido.</span>
@@ -5755,12 +5763,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
     </div>
     <textarea id="rel_kml_dados" style="display:none" aria-hidden="true"></textarea>
     <input type="hidden" id="rel_kml_nome">
-  </div>
-</div>
-<h2 class="vsec acc" onclick="FV_toggleSec(this)"><span>Camadas do imóvel (para as plantas e mapas automáticos do DESP-2)</span><span class="acc-chevron">▾</span></h2>
-<div class="vcard">
-  <p class="hint-inline" style="margin-top:0;">KMLs opcionais usados nos <b>mapas automáticos do DESP-2</b> e na planta. Cada um alimenta as figuras conforme a regra de cada mapa.</p>
-  <div class="imv-kml-grade">
+    </div>
     <div class="vfield grow">
       <label>Área total do imóvel <span class="hint-auto"> polígono (.kml)</span></label>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
@@ -5835,23 +5838,17 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
   <p class="hint-inline" style="margin-top:0;">Cor, espessura e tipo de linha de cada camada, como no quadro de layers do AutoCAD. Os estilos ficam <b>salvos no servidor</b> e valem para todos os cadastros.</p>
   <div id="d2map_quadro"><p class="hint-inline">Carregando estilos…</p></div>
 </div>
-<div class="vcard"><div class="vrow"><div class="vfield"><label>Área Desap. (ha)</label><input type="text" id="fb_area_desap" class="num4" inputmode="decimal" placeholder="0,0000"></div><div class="vfield"><label>Remanescente norte (ha)</label><input type="text" id="d2_kf_remN" class="num4" inputmode="decimal" placeholder="0,0000"></div><div class="vfield"><label>Remanescente sul / sede (ha)</label><input type="text" id="d2_kf_remS" class="num4" inputmode="decimal" placeholder="0,0000"></div></div></div>
-<div class="vcard"><div class="vsub">Georreferenciamento (Anexo B — Ficha de Vistoria)</div><div id="geo_row_slot"></div></div>
 <div class="vsub" style="margin-top:22px;">Benfeitorias (itens 12 e 13 da Avaliação — DESP 3)</div>
 <p class="hint-inline" style="margin-top:0;">As tabelas abaixo são as mesmas da aba Avaliação (DESP 3 → Avaliação): editar aqui ou lá preenche o mesmo lugar.</p>
 <div id="bnf_item12_slot"></div>
 <div id="bnf_item13_slot"></div>
 <div class="vsec" style="margin-top:22px;">Plantas e Roteiro de Acesso (DESP 2)</div>
 <p class="hint-inline" style="margin-top:0;">Idem — os mesmos tópicos e imagens da DESP 2 → Relatório de Análise de Impacto e Transposição. Clique numa imagem já inserida para ampliar; use as setas laterais para passar para as outras plantas deste tópico.</p>
-<div class="d2plantas-grade">
+<div class="d2plantas-lista">
   <div id="d2_row_roteiro_de_acesso_slot"></div>
   <div id="d2_row_planta_da_rea_total_do_im_ve_slot"></div>
-</div>
-<div class="d2plantas-grade">
   <div id="d2_row_planta_contendo_a_dimens_o_d_slot"></div>
   <div id="d2_row_planta_com_indica_o_das_font_slot"></div>
-</div>
-<div class="d2plantas-grade">
   <div id="d2_row_planta_contendo_a_disposi_o_slot"></div>
   <div id="d2_row_planta_de_localiza_o_das_rea_slot"></div>
 </div>
@@ -6743,6 +6740,19 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
   #panel-desp1-tecnica .imv-metros::before{ content:"📏 "; }
   /* roteiro de acesso — Pontos A/B */
   #panel-desp1-tecnica .d2plantas-grade{ grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
+  /* Áreas de Locação: áreas (ha) + Georreferenciamento no mesmo quadro (30/09/2026) */
+  #panel-desp1-tecnica .tec-areas-ha{ margin-top:18px; padding-top:14px; border-top:1px dashed #dfe6ee; }
+  #panel-desp1-tecnica .tec-geo-sub{ margin-top:6px; padding-top:14px; border-top:1px dashed #dfe6ee; }
+  /* Plantas e Roteiro (DESP 2) em lista: mapa à esquerda, textos/campos à direita (30/09/2026) */
+  #panel-desp1-tecnica .d2plantas-lista .d2t-row{ display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); column-gap:22px; row-gap:0; align-items:start; grid-auto-flow:row dense; }
+  #panel-desp1-tecnica .d2plantas-lista .d2t-row > *{ grid-column:2; min-width:0; }
+  #panel-desp1-tecnica .d2plantas-lista .d2t-row > .d2t-head{ grid-column:1 / -1; }
+  #panel-desp1-tecnica .d2plantas-lista .d2t-row > .d2-figgrid{ grid-column:1; grid-row:2 / span 30; grid-template-columns:minmax(0,1fr); margin-top:0; }
+  #panel-desp1-tecnica .d2plantas-lista .d2t-row > .d2-rta{ grid-template-columns:minmax(0,1fr); }
+  @media (max-width:900px){
+    #panel-desp1-tecnica .d2plantas-lista .d2t-row{ grid-template-columns:minmax(0,1fr); }
+    #panel-desp1-tecnica .d2plantas-lista .d2t-row > *, #panel-desp1-tecnica .d2plantas-lista .d2t-row > .d2-figgrid{ grid-column:1; grid-row:auto; }
+  }
   #panel-desp1-tecnica .d2-rta, #panel-desp2-relatorio .d2-rta{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:10px 14px; align-items:start;
     background:#f6faff; border:1px solid #dbe8f6; border-radius:12px; padding:12px 14px; margin:0 0 12px; }
   .d2-rta .vfield{ min-width:0 !important; }
@@ -13300,6 +13310,25 @@ function AV_gerarDescSituacao(){
   function money(n){
     return (n==null) ? "—" : "R$ " + Number(n).toLocaleString("pt-BR", {minimumFractionDigits:2, maximumFractionDigits:2});
   }
+  // Áreas em hectares (Área total — Ficha 1.4; Área desap. — aba Técnica): vêm como o usuário
+  // digitou ("12,3456", "1.234,5"); mostra com 4 casas no padrão BR, ou o texto cru se não for número.
+  function haNum(v){
+    if(v == null || String(v).trim() === "") return null;
+    if(typeof v === "number") return isFinite(v) ? v : null;
+    var t = String(v).replace(/[^0-9,.-]/g, "");
+    t = (t.indexOf(",") >= 0) ? t.replace(/\./g, "").replace(",", ".") : t;
+    var n = parseFloat(t);
+    return isFinite(n) ? n : null;
+  }
+  function haFmt(n){
+    return (n == null) ? "—" : Number(n).toLocaleString("pt-BR", {minimumFractionDigits:4, maximumFractionDigits:4});
+  }
+  function PG_haCelHTML(v){
+    if(v === undefined) return '<td class="pg-num pg-sem" style="color:#a7b2bf" title="Servidor desatualizado — reinstale o servidor para ver esta coluna">?</td>';
+    var n = haNum(v);
+    if(n == null) return '<td class="pg-num">' + (v ? esc(v) : "—") + '</td>';
+    return '<td class="pg-num">' + haFmt(n) + '</td>';
+  }
   function loteFmt(l){
     if(!l) return "—";
     var n = parseInt(l, 10);
@@ -13456,7 +13485,7 @@ function AV_gerarDescSituacao(){
       PG_renderizar();
       if(status) status.textContent = "Atualizado " + new Date().toLocaleTimeString("pt-BR");
     }).catch(function(e){
-      if(corpo) corpo.innerHTML = '<tr><td colspan="16" class="pg-vazio">Não foi possível carregar: ' + esc(e && e.message || e) + '</td></tr>';
+      if(corpo) corpo.innerHTML = '<tr><td colspan="18" class="pg-vazio">Não foi possível carregar: ' + esc(e && e.message || e) + '</td></tr>';
       if(status) status.textContent = "";
     });
   };
@@ -13695,7 +13724,7 @@ function AV_gerarDescSituacao(){
 
     if(!itens.length){
       var temFiltro = _PG_CAMPOS.some(function(campo){ return !!_pgSel[campo]; });
-      corpo.innerHTML = '<tr><td colspan="16" class="pg-vazio">Nenhum cadastro encontrado' + (temFiltro ? " para este filtro." : ".") + '</td></tr>';
+      corpo.innerHTML = '<tr><td colspan="18" class="pg-vazio">Nenhum cadastro encontrado' + (temFiltro ? " para este filtro." : ".") + '</td></tr>';
       if(rodape) rodape.innerHTML = "";
       return;
     }
@@ -13715,6 +13744,8 @@ function AV_gerarDescSituacao(){
         + PG_statusCelHTML(it.completude && it.completude.juridica)
         + PG_resumoEtapasCelHTML(it)
         + PG_melhoriasCelHTML(it)
+        + PG_haCelHTML(it.area_total)
+        + PG_haCelHTML(it.area_desapropriada)
         + '<td class="pg-num">' + money(it.valor_terra_nua) + '</td>'
         + '<td class="pg-num">' + money(it.valor_benf_reprodutiva) + '</td>'
         + '<td class="pg-num">' + money(it.valor_benf_nao_reprodutiva) + '</td>'
@@ -13728,6 +13759,11 @@ function AV_gerarDescSituacao(){
         itens.forEach(function(it){ if(it[campo] != null){ s = (s||0) + Number(it[campo]); } });
         return s;
       }
+      function somaHa(campo){
+        var s = null;
+        itens.forEach(function(it){ var n = haNum(it[campo]); if(n != null){ s = (s||0) + n; } });
+        return s;
+      }
       rodape.innerHTML = '<tr>'
         + '<td></td>'
         + '<td></td>'
@@ -13738,6 +13774,8 @@ function AV_gerarDescSituacao(){
         + '<td class="pg-col-st"></td><td class="pg-col-st"></td><td class="pg-col-st"></td><td class="pg-col-st"></td>'
         + '<td class="pg-col-resumo"></td>'
         + '<td></td>'
+        + '<td class="pg-num">' + haFmt(somaHa("area_total")) + '</td>'
+        + '<td class="pg-num">' + haFmt(somaHa("area_desapropriada")) + '</td>'
         + '<td class="pg-num">' + money(soma("valor_terra_nua")) + '</td>'
         + '<td class="pg-num">' + money(soma("valor_benf_reprodutiva")) + '</td>'
         + '<td class="pg-num">' + money(soma("valor_benf_nao_reprodutiva")) + '</td>'
