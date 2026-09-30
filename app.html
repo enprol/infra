@@ -25973,6 +25973,18 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     var areaDesap=(C("areaDesap")||"").trim();
     var areaDesapTxt=areaDesap ? ("**"+areaDesap+" ha**") : "**[área desapropriada]**";
 
+    // CTD 006A–006Z / SPS-04 (30/09/2026, pedido do usuário): conclusão padrão com PN comunitária para
+    // todos; muda só os dados do cadastro. Área remanescente = área certificada no SIGEF (item 1.4 da Ficha).
+    if(D2_eh006()){
+      var cert=(C("areaTotal")||"").trim();
+      var dl=(C("localData")||gid("fb_ass_local")||"").trim();
+      return "A partir da vistoria técnica e da análise geométrica do projeto, constatou-se que a implantação do traçado da Ferrovia "+ferroviaNome+" ("+cod+") no imóvel **"+imovel+"**, "+quemTxt+", localizado no município de **"+municipio+"**, resulta na necessidade de desapropriação principal de uma área de "+areaDesapTxt+" para a constituição da nova faixa de domínio (cujo custo indenizatório é tratado exclusivamente no Produto DESP-3)."
+        +"\nDo ponto de vista geométrico e logístico, a implantação da nova faixa de domínio **provocará** o seccionamento da propriedade, isolando uma área remanescente de **"+(cert?cert+" ha":"[área certificada]")+"** e comprometendo o acesso e a continuidade das atividades desenvolvidas no imóvel."
+        +"\nQuanto às medidas de melhoria a serem implantadas, indica-se, como alternativa de melhoria:"
+        +"\n§A **Passagem em Nível (PN)** — Recomenda-se, sob análise de viabilidade da SUPRO a implantação de uma (PN) Passagem de nível, de utilização comunitário, ou seja, de utilização desta propriedade e propriedades vizinhas, para que assim consigam utilizar de forma adequada a parcela posterior a faixa de domínio."
+        +"\nEssas estruturas mitigadoras são essenciais para restabelecer a continuidade territorial, garantir o acesso adequado à sede da gleba principal e assegurar a viabilidade operacional e produtiva do imóvel."
+        +"\n"+(dl||"[Local], [dia] de [mês] de [ano].")+"\nAtenciosamente,";
+    }
     var t="A partir da vistoria técnica e da análise geométrica do projeto, constatou-se que a implantação do traçado da Ferrovia "+ferroviaNome+" ("+cod+") no imóvel **"+imovel+"**, "+quemTxt+", localizado no município de **"+municipio+"**, resulta na necessidade de desapropriação principal de uma área de "+areaDesapTxt+" para a constituição da nova faixa de domínio (cujo custo indenizatório é tratado exclusivamente no Produto DESP-3).";
 
     if(D2_impacto.secc==="Não"){
@@ -26073,8 +26085,9 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     return t;
   }
   // Parágrafo das áreas (cap. 3) só para CTD 006A–006Z / SPS-04; null nos demais cadastros.
+  function D2_eh006(){ return /^006[A-Z]$/i.test(gid("fb_proc_ctd")) && /^0?4$/.test(gid("fb_proc_lote")); }
   function D2_paragrafoAreas006(){
-    if(!(/^006[A-Z]$/i.test(gid("fb_proc_ctd")) && /^0?4$/.test(gid("fb_proc_lote")))) return null;
+    if(!D2_eh006()) return null;
     var cert=(C("areaTotal")||"").trim(), des=(C("areaDesap")||"").trim();
     var nC=num(cert), nD=num(des);
     var soma=(isNaN(nC)||isNaN(nD)) ? "[área total do perímetro]" : (ha(nC+nD)+" ha");
@@ -26083,7 +26096,13 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
   window.D2_paragrafoAreas006=D2_paragrafoAreas006;
   // capítulo 3 editado à mão (D2DOC.ovr) nos 006: troca só o parágrafo antigo das áreas, mantendo o resto da edição
   window.D2_ajustarOvrAreas006=function(id, t){
-    if(id!=="caracteriza_o_do_im_vel" || t==null) return t;
+    if(t==null || !D2_eh006()) return t;
+    // conclusão editada à mão: mantém o texto, só a área remanescente passa a ser a área certificada (item 1.4)
+    if(id==="conclus_o"){
+      var cert=(C("areaTotal")||"").trim(); if(!cert) return t;
+      return String(t).replace(/(isolando uma área remanescente de \*\*)[^*\n]+(\*\*)/, "$1"+cert+" ha$2");
+    }
+    if(id!=="caracteriza_o_do_im_vel") return t;
     var p=D2_paragrafoAreas006(); if(!p) return t;
     return String(t).replace(/Considerando a área total de[^\n]*?conforme os títulos de domínio disponibilizados\./, p);
   };
