@@ -23468,12 +23468,15 @@ function DRL_docRotulo(d){ return d.cpfTipo==='cnpj' ? 'Cadastro Nacional da Pes
 function DRL_trechosSemAnuencia(d){
   var sig = DRL_sigefCodigo(d.sigef), T = [];
   function doc(num, tipo){ if(num && num.trim()){ T.push([', no '+DRL_docRotulo({cpfTipo:tipo})+' nº ']); T.push([num.trim(), true]); } }
-  T.push(['A ENPROL ENGENHARIA E PROJETOS LTDA, declara que esteve presente na área avaliada de ocupação de ']);
   if(d.ocupDif){
-    T.push([DRL_bl(d.ocupNome), true]); doc(d.ocupCpf, d.ocupCpfTipo);
-    T.push([', do imóvel de propriedade de ']); T.push([DRL_bl(d.nome), true]); doc(d.cpf, d.cpfTipo);
+    // duas pessoas: proprietário(a) como proprietário(a), ocupante como ocupante
+    T.push(['A ENPROL ENGENHARIA E PROJETOS LTDA, declara que esteve presente na área avaliada do imóvel de propriedade de ']);
+    T.push([DRL_bl(d.nome), true]); doc(d.cpf, d.cpfTipo);
+    T.push([', e ocupado por ']); T.push([DRL_bl(d.ocupNome), true]); doc(d.ocupCpf, d.ocupCpfTipo);
     T.push([', denominado ']);
   } else {
+    // uma pessoa só: é proprietário(a) e ocupante
+    T.push(['A ENPROL ENGENHARIA E PROJETOS LTDA, declara que esteve presente na área avaliada de propriedade e ocupação de ']);
     T.push([DRL_bl(d.nome), true]); doc(d.cpf, d.cpfTipo);
     T.push([', do imóvel denominado ']);
   }
@@ -23486,6 +23489,17 @@ function DRL_trechosSemAnuencia(d){
   return T;
 }
 function DRL_paragrafoSemAnuencia(d){ return DRL_trechosSemAnuencia(d).map(function(t){ return t[0]; }).join(''); }
+function DRL_paragrafoSemAnuenciaV2(d){
+  var sig = DRL_sigefCodigo(d.sigef), t = 'A ENPROL ENGENHARIA E PROJETOS LTDA, declara que esteve presente na área avaliada de ocupação de ';
+  function doc(num, tipo){ return (num && num.trim()) ? ', no '+DRL_docRotulo({cpfTipo:tipo})+' nº '+num.trim() : ''; }
+  if(d.ocupDif) t += DRL_bl(d.ocupNome)+doc(d.ocupCpf, d.ocupCpfTipo)+', do imóvel de propriedade de '+DRL_bl(d.nome)+doc(d.cpf, d.cpfTipo)+', denominado ';
+  else t += DRL_bl(d.nome)+doc(d.cpf, d.cpfTipo)+', do imóvel denominado ';
+  return t+DRL_bl(d.propId)+(d.propEnd ? ', '+d.propEnd : '')+', matrícula(s) nº(s) '+DRL_bl(d.matricula)+', da comarca de '+DRL_bl(d.municipio)+
+    (sig ? ', cadastrado no INCRA sob o código nº '+sig : '')+
+    ', declara, sob as penas da lei, que foram respeitados os limites das divisas in loco com os confrontantes abaixo relacionados durante a execução dos trabalhos técnicos na citada propriedade, não havendo qualquer litígio entre as partes.';
+}
+// texto salvo igual a uma versão automática anterior? (então não é edição do usuário)
+function DRL_ehAutoAntigoSemAnuencia(t, d){ t=(t||'').trim(); return !!t && (t===DRL_paragrafoSemAnuenciaV1(d).trim() || t===DRL_paragrafoSemAnuenciaV2(d).trim()); }
 // versão anterior do texto automático (só 1 pessoa, CPF sempre presente) — texto salvo igual a ela é
 // automático antigo, não edição do usuário: é trocado pelo novo sem perguntar
 function DRL_paragrafoSemAnuenciaV1(d){
@@ -23507,7 +23521,7 @@ window.DRL_trocarModelo=function(){
   var e=document.getElementById('drl_texto'), d=window.DRL_dados();
   if(e){
     var t=(e.value||'').trim();
-    var auto = !t || t===DRL_paragrafo(d).trim() || t===DRL_paragrafoSemAnuencia(d).trim() || t===DRL_paragrafoSemAnuenciaV1(d).trim();
+    var auto = !t || t===DRL_paragrafo(d).trim() || t===DRL_paragrafoSemAnuencia(d).trim() || DRL_ehAutoAntigoSemAnuencia(t, d);
     if(auto || confirm('O texto da declaração foi editado.\n\nSubstituir pelo texto automático do modelo escolhido?')){
       e.value=DRL_textoAuto(d); e.dispatchEvent(new Event('input',{bubbles:true}));
     }
@@ -23541,7 +23555,7 @@ window.DRL_gerarPDF=async function(opts){
 
   var modelo=DRL_modelo();
   var texto=DRL_gv('drl_texto') || DRL_textoAuto(d, modelo);
-  if(modelo==='sem_anuencia' && texto.trim()===DRL_paragrafoSemAnuenciaV1(d).trim()) texto=DRL_paragrafoSemAnuencia(d);   // automático antigo -> novo
+  if(modelo==='sem_anuencia' && DRL_ehAutoAntigoSemAnuencia(texto, d)) texto=DRL_paragrafoSemAnuencia(d);   // automático antigo -> novo
   var confAImg=DRL_gv('drl_conf_abrangida_img');           // imagem da tabela de confrontantes
   var nAc=3;
   var localData=DRL_gv('drl_local_data') || DRL_localDataPadrao(d);
@@ -25115,7 +25129,7 @@ window.DRL_gerarPDF=async function(opts){
     _set('drl_texto', DRL_textoAuto(window.DRL_dados()));
     try{
       var _t=document.getElementById('drl_texto'), _d=window.DRL_dados();
-      if(_t && DRL_modelo()==='sem_anuencia' && (_t.value||'').trim()===DRL_paragrafoSemAnuenciaV1(_d).trim() && _t.value.trim()!==DRL_paragrafoSemAnuencia(_d).trim()){
+      if(_t && DRL_modelo()==='sem_anuencia' && DRL_ehAutoAntigoSemAnuencia(_t.value, _d) && _t.value.trim()!==DRL_paragrafoSemAnuencia(_d).trim()){
         _t.value=DRL_paragrafoSemAnuencia(_d); _t.dispatchEvent(new Event('input',{bubbles:true}));
       }
     }catch(e){}
@@ -25203,7 +25217,7 @@ window.DRL_gerarWord=async function(opts){
   var K=[];
   K.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{before:120,after:280},children:[R("DECLARAÇÃO DE RESPEITO DE LIMITES",{bold:true,size:26})]}));
   if(_modelo==='sem_anuencia'){
-    if(_txtEdit && _txtEdit!==DRL_paragrafoSemAnuencia(d) && _txtEdit!==DRL_paragrafoSemAnuenciaV1(d)){
+    if(_txtEdit && _txtEdit!==DRL_paragrafoSemAnuencia(d) && !DRL_ehAutoAntigoSemAnuencia(_txtEdit, d)){
       K.push(new Paragraph({alignment:AlignmentType.JUSTIFIED,spacing:{after:220,line:288},children:[R(_txtEdit)]}));
     } else {
       var _runs=DRL_trechosSemAnuencia(d).map(function(t){ return R(t[0], t[1]?{bold:true}:{}); });
