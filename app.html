@@ -5945,7 +5945,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
   @media (max-width:720px){ .imv-kml-grade{ grid-template-columns:1fr; } }
 </style>
 <script>
-/* ===== Técnica » Camadas do imóvel (KMLs dedicados p/ mapas automáticos DESP-2) =====
+/* ===== Técnica » Arquivos KML do imóvel (KMLs dedicados p/ mapas automáticos DESP-2) =====
    Cada slot guarda o conteúdo do KML num textarea oculto #imv_kml_<key>_dados (persistido
    automaticamente pelo cadastro, como o rel_kml). IMV_get(key)/IMV_getAll() servem o gerador. */
 (function(){
@@ -6374,10 +6374,6 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
       padding:9px 16px; border-radius:9px; margin:22px 0 12px;
       box-shadow:0 2px 8px rgba(31,111,192,.22);
     }
-    #panel-desp1-tecnica .d2plantas-grade{
-      display:grid; grid-template-columns:1fr 1fr; gap:14px; align-items:start;
-    }
-    @media (max-width:760px){ #panel-desp1-tecnica .d2plantas-grade{ grid-template-columns:1fr; } }
     #panel-desp1-tecnica .vrow{display:flex; gap:14px; flex-wrap:wrap; margin-bottom:13px;}
     #panel-desp1-tecnica .vfield{display:flex; flex-direction:column; gap:4px; min-width:150px;}
     #panel-desp1-tecnica .vfield.grow{flex:1; min-width:220px;}
@@ -6739,7 +6735,6 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
   #panel-desp1-tecnica .imv-metros:empty{ display:none; }
   #panel-desp1-tecnica .imv-metros::before{ content:"📏 "; }
   /* roteiro de acesso — Pontos A/B */
-  #panel-desp1-tecnica .d2plantas-grade{ grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
   /* Áreas de Locação: áreas (ha) + Georreferenciamento no mesmo quadro (30/09/2026) */
   #panel-desp1-tecnica .tec-areas-ha{ margin-top:18px; padding-top:14px; border-top:1px dashed #dfe6ee; }
   #panel-desp1-tecnica .tec-geo-sub{ margin-top:6px; padding-top:14px; border-top:1px dashed #dfe6ee; }
@@ -13316,7 +13311,7 @@ function AV_gerarDescSituacao(){
     if(v == null || String(v).trim() === "") return null;
     if(typeof v === "number") return isFinite(v) ? v : null;
     var t = String(v).replace(/[^0-9,.-]/g, "");
-    t = (t.indexOf(",") >= 0) ? t.replace(/\./g, "").replace(",", ".") : t;
+    if(t.indexOf(",") >= 0 || /^-?\d{1,3}(\.\d{3})+$/.test(t)) t = t.replace(/\./g, "").replace(",", ".");   // "1.234,5" / "1.234" = milhar BR
     var n = parseFloat(t);
     return isFinite(n) ? n : null;
   }
@@ -26827,7 +26822,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
         if(!focoGeoms.length){ ['area','desap','vias','appest','hidro','benf','cercas'].forEach(function(c){ if(geom[c]) focoGeoms.push(geom[c]); }); }
         bb=d2bboxDe(focoGeoms, mostraTudo?0.12:0.30);
       }
-      if(!bb){ st('Insira ao menos o KML de "Área total do imóvel" (ou da área a desapropriar) em Técnica › Camadas do imóvel.'); return; }
+      if(!bb){ st('Insira ao menos o KML de "Área total do imóvel" (ou da área a desapropriar) em Técnica › Arquivos KML do imóvel.'); return; }
       // polígono de referência p/ interseção (cadastro = área total, senão desapropriada)
       var refPolys=(geom.area&&geom.area.polys.length)?geom.area.polys:((geom.desap&&geom.desap.polys)||null);
       // ---- camadas do servidor ----
