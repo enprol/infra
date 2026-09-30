@@ -25976,7 +25976,8 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     // CTD 006A–006Z / SPS-04 (30/09/2026, pedido do usuário): conclusão padrão com PN comunitária para
     // todos; muda só os dados do cadastro. Área remanescente = área certificada no SIGEF (item 1.4 da Ficha).
     if(D2_eh006()){
-      var cert=(C("areaTotal")||"").trim();
+      var cert=D2_cert006(), _d6=D2_desap006();
+      areaDesapTxt=_d6 ? ("**"+_d6+" ha**") : "**[área desapropriada]**";
       var dl=(C("localData")||gid("fb_ass_local")||"").trim();
       return "A partir da vistoria técnica e da análise geométrica do projeto, constatou-se que a implantação do traçado da Ferrovia "+ferroviaNome+" ("+cod+") no imóvel **"+imovel+"**, "+quemTxt+", localizado no município de **"+municipio+"**, resulta na necessidade de desapropriação principal de uma área de "+areaDesapTxt+" para a constituição da nova faixa de domínio (cujo custo indenizatório é tratado exclusivamente no Produto DESP-3)."
         +"\nDo ponto de vista geométrico e logístico, a implantação da nova faixa de domínio **provocará** o seccionamento da propriedade, isolando uma área remanescente de **"+(cert?cert+" ha":"[área certificada]")+"** e comprometendo o acesso e a continuidade das atividades desenvolvidas no imóvel."
@@ -26086,9 +26087,12 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
   }
   // Parágrafo das áreas (cap. 3) só para CTD 006A–006Z / SPS-04; null nos demais cadastros.
   function D2_eh006(){ return /^006[A-Z]$/i.test(gid("fb_proc_ctd")) && /^0?4$/.test(gid("fb_proc_lote")); }
+  // áreas dos 006 lidas direto da origem (a cópia na identificação da DESP-2 pode estar desatualizada)
+  function D2_cert006(){ return (gid("fb_area_total")||C("areaTotal")||"").trim(); }
+  function D2_desap006(){ return (gid("fb_area_desap")||C("areaDesap")||"").trim(); }
   function D2_paragrafoAreas006(){
     if(!D2_eh006()) return null;
-    var cert=(C("areaTotal")||"").trim(), des=(C("areaDesap")||"").trim();
+    var cert=D2_cert006(), des=D2_desap006();
     var nC=num(cert), nD=num(des);
     var soma=(isNaN(nC)||isNaN(nD)) ? "[área total do perímetro]" : (ha(nC+nD)+" ha");
     return "Considerando a área certificada no SIGEF de **"+(cert?cert+" ha":"[área certificada]")+"** e a área destinada à desapropriação de **"+(des?des+" ha":"[área desapropriada]")+"**, o somatório corresponde à área total do perímetro de **"+soma+"**.";
@@ -26099,7 +26103,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     if(t==null || !D2_eh006()) return t;
     // conclusão editada à mão: mantém o texto, só a área remanescente passa a ser a área certificada (item 1.4)
     if(id==="conclus_o"){
-      var cert=(C("areaTotal")||"").trim(); if(!cert) return t;
+      var cert=D2_cert006(); if(!cert) return t;
       return String(t).replace(/(isolando uma área remanescente de \*\*)[^*\n]+(\*\*)/, "$1"+cert+" ha$2");
     }
     if(id!=="caracteriza_o_do_im_vel") return t;
