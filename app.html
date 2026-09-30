@@ -25618,7 +25618,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     return lines.join('\n').replace(/ /g,' ').replace(/\*\*\s*\*\*/g,'').replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
   }
   var D2_edited={};
-  window.D2_renderView=function(id){ var v=document.getElementById('d2_view_'+id), t=document.getElementById('d2_tx_'+id); if(v&&t && v.getAttribute('contenteditable')!=='true') v.innerHTML=mdToHtml(D2DOC.ovr[id]!=null?D2DOC.ovr[id]:t.value); };
+  window.D2_renderView=function(id){ var v=document.getElementById('d2_view_'+id), t=document.getElementById('d2_tx_'+id); if(v&&t && v.getAttribute('contenteditable')!=='true') v.innerHTML=mdToHtml(D2DOC.ovr[id]!=null?window.D2_ajustarOvrAreas006(id, D2DOC.ovr[id]):t.value); };
   window.D2_syncFromView=function(id){ var v=document.getElementById('d2_view_'+id), t=document.getElementById('d2_tx_'+id); if(v&&t){ var md=htmlToMd(v); if(D2DOC.ovr[id]!=null){ D2DOC.ovr[id]=md; } else { t.value=md; D2_edited[id]=true; } } };
   function renderAll(){ DESP2_TOPICOS.forEach(function(tp){ window.D2_renderView(tp.id); }); }
   function D2_atualizarAuto(){
@@ -26064,10 +26064,29 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
 
     t+="\nPara fins do presente procedimento desapropriatório, promovido pela **INFRA S.A.**, em decorrência da implantação da **Ferrovia Transnordestina – FTN – "+(C("codFerrovia")||"EF-232")+"**, será afetada uma área de **"+areaDesap+"**, correspondente ao trecho compreendido entre os **"+km+"**, localizado entre as referidas parcelas, conforme os dados constantes do Processo Administrativo **"+processo+"**.";
 
+    // CTD 006A a 006Z (SPS-04, PA Riacho Seco) — 30/09/2026, pedido do usuário: a área do item 1.4 da Ficha
+    // é a certificada no SIGEF (sem a faixa); total do perímetro = certificada + desapropriada.
+    var _par006=D2_paragrafoAreas006();
+    if(_par006){ t+="\n"+_par006; } else
     t+="\nConsiderando a área total de **"+areaTotal+"** correspondente ao imóvel antes da implantação da faixa de domínio, a área destinada à desapropriação corresponde a **"+areaDesap+"**, permanecendo como área remanescente o total de **"+areaRem+"**, conforme os títulos de domínio disponibilizados.";
 
     return t;
   }
+  // Parágrafo das áreas (cap. 3) só para CTD 006A–006Z / SPS-04; null nos demais cadastros.
+  function D2_paragrafoAreas006(){
+    if(!(/^006[A-Z]$/i.test(gid("fb_proc_ctd")) && /^0?4$/.test(gid("fb_proc_lote")))) return null;
+    var cert=(C("areaTotal")||"").trim(), des=(C("areaDesap")||"").trim();
+    var nC=num(cert), nD=num(des);
+    var soma=(isNaN(nC)||isNaN(nD)) ? "[área total do perímetro]" : (ha(nC+nD)+" ha");
+    return "Considerando a área certificada no SIGEF de **"+(cert?cert+" ha":"[área certificada]")+"** e a área destinada à desapropriação de **"+(des?des+" ha":"[área desapropriada]")+"**, o somatório corresponde à área total do perímetro de **"+soma+"**.";
+  }
+  window.D2_paragrafoAreas006=D2_paragrafoAreas006;
+  // capítulo 3 editado à mão (D2DOC.ovr) nos 006: troca só o parágrafo antigo das áreas, mantendo o resto da edição
+  window.D2_ajustarOvrAreas006=function(id, t){
+    if(id!=="caracteriza_o_do_im_vel" || t==null) return t;
+    var p=D2_paragrafoAreas006(); if(!p) return t;
+    return String(t).replace(/Considerando a área total de[^\n]*?conforme os títulos de domínio disponibilizados\./, p);
+  };
   function d2chk(id){ var e=document.getElementById(id); return !!(e&&e.checked); }
   // item c) — texto condicional conforme a Ficha de Vistoria (DESP-1), item 4.9.1 "Uso das terras":
   //  fb_491_uso_2 = Plantio (texto fb_491_plantio) / fb_491_uso_3 = Criação de animais (texto fb_491_criacao)
@@ -27983,7 +28002,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
   // comparação sem espaços: "**X **" e "**X** " imprimem igual no PDF
   function D2DOC_norm(s){ return String(s||"").split("\n").map(function(l){ return l.replace(/\s+/g,""); }).filter(function(l){ return l; }).join("\n"); }
   function textoAuto(id){ var t=TX(id); if(COMMENT_APPEND[id]){ var c=kf(COMMENT_APPEND[id]); if(c) t+="\n"+c; } return t; }
-  function textoImpresso(tp){ var t; if(tp._extra) t=tp.txt||""; else if(D2DOC.ovr[tp.id]!=null) t=D2DOC.ovr[tp.id]; else t=textoAuto(tp.id);
+  function textoImpresso(tp){ var t; if(tp._extra) t=tp.txt||""; else if(D2DOC.ovr[tp.id]!=null) t=window.D2_ajustarOvrAreas006(tp.id, D2DOC.ovr[tp.id]); else t=textoAuto(tp.id);
     return tp.id==="conclus_o" ? comDataDeHoje(t) : t; }
   // CONCLUSÃO: a linha "Local, dd de mês de aaaa." sai com a data do dia em que o material é gerado
   // (PDF/Word), mantendo o local digitado — pedido do usuário, 29/09/2026. O texto salvo não muda.
