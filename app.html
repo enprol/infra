@@ -25639,6 +25639,23 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       if(typeof x==="string") return {src:x, legenda:""};
       return {src:(x&&x.src)||"", legenda:(x&&x.legenda)||""};
     }).filter(function(f){ return f.src; }); if(window.D2_renderFotos) window.D2_renderFotos(); };
+  // Fotos que o 6.1 imprime (30/09/2026): as da própria DESP-2 quando houver; senão, automaticamente
+  // as fotografias da Assistência Social (Ficha de Vistoria 5.3) — vivas, não copiadas: foto nova lá
+  // entra aqui sem reimportar. auto=true indica que vieram da Ficha.
+  window.D2_fotosRelatorio=function(){
+    var proprias=D2_fotos.filter(function(f){ return f && f.src; });
+    if(proprias.length) return { fotos:D2_fotos, auto:false };
+    var fb=((window.FB_getFotos?window.FB_getFotos():[])||[]).filter(function(f){ return f && f.src; });
+    return { fotos:fb.map(function(f){ return {src:f.src, legenda:f.legenda||""}; }), auto:fb.length>0 };
+  };
+  // legenda editada no modo "Conteúdo": em foto automática grava na própria Ficha de Vistoria (mesma foto, mesma descrição)
+  window.D2_setFotoLegendaRel=function(i,v){
+    if(window.D2_fotosRelatorio().auto){
+      var fb=((window.FB_getFotos?window.FB_getFotos():[])||[]).filter(function(f){ return f && f.src; });
+      if(fb[i]) fb[i].legenda=v;
+      try{ if(window.CAD_marcarSujo) window.CAD_marcarSujo(); }catch(e){}
+    } else window.D2_setFotoLegenda(i,v);
+  };
   window.D2_addFoto=function(){ D2_fotos.push({src:"",legenda:""}); D2_renderFotos(); };
   window.D2_remFoto=function(i){ D2_fotos.splice(i,1); window.D2_fotoNome.splice(i,1); D2_renderFotos(); };
   window.D2_setFotoLegenda=function(i,v){ if(D2_fotos[i]) D2_fotos[i].legenda=v; };
@@ -25673,7 +25690,12 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
         +'<input type="text" style="margin-top:8px;" placeholder="Legenda (opcional)" value="'+String(ft.legenda||"").replace(/"/g,"&quot;")+'" oninput="D2_setFotoLegenda('+i+',this.value)">'
         +'<p class="sr-only" id="d2_foto_status_'+i+'" role="status" aria-live="polite">'+esc(status)+'</p>'
         +'</div>';
-    }).join('') : '<p class="hint-auto" style="margin:4px 0;">Nenhuma foto adicionada.</p>';
+    }).join('') : (function(){
+      var r=window.D2_fotosRelatorio();
+      return r.auto
+        ? '<p class="hint-auto" style="margin:4px 0;">📷 Nenhuma foto própria da DESP-2 — o relatório usa <b>automaticamente as '+r.fotos.length+' fotografia(s) da Assistência Social</b> (Ficha de Vistoria, 5.3). Para usar outras, adicione ou importe acima.</p>'
+        : '<p class="hint-auto" style="margin:4px 0;">Nenhuma foto adicionada.</p>';
+    })();
   }
   window.D2_renderFotos=D2_renderFotos;
 
@@ -25688,6 +25710,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     if(cCampo) cCampo.textContent=fc.length?fc.length+" foto"+(fc.length>1?"s":""):"sem fotos";
     if(b53) b53.classList.toggle("ativo",!!D2_fontesSel['53']);
     if(bCampo) bCampo.classList.toggle("ativo",!!D2_fontesSel['campo']);
+    if(!D2_fotos.some(function(f){ return f && f.src; })) D2_renderFotos();
   }
   window.D2_renderImportarFotos=D2_renderImportarFotos;
   window.D2_toggleFonte=function(f){ D2_fontesSel[f]=!D2_fontesSel[f]; D2_renderImportarFotos(); };
@@ -27597,7 +27620,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       // INTEIRA logo abaixo da foto e a linha (fotos + descrições) nunca é partida entre páginas.
       // Tamanho único para todas as páginas, calculado para caberem 3 linhas já na 1ª (abaixo do "6.1").
       if(tp.id==="anexo_2_relat_rio_fotogr_fic"){
-        var D2fts=(window.D2_getFotos?window.D2_getFotos():[]).filter(function(f){ return f && (f.src || f.legenda); });
+        var D2fts=(window.D2_fotosRelatorio?window.D2_fotosRelatorio().fotos:[]).filter(function(f){ return f && (f.src || f.legenda); });
         if(!D2fts.length){ parRich("[Sem fotos inseridas.]"); }
         else {
           var gap=8, CAP_FS=8.5, CAP_LH=3.6, CAP_MAX=4, fwMax=(cw-gap)/2;
@@ -27799,7 +27822,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
           .forEach(function(a){ marcador("Área de "+(a.nome||"—")+" atingida: "+(a.area||"—")+" ha"); });
       }
       if(tp.id==="anexo_2_relat_rio_fotogr_fic"){
-        const fts=(window.D2_getFotos?window.D2_getFotos():[]).filter(function(f){ return f && (f.src || f.legenda); });
+        const fts=(window.D2_fotosRelatorio?window.D2_fotosRelatorio().fotos:[]).filter(function(f){ return f && (f.src || f.legenda); });
         if(!fts.length){ par("[Sem fotos inseridas.]"); }
         else {
           const linhas=[];
@@ -28077,8 +28100,9 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       h+='<div class="dd-auto"><span class="dd-auto-rot">automático · campos “Áreas atingidas”</span>'+its.map(function(t){ return '<div class="dl" data-k="b">'+esc(t)+'</div>'; }).join('')+'</div>';
     }
     if(tp.id==="anexo_2_relat_rio_fotogr_fic"){
-      var fts=(window.D2_getFotos?window.D2_getFotos():[]);
+      var _rel=window.D2_fotosRelatorio(), fts=_rel.fotos;
       var n=0;
+      if(_rel.auto) h+='<div class="dd-auto"><span class="dd-auto-rot">automático · fotografias da Assistência Social (Ficha de Vistoria, 5.3)</span></div>';
       h+='<div class="dd-fotos">'+fts.map(function(f,i){ if(!f||!f.src) return ""; n++;
         return '<figure class="dd-foto"><img src="'+f.src+'" alt=""><figcaption>Foto '+n+' – <span class="dd-cap" contenteditable="true" data-foto="'+i+'">'+esc(f.legenda||"")+'</span></figcaption></figure>'; }).join('')+'</div>';
       if(!n) h+='<p class="dd-nota">Sem fotos — no relatório sai “[Sem fotos inseridas.]”.</p>';
@@ -28219,7 +28243,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       if(ed){ docNormalizar(ed); var key=ed.getAttribute("data-id")||("r"+ed.getAttribute("data-ress")); clearTimeout(_ddTimers[key]); _ddTimers[key]=setTimeout(function(){ docSalvarEditor(ed); },250); return; }
       var cap=e.target.closest(".dd-cap");
       if(cap && cap.hasAttribute("data-imgcap")){ var xi=docImg(cap.getAttribute("data-img")); if(xi){ xi[cap.getAttribute("data-imgcap")]=cap.textContent.replace(/\s+/g," ").trim(); } return; }
-      if(cap && cap.hasAttribute("data-foto")){ window.D2_setFotoLegenda(+cap.getAttribute("data-foto"), cap.textContent.trim()); return; }
+      if(cap && cap.hasAttribute("data-foto")){ window.D2_setFotoLegendaRel(+cap.getAttribute("data-foto"), cap.textContent.trim()); return; }
       if(cap){ var fid=cap.getAttribute("data-fid"), fig=cap.closest(".dd-fig"), m=FIG_META[fid]||[fid,""];
         var t=fig.querySelector('[data-cap="t"]').textContent.trim(), f=fig.querySelector('[data-cap="f"]').textContent.trim();
         if(t===m[0] && f===m[1]) delete D2DOC.caps[fid]; else D2DOC.caps[fid]={t:(t===m[0]?"":t), f:(f===m[1]?"":f)};
