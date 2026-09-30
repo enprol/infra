@@ -23465,7 +23465,9 @@ function DRL_sigefCodigo(s){ s=(s||'').trim(); return (!s || /^(n[ãa]o\b|n\/?a\
 function DRL_docRotulo(d){ return d.cpfTipo==='cnpj' ? 'Cadastro Nacional da Pessoa Jurídica – CNPJ' : 'Cadastro de Pessoa Física – CPF'; }
 // Texto do modelo "sem anuência" em trechos [texto, negrito?]. Ocupante e proprietário podem ser
 // pessoas diferentes (30/09/2026): aí entram os dois. CPF/CNPJ vazio = o trecho do documento some.
-function DRL_trechosSemAnuencia(d){
+var DRL_FIM_SEM_ANUENCIA = ', declara, sob as penas da lei, que foram respeitados os limites com as propriedades inclusas no SIGEF – Sistema de Gestão Fundiária do INCRA, conforme os vértices da tabela abaixo, durante a execução dos trabalhos técnicos na citada propriedade, não havendo qualquer litígio entre as partes.';
+var DRL_FIM_SEM_ANUENCIA_V3 = ', declara, sob as penas da lei, que foram respeitados os limites das divisas in loco com os confrontantes abaixo relacionados durante a execução dos trabalhos técnicos na citada propriedade, não havendo qualquer litígio entre as partes.';
+function DRL_trechosSemAnuencia(d, fim){
   var sig = DRL_sigefCodigo(d.sigef), T = [];
   function doc(num, tipo){ if(num && num.trim()){ T.push([', no '+DRL_docRotulo({cpfTipo:tipo})+' nº ']); T.push([num.trim(), true]); } }
   if(d.ocupDif){
@@ -23485,7 +23487,7 @@ function DRL_trechosSemAnuencia(d){
   T.push([', matrícula(s) nº(s) ']); T.push([DRL_bl(d.matricula), true]);
   T.push([', da comarca de ']); T.push([DRL_bl(d.municipio), true]);
   if(sig){ T.push([', cadastrado no INCRA sob o código nº ']); T.push([sig, true]); }
-  T.push([', declara, sob as penas da lei, que foram respeitados os limites das divisas in loco com os confrontantes abaixo relacionados durante a execução dos trabalhos técnicos na citada propriedade, não havendo qualquer litígio entre as partes.']);
+  T.push([fim || DRL_FIM_SEM_ANUENCIA]);
   return T;
 }
 function DRL_paragrafoSemAnuencia(d){ return DRL_trechosSemAnuencia(d).map(function(t){ return t[0]; }).join(''); }
@@ -23499,7 +23501,9 @@ function DRL_paragrafoSemAnuenciaV2(d){
     ', declara, sob as penas da lei, que foram respeitados os limites das divisas in loco com os confrontantes abaixo relacionados durante a execução dos trabalhos técnicos na citada propriedade, não havendo qualquer litígio entre as partes.';
 }
 // texto salvo igual a uma versão automática anterior? (então não é edição do usuário)
-function DRL_ehAutoAntigoSemAnuencia(t, d){ t=(t||'').trim(); return !!t && (t===DRL_paragrafoSemAnuenciaV1(d).trim() || t===DRL_paragrafoSemAnuenciaV2(d).trim()); }
+// V3 = texto de 30/09/2026 (proprietário/ocupante) com o fechamento antigo, antes da menção ao SIGEF
+function DRL_paragrafoSemAnuenciaV3(d){ return DRL_trechosSemAnuencia(d, DRL_FIM_SEM_ANUENCIA_V3).map(function(t){ return t[0]; }).join(''); }
+function DRL_ehAutoAntigoSemAnuencia(t, d){ t=(t||'').trim(); return !!t && (t===DRL_paragrafoSemAnuenciaV1(d).trim() || t===DRL_paragrafoSemAnuenciaV2(d).trim() || t===DRL_paragrafoSemAnuenciaV3(d).trim()); }
 // versão anterior do texto automático (só 1 pessoa, CPF sempre presente) — texto salvo igual a ela é
 // automático antigo, não edição do usuário: é trocado pelo novo sem perguntar
 function DRL_paragrafoSemAnuenciaV1(d){
@@ -23514,7 +23518,7 @@ function DRL_textoAuto(d, modelo){ return (modelo||DRL_modelo())==='sem_anuencia
 window.DRL_avisoModelo=function(){
   var av=document.getElementById('drl_modelo_aviso'); if(!av) return;
   av.innerHTML = DRL_modelo()==='sem_anuencia'
-    ? 'Declaração em nome da ENPROL, em <b>uma página</b>: texto, vértices confrontantes (tabela ou imagem, abaixo) e local e data. Sem assinatura do declarante, sem “De acordo” e sem anexos.'
+    ? 'Declaração em nome da ENPROL, em <b>uma página</b>: texto, vértices das propriedades do SIGEF (envie a <b>imagem da tabela</b> no quadro abaixo) e local e data. Sem assinatura do declarante, sem “De acordo” e sem anexos.'
     : 'Declaração do(a) proprietário(a)/possuidor(a), com assinatura, “De acordo” dos confrontantes e página de anexos.';
 };
 window.DRL_trocarModelo=function(){
@@ -23525,6 +23529,11 @@ window.DRL_trocarModelo=function(){
     if(auto || confirm('O texto da declaração foi editado.\n\nSubstituir pelo texto automático do modelo escolhido?')){
       e.value=DRL_textoAuto(d); e.dispatchEvent(new Event('input',{bubbles:true}));
     }
+  }
+  // sem anuência: os vértices vêm da imagem da tabela do SIGEF enviada pelo usuário
+  var fonte=document.getElementById('drl_conf_fonte');
+  if(fonte && DRL_modelo()==='sem_anuencia' && fonte.value!=='imagem'){
+    fonte.value='imagem'; fonte.dispatchEvent(new Event('change',{bubbles:true}));
   }
   window.DRL_avisoModelo();
 };
