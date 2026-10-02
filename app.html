@@ -90,7 +90,8 @@ window.RTF = (function(){
     node.childNodes.forEach(function(n){
       if(n.nodeType===3){ s+=n.nodeValue; }
       else if(n.nodeType===1){
-        if(n.tagName==='BR'){ return; }
+        if(n.tagName==='BR'){ s+='\n'; return; }   // Enter dentro do bloco: quebra de verdade,
+                                                    // senao "abc<br>def" virava "abcdef" (02/10/2026)
         var st=(n.getAttribute&&n.getAttribute('style'))||'';
         var bold=(n.tagName==='B'||n.tagName==='STRONG'||/font-weight\s*:\s*(bold|[6-9]00)/i.test(st));
         var inner=serialLine(n);
@@ -104,18 +105,18 @@ window.RTF = (function(){
     var hasBlock=false;
     view.childNodes.forEach(function(n){ if(n.nodeType===1 && (n.tagName==='DIV'||n.tagName==='P')) hasBlock=true; });
     var lines=[];
-    if(!hasBlock){ lines.push(serialLine(view)); }
+    if(!hasBlock){ lines.push(serialLine(view).replace(/\n+$/,'')); }
     else {
       view.childNodes.forEach(function(n){
         if(n.nodeType===3){ if(n.nodeValue.trim()!=='') lines.push(n.nodeValue); }
         else if(n.nodeType===1){
-          var line=serialLine(n);
+          var line=serialLine(n).replace(/\n+$/,'');
           if((n.className||'').indexOf('rtf-li')>=0){ line='\u2022 '+line.replace(/^[\u2022\u2023\u25E6]\s*/,''); }
           lines.push(line);
         }
       });
     }
-    return lines.join('\n').replace(/\u00a0/g,' ').replace(/\*\*\s*\*\*/g,'').replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').replace(/\s+$/,'');
+    return lines.join('\n').replace(/\u00a0/g,' ').replace(/\*\*[ \t]*\*\*/g,'').replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').replace(/\s+$/,'');
   }
   function ta(id){ return document.getElementById(id); }
   function box(id){ return document.getElementById('rtf_'+id); }
@@ -6925,6 +6926,10 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
     <h1>Parecer para Regularização Fundiária e Documental</h1>
     <p class="sub">Preenchido e atualizado automaticamente conforme a Ficha de Vistoria e o Relatório Técnico (DESP 1). Documento gerado sem capa.</p>
     <div class="par-caso" id="par_caso_resumo" role="status" aria-live="polite">Aguardando dados da Ficha de Vistoria…</div>
+    <!-- quais textos automáticos o usuário editou à mão: {"relatorio":1,…}. Está dentro do
+         painel de propósito — o coletarCampos() salva todo input com id em panel-*, então a
+         marca viaja no cadastro e sobrevive a fechar e reabrir. -->
+    <input type="hidden" id="par_manuais">
 
     <div class="dd-sw" id="par_modo_sw" role="tablist" aria-label="Forma de edição do Parecer">
       <button type="button" role="tab" data-m="doc" onclick="PARDOC_modo('doc')"><b>📖 Conteúdo do parecer</b><small>o parecer inteiro, na ordem e na numeração do PDF — editável no próprio lugar</small></button>
@@ -6990,7 +6995,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 
     <h2 class="vsec"><span>I – Relatório</span></h2>
     <div class="vcard">
-      <div class="vactions" style="margin-bottom:8px;"><button class="vbtn vbtn-ghost vbtn-sm" type="button" onclick="PAR_gerarTexto('relatorio')">↻ Restaurar texto automático</button></div>
+      <div class="vactions" style="margin-bottom:8px;"><button class="vbtn vbtn-ghost vbtn-sm" type="button" onclick="PAR_gerarTexto('relatorio', true)">↻ Restaurar texto automático</button></div>
       <label style="display:block;font-size:11px;font-weight:700;color:var(--label);text-transform:uppercase;letter-spacing:.4px;">Texto do relatório<span class="hint-auto"> (gerado automaticamente — edite direto no campo; o negrito aparece e sai igual no PDF)</span></label>
       <textarea data-rtf id="par_relatorio" style="display:none" aria-hidden="true" tabindex="-1"></textarea>
     </div>
@@ -7040,7 +7045,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 
     <h2 class="vsec"><span>IV – Conclusão</span></h2>
     <div class="vcard">
-      <div class="vactions" style="margin-bottom:8px;"><button class="vbtn vbtn-ghost vbtn-sm" type="button" onclick="PAR_gerarTexto('conclusao')">↻ Restaurar texto automático</button></div>
+      <div class="vactions" style="margin-bottom:8px;"><button class="vbtn vbtn-ghost vbtn-sm" type="button" onclick="PAR_gerarTexto('conclusao', true)">↻ Restaurar texto automático</button></div>
       <label style="display:block;font-size:11px;font-weight:700;color:var(--label);text-transform:uppercase;letter-spacing:.4px;">Conclusão<span class="hint-auto"> (gerado automaticamente — edite direto no campo; o negrito aparece e sai igual no PDF)</span></label>
       <textarea data-rtf id="par_conclusao" style="display:none" aria-hidden="true" tabindex="-1"></textarea>
       <div id="par_bloco_pend">
@@ -23069,7 +23074,12 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     window.PAR_gerarTexto("conclusao");
     window.PAR_gerarTexto("titularidade");
     atualizarResumoCaso();
-    alert("Dados da Ficha de Vistoria e do Relatório Técnico aplicados ao Parecer.");
+    var _presos=Object.keys(PAR_AUTO_CAMPO).filter(function(q){ return window.PAR_ehManual(q); });
+    var _rot={relatorio:"I – Relatório", conclusao:"IV – Conclusão", titularidade:"Titularidade"};
+    alert("Dados da Ficha de Vistoria e do Relatório Técnico aplicados ao Parecer."
+      + (_presos.length ? ("\n\nMantive o que voc\u00ea escreveu \u00e0 m\u00e3o em: "
+          + _presos.map(function(q){ return _rot[q]; }).join(", ")
+          + ".\nPara voltar ao texto gerado, use \u201c\u21bb Texto autom\u00e1tico\u201d no t\u00f3pico.") : ""));
   };
 
   // ---- Resumo do caso (linha de contexto, já que o formulário de identificação fica oculto) ----
@@ -23477,7 +23487,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
         }
       });
     }
-    return lines.join("\n").replace(/ /g," ").replace(/\*\*\s*\*\*/g,"").replace(/[ \t]+\n/g,"\n").replace(/\n{3,}/g,"\n\n").trim();
+    return lines.join("\n").replace(/ /g," ").replace(/\*\*[ \t]*\*\*/g,"").replace(/[ \t]+\n/g,"\n").replace(/\n{3,}/g,"\n\n").trim();
   }
   window.PAR_renderRich=function(id){
     var v=document.getElementById(id+"_rich"), t=document.getElementById(id);
@@ -23512,7 +23522,53 @@ window.UFOTO_rodapeHTML=rodapeHTML;
   var TXT_OBJETIVO = "A desapropriação destina-se à constituição da faixa de domínio da Ferrovia Transnordestina (EF-232), sendo reconhecido o seu caráter de utilidade pública.";
   var TXT_REGULARIDADE = "Em atendimento ao disposto no art. 29, incisos I, III e IV, da Resolução Normativa nº 10, de 09 de setembro de 2022, verifica-se que foram devidamente anexados ao produto todos os documentos relativos à identificação pessoal dos proprietários, bem como a documentação pertinente à propriedade, atendendo às exigências normativas aplicáveis.";
 
-  window.PAR_gerarTexto=function(qual){
+  /* ---------------------------------------------------------------------
+     TEXTO AUTOMÁTICO x EDIÇÃO À MÃO (02/10/2026)
+     "I – Relatório", "IV – Conclusão" e "Titularidade" são gerados a partir dos
+     dados do cadastro. Até aqui eles eram regerados — por cima do que o usuário
+     tivesse escrito — toda vez que se entrava na aba do Parecer, que se mexia num
+     campo de origem (nome, matrícula, áreas…) e que se marcava algo no check list
+     ou nas pendências. O texto escrito à mão sumia da tela sem avisar.
+
+     Agora cada um desses três é marcado como MANUAL assim que o usuário digita
+     nele; a partir daí só volta a ser gerado por ação explícita — o botão
+     "↻ Texto automático", que chama PAR_gerarTexto(qual, true).
+
+     A marca é posta pelo evento do PRÓPRIO editor rico (#rtf_<campo>) e só quando
+     ev.isTrusted é verdadeiro: abrir um cadastro dispara "input" sintético em todos
+     os campos (restaurarCampos), e isso não pode ser confundido com digitação.
+     --------------------------------------------------------------------- */
+  var PAR_AUTO_CAMPO = { relatorio:"par_relatorio", conclusao:"par_conclusao", titularidade:"par_titularidade" };
+  function parManuais(){
+    var o={};
+    try{ o=JSON.parse((document.getElementById("par_manuais")||{}).value||"{}")||{}; }catch(e){}
+    return (o && typeof o==="object" && !Array.isArray(o)) ? o : {};
+  }
+  function parSetManual(qual, v){
+    var o=parManuais(), antes=!!o[qual];
+    if(v) o[qual]=1; else delete o[qual];
+    if(antes === !!v) return;
+    var el=document.getElementById("par_manuais"); if(!el) return;
+    el.value=JSON.stringify(o);
+    el.dispatchEvent(new Event("input",{bubbles:true}));
+    var sec=document.getElementById("pardd_"+PAR_AUTO_CAMPO[qual]);   // etiqueta do modo Conteúdo
+    if(sec) sec.classList.toggle("is-manual", !!v);
+  }
+  window.PAR_ehManual = function(qual){ return !!parManuais()[qual]; };
+  function parLigarManual(){
+    Object.keys(PAR_AUTO_CAMPO).forEach(function(qual){
+      var box=document.getElementById("rtf_"+PAR_AUTO_CAMPO[qual]);
+      if(!box || box._parManualOn) return;
+      box._parManualOn=true;
+      box.addEventListener("input", function(ev){ if(ev && ev.isTrusted) parSetManual(qual, true); });
+    });
+  }
+
+  window.PAR_gerarTexto=function(qual, forcar){
+    if(PAR_AUTO_CAMPO[qual]){
+      if(forcar) parSetManual(qual, false);                 // "↻ Texto automático": retoma o gerado
+      else if(window.PAR_ehManual(qual)) return;            // escrito à mão: não mexe
+    }
     if(qual==="relatorio"){
       // valores "crus" (para compor frases internamente, sem negrito aninhado)
       var propRaw=pf("par_prop")||"[PROPRIETÁRIO]";
@@ -23831,10 +23887,21 @@ window.UFOTO_rodapeHTML=rodapeHTML;
         if(!a.ini && !a.fim) return "";
         return "KM "+(a.ini||"___")+" ao KM "+(a.fim||"___")+(a.tipo?(" ("+a.tipo+")"):"");
       }).filter(function(x){ return x; });
-      if(areasLoc.length){
+      // Só reescreve as áreas enquanto o texto ainda é o automático, e troca APENAS as
+      // linhas "**ÁREA N: …**" que vinham logo depois da marca. Antes isto fazia
+      // rel.slice(0, marca) e jogava fora TUDO o que viesse depois — qualquer parágrafo
+      // escrito à mão após as áreas ficava no campo mas não saía no PDF (02/10/2026).
+      if(areasLoc.length && !window.PAR_ehManual("relatorio")){
         var marca="abrangendo as seguintes áreas:";
         var mi=rel.indexOf(marca);
-        if(mi>=0) rel=rel.slice(0, mi+marca.length)+"\n"+areasLoc.map(function(a,i){ return "**ÁREA "+(i+1)+": "+a+"**"; }).join("\n");
+        if(mi>=0){
+          var ini=mi+marca.length, linhas=rel.slice(ini).split("\n"), k=0;
+          while(k<linhas.length && linhas[k].trim()==="") k++;                      // o salto de linha
+          while(k<linhas.length && /^\s*\*\*\s*ÁREA\b/i.test(linhas[k])) k++;        // as áreas antigas
+          var resto=linhas.slice(k).join("\n");
+          rel=rel.slice(0, ini) + "\n" + areasLoc.map(function(a,i){ return "**ÁREA "+(i+1)+": "+a+"**"; }).join("\n")
+              + (resto.replace(/\s/g,"") ? "\n"+resto : "");
+        }
       }
       parRica(rel);
     })();
@@ -23952,6 +24019,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     if(ld) ld.addEventListener("input", syncParData);
     syncParData();
     atualizarResumoCaso();
+    parLigarManual();
     PAR_ligarSync();
     PAR_ligarPreview("par_relatorio");
     PAR_ligarPreview("par_conclusao");
@@ -24027,7 +24095,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
   function navHtml(){
     return TOPICOS.map(function(tp){
       var mk = tp.auto ? '<i class="m-manual" title="texto gerado automaticamente"></i>'
-             : ((tp.bloco||tp.secao) ? '' : '<i class="m-extra" title="escrito \à m\ão"></i>');
+             : ((tp.bloco||tp.secao) ? '' : '<i class="m-extra" title="escrito à mão"></i>');
       return '<a href="#" class="nv lv'+tp.lv+(vazio(tp)?' is-oculto':'')+'" data-ir="'+tp.id+'">'
         +'<span class="nv-n">'+esc(tp.num||(tp.lv===2?"\·":""))+'</span>'
         +'<span class="nv-t">'+esc(tp.head)+'</span>'+mk+'</a>';
@@ -24035,19 +24103,20 @@ window.UFOTO_rodapeHTML=rodapeHTML;
   }
   function secHtml(tp){
     var acts = tp.auto
-      ? '<span class="dd-acts"><button type="button" class="dd-b" data-auto="'+tp.auto+'" title="Descarta o que est\á escrito aqui e volta ao texto gerado a partir dos dados">\↻ Texto autom\ático</button></span>'
+      ? '<span class="dd-acts"><button type="button" class="dd-b" data-auto="'+tp.auto+'" title="Descarta o que está escrito aqui e volta ao texto gerado a partir dos dados">\↻ Texto automático</button></span>'
       : '';
-    return '<section class="dd-top lv'+tp.lv+(tp.auto?' is-auto':'')+'" id="pardd_'+tp.id+'" data-id="'+tp.id+'">'
+    var manual = tp.auto && window.PAR_ehManual && window.PAR_ehManual(tp.auto);
+    return '<section class="dd-top lv'+tp.lv+(tp.auto?' is-auto':'')+(manual?' is-manual':'')+'" id="pardd_'+tp.id+'" data-id="'+tp.id+'">'
       +'<div class="dd-head"><span class="dd-num">'+esc(tp.num||"")+'</span>'
       +'<span class="dd-tit">'+esc(tp.head)+'</span>'
-      +(tp.auto?'<span class="dd-tags"><span class="dd-tag t-auto">autom\ático</span></span>':'')
+      +(tp.auto?'<span class="dd-tags"><span class="dd-tag t-auto">automático</span><span class="dd-tag t-manual">editado à mão</span></span>':'')
       +acts+'</div>'
       +(tp.nota?'<p class="dd-nota">'+esc(tp.nota)+'</p>':'')
       +'<div class="dd-corpo"></div></section>';
   }
   function render(){
     if(!$("pardoc")) return;
-    devolver();                                   // devolve antes de refazer o HTML, sen\ão some
+    devolver();                                   // devolve antes de refazer o HTML, senão some
     var nav=$("pardoc_nav"), main=$("pardoc_main"); if(!nav||!main) return;
     nav.innerHTML=navHtml();
     main.innerHTML=TOPICOS.map(secHtml).join("");
@@ -24072,7 +24141,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     if(sw) sw.querySelectorAll("button").forEach(function(b){ b.classList.toggle("on",(b.getAttribute("data-m")==="doc")===doc); });
   };
 
-  /* ---- barra: negrito e marcador agem no campo onde o cursor est\á ---- */
+  /* ---- barra: negrito e marcador agem no campo onde o cursor está ---- */
   var ultimo=null;
   document.addEventListener("focusin", function(ev){
     var t=ev.target; if(!t || !t.closest) return;
@@ -24119,7 +24188,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     cx.focus();
   };
 
-  /* ---- cliques do sum\ário e do "voltar ao texto autom\ático" ---- */
+  /* ---- cliques do sumário e do "voltar ao texto automático" ---- */
   document.addEventListener("click", function(ev){
     var t=ev.target; if(!t || !t.closest) return;
     var a=t.closest("#pardoc_nav .nv");
@@ -24135,8 +24204,8 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     var b=t.closest("#pardoc .dd-b[data-auto]");
     if(b){
       ev.preventDefault();
-      if(!confirm("Descartar o que est\á escrito neste t\ópico e voltar ao texto autom\ático?")) return;
-      if(window.PAR_gerarTexto) window.PAR_gerarTexto(b.getAttribute("data-auto"));
+      if(!confirm("Descartar o que está escrito neste tópico e voltar ao texto automático?")) return;
+      if(window.PAR_gerarTexto) window.PAR_gerarTexto(b.getAttribute("data-auto"), true);
     }
   });
 
@@ -24144,7 +24213,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     if(!$("pardoc")) return;
     var m="doc"; try{ m=localStorage.getItem("par_modo")||"doc"; }catch(e){}
     window.PARDOC_modo(m);
-    // ao entrar na aba, o documento se p\õe em dia (os textos autom\áticos s\ão refeitos antes)
+    // ao entrar na aba, o documento se põe em dia (os textos automáticos são refeitos antes)
     var link=document.querySelector('.sb-link[data-alvo="panel-desp1-parecer"]');
     if(link) link.addEventListener("click", function(){ setTimeout(window.PARDOC_renderSeVisivel, 160); });
   }
@@ -26853,7 +26922,8 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     node.childNodes.forEach(function(n){
       if(n.nodeType===3){ s+=n.nodeValue; }
       else if(n.nodeType===1){
-        if(n.tagName==='BR'){ return; }
+        if(n.tagName==='BR'){ s+='\n'; return; }   // Enter dentro do bloco: quebra de verdade,
+                                                    // senao "abc<br>def" virava "abcdef" (02/10/2026)
         var st=(n.getAttribute&&n.getAttribute('style'))||'';
         var bold=(n.tagName==='B'||n.tagName==='STRONG'||/font-weight\s*:\s*(bold|[6-9]00)/i.test(st));
         var inner=serialLine(n);
@@ -26867,18 +26937,18 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     var hasBlock=false;
     view.childNodes.forEach(function(n){ if(n.nodeType===1 && (n.tagName==='DIV'||n.tagName==='P')) hasBlock=true; });
     var lines=[];
-    if(!hasBlock){ lines.push(serialLine(view)); }
+    if(!hasBlock){ lines.push(serialLine(view).replace(/\n+$/,'')); }
     else {
       view.childNodes.forEach(function(n){
         if(n.nodeType===3){ if(n.nodeValue.trim()!=='') lines.push(n.nodeValue); }
         else if(n.nodeType===1){
-          var line=serialLine(n);
+          var line=serialLine(n).replace(/\n+$/,'');
           if((n.className||'').indexOf('d2-li')>=0){ line='• '+line.replace(/^•\s*/,''); }
           lines.push(line);
         }
       });
     }
-    return lines.join('\n').replace(/ /g,' ').replace(/\*\*\s*\*\*/g,'').replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
+    return lines.join('\n').replace(/ /g,' ').replace(/\*\*[ \t]*\*\*/g,'').replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
   }
   var D2_edited={};
   window.D2_renderView=function(id){ var v=document.getElementById('d2_view_'+id), t=document.getElementById('d2_tx_'+id); if(v&&t && v.getAttribute('contenteditable')!=='true') v.innerHTML=mdToHtml(D2DOC.ovr[id]!=null?window.D2_ajustarOvrAreas006(id, D2DOC.ovr[id]):t.value); };
