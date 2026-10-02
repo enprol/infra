@@ -6226,6 +6226,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
     <button class="vbtn vbtn-ghost" type="button" onclick="MDP_jpgQuadro()" title="Só o quadro do mapa, com as camadas e o enquadramento como estão agora">🖼️ JPG do quadro do mapa</button>
     <button class="vbtn vbtn-ghost" type="button" onclick="MDP_pdfPlantaCom()">📄 PDF — com satélite</button>
     <button class="vbtn vbtn-ghost" type="button" onclick="MDP_pdfPlantaSem()">📄 PDF — sem satélite</button>
+    <button class="vbtn vbtn-ghost" type="button" onclick="MDP_exportarDxf()" title="Desenho em coordenadas UTM, uma camada por elemento. Abre em qualquer CAD; para DWG, salve pelo AutoCAD">📐 Exportar DXF (CAD)</button>
   </div>
 </div>
 
@@ -16654,7 +16655,7 @@ function AV_gerarDescSituacao(){
     function cabe(e){ return (bx1-bx0)*1.12/(e/1000) <= MAPA.w - 6 && (by1-by0)*1.12/(e/1000) <= MAPA.h - 6; }
     if(!esc) esc = ESCALAS.find(cabe) || ESCALAS[ESCALAS.length - 1];
     if(cabe(esc)) return { esc:esc, tiles:null };
-    var wm = MAPA.w*esc/1000, hm = MAPA.h*esc/1000, ov = .06;
+    var wm = MAPA.w*esc/1000, hm = MAPA.h*esc/1000, ov = .2;     // 20% de folga: o início do KML (e o rótulo do KM) não encosta na margem
     // direção de leitura: do KM inicial para o final; sem quilometragem, o eixo maior do contorno
     var dir = (bx1 - bx0 >= by1 - by0) ? [1, 0] : [0, -1], km = kmAtual();
     if(km && km.iIni != null && km.iFim != null && km.iIni >= 0 && km.iFim >= 0 && km.iIni !== km.iFim){
@@ -16670,7 +16671,7 @@ function AV_gerarDescSituacao(){
     pts.forEach(function(q){ q.s = q.E*dir[0] + q.N*dir[1]; q.ok = false; });
     pts.sort(function(p, q){ return p.s - q.s; });
     // quadros em sequência: cada um nasce no primeiro ponto ainda sem cobertura (o de menor posição na direção
-    // de leitura), com esse ponto encostado na quina de entrada da janela e 6% de folga/sobreposição
+    // de leitura), com esse ponto na quina de entrada da janela, a 20% da margem (folga e sobreposição)
     var mx = wm*ov, my = hm*ov, tiles = [];
     for(var ip = 0; ip < pts.length && tiles.length < 60; ip++){
       var p0 = pts[ip]; if(p0.ok) continue;
@@ -16715,18 +16716,19 @@ function AV_gerarDescSituacao(){
     });
   }
   // desenha o satélite num canvas próprio do tamanho da janela do mapa; devolve dataURL
-  async function rasterSatelite(T, dpi, aoAndar){
-    var z = 18;                                                // cobertura real do Esri nesta região (igual ao Mapa Geral); em 19 os tiles voltam cinza
-    var pxW = Math.round(MAPA.w/25.4*dpi), pxH = Math.round(MAPA.h/25.4*dpi);
+  async function rasterSatelite(T, dpi, aoAndar, opt){
+    var B = (opt && opt.box) || MAPA;                          // caixa em mm onde o raster será desenhado (padrão: a janela do mapa)
+    var z = (opt && opt.z) || 18;                                                // cobertura real do Esri nesta região (igual ao Mapa Geral); em 19 os tiles voltam cinza
+    var pxW = Math.round(B.w/25.4*dpi), pxH = Math.round(B.h/25.4*dpi);
     var cv = document.createElement("canvas"); cv.width = pxW; cv.height = pxH;
     var ctx = cv.getContext("2d"); ctx.fillStyle = "#e8eef4"; ctx.fillRect(0,0,pxW,pxH);
-    var k = pxW/MAPA.w;                                        // px por mm
+    var k = pxW/B.w;                                        // px por mm
     // 3 cantos: mm -> lon/lat -> pixel do mosaico
     function p(mx, my){
       var ll = utmInv(T.E(mx), T.N(my), G.fuso, G.sul);
       return merc(ll[0], ll[1], z);
     }
-    var A0 = p(MAPA.x, MAPA.y), A1 = p(MAPA.x + MAPA.w, MAPA.y), A2 = p(MAPA.x, MAPA.y + MAPA.h);
+    var A0 = p(B.x, B.y), A1 = p(B.x + B.w, B.y), A2 = p(B.x, B.y + B.h);
     // afim: (px,py) -> (canvas px). Resolve a partir dos 3 pontos.
     var d = (A1[0]-A0[0])*(A2[1]-A0[1]) - (A2[0]-A0[0])*(A1[1]-A0[1]);
     if(!d){ console.warn("planta/satélite: afim degenerada"); return null; }
@@ -16736,13 +16738,17 @@ function AV_gerarDescSituacao(){
     var dd = ((pxH)*(A1[0]-A0[0]) - 0*(A2[0]-A0[0]))/d;
     var e = -(a*A0[0] + c*A0[1]), f = -(b*A0[0] + dd*A0[1]);
     // limites de tiles (bbox dos 4 cantos)
-    var cantos = [A0, A1, A2, p(MAPA.x + MAPA.w, MAPA.y + MAPA.h)];
+    var cantos = [A0, A1, A2, p(B.x + B.w, B.y + B.h)];
     var minX = Math.min.apply(null, cantos.map(function(q){ return q[0]; })), maxX = Math.max.apply(null, cantos.map(function(q){ return q[0]; }));
     var minY = Math.min.apply(null, cantos.map(function(q){ return q[1]; })), maxY = Math.max.apply(null, cantos.map(function(q){ return q[1]; }));
     var t0x = Math.floor(minX/256), t1x = Math.floor(maxX/256), t0y = Math.floor(minY/256), t1y = Math.floor(maxY/256);
     var lista = [];
     for(var tx = t0x; tx <= t1x; tx++) for(var ty = t0y; ty <= t1y; ty++) lista.push([tx,ty]);
-    if(lista.length > 240){ console.warn("planta/satélite: " + lista.length + " tiles — demais, pulei"); return null; }
+    if(lista.length > 240){
+      // janela grande (ex.: 1:10.000): em vez de ficar sem satélite, desce um nível de zoom (a imagem fica menos nítida, mas aparece)
+      if(z > 12){ console.warn("planta/satélite: " + lista.length + " tiles no zoom " + z + " — tentando o zoom " + (z - 1)); return rasterSatelite(T, dpi, aoAndar, { box:B, z:z - 1 }); }
+      console.warn("planta/satélite: " + lista.length + " tiles — demais, pulei"); return null;
+    }
     ctx.setTransform(a, b, c, dd, e, f);
     ctx.imageSmoothingQuality = "high";
     var feitos = 0, erros = 0;
@@ -17218,18 +17224,18 @@ function AV_gerarDescSituacao(){
     var k = escala || 1, e = EST(tipo), esp = (e.esp || 1)*k, pe = e.peso*k;
     switch(tipo){
       case "area_d":
-        hachurar(P, pol, 45, esp, { cor:e.tram, peso:.16 });
+        hachurar(P, pol, 45, esp, { cor:e.tram, peso:fTram(tipo, .16) });
         P.poli(pol, { cor:e.cor, peso:pe }); break;
       case "remanescente":
-        hexagonos(P, pol, esp, { cor:e.tram, peso:.12 }); P.poli(pol, { cor:e.cor, peso:pe }); break;
+        hexagonos(P, pol, esp, { cor:e.tram, peso:fTram(tipo, .12) }); P.poli(pol, { cor:e.cor, peso:pe }); break;
       case "pastagem":
-        marcasCapim(P, pol, esp, { cor:e.tram, peso:.12 }); P.poli(pol, { cor:e.cor, peso:pe }); break;
+        marcasCapim(P, pol, esp, { cor:e.tram, peso:fTram(tipo, .12) }); P.poli(pol, { cor:e.cor, peso:pe }); break;
       case "app":
-        hachurar(P, pol, 45, esp, { cor:e.tram, peso:.14 }); P.poli(pol, { cor:e.cor, peso:pe }); break;
+        hachurar(P, pol, 45, esp, { cor:e.tram, peso:fTram(tipo, .14) }); P.poli(pol, { cor:e.cor, peso:pe }); break;
       case "rl":
-        hachurar(P, pol, 45, esp, { cor:e.tram, peso:.16 }); P.poli(pol, { cor:e.cor, peso:pe }); break;
+        hachurar(P, pol, 45, esp, { cor:e.tram, peso:fTram(tipo, .16) }); P.poli(pol, { cor:e.cor, peso:pe }); break;
       case "benf":
-        hachurar(P, pol, 135, esp, { cor:e.tram, peso:.13 }); P.poli(pol, { cor:e.cor, peso:pe }); break;
+        hachurar(P, pol, 135, esp, { cor:e.tram, peso:fTram(tipo, .13) }); P.poli(pol, { cor:e.cor, peso:pe }); break;
       case "mata":
         P.poli(pol, { cor:e.cor, peso:pe, fill:e.tram, opacFill:.28 }); break;
     }
@@ -17244,18 +17250,18 @@ function AV_gerarDescSituacao(){
     ordem.forEach(function(id){
       var c = (g.camadas || []).filter(function(x){ return x.id === id; })[0]; if(!c) return;
       var d = PROJ.dados[g.pasta + "|" + c.arquivo]; if(!d) return;
-      var e = c.estilo || {};
+      var e = c.estilo || {}, pLin = EST("proj_lin").peso, rPol = EST("proj_pol").peso/.12;
       if(d.tipo === "linhas"){
-        (d.l || []).forEach(function(l){ if(!l.some(dentro)) return; P.poli(l.map(mm), { cor:e.cor || "#8a8f98", peso:.15, fechar:false }); });
+        (d.l || []).forEach(function(l){ if(!l.some(dentro)) return; P.poli(l.map(mm), { cor:e.cor || "#8a8f98", peso:pLin, fechar:false }); });
       } else if(d.tipo === "poligonos"){
         (d.p || []).forEach(function(aneis){
           var fora = aneis[0]; if(!fora.some(dentro)) return;
           var pol = fora.map(mm);
           if(e.preenchimento === "cruzado"){
-            hachurar(P, pol, 45, 1.6, { cor:e.corPreench || "#ff8c1a", peso:.13 }); hachurar(P, pol, 135, 1.6, { cor:e.corPreench || "#ff8c1a", peso:.13 });
-            P.poli(pol, { cor:e.cor, peso:.55 });
+            hachurar(P, pol, 45, 1.6, { cor:e.corPreench || "#ff8c1a", peso:.13*rPol }); hachurar(P, pol, 135, 1.6, { cor:e.corPreench || "#ff8c1a", peso:.13*rPol });
+            P.poli(pol, { cor:e.cor, peso:.55*rPol });
           } else {
-            P.poli(pol, { cor:e.cor, peso:.12, fill:(e.preenchimento === "quadriculado" ? (e.corPreench || "#ff8c1a") : e.preenchimento), opacFill:(e.preenchimento === "quadriculado" ? .22 : (e.opPreench == null ? .5 : e.opPreench)) });
+            P.poli(pol, { cor:e.cor, peso:.12*rPol, fill:(e.preenchimento === "quadriculado" ? (e.corPreench || "#ff8c1a") : e.preenchimento), opacFill:(e.preenchimento === "quadriculado" ? .22 : (e.opPreench == null ? .5 : e.opPreench)) });
           }
         });
       }
@@ -17271,9 +17277,9 @@ function AV_gerarDescSituacao(){
     var ce = (g.camadas || []).filter(function(x){ return x.tipo === "estacas"; })[0];
     var de = ce && PROJ.dados[g.pasta + "|" + ce.arquivo];
     if(de){
-      var e = ce.estilo || {};
+      var e = ce.estilo || {}, rEst = EST("estacas_trc").peso/.35;
       [["a", e.a || {}], ["b", e.b || {}]].forEach(function(par){
-        (de[par[0]] || []).forEach(function(l){ if(!l.some(dentro)) return; P.poli(l.map(mm), { cor:par[1].cor || "#000", peso:(par[0] === "a" ? .35 : .15), fechar:false }); });
+        (de[par[0]] || []).forEach(function(l){ if(!l.some(dentro)) return; P.poli(l.map(mm), { cor:par[1].cor || "#000", peso:(par[0] === "a" ? .35 : .15)*rEst, fechar:false }); });
       });
     }
     var ct = (g.camadas || []).filter(function(x){ return x.tipo === "texto"; })[0], dt = ct && PROJ.dados[g.pasta + "|" + ct.arquivo];
@@ -17332,7 +17338,7 @@ function AV_gerarDescSituacao(){
     (A.est || []).forEach(function(an){
       var po = mm(an); if(!caixaCruzaMapa(po, 40)) return;
       var ee = EST("app_est");
-      hachurar(P, po, 135, ee.esp, { cor:ee.tram, peso:.12 });
+      hachurar(P, po, 135, ee.esp, { cor:ee.tram, peso:fTram("app_est", .12) });
       P.poli(po, { cor:ee.cor, peso:ee.peso, tracejado:[2,1.4] });
     });
   }
@@ -17536,6 +17542,9 @@ function AV_gerarDescSituacao(){
     rl:           { cor:"#00b400",  peso:.60, tram:CORES.verde,   esp:1.0 },
     benf:         { cor:"#000000",  peso:.35, tram:"#000000",     esp:.75 },
     mata:         { cor:"#0b9b0b",  peso:.35, tram:"#2ecc2e" },
+    proj_lin:     { peso:.15 },      // linhas do projeto revisado (ferrovia, rodovia, projeto, adições)
+    proj_pol:     { peso:.12 },      // contorno de corte/aterro/adições (a trama e o contorno cruzado acompanham)
+    estacas_trc:  { peso:.35 },      // traços das estacas de 100 m (os de 20 m acompanham)
     poligono:  { cor:CORES.area, peso:.40, tram:CORES.hachura, esp:1.9, ang:45 },
     malha:     { cor:COR.grade,  peso:.10, corTxt:"#1d2b3a", trac:true, tam:100 },
     raster:    { opac:100 },
@@ -17545,6 +17554,8 @@ function AV_gerarDescSituacao(){
     estaca:    { tam:100 },
     cota:      { cor:"#0a5c86", peso:.22, tam:100 }
   };
+  // a trama (hachura) acompanha a espessura configurada: peso base × (peso atual / peso padrão)
+  function fTram(tipo, base){ var pd = EST_PAD[tipo]; return (pd && pd.peso) ? base*EST(tipo).peso/pd.peso : base; }
   function estLer(){ var o = extras().estilos; return (o && typeof o === "object" && !Array.isArray(o)) ? o : {}; }
   // valor em uso: o do cadastro quando houver, senao o padrao aprovado
   function EST(k){
@@ -17871,18 +17882,43 @@ function AV_gerarDescSituacao(){
   }
 
   /* mapa-chave: o contorno inteiro com os quadros numerados; o desta prancha em vermelho */
-  function desenharMapaChave(P, x, y, w, h, pg){
-    if(h < 20) return y;
+  var CACHE_CHAVE = { chave:"", url:null, el:null };
+  function chaveDims(){ return { w:TAB.w - 4, hmax:TAB.h - 47 - 9 - 16.8 }; }   // 16,8 = onde o mapa-chave começa dentro do painel
+  // enquadramento do mapa-chave: o contorno inteiro + todos os quadros, ajustado à caixa
+  function geomChave(pg, w, hmax){
     var tl = pg.tiles || [], wm = pg.wm, hm = pg.hm;
     var x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
     G.v.forEach(function(q){ x0 = Math.min(x0, q.E); x1 = Math.max(x1, q.E); y0 = Math.min(y0, q.N); y1 = Math.max(y1, q.N); });
     tl.forEach(function(t){ x0 = Math.min(x0, t.cx - wm/2); x1 = Math.max(x1, t.cx + wm/2); y0 = Math.min(y0, t.cy - hm/2); y1 = Math.max(y1, t.cy + hm/2); });
-    var k = Math.min((w - 6)/(x1 - x0), (h - 8)/(y1 - y0));
-    h = Math.min(h, (y1 - y0)*k + 12);                              // a moldura se ajusta ao desenho
-    var ox = x + w/2 - (x0 + x1)/2*k, oy = y + (h - 4)/2 + (y0 + y1)/2*k;
+    var k = Math.min((w - 6)/(x1 - x0), (hmax - 8)/(y1 - y0));
+    var h = Math.min(hmax, (y1 - y0)*k + 12);                       // a moldura se ajusta ao desenho
+    return { k:k, h:h, ox:w/2 - (x0 + x1)/2*k, oy:(h - 4)/2 + (y0 + y1)/2*k };   // origem em relação ao canto da caixa
+  }
+  // baixa o satélite do mapa-chave (uma vez por enquadramento); sem ele o mapa-chave sai só com o contorno
+  async function garantirChave(pg, op, dpi){
+    if(!pg || !pg.mapa || !op || !(op.satelite || op.ortofoto)) return;
+    var d = chaveDims(), g = geomChave(pg, d.w, d.hmax);
+    var chave = [pg.esc, pg.tiles.length, Math.round(pg.tiles[0].cx), Math.round(pg.tiles[0].cy), Math.round(g.k*1e4), Math.round(d.w), Math.round(g.h), dpi, G.v.length].join("|");
+    if(CACHE_CHAVE.chave === chave && CACHE_CHAVE.url) return;
+    CACHE_CHAVE = { chave:chave, url:null, el:null };
+    var Tc = { E:function(mx){ return (mx - g.ox)/g.k; }, N:function(my){ return (g.oy - my)/g.k; } };
+    var lat = utmInv(G.v[0].E, G.v[0].N, G.fuso, G.sul)[1];
+    var z = Math.max(8, Math.min(18, Math.ceil(Math.log2(156543.03*Math.cos(lat*Math.PI/180)/(25.4/(g.k*dpi))))));
+    try{
+      var url = await rasterSatelite(Tc, dpi, null, { box:{ x:0, y:0, w:d.w, h:g.h }, z:z });
+      if(url){ CACHE_CHAVE.url = url; try{ CACHE_CHAVE.el = await carregarImg(url); }catch(e){} }
+    }catch(e){ console.warn("planta/mapa-chave:", e.message || e); }
+  }
+  function desenharMapaChave(P, x, y, w, h, pg){
+    if(h < 20) return y;
+    var tl = pg.tiles || [], wm = pg.wm, hm = pg.hm, g = geomChave(pg, w, h), k = g.k;
+    h = g.h;
+    var ox = x + g.ox, oy = y + g.oy;
     var X = function(E){ return ox + E*k; }, Y = function(N){ return oy - N*k; };
+    var sat = !!(CACHE_CHAVE.url && CACHE_CHAVE.chave.indexOf(pg.esc + "|" + tl.length + "|") === 0);
+    if(sat) P.img({ el:CACHE_CHAVE.el, url:CACHE_CHAVE.url }, x, y, w, h);
     P.ret(x, y, w, h, { peso:.15 });
-    P.poli(G.v.map(function(q){ return [X(q.E), Y(q.N)]; }), { cor:"#1F6FC0", peso:.25, fill:"#f6d04d", opacFill:.8 });
+    P.poli(G.v.map(function(q){ return [X(q.E), Y(q.N)]; }), { cor:"#1F6FC0", peso:.25, fill:"#f6d04d", opacFill:(sat ? .55 : .8) });
     tl.forEach(function(t, i){
       if(i === pg.k) return;
       P.ret(X(t.cx - wm/2), Y(t.cy + hm/2), wm*k, hm*k, { cor:"#6b7a89", peso:.18 });
@@ -17893,7 +17929,7 @@ function AV_gerarDescSituacao(){
       P.ret(X(a.cx - wm/2), Y(a.cy + hm/2), wm*k, hm*k, { cor:"#b3141b", peso:.45 });
       P.texto(X(a.cx), Y(a.cy) + 1.6, String(pg.k + 1), { tam:6, align:"center", cor:"#b3141b", bold:true });
     }
-    P.texto(x + w/2, y + h - 1.6, "MAPA-CHAVE DOS QUADROS · ESC. 1:" + br(pg.esc,0), { tam:4.4, align:"center", cor:"#4a5a6a" });
+    P.texto(x + w/2, y + h - 1.6, "MAPA-CHAVE DOS QUADROS · ESC. 1:" + br(pg.esc,0), { tam:4.4, align:"center", cor:"#4a5a6a", halo:sat });
     return y + h;
   }
 
@@ -18026,7 +18062,7 @@ function AV_gerarDescSituacao(){
     // área a desapropriar: hachura amarela + contorno azul (legenda aprovada), depois as divisas de cada trecho
     var pol = G.v.map(function(p){ return [T.x(p.E), T.y(p.N)]; });
     var ep = EST("poligono");
-    hachurar(P, pol, ep.ang, ep.esp, { cor:ep.tram, peso:.13 });
+    hachurar(P, pol, ep.ang, ep.esp, { cor:ep.tram, peso:fTram("poligono", .13) });
     P.poli(pol, { cor:ep.cor, peso:ep.peso });
     G.segs.forEach(function(s, i){
       if(dv[i] === "area") return;
@@ -18090,7 +18126,7 @@ function AV_gerarDescSituacao(){
         // planta dividida: aqui vai o mapa-chave dos quadros; a tabela de coordenadas fica nas pranchas do fim
         P.texto(TAB.x + TAB.w/2, y + 1.6, "QUADRO " + (pg.k + 1) + " DE " + pg.kTotal, { tam:6.4, bold:true, align:"center", cor:"#b3141b" });
         y += 4;
-        y = desenharMapaChave(P, TAB.x + 2, y, larg, TAB.y + TAB.h - 47 - 9 - y, pg) + 1.5;
+        y = desenharMapaChave(P, TAB.x + 2, y, larg, chaveDims().hmax, pg) + 1.5;
         P.texto(TAB.x + 2, y + 3.4, "tabelas nas folhas " + (pg.kTotal + 1) + (pg.total > pg.kTotal + 1 ? ("–" + pg.total) : "") + "/" + pg.total + " →", { tam:5, bold:true, cor:"#0a5c86" });
         y += 3.4;
       } else {
@@ -18522,6 +18558,7 @@ function AV_gerarDescSituacao(){
     cv.style.width = (FL.W*s/dpr) + "px"; cv.style.height = (FL.H*s/dpr) + "px";
     var ctx = cv.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0,0,cv.width,cv.height);
     var op = await preparar(T, dpiMapa, aviso);
+    await garantirChave(pgAtual, op, 150);
     if(cancelado && cancelado()) return null;
     ctx.fillStyle = "#fff"; ctx.fillRect(0,0,cv.width,cv.height);
     desenharFolha(pintorCanvas(ctx, s), T, op, pgAtual);
@@ -18741,6 +18778,7 @@ function AV_gerarDescSituacao(){
             '<button type="button" class="mdp-mini" id="mdp_bt_cota" title="Clique em dois pontos do mapa para criar uma cota de distância">📐 Cota de distância</button>' +
             '<button type="button" class="mdp-mini" id="mdp_bt_jpg" title="Só o quadro do mapa, exatamente como está aqui">🖼️ Exportar JPG</button>' +
             '<button type="button" class="mdp-mini" id="mdp_bt_pdf" title="A prancha montada: mapa, tabela e carimbo">📄 PDF da prancha</button>' +
+            '<button type="button" class="mdp-mini" id="mdp_bt_dxf" title="Desenho em coordenadas UTM, uma camada por elemento (abre em qualquer CAD; para DWG, salve pelo AutoCAD)">📐 DXF / CAD</button>' +
             '<button type="button" class="mdp-comp-x" title="Fechar (Esc)">×</button>' +
           '</div>' +
           '<div id="mdp_comp_esc" class="mdp-comp-esc" style="padding:1px 12px 8px;background:#0a1b20;border-bottom:1px solid #16333b;"></div>' +
@@ -18769,6 +18807,7 @@ function AV_gerarDescSituacao(){
         if(ev.target === ov || ev.target.classList.contains("mdp-comp-x")) compFechar();
       });
       ov.querySelector("#mdp_bt_pdf").addEventListener("click", function(){ window.MDP_pdfPlanta(); });
+      ov.querySelector("#mdp_bt_dxf").addEventListener("click", function(){ window.MDP_exportarDxf(); });
       ov.querySelector("#mdp_bt_jpg").addEventListener("click", function(){ window.MDP_jpgQuadro(); });
       ov.querySelector("#mdp_bt_est").addEventListener("click", function(){ window.MDP_abrirEstilos(); });
       ov.querySelector("#mdp_bt_cota").addEventListener("click", function(){ compCotaModo(!COMP.cota); });
@@ -18871,6 +18910,11 @@ function AV_gerarDescSituacao(){
       ["benf",         "Benfeitoria", ["cor","peso","tram","esp"]],
       ["mata",         "Área de mata", ["cor","peso","tram"]]
     ]],
+    ["Projeto revisado (só a espessura; as cores vêm do projeto)", [
+      ["proj_lin",    "Linhas do projeto (ferrovia, rodovia, projeto)", ["peso"]],
+      ["proj_pol",    "Contorno de corte, aterro e adições", ["peso"]],
+      ["estacas_trc", "Traços das estacas (100 m; os de 20 m acompanham)", ["peso"]]
+    ]],
     ["Malha, vértices e cotas", [
       ["malha",   "Malha de coordenadas UTM", ["cor","peso","trac","corTxt","tam"]],
       ["vertice", "Vértices e seus rótulos", ["cor","peso","raio","fill","tam"]],
@@ -18891,9 +18935,9 @@ function AV_gerarDescSituacao(){
     var h = '<svg class="mdp-est-am" width="62" height="20" viewBox="0 0 62 20">';
     if(e.tram) h += '<rect x="1" y="2.5" width="60" height="15" fill="' + esc(e.tram) + '" fill-opacity=".3"/>';
     if(e.opac != null) h += '<rect x="1" y="2.5" width="60" height="15" fill="#3d5062" fill-opacity="' + (e.opac/100).toFixed(2) + '"/>';
-    if(e.cor){
+    if(e.cor || (e.peso != null && !e.tram)){
       var tr = (k === "cerca") ? ' stroke-dasharray="7 4"' : (e.trac ? ' stroke-dasharray="2 2"' : "");
-      h += '<line x1="2" y1="10" x2="60" y2="10" stroke="' + esc(e.cor) + '" stroke-width="' + w.toFixed(2) + '"' + tr + '/>';
+      h += '<line x1="2" y1="10" x2="60" y2="10" stroke="' + esc(e.cor || "#6b7a89") + '" stroke-width="' + w.toFixed(2) + '"' + tr + '/>';
     }
     if(e.raio != null) h += '<circle cx="31" cy="10" r="' + (e.raio*3.6).toFixed(2) + '" fill="' + esc(e.fill || "#fff") + '" stroke="' + esc(e.cor) + '" stroke-width="1.3"/>';
     return h + '</svg>';
@@ -18973,6 +19017,7 @@ function AV_gerarDescSituacao(){
     var plano = planoFolhas();
     var T = enquadrarPg(plano[0]);
     var op = await preparar(T, 200, aviso, opts.sobre);
+    await garantirChave(plano[0], op, 200);
     var jsPDF = window.jspdf.jsPDF;
     var pdf = new jsPDF({ unit:"mm", format:[FL.W, FL.H], orientation:(FL.W >= FL.H ? "landscape" : "portrait"), compress:true });
     var Pp = pintorPdf(pdf);
@@ -18993,6 +19038,90 @@ function AV_gerarDescSituacao(){
     if(load) load.style.display = "none";
     if(opts.retornar) return { blob:blob, nome:nome };
     await window.FS_salvar(blob, nome);
+  };
+  /* ---- DXF da planta (02/10/2026) ----
+     Coordenadas UTM reais (E, N em metros, SIRGAS 2000), uma camada por tipo de elemento: contorno da área,
+     vértices e rótulos, cada divisa, faixa de domínio, eixo, estacas (traços e números), KM inicial/final e as
+     camadas extras importadas. DXF ASCII (AC1009) abre em qualquer CAD; para DWG, abrir no AutoCAD e "Salvar como". */
+  function dxfAscii(t){ return String(t == null ? "" : t).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\x20-\x7e]/g, "?"); }
+  window.MDP_exportarDxf = async function(){
+    var a = analisar(); if(a.erro){ alert(a.erro); return; }
+    var load = $("mdp_comp_load"), aviso = function(t){ if(load){ load.textContent = t; load.style.display = "block"; } };
+    aviso("montando o DXF…");
+    try{
+      await carregarContexto();
+      var pm = planoMapa(), esc = (pm && pm.esc) || OPC.escala || 2000, hT = Math.max(1, 2.2*esc/1000);   // texto de 2,2 mm na escala da planta
+      var dv = divisasDe(), cs = confrontantes(), E = [], camadas = {};
+      var COR = { AREA_DESAPROPRIAR:5, VERTICES:7, ROTULO_VERTICES:7, FAIXA_DOMINIO:4, EIXO_FERROVIA:30, ESTACAS_100M:8, ESTACAS_20M:9, ESTACAS_TEXTO:7, KM_INICIAL_FINAL:1, CONFRONTANTES:2 };
+      function lay(n, c){ n = dxfAscii(n).toUpperCase().replace(/[^A-Z0-9_]/g, "_"); if(!(n in camadas)) camadas[n] = (c != null ? c : (COR[n] != null ? COR[n] : 7)); return n; }
+      function f3(v){ return (Math.round(v*1000)/1000).toFixed(3); }
+      function poli(l, pts, fechada){ if(pts.length < 2) return; E.push("0","POLYLINE","8",l,"66","1","70",fechada ? "1" : "0","10","0","20","0","30","0");
+        pts.forEach(function(q){ E.push("0","VERTEX","8",l,"10",f3(q[0]),"20",f3(q[1]),"30","0"); }); E.push("0","SEQEND","8",l); }
+      function texto(l, x, y, h, t, rot){ if(!t) return; E.push("0","TEXT","8",l,"10",f3(x),"20",f3(y),"30","0","40",h.toFixed(3),"1",dxfAscii(t),"50",(rot || 0).toFixed(2)); }
+      function circ(l, x, y, r){ E.push("0","CIRCLE","8",l,"10",f3(x),"20",f3(y),"30","0","40",r.toFixed(3)); }
+      // janela de interesse: contorno + 800 m (faixa, eixo, estacas e camadas extras fora disso não entram)
+      var xs = G.v.map(function(q){ return q.E; }), ys = G.v.map(function(q){ return q.N; }), mg = 800;
+      var bx0 = Math.min.apply(null, xs) - mg, bx1 = Math.max.apply(null, xs) + mg, by0 = Math.min.apply(null, ys) - mg, by1 = Math.max.apply(null, ys) + mg;
+      function dentroUtm(q){ return q[0] >= bx0 && q[0] <= bx1 && q[1] >= by0 && q[1] <= by1; }
+      var COR_DIV = { sem:1, com:1, cerca:3, divisa:1, area:5, acesso:40, corrego:4, fd:4, fd_ant:8, eixo:30, eixo_ant:8 };
+      // contorno e divisas por segmento
+      poli(lay("AREA_DESAPROPRIAR"), G.v.map(function(q){ return [q.E, q.N]; }), true);
+      G.segs.forEach(function(sg, i){
+        var tp = dv[i] || "area", A = G.v[sg.de], Bv = G.v[sg.para];
+        poli(lay("DIVISA_" + tp, COR_DIV[tp] != null ? COR_DIV[tp] : 7), [[A.E, A.N], [Bv.E, Bv.N]], false);
+        if(cs[i]){ var mx = (A.E + Bv.E)/2, my = (A.N + Bv.N)/2, ang = Math.atan2(Bv.N - A.N, Bv.E - A.E)*180/Math.PI; if(ang > 90) ang -= 180; if(ang < -90) ang += 180; texto(lay("CONFRONTANTES"), mx, my + hT*.4, hT*.8, cs[i], ang); }
+      });
+      G.v.forEach(function(q){ circ(lay("VERTICES"), q.E, q.N, hT*.35); texto(lay("ROTULO_VERTICES"), q.E + hT*.5, q.N + hT*.5, hT, q.nome); });
+      // KM inicial / final
+      var e = eixoIniFim();
+      if(e) [[e.ini, "KM INICIAL"], [e.fim, "KM FINAL"]].forEach(function(r){
+        var i = r[0]; if(i == null || i < 0 || !G.v[i]) return;
+        var t = kmDe(i) || (e.km.v[i] && e.km.v[i].ch != null ? kmTxt(e.km.v[i].ch) : "");
+        circ(lay("KM_INICIAL_FINAL"), G.v[i].E, G.v[i].N, hT*.8); texto(lay("KM_INICIAL_FINAL"), G.v[i].E + hT, G.v[i].N - hT*1.6, hT*1.1, r[1] + " = " + t.replace(/^\s*KM\s*=?\s*/i, ""));
+      });
+      // faixa de domínio e eixo
+      var fx = CTX.fixo;
+      if(fx){
+        (fx.limites || []).forEach(function(l){ if(l.some(dentroUtm)) poli(lay("FAIXA_DOMINIO"), l, false); });
+        (fx.eixos || []).forEach(function(l){ if(l.some(dentroUtm)) poli(lay("EIXO_FERROVIA"), l, false); });
+      }
+      // estacas do projeto revisado
+      var g = CTX.proj;
+      if(g){
+        var ce = (g.camadas || []).filter(function(x){ return x.tipo === "estacas"; })[0], de = ce && PROJ.dados[g.pasta + "|" + ce.arquivo];
+        var toU = function(pt){ var u = utm(pt[0], pt[1], G.fuso); return [u.E, u.N]; };
+        if(de) [["a", "ESTACAS_100M"], ["b", "ESTACAS_20M"]].forEach(function(par){
+          (de[par[0]] || []).forEach(function(l){ var u = l.map(toU); if(u.some(dentroUtm)) poli(lay(par[1]), u, false); });
+        });
+        var ct = (g.camadas || []).filter(function(x){ return x.tipo === "texto"; })[0], dt = ct && PROJ.dados[g.pasta + "|" + ct.arquivo];
+        if(dt && dt.t) dt.t.forEach(function(t){
+          var u = toU([t[0], t[1]]); if(!dentroUtm(u)) return;
+          var an = ((t[4] % 360) + 360) % 360; if(an > 90 && an <= 270) an -= 180;
+          texto(lay("ESTACAS_TEXTO"), u[0], u[1], hT*.8, String(t[2]), an);
+        });
+      }
+      // camadas extras importadas (GeoPackage / KML)
+      camadasLer().arquivos.forEach(function(ar){ (ar.camadas || []).forEach(function(c){
+        if(!c.tipo || c.tipo === "ignorar") return;
+        var l = lay("EXTRA_" + c.tipo, COR_DIV[c.tipo] != null ? COR_DIV[c.tipo] : 7);
+        (c.f || []).forEach(function(ft){
+          if(ft.k === "pl") ft.c.forEach(function(an){ an.forEach(function(r){ if(r.some(dentroUtm)) poli(l, r, true); }); });
+          else if(ft.k === "ln") ft.c.forEach(function(r){ if(r.some(dentroUtm)) poli(l, r, false); });
+          else if(ft.k === "pt") ft.c.forEach(function(q){ if(dentroUtm(q)) circ(l, q[0], q[1], hT*.3); });
+        });
+      }); });
+      var H = ["0","SECTION","2","HEADER","9","$ACADVER","1","AC1009","9","$INSBASE","10","0.0","20","0.0","30","0.0","0","ENDSEC",
+               "0","SECTION","2","TABLES","0","TABLE","2","LTYPE","70","1","0","LTYPE","2","CONTINUOUS","70","0","3","Solid line","72","65","73","0","40","0.0","0","ENDTAB",
+               "0","TABLE","2","LAYER","70",String(Object.keys(camadas).length)];
+      Object.keys(camadas).forEach(function(n){ H.push("0","LAYER","2",n,"70","0","62",String(camadas[n]),"6","CONTINUOUS"); });
+      H.push("0","ENDTAB","0","TABLE","2","STYLE","70","1","0","STYLE","2","STANDARD","70","0","40","0.0","41","1.0","50","0.0","71","0","42","0.2","3","txt","4","","0","ENDTAB","0","ENDSEC","0","SECTION","2","ENTITIES");
+      var txt = H.concat(E, ["0","ENDSEC","0","EOF"]).join("\r\n") + "\r\n";
+      var c = doCadastro(), nome = "PLANTA_SITUACAO_INFRA_" + (c.ferrovia || "FTN") + "_CTD-" + (c.ctd || "000") + ".dxf";
+      var blob = new Blob([txt], { type:"application/dxf" });
+      if(load) load.style.display = "none";
+      if(window.FS_salvar) await window.FS_salvar(blob, nome);
+      else { var el = document.createElement("a"); el.href = URL.createObjectURL(blob); el.download = nome; document.body.appendChild(el); el.click(); el.remove(); setTimeout(function(){ URL.revokeObjectURL(el.href); }, 4000); }
+    }catch(er){ console.warn("planta/DXF:", er); aviso("Não consegui gerar o DXF: " + (er.message || er)); }
   };
   window.MDP_pdfPlantaCom = function(){ return window.MDP_pdfPlanta({ sobre:{ satelite:true }, sufixo:"_COM-SATELITE" }); };
   window.MDP_pdfPlantaSem = function(){ return window.MDP_pdfPlanta({ sobre:{ satelite:false, ortofoto:false }, sufixo:"_SEM-SATELITE" }); };
