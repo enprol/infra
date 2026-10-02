@@ -13616,7 +13616,7 @@ function AV_gerarDescSituacao(){
     if(termo.trim()) q += "&termo=" + encodeURIComponent(termo.trim());
     var _api = window.__CAD_api || null;
     var p = (typeof window.CAD_pesquisar === "function")
-      ? window.CAD_pesquisar(termo)
+      ? window.CAD_pesquisar(termo, 500)          // o painel lista todos; sem isto ficava nos 50
       : fetch(q).then(function(r){ return r.json(); });
     Promise.resolve(p).then(function(itens){
       _pgItens = Array.isArray(itens) ? itens : ((itens && itens.itens) || []);
@@ -19949,9 +19949,17 @@ function AV_gerarDescSituacao(){
     }
   };
 
-  window.CAD_pesquisar = async function(termo){
+  /* limite: quantos cadastros pedir. O padrao e o teto da API (500), nao 50.
+     BUG corrigido em 02/10/2026: o 50 estava fixo aqui, entao o Painel Geral e o
+     "Abrir cadastro" — que pedem a lista TODA — mostravam so os 50 primeiros. Como
+     a API ordena por atualizado_em decrescente, os que sumiam eram justamente os
+     mais parados: com 55 cadastros na base, o CTD 007 do SPS-04 e mais 4 (002-CP,
+     003-CP, 004-CP e 005-CP do SPS-04) desapareceram da tela sem aviso nenhum.
+     O servidor limita em 500 (listar(): Math.min(500, limite||50)); se a base passar
+     disso, o Painel precisa de paginacao de verdade, nao de um numero maior. */
+  window.CAD_pesquisar = async function(termo, limite){
     try{
-      var q = "/api/cadastros?limite=50";
+      var q = "/api/cadastros?limite=" + (limite || 500);
       if (termo && termo.trim()) q += "&termo=" + encodeURIComponent(termo.trim());
       var js = await _api("GET", q);
       return Array.isArray(js) ? js : ((js && js.itens) || []);
@@ -20232,7 +20240,7 @@ function AV_gerarDescSituacao(){
     var lista = document.getElementById("cadNuvemLista");
     if (lista) lista.innerHTML = '<div style="padding:20px;text-align:center;color:#8a97a6;font-size:13px;">Buscando…</div>';
     _cadBuscaTimer = setTimeout(async function(){
-      var itens = await CAD_pesquisar(termo);
+      var itens = await CAD_pesquisar(termo, 500);   // a lista inteira: o filtro de SPS e aplicado aqui, na tela
       if (!lista) return;
       var reSPS = _cadFiltroSPSregex();
       if (reSPS) itens = itens.filter(function(it){ return reSPS.test(it.ctd || "") || reSPS.test(it.processo_sei || ""); });
