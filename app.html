@@ -3568,6 +3568,7 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
       <div class="sb-grp">Utilitários</div>
       <button class="sb-link" data-alvo="panel-util-foto" onclick="trocarAba(this)">Relatório Fotográfico</button>
       <button class="sb-link" data-alvo="panel-util-merge" onclick="trocarAba(this)">Unir PDF</button>
+      <button class="sb-link" data-alvo="panel-util-compilar" onclick="trocarAba(this); if(window.CMP_abrir) CMP_abrir();">Compilar Documento</button>
       <button class="sb-link" data-alvo="panel-util-pesquisa" onclick="trocarAba(this); PESQ_carregar();">Pesquisa de Mercado</button>
       <button class="sb-link" data-alvo="panel-util-roteiro" onclick="trocarAba(this)">Roteiro de Acesso</button>
       <button class="sb-link" data-alvo="panel-util-benf" onclick="trocarAba(this)">Benfeitorias</button>
@@ -7088,6 +7089,109 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
       <p class="umg-hint">Dica: arraste os itens da lista para reordenar. A ordem da lista é a ordem no PDF final.</p>
       <ul class="umg-lista" id="umg_lista"></ul>
       <div class="umg-status" id="umg_status"></div>
+    </div>
+  </div>
+</section>
+<section class="tab-panel" id="panel-util-compilar">
+  <style>
+    #panel-util-compilar{
+      --azul:#1F6FC0; --azul-esc:#175a9f; --borda:#d3dbe4; --borda-forte:#b3bfcc;
+      --texto:#243447; --bg:#eef2f6; --card:#fff; --label:#5a6b7c;
+      font-family:"Segoe UI", Arial, Helvetica, sans-serif;
+      background:var(--bg); color:var(--texto); padding:26px 20px 80px;
+    }
+    #panel-util-compilar *{ box-sizing:border-box; }
+    #panel-util-compilar .wrap{ max-width:1020px; margin:0 auto; }
+    #panel-util-compilar h1{ font-size:23px; margin:0 0 4px; color:var(--azul-esc); letter-spacing:.3px; }
+    #panel-util-compilar .sub{ font-size:13.5px; color:var(--label); margin:0 0 18px; line-height:1.5; }
+    #panel-util-compilar .vsec{ font-size:14px; font-weight:800; letter-spacing:.4px; text-transform:uppercase;
+      color:#fff; background:linear-gradient(180deg,#2478c9,var(--azul)); padding:9px 16px;
+      border-radius:9px 9px 0 0; margin:22px 0 0; box-shadow:0 2px 8px rgba(31,111,192,.22); }
+    #panel-util-compilar .vcard{ background:var(--card); border:1px solid var(--borda); border-radius:0 0 12px 12px;
+      padding:18px; margin-bottom:8px; box-shadow:0 8px 22px rgba(30,50,80,.07); }
+    #panel-util-compilar .vrow{ display:flex; gap:14px; flex-wrap:wrap; margin-bottom:10px; }
+    #panel-util-compilar .vfield{ display:flex; flex-direction:column; gap:4px; min-width:150px; flex:1 1 230px; }
+    #panel-util-compilar label{ font-size:11px; font-weight:700; color:var(--label); text-transform:uppercase; letter-spacing:.4px; }
+    #panel-util-compilar input[type=text]{ width:100%; border:1px solid var(--borda-forte); border-radius:7px;
+      padding:8px 11px; font-size:13.5px; color:var(--texto); background:#fff; font-family:inherit; outline:none; }
+    #panel-util-compilar input[type=text]:focus{ border-color:var(--azul); box-shadow:0 0 0 3px rgba(31,111,192,.12); }
+    #panel-util-compilar .vactions{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:14px; }
+    #panel-util-compilar .vbtn{ border:1px solid var(--borda-forte); background:#fff; color:var(--texto);
+      border-radius:8px; padding:9px 16px; font-size:13.5px; font-family:inherit; cursor:pointer; font-weight:600; }
+    #panel-util-compilar .vbtn:hover{ border-color:var(--azul); color:var(--azul-esc); background:#f3f8fd; }
+    #panel-util-compilar .vbtn-primary{ background:var(--azul); border-color:var(--azul); color:#fff; }
+    #panel-util-compilar .vbtn-primary:hover{ background:var(--azul-esc); color:#fff; }
+    #panel-util-compilar .vbtn-sm{ padding:6px 12px; font-size:12.5px; }
+    #panel-util-compilar .cmp-explica{ font-size:12.5px; color:#5a6b7c; line-height:1.55; margin:0 0 14px; }
+
+    #panel-util-compilar .cmp-top{ border:1px solid var(--borda); border-radius:11px; margin-bottom:10px; background:#fbfdff; overflow:hidden; }
+    #panel-util-compilar .cmp-top-cab{ display:flex; align-items:center; gap:9px; padding:10px 12px; background:#f2f7fc; border-bottom:1px solid #e4ecf4; flex-wrap:wrap; }
+    #panel-util-compilar .cmp-top-n{ flex:none; width:26px; height:26px; border-radius:50%; background:var(--azul); color:#fff;
+      display:inline-flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; }
+    #panel-util-compilar .cmp-top-cab input{ flex:1 1 260px; min-width:180px; border:1px solid var(--borda-forte);
+      border-radius:7px; padding:7px 10px; font:inherit; font-size:13.5px; color:var(--texto); }
+    #panel-util-compilar .cmp-mini{ border:1px solid #c9d6e3; background:#fff; border-radius:6px; cursor:pointer;
+      font-size:12px; line-height:1; padding:6px 9px; color:#3d5062; font-family:inherit; }
+    #panel-util-compilar .cmp-mini:hover{ background:#eaf3fc; border-color:var(--azul); }
+    #panel-util-compilar .cmp-mini.rm:hover{ background:#fdecea; border-color:#c0392b; color:#c0392b; }
+    #panel-util-compilar .cmp-arqs{ padding:8px 12px 12px; }
+    #panel-util-compilar .cmp-arq{ display:flex; align-items:center; gap:8px; padding:6px 8px; border-bottom:1px solid #eef3f8; font-size:12.5px; }
+    #panel-util-compilar .cmp-arq:last-child{ border-bottom:none; }
+    #panel-util-compilar .cmp-arq .ic{ flex:none; font-size:15px; }
+    #panel-util-compilar .cmp-arq .nm{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    #panel-util-compilar .cmp-arq .pg{ flex:none; color:#8494a4; font-size:11.5px; white-space:nowrap; }
+    #panel-util-compilar .cmp-vazio{ padding:22px; text-align:center; color:#8a97a6; font-size:13px;
+      border:2px dashed #cdd7e2; border-radius:11px; background:#fbfdff; }
+    #panel-util-compilar .cmp-resumo{ margin-top:12px; font-size:12.5px; color:#3d5062; background:#f2f7fc;
+      border:1px solid #dbe7f3; border-radius:9px; padding:10px 13px; }
+    #panel-util-compilar .cmp-status{ margin-top:12px; font-size:13px; min-height:18px; }
+    #panel-util-compilar .cmp-status.ok{ color:#159a3c; }
+    #panel-util-compilar .cmp-status.err{ color:#c0392b; }
+    #panel-util-compilar .cmp-status.work{ color:var(--azul-esc); }
+  </style>
+  <div class="wrap">
+    <h1>Compilar Documento</h1>
+    <p class="sub">Junta vários <b>PDFs e imagens</b> num documento só, com a <b>capa do padrão INFRA</b> — a mesma da DESP-2 e do Relatório Socioeconômico —, um <b>índice</b> com a página de cada tópico e uma <b>folha de rosto</b> antes de cada um. Cada leva de arquivos que você adicionar vira um tópico.</p>
+
+    <h2 class="vsec">1 · Capa</h2>
+    <div class="vcard">
+      <div class="vactions" style="margin:0 0 14px;">
+        <button class="vbtn vbtn-sm" type="button" onclick="CMP_puxar()">↧ Puxar dados do cadastro aberto</button>
+        <span class="cmp-explica" style="margin:0;">Preenche com o processo, expropriado, ferrovia e lote do cadastro que estiver aberto. Tudo editável.</span>
+      </div>
+      <div class="vfield"><label>Título do documento <span style="font-weight:400;text-transform:none;">(sai grande na capa)</span></label><input type="text" id="cmp_titulo" placeholder="Ex.: DOCUMENTAÇÃO DO EXPROPRIADO"></div>
+      <div class="vrow" style="margin-top:10px;">
+        <div class="vfield"><label>Código na faixa azul</label><input type="text" id="cmp_codigo" placeholder="Ex.: DESP-1"></div>
+        <div class="vfield"><label>Mês/ano na faixa azul</label><input type="text" id="cmp_mesano" placeholder="em branco = mês atual"></div>
+      </div>
+      <div class="vrow">
+        <div class="vfield"><label>Ferrovia</label><input type="text" id="cmp_ferrovia" placeholder="FERROVIA TRANSNORDESTINA – FTN"></div>
+        <div class="vfield"><label>Lote</label><input type="text" id="cmp_lote" placeholder="04"></div>
+      </div>
+      <div class="vfield"><label>Processo administrativo</label><input type="text" id="cmp_processo" placeholder="Processo administrativo: INFRA S.A. CTD …"></div>
+      <div class="vrow" style="margin-top:10px;">
+        <div class="vfield"><label>Expropriado / Proprietário</label><input type="text" id="cmp_expropriado" placeholder=""></div>
+        <div class="vfield"><label>Contrato nº</label><input type="text" id="cmp_contrato" placeholder="037/2024"></div>
+      </div>
+    </div>
+
+    <h2 class="vsec">2 · Tópicos e arquivos</h2>
+    <div class="vcard">
+      <p class="cmp-explica">Escolha os arquivos de um tópico de uma vez só — eles entram juntos, na ordem em que você selecionou. Para o próximo tópico, clique de novo em <b>Adicionar tópico</b>. Dá para renomear o tópico, reordenar e tirar o que não for.</p>
+      <div class="vactions" style="margin-top:0;">
+        <label class="vbtn vbtn-primary" style="cursor:pointer;">➕ Adicionar tópico (escolher arquivos)<input type="file" id="cmp_novo" accept="application/pdf,image/*" multiple style="display:none" onchange="CMP_novoTopico(this)"></label>
+        <button class="vbtn" type="button" onclick="CMP_limpar()">Limpar tudo</button>
+      </div>
+      <div id="cmp_lista" style="margin-top:16px;"></div>
+      <div class="cmp-resumo" id="cmp_resumo"></div>
+    </div>
+
+    <h2 class="vsec">3 · Gerar</h2>
+    <div class="vcard">
+      <div class="vactions" style="margin-top:0;">
+        <button class="vbtn vbtn-primary" type="button" onclick="CMP_gerar()">📄 Gerar PDF compilado</button>
+      </div>
+      <div class="cmp-status" id="cmp_status"></div>
     </div>
   </div>
 </section>
@@ -24176,6 +24280,396 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     render();
   }
   if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", init); else init();
+})();
+</script>
+<script>
+/* =====================================================================
+   UTILITÁRIOS › COMPILAR DOCUMENTO — 02/10/2026
+   Junta PDFs e imagens num documento único:
+     capa (molde da DESP-2 / Relatório Socioeconômico: faixa azul à esquerda,
+     logos, cabeçalho INFRA/DIREM/SUGAT/GEDAF) + índice com a página de cada
+     tópico + uma folha de rosto por tópico + os arquivos.
+
+   Cada leva de arquivos escolhida de uma vez vira UM tópico (pedido do
+   Fernando, 02/10). A montagem usa jsPDF para as páginas que o app desenha
+   (capa, índice, folhas de rosto) e PDFLib para colar tudo — as páginas que
+   vêm dos PDFs do usuário são copiadas sem carimbo nenhum em cima.
+   ===================================================================== */
+(function(){
+  function $(id){ return document.getElementById(id); }
+  function esc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+  function gv(id){ var e=$(id); return e ? String(e.value||"").trim() : ""; }
+  function gOutro(id){ var e=document.getElementById(id); return e ? String(e.value||"").trim() : ""; }
+
+  var TOP = [];              // [{id, nome, arqs:[{nome, tipo:"pdf"|"img", bytes, jpeg, paginas, w, h}]}]
+  var _seq = 0;
+
+  function status(txt, cls){
+    var e=$("cmp_status"); if(!e) return;
+    e.textContent = txt || ""; e.className = "cmp-status" + (cls ? " " + cls : "");
+  }
+
+  /* ---------------- leitura dos arquivos ---------------- */
+  function lerBytes(file){
+    return new Promise(function(ok, err){
+      var fr=new FileReader();
+      fr.onload=function(){ ok(new Uint8Array(fr.result)); };
+      fr.onerror=err; fr.readAsArrayBuffer(file);
+    });
+  }
+  function lerDataUrl(file){
+    return new Promise(function(ok, err){
+      var fr=new FileReader(); fr.onload=function(){ ok(fr.result); }; fr.onerror=err; fr.readAsDataURL(file);
+    });
+  }
+  function medirImagem(url){
+    return new Promise(function(ok){
+      var im=new Image();
+      im.onload=function(){ ok({w:im.naturalWidth||im.width, h:im.naturalHeight||im.height}); };
+      im.onerror=function(){ ok({w:0,h:0}); };
+      im.src=url;
+    });
+  }
+  // qualquer imagem vira JPEG: o PDFLib só embute JPEG/PNG, e o conversor do app
+  // (D2_paraJpeg) já resolve TIFF e companhia passando por canvas
+  async function paraJpeg(dataUrl){
+    if(window.D2_paraJpeg){
+      try{ var u=await window.D2_paraJpeg(dataUrl); if(u) return u; }catch(e){}
+    }
+    return dataUrl;
+  }
+  function b64Bytes(dataUrl){
+    var b=atob(String(dataUrl).split(",")[1]||""), a=new Uint8Array(b.length);
+    for(var i=0;i<b.length;i++) a[i]=b.charCodeAt(i);
+    return a;
+  }
+
+  async function lerArquivo(file){
+    var ehPdf = /\.pdf$/i.test(file.name) || file.type === "application/pdf";
+    if(ehPdf){
+      var bytes=await lerBytes(file), n=1;
+      try{
+        var doc=await PDFLib.PDFDocument.load(bytes, {ignoreEncryption:true});
+        n=doc.getPageCount();
+      }catch(e){ throw new Error("não consegui ler “" + file.name + "”: " + (e.message||e)); }
+      return { nome:file.name, tipo:"pdf", bytes:bytes, paginas:n };
+    }
+    var url=await lerDataUrl(file);
+    var jpeg=await paraJpeg(url);
+    var d=await medirImagem(jpeg);
+    if(!d.w || !d.h) throw new Error("não consegui ler a imagem “" + file.name + "”.");
+    return { nome:file.name, tipo:"img", jpeg:jpeg, paginas:1, w:d.w, h:d.h };
+  }
+
+  function semExt(n){ return String(n||"").replace(/\.[^.]+$/, ""); }
+
+  window.CMP_novoTopico = async function(input){
+    var fs = Array.prototype.slice.call(input.files||[]); input.value="";
+    if(!fs.length) return;
+    status("lendo " + fs.length + " arquivo(s)…", "work");
+    try{
+      var arqs=[];
+      for(var i=0;i<fs.length;i++) arqs.push(await lerArquivo(fs[i]));
+      TOP.push({ id:++_seq, nome:(arqs.length===1 ? semExt(arqs[0].nome) : "Tópico " + (TOP.length+1)), arqs:arqs });
+      render();
+      status("tópico adicionado com " + arqs.length + " arquivo(s).", "ok");
+    }catch(e){ status(String(e.message||e), "err"); render(); }
+  };
+  window.CMP_addArqs = async function(i, input){
+    var fs = Array.prototype.slice.call(input.files||[]); input.value="";
+    if(!fs.length || !TOP[i]) return;
+    status("lendo " + fs.length + " arquivo(s)…", "work");
+    try{
+      for(var k=0;k<fs.length;k++) TOP[i].arqs.push(await lerArquivo(fs[k]));
+      render(); status("arquivo(s) acrescentado(s) ao tópico.", "ok");
+    }catch(e){ status(String(e.message||e), "err"); render(); }
+  };
+  window.CMP_nome     = function(i, v){ if(TOP[i]) TOP[i].nome=v; atualizarResumo(); };
+  window.CMP_moverTop = function(i, d){ var j=i+d; if(!TOP[i]||!TOP[j]) return; var t=TOP[i]; TOP[i]=TOP[j]; TOP[j]=t; render(); };
+  window.CMP_remTop   = function(i){ if(!TOP[i]) return; if(!confirm("Tirar o tópico “" + TOP[i].nome + "” do documento?")) return; TOP.splice(i,1); render(); };
+  window.CMP_moverArq = function(i, j, d){ var t=TOP[i]; if(!t) return; var k=j+d; if(!t.arqs[j]||!t.arqs[k]) return; var a=t.arqs[j]; t.arqs[j]=t.arqs[k]; t.arqs[k]=a; render(); };
+  window.CMP_remArq   = function(i, j){ var t=TOP[i]; if(!t||!t.arqs[j]) return; t.arqs.splice(j,1); if(!t.arqs.length) TOP.splice(i,1); render(); };
+  window.CMP_limpar   = function(){ if(TOP.length && !confirm("Limpar todos os tópicos e arquivos?")) return; TOP=[]; render(); status(""); };
+
+  /* ---------------- tela ---------------- */
+  function totalPaginas(){
+    var n = 1;                                   // capa
+    n += paginasIndice();
+    TOP.forEach(function(t){
+      n += 1;                                    // folha de rosto
+      t.arqs.forEach(function(a){ n += a.paginas; });
+    });
+    return n;
+  }
+  function atualizarResumo(){
+    var e=$("cmp_resumo"); if(!e) return;
+    if(!TOP.length){ e.style.display="none"; return; }
+    e.style.display="";
+    var nArq=0, nPg=0;
+    TOP.forEach(function(t){ t.arqs.forEach(function(a){ nArq++; nPg+=a.paginas; }); });
+    e.innerHTML = "<b>" + TOP.length + "</b> tópico(s) · <b>" + nArq + "</b> arquivo(s) · <b>" + nPg +
+      "</b> página(s) de conteúdo · documento final com <b>" + totalPaginas() + "</b> páginas " +
+      "<span style=\"color:#8494a4\">(capa + " + paginasIndice() + " de índice + " + TOP.length + " folha(s) de rosto)</span>";
+  }
+  function render(){
+    var box=$("cmp_lista"); if(!box) return;
+    if(!TOP.length){
+      box.innerHTML = '<div class="cmp-vazio">Nenhum tópico ainda. Clique em <b>Adicionar tópico</b> e escolha os arquivos — os que forem selecionados juntos formam o primeiro tópico.</div>';
+      atualizarResumo(); return;
+    }
+    box.innerHTML = TOP.map(function(t, i){
+      return '<div class="cmp-top">' +
+        '<div class="cmp-top-cab">' +
+          '<span class="cmp-top-n">' + (i+1) + '</span>' +
+          '<input type="text" value="' + esc(t.nome) + '" placeholder="Nome do tópico (vai no índice e na folha de rosto)" oninput="CMP_nome(' + i + ',this.value)">' +
+          '<label class="cmp-mini" style="cursor:pointer;">＋ arquivos<input type="file" accept="application/pdf,image/*" multiple style="display:none" onchange="CMP_addArqs(' + i + ',this)"></label>' +
+          '<button type="button" class="cmp-mini" title="Subir" onclick="CMP_moverTop(' + i + ',-1)">↑</button>' +
+          '<button type="button" class="cmp-mini" title="Descer" onclick="CMP_moverTop(' + i + ',1)">↓</button>' +
+          '<button type="button" class="cmp-mini rm" title="Tirar o tópico" onclick="CMP_remTop(' + i + ')">✕</button>' +
+        '</div>' +
+        '<div class="cmp-arqs">' + t.arqs.map(function(a, j){
+          return '<div class="cmp-arq">' +
+            '<span class="ic">' + (a.tipo==="pdf" ? "📄" : "🖼️") + '</span>' +
+            '<span class="nm" title="' + esc(a.nome) + '">' + esc(a.nome) + '</span>' +
+            '<span class="pg">' + a.paginas + (a.paginas===1 ? " pág." : " págs.") + '</span>' +
+            '<button type="button" class="cmp-mini" title="Subir" onclick="CMP_moverArq(' + i + ',' + j + ',-1)">↑</button>' +
+            '<button type="button" class="cmp-mini" title="Descer" onclick="CMP_moverArq(' + i + ',' + j + ',1)">↓</button>' +
+            '<button type="button" class="cmp-mini rm" title="Tirar" onclick="CMP_remArq(' + i + ',' + j + ')">✕</button>' +
+          '</div>';
+        }).join("") + '</div></div>';
+    }).join("");
+    atualizarResumo();
+  }
+
+  /* ---------------- dados da capa ---------------- */
+  window.CMP_puxar = function(){
+    function por(destino, origens){
+      var e=$(destino); if(!e || e.value.trim()) return;
+      for(var i=0;i<origens.length;i++){ var v=gOutro(origens[i]); if(v){ e.value=v; return; } }
+    }
+    por("cmp_processo",    ["fb_proc_preview","rel_processo","par_processo"]);
+    por("cmp_expropriado", ["fb_nome","rel_expropriado","par_prop"]);
+    por("cmp_ferrovia",    ["rel_ferrovia","d2_ferrovia"]);
+    por("cmp_lote",        ["fb_proc_lote","rel_lote"]);
+    por("cmp_contrato",    ["rel_contrato","d2_contrato"]);
+    status("dados do cadastro aplicados aos campos que estavam vazios.", "ok");
+  };
+
+  /* ---------------- índice: quantas páginas ocupa ---------------- */
+  // uma linha por tópico; nomes longos quebram. 54 caracteres por linha é o que
+  // cabe com folga na largura útil usada no desenho (texto + pontilhado + página).
+  function linhasDoIndice(){
+    var n=0;
+    TOP.forEach(function(t){ n += Math.max(1, Math.ceil((String(t.nome||"—").length)/54)); });
+    return n;
+  }
+  var IDX_LINHAS_PG = 34;                       // linhas que cabem numa página do índice
+  function paginasIndice(){ return Math.max(1, Math.ceil(linhasDoIndice()/IDX_LINHAS_PG)); }
+
+  /* ---------------- geração ---------------- */
+  window.CMP_gerar = async function(){
+    if(!window.PDFLib){ alert("Biblioteca de PDF ainda carregando. Tente de novo em instantes."); return; }
+    if(!(window.jspdf||window.jsPDF)){ alert("Biblioteca de PDF ainda carregando. Tente de novo em instantes."); return; }
+    if(!TOP.length){ alert("Adicione ao menos um tópico com arquivos."); return; }
+    if(!gv("cmp_titulo")){ alert("Escreva o título do documento — ele é o que sai grande na capa."); $("cmp_titulo").focus(); return; }
+
+    status("montando o documento…", "work");
+    try{
+      var J=(window.jspdf&&window.jspdf.jsPDF)?window.jspdf.jsPDF:window.jsPDF;
+      var pdf=new J({orientation:"portrait", unit:"mm", format:"a4"});
+      var W=210, H=297, mL=30, mR=20, mT=14, mB=10;
+
+      var LI=window.__LOGO_INFRA__, LE=window.__LOGO_ENPROL__;
+      function carregar(src){ return new Promise(function(r){ if(!src){ r(null); return; } var im=new Image(); im.onload=function(){ r(im); }; im.onerror=function(){ r(null); }; im.src=src; }); }
+      var imgI=await carregar(LI), imgE=await carregar(LE);
+
+      var END=["Av. Des. Moreira, n° 1300, T. Norte, Conj. 1016/1021, Aldeota, 60.170-002, Fortaleza-CE","Rua Irmã Ambrosina, nº 249, Conj 03 e 04, Centro, 61.760-405, Eusébio-CE","Rua Araguari, nº 358, Conj.1903/1904, Barro Preto, 30.190-110, Belo Horizonte-MG","Rua Des. Mário da Silva Nunes, nº 120, Sala 201, Enseada do Suá, 29.050-240, Vitória-ES","Rua Avertano Rocha, n°192, Campina, 66.023-120, Belém-PA"];
+      var TEL=["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 31) 3253-5500","(+55 27) 3029-5540","(+55 94) 3346-8994"];
+
+      var dCod=gv("cmp_codigo"), dTit=gv("cmp_titulo"), dFer=gv("cmp_ferrovia"), dLote=gv("cmp_lote");
+      var dProc=gv("cmp_processo"), dExp=gv("cmp_expropriado"), dCtr=gv("cmp_contrato");
+      var dMes=gv("cmp_mesano") || (new Date()).toLocaleDateString("pt-BR",{month:"long",year:"numeric"}).toUpperCase().replace(" DE ","/");
+
+      var faixaW=45, cxL=faixaW+8, cxC=cxL+(W-cxL-mR)/2;
+
+      /* ---- faixa azul + logos: comum à capa e às folhas de rosto ---- */
+      function moldura(codigoNaFaixa){
+        pdf.setFillColor(60,90,130); pdf.rect(0,0,faixaW,H,"F");
+        if(imgI){ var wi=15*(imgI.width/imgI.height); pdf.addImage(imgI,"JPEG",cxL,mT,wi,15); }
+        if(imgE){ var we=15*(imgE.width/imgE.height); pdf.addImage(imgE,"JPEG",W-mR-we,mT,we,15); }
+        pdf.setFont("helvetica","bold"); pdf.setFontSize(15); pdf.setTextColor(20,40,70);
+        var y=48;
+        pdf.text("INFRA S.A.", cxC, y, {align:"center"}); y+=7;
+        pdf.setFontSize(9);
+        pdf.text("DIREM - DIRETORIA DE EMPREENDIMENTOS", cxC, y, {align:"center"}); y+=4.5;
+        pdf.text("SUGAT – SUPERINTENDÊNCIA DE GESTÃO AMBIENTAL E TERRITORIAL", cxC, y, {align:"center"}); y+=4.5;
+        pdf.text("GEDAF – GERÊNCIA DE DESAPROPRIAÇÃO E ASSUNTOS FUNDIÁRIOS", cxC, y, {align:"center"});
+        pdf.setDrawColor(20,40,70); pdf.setLineWidth(0.4); pdf.line(cxL, y+3, W-mR, y+3);
+        if(codigoNaFaixa){
+          pdf.setFont("helvetica","bold"); pdf.setFontSize(14); pdf.setTextColor(255,255,255);
+          pdf.text(codigoNaFaixa, faixaW/2, 250, {align:"center"});
+          pdf.setFontSize(13);
+          var dl=pdf.splitTextToSize(dMes, faixaW-6), dy=258;
+          dl.forEach(function(l){ pdf.text(l, faixaW/2, dy, {align:"center"}); dy+=6; });
+        }
+        return y+26;
+      }
+
+      /* ---- CAPA ---- */
+      var y=moldura(dCod||" ");
+      pdf.setFont("helvetica","bold"); pdf.setFontSize(19); pdf.setTextColor(20,40,70);
+      pdf.splitTextToSize(dTit.toUpperCase(), W-cxL-mR-6).forEach(function(l){ pdf.text(l, cxC, y, {align:"center"}); y+=8; });
+      y+=6;
+      if(dCod){ pdf.setFontSize(13); pdf.setTextColor(40,40,40); pdf.text(dCod, cxC, y, {align:"center"}); y+=16; }
+      pdf.setTextColor(20,40,70);
+      if(dFer){
+        pdf.setFontSize(12); pdf.setFont("helvetica","normal");
+        pdf.splitTextToSize(dFer.toUpperCase(), W-cxL-mR-6).forEach(function(l){ pdf.text(l, cxC, y, {align:"center"}); y+=6.5; });
+        y+=6;
+      }
+      pdf.setFont("helvetica","bold");
+      if(dLote){
+        var sig=(function(){ var m=dFer.match(/[–-]\s*([A-Z]{2,6})\s*$/); return m?m[1]:"FTN"; })();
+        pdf.setFontSize(12); pdf.text(sig+" (Lote: "+dLote+")", cxC, y, {align:"center"}); y+=16;
+      }
+      if(dProc){
+        pdf.setFontSize(11); pdf.setFont("helvetica","bold");
+        pdf.text("Processo administrativo:", cxC, y, {align:"center"}); y+=6;
+        pdf.setFont("helvetica","normal");
+        pdf.splitTextToSize(dProc.replace(/^Processo administrativo:\s*/i,""), W-cxL-mR-6)
+           .forEach(function(l){ pdf.text(l, cxC, y, {align:"center"}); y+=5.4; });
+        y+=8;
+      }
+      if(dExp){ pdf.setFontSize(10); pdf.setFont("helvetica","normal"); pdf.text("EXPROPRIADO: "+dExp, cxC, y, {align:"center"}); y+=8; }
+      if(dCtr){
+        var ct="Contrato nº "+dCtr+" – Cujo objeto é a prestação de serviços especializados de engenharia consultiva para a execução das atividades de desapropriação, ocupação temporária ou constituição de servidão administrativa de imóveis, gestão fundiária e regularização de passivos de desapropriação.";
+        pdf.setFont("helvetica","normal"); pdf.setFontSize(7.5); pdf.setTextColor(40,40,40);
+        var cy=250; pdf.splitTextToSize(ct,78).forEach(function(l){ pdf.text(l, W-mR-78, cy); cy+=3.2; });
+      }
+
+      /* ---- páginas de conteúdo do app: cabeçalho e rodapé ---- */
+      var PG=0;
+      function cab(){
+        PG++;
+        if(imgI){ var wi=8*(imgI.width/imgI.height); pdf.addImage(imgI,"JPEG",mL,13,wi,8); }
+        if(imgE){ var we=8*(imgE.width/imgE.height); pdf.addImage(imgE,"JPEG",W-mR-we,13,we,8); }
+        pdf.setFont("helvetica","normal"); pdf.setFontSize(7); pdf.setTextColor(90,90,90);
+        pdf.text((dCod ? dCod+": " : "") + dTit, mL, 23);
+        pdf.setDrawColor(31,111,192); pdf.setLineWidth(0.5); pdf.line(mL,25,W-mR,25);
+      }
+      function rod(){
+        var yl=H-mB-16;
+        pdf.setDrawColor(31,111,192); pdf.setLineWidth(0.4); pdf.line(mL,yl,W-mR,yl);
+        pdf.setFont("times","normal"); pdf.setFontSize(6); pdf.setTextColor(90,100,115);
+        var yy=yl+3.2;
+        for(var i=0;i<END.length;i++){
+          pdf.text(END[i], mL, yy);
+          pdf.text(TEL[i], W-mR-33, yy, {align:"right"});
+          pdf.text("comercial@enprol.com.br", W-mR, yy, {align:"right"});
+          yy+=2.8;
+        }
+      }
+
+      /* ---- ÍNDICE: calcula as páginas antes de escrever ---- */
+      var nIdx=paginasIndice();
+      var pos=1+nIdx;                              // páginas já consumidas (capa + índice)
+      var inicio=TOP.map(function(t){
+        var p=pos+1;                               // a folha de rosto é a 1ª página do tópico
+        pos += 1; t.arqs.forEach(function(a){ pos += a.paginas; });
+        return p;
+      });
+
+      var idxTopY=32, idxBotY=H-mB-16-4, linhaH=7;
+      pdf.addPage(); cab();
+      pdf.setFont("helvetica","bold"); pdf.setFontSize(16); pdf.setTextColor(20,40,70);
+      pdf.text("ÍNDICE", W/2, idxTopY+4, {align:"center"});
+      var iy=idxTopY+16, larg=W-mL-mR, xNum=W-mR;
+      TOP.forEach(function(t, i){
+        var linhas=pdf.splitTextToSize(String(t.nome||"—"), larg-24);
+        if(iy + linhas.length*linhaH > idxBotY){ rod(); pdf.addPage(); cab(); iy=idxTopY+6; }
+        pdf.setFont("helvetica","bold"); pdf.setFontSize(11); pdf.setTextColor(30,45,65);
+        linhas.forEach(function(l, k){
+          pdf.text(l, mL, iy);
+          if(k === linhas.length-1){
+            var wTxt=pdf.getTextWidth(l), num=String(inicio[i]);
+            pdf.setFont("helvetica","normal"); pdf.setFontSize(10); pdf.setTextColor(120,132,146);
+            var wNum=pdf.getTextWidth(num), x0=mL+wTxt+2, x1=xNum-wNum-2;
+            if(x1>x0){ var pontos=""; while(pdf.getTextWidth(pontos+".") < x1-x0) pontos+="."; pdf.text(pontos, x0, iy); }
+            pdf.setTextColor(30,45,65); pdf.text(num, xNum, iy, {align:"right"});
+          }
+          iy += linhaH;
+        });
+      });
+      rod();
+
+      /* ---- FOLHAS DE ROSTO (uma por tópico, na ordem) ---- */
+      TOP.forEach(function(t){
+        pdf.addPage();
+        var yy=moldura(dCod||" ");
+        pdf.setFont("helvetica","bold"); pdf.setFontSize(22); pdf.setTextColor(20,40,70);
+        yy += 24;
+        pdf.splitTextToSize(String(t.nome||"—").toUpperCase(), W-cxL-mR-6)
+           .forEach(function(l){ pdf.text(l, cxC, yy, {align:"center"}); yy+=10; });
+        if(dProc){
+          yy += 14; pdf.setFont("helvetica","normal"); pdf.setFontSize(10); pdf.setTextColor(70,80,95);
+          pdf.splitTextToSize(dProc, W-cxL-mR-6).forEach(function(l){ pdf.text(l, cxC, yy, {align:"center"}); yy+=5; });
+        }
+      });
+
+      /* ---- costura com o PDFLib ---- */
+      status("juntando os arquivos…", "work");
+      var meus=await PDFLib.PDFDocument.load(pdf.output("arraybuffer"), {ignoreEncryption:true});
+      var out=await PDFLib.PDFDocument.create();
+
+      async function copiar(doc, indices){
+        var ps=await out.copyPages(doc, indices);
+        ps.forEach(function(x){ out.addPage(x); });
+      }
+      var idxCapa=0, idxIndice=[], idxRosto=[];
+      for(var k=0;k<nIdx;k++) idxIndice.push(1+k);
+      for(var k2=0;k2<TOP.length;k2++) idxRosto.push(1+nIdx+k2);
+
+      await copiar(meus, [idxCapa].concat(idxIndice));
+
+      for(var i=0;i<TOP.length;i++){
+        await copiar(meus, [idxRosto[i]]);
+        var t=TOP[i];
+        for(var j=0;j<t.arqs.length;j++){
+          var a=t.arqs[j];
+          status("juntando: " + t.nome + " — " + a.nome, "work");
+          if(a.tipo==="pdf"){
+            var src=await PDFLib.PDFDocument.load(a.bytes, {ignoreEncryption:true});
+            await copiar(src, src.getPageIndices());
+          } else {
+            var im=await out.embedJpg(b64Bytes(a.jpeg));
+            // A4 na orientação que melhor aproveita a imagem; margem de 12 mm
+            var paisagem=(a.w > a.h), PW=paisagem?842:595, PH=paisagem?595:842, M=34;
+            var pg=out.addPage([PW,PH]);
+            var dispW=PW-M*2, dispH=PH-M*2;
+            var k3=Math.min(dispW/im.width, dispH/im.height);
+            var w=im.width*k3, h=im.height*k3;
+            pg.drawImage(im, { x:(PW-w)/2, y:(PH-h)/2, width:w, height:h });
+          }
+        }
+      }
+
+      var bytes=await out.save();
+      var blob=new Blob([bytes], {type:"application/pdf"});
+      var nome=(dTit||"Documento").replace(/[\\/:*?"<>|]+/g,"-").replace(/\s+/g," ").trim();
+      if(window.__CTDsuf) nome += "_" + window.__CTDsuf();
+      nome += ".pdf";
+      if(window.FS_salvar) await window.FS_salvar(blob, nome);
+      else { var a2=document.createElement("a"); a2.href=URL.createObjectURL(blob); a2.download=nome; document.body.appendChild(a2); a2.click(); a2.remove(); setTimeout(function(){ URL.revokeObjectURL(a2.href); }, 4000); }
+      status("pronto: " + out.getPageCount() + " páginas (capa + " + nIdx + " de índice + " + TOP.length + " tópico(s)).", "ok");
+    }catch(e){
+      console.warn("compilar documento:", e);
+      status("Não consegui gerar: " + (e && e.message || e), "err");
+    }
+  };
+
+  window.CMP_abrir = function(){ render(); };
+  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", render);
+  else setTimeout(render, 0);
 })();
 </script>
 <style id="dlm-style">
