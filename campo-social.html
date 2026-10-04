@@ -192,6 +192,32 @@ dialog::backdrop{background:rgba(15,35,60,.55);}
 .dlg-f{padding:12px 18px;border-top:1px solid #e2e8f0;display:flex;gap:8px;justify-content:flex-end;}
 .dlg-f button{border-radius:9px;padding:10px 16px;font:600 14px/1 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;border:1px solid #c3ccd6;background:#fff;}
 .dlg-f .pri{background:#1F6FC0;color:#fff;border-color:#1F6FC0;}
+
+/* ---- Visualizar ficha preenchida (somente leitura) ---- */
+#visor{position:fixed;inset:0;z-index:60;background:#eef2f6;overflow:auto;display:none;-webkit-overflow-scrolling:touch;}
+#visor.on{display:block;}
+#visor .vtop{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:10px;background:#0f2742;color:#fff;padding:10px 12px;}
+#visor .vtop button{border:0;border-radius:9px;background:#fff;color:#0f2742;font:700 13px/1 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;padding:9px 12px;}
+#visor .vtop b{flex:1;font-size:15px;}
+#visor .vtop span{font-size:11px;color:#b9cde2;}
+#visor .vbody{padding:12px;max-width:760px;margin:0 auto;}
+#visor .vsec{background:#fff;border:1px solid #d3dce5;border-radius:12px;margin-bottom:10px;overflow:hidden;}
+#visor .vsec>h3{margin:0;display:flex;align-items:center;justify-content:space-between;gap:8px;background:#e7edf3;color:#0a4d7c;font-size:14px;padding:10px 12px;}
+#visor .vsec>h3 button{border:1px solid #b8c7d6;background:#fff;color:#0a4d7c;border-radius:8px;font:600 12px/1 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;padding:6px 10px;}
+#visor .vf{padding:8px 12px;border-top:1px solid #eef2f6;}
+#visor .vf:first-of-type{border-top:0;}
+#visor .vf span{display:block;font-size:11.5px;font-weight:700;color:#5a6b7c;margin-bottom:2px;}
+#visor .vf b{display:block;font-size:14px;font-weight:500;color:#1b2a3a;white-space:pre-wrap;word-break:break-word;}
+#visor .vf.vazio b{color:#a7b2bf;}
+#visor .vit{margin:8px 12px;border:1px solid #d3dce5;border-radius:10px;overflow:hidden;}
+#visor .vit>h4{margin:0;background:#f4f7fa;font-size:13px;padding:7px 10px;color:#0a4d7c;}
+#visor .vfotos{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:8px 12px 12px;}
+#visor .vfotos figure{margin:0;}
+#visor .vfotos img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;border:1px solid #d3dce5;display:block;}
+#visor .vfotos figcaption{font-size:10.5px;color:#5a6b7c;margin-top:2px;word-break:break-word;}
+#visor .vfotos img.big{position:fixed;inset:0;z-index:70;width:100%;height:100%;aspect-ratio:auto;object-fit:contain;background:#000;border:0;border-radius:0;}
+#visor .vass{padding:8px 12px 12px;} #visor .vass img{max-width:100%;max-height:140px;border:1px solid #d3dce5;border-radius:8px;background:#fff;}
+@media (min-width:700px){#visor .vfotos{grid-template-columns:repeat(4,1fr);}}
 </style>
 </head>
 <body>
@@ -215,6 +241,7 @@ dialog::backdrop{background:rgba(15,35,60,.55);}
 
 <div class="barra">
   <button class="b1 icone" type="button" onclick="menuMais()" aria-label="Mais opções">⋯</button>
+  <button class="b1 icone" type="button" onclick="verFicha()" aria-label="Visualizar ficha preenchida" title="Visualizar ficha preenchida">👁</button>
   <button class="b1" type="button" id="btVoltar" onclick="voltar()">← Voltar</button>
   <button class="b2" type="button" id="btAvancar" onclick="avancar()">Avançar →</button>
 </div>
@@ -2319,6 +2346,73 @@ function baixar(blob, nome, mb){
 }
 
 /* ---------------- menu "Mais" ---------------- */
+/* ---------------- Visualizar ficha preenchida (somente leitura) ---------------- */
+function _vData(v){ var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(v||"")); return m ? (m[3]+"/"+m[2]+"/"+m[1]) : v; }
+function _vTexto(f, cam, c){
+  var v = getv(f, cam);
+  if(c.t === "snquais"){
+    var sn = getv(f, cam + "_sn"), q = getv(f, cam + "_quais");
+    if(sn) return sn + (q ? " — " + q : "");
+    return v || "";
+  }
+  if(Array.isArray(v)) return v.join(", ");
+  if(c.t === "date") return _vData(v) || "";
+  return (v == null) ? "" : String(v);
+}
+function _vLinha(rot, txt){
+  var vazio = !String(txt == null ? "" : txt).trim();
+  return '<div class="vf' + (vazio ? ' vazio' : '') + '"><span>' + esc(rot) + '</span><b>' + (vazio ? "—" : esc(txt)) + '</b></div>';
+}
+function _vFotos(arr){
+  arr = (arr || []).filter(function(p){ return p && p.src; });
+  if(!arr.length) return '<div class="vf vazio"><span>Fotos</span><b>—</b></div>';
+  return '<div class="vfotos">' + arr.map(function(p){
+    return '<figure><img src="' + p.src + '" alt="" onclick="this.classList.toggle(\'big\')">' + (p.leg ? '<figcaption>' + esc(p.leg) + '</figcaption>' : '') + '</figure>';
+  }).join("") + '</div>';
+}
+function verFicha(){
+  var f = atual(); if(!f) return;
+  var ov = document.getElementById("visor");
+  if(!ov){ ov = document.createElement("div"); ov.id = "visor"; document.body.appendChild(ov); }
+  var cabNome = (f.geral && f.geral.processo) ? f.geral.processo : (f.campos && (f.campos.fb_proc_ctd || f.campos.fb_nome)) || "";
+  var h = '<div class="vtop"><button type="button" onclick="fecharVisor()">← Voltar</button><b>Ficha preenchida' + (cabNome ? ' · ' + esc(cabNome) : '') + '</b><span>somente leitura</span></div><div class="vbody">';
+  SECOES.forEach(function(sec, idx){
+    h += '<section class="vsec"><h3><span>' + esc(sec.t) + '</span><button type="button" onclick="verEditar(' + idx + ')">✎ Editar</button></h3>';
+    if(sec.campos) sec.campos.forEach(function(c){
+      var cam = ((typeof _prefCampo === "function") ? _prefCampo(sec, c.k) : "") + c.k;
+      h += _vLinha(c.l, _vTexto(f, cam, c));
+    });
+    if(sec.galerias) sec.galerias.forEach(function(g){
+      h += '<div class="vf"><span>' + esc(g.l) + ' (' + ((getv(f, g.k) || []).length) + ')</span></div>' + _vFotos(getv(f, g.k));
+    });
+    if(sec.rep){
+      var r = sec.rep, lista = getv(f, r.lista) || [];
+      if(!lista.length) h += _vLinha(r.rot, "");
+      lista.forEach(function(it, i){
+        h += '<div class="vit"><h4>' + esc(r.rot) + ' ' + (i + 1) + '</h4>';
+        r.campos.forEach(function(c){ h += _vLinha(c.l, _vTexto(f, r.lista + "." + i + "." + c.k, c)); });
+        if(!r.semFotos) h += _vFotos(it.fotos);
+        h += '</div>';
+      });
+    }
+    if(sec.fim){
+      if(f.tecnico) h += _vLinha("Técnico", ((f.tecnico.nome || "") + (f.tecnico.documento ? " · " + f.tecnico.documento : "")).trim());
+      h += _vLinha("Localização (GPS)", f.gps ? (f.gps.lat.toFixed(6) + ", " + f.gps.lon.toFixed(6) + " (±" + Math.round(f.gps.precisao) + " m)") : "");
+      h += '<div class="vf"><span>Assinatura</span></div>'
+         + ((typeof f.assinatura === "string" && f.assinatura.indexOf("data:image") === 0) ? '<div class="vass"><img src="' + f.assinatura + '" alt="Assinatura"></div>' : '<div class="vf vazio"><b>—</b></div>');
+    }
+    h += '</section>';
+  });
+  h += '</div>';
+  ov.innerHTML = h; ov.scrollTop = 0; ov.classList.add("on");
+  document.body.style.overflow = "hidden";
+}
+function fecharVisor(){
+  var ov = document.getElementById("visor");
+  if(ov) ov.classList.remove("on");
+  document.body.style.overflow = "";
+}
+function verEditar(idx){ fecharVisor(); irPasso(idx); }
 function menuMais(){
   var f = atual();
   var tam = "—";
@@ -2327,6 +2421,7 @@ function menuMais(){
   document.getElementById("dlgB").innerHTML =
       '<p style="margin:0 0 12px;font-size:13.5px;color:#5a6b7c;">Ficha atual: <b>'
       + esc((f.geral&&f.geral.processo)?("CTD "+f.geral.processo):"sem nº") + '</b> · ' + tam + ' · ' + nf + ' ficha(s) no celular.</p>'
+    + '<button class="add" type="button" style="margin-bottom:8px" onclick="document.getElementById(&quot;dlg&quot;).close(); verFicha();">👁 Visualizar ficha preenchida</button>'
     + '<button class="add" type="button" style="margin-bottom:8px" onclick="abrirArquivo()">📂 Abrir ficha de um arquivo</button>'
     + '<button class="add" type="button" style="margin-bottom:8px" onclick="document.getElementById(&quot;dlg&quot;).close(); enviar();">📤 Enviar / salvar esta ficha</button>'
     + '<button class="add" type="button" style="margin-bottom:8px;border-color:#eccac7;color:#b5382a" onclick="apagarFicha()">🗑️ Apagar esta ficha do celular</button>'
