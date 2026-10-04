@@ -31558,6 +31558,685 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
   else init();
 })();
 </script>
+<style id="ddx-css">
+/* ===== Documentos longos (Parecer Jurídico + DESP-2): redação em foco ===== */
+#panel-desp2-relatorio, #panel-desp1-parecer{ --ddx-fs:15px; }
+#panel-desp2-relatorio.ddx-on, #panel-desp1-parecer.ddx-on{ background:#e9eef3 repeating-linear-gradient(135deg, rgba(10,77,124,.025) 0 2px, transparent 2px 16px); padding-top:16px; }
+/* topo compacto no modo conteúdo */
+.ddx-on .sub, .ddx-on > .wrap > .sub{ display:none; }
+.ddx-on h1{ font-size:17px !important; margin:0 0 8px !important; letter-spacing:.2px; }
+.ddx-on .dd-sw{ display:inline-grid !important; grid-template-columns:auto auto !important; margin:0 0 12px !important; padding:3px !important; border-radius:11px !important; }
+.ddx-on .dd-sw button{ padding:6px 12px !important; }
+.ddx-on .dd-sw button small{ display:none !important; }
+.ddx-on .dd-sw button b{ font-size:12.5px !important; }
+.ddx-caso-btn{ display:flex; align-items:center; gap:8px; width:100%; margin:0 0 10px; padding:8px 12px; border:1px solid #d3dce5; background:#fff; border-radius:10px; font:600 12.5px/1.3 "Segoe UI",Arial,sans-serif; color:#3a5068; cursor:pointer; text-align:left; }
+.ddx-caso-btn:hover{ border-color:#1F6FC0; }
+.ddx-caso-btn small{ font-weight:400; color:#7a8899; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ddx-caso-fechado{ display:none !important; }
+/* a folha */
+#panel-desp2-relatorio .dd-doc, #panel-desp1-parecer .dd-doc{ box-shadow:0 2px 3px rgba(20,41,74,.06), 0 18px 46px rgba(20,41,74,.12); border-color:#dde5ee; }
+#panel-desp2-relatorio .dd-ed, #panel-desp1-parecer .dd-ed, #panel-desp1-parecer .dd-corpo .rtf-box{ font-size:var(--ddx-fs,15px) !important; }
+/* seção atual (scroll-spy) */
+.nv.ddx-ativo{ background:#e6f1fc !important; color:#0a4d7c !important; box-shadow:inset 3px 0 0 #1F6FC0; }
+.dd-top.ddx-ativo{ box-shadow:inset 3px 0 0 rgba(31,111,192,.45); }
+/* foco: esmaece o resto */
+.ddx-foco .dd-top{ transition:opacity .25s; opacity:.34; }
+.ddx-foco .dd-top:hover{ opacity:.72; }
+.ddx-foco .dd-top:focus-within, .ddx-foco .dd-top.ddx-ativo.ddx-foco-vivo{ opacity:1; }
+/* barra: progresso + controles */
+.dd-bar{ overflow:visible; }
+.ddx-prog{ position:absolute; left:10px; right:10px; bottom:-1px; height:3px; border-radius:3px; background:transparent; overflow:hidden; pointer-events:none; }
+.ddx-prog i{ display:block; height:100%; width:0; background:linear-gradient(90deg,#1F6FC0,#20b86b); transition:width .15s; }
+.ddx-ctl{ display:inline-flex; align-items:center; gap:4px; margin-left:auto; }
+.ddx-ctl button{ border:1px solid transparent; background:#f3f6f9; color:#2c3e50; border-radius:8px; padding:5px 9px; font:600 12px/1.2 "Segoe UI",Arial,sans-serif; cursor:pointer; white-space:nowrap; }
+.ddx-ctl button:hover{ background:#e4eef9; border-color:#c4d8ee; color:#175a9f; }
+.ddx-ctl button.on{ background:#0a4d7c; color:#fff; }
+.ddx-ctl button.pend{ background:#fff4d6; color:#7a5200; border-color:#ecd49a; }
+.ddx-ctl button.pend.zero{ background:#e3f6ea; color:#0f6a2b; border-color:#bfe4cc; }
+.dd-bar .dd-bar-dica{ margin-left:8px; }
+::highlight(ddx-pend){ background-color:#ffe08a; color:#5a3b00; }
+/* painéis flutuantes */
+.ddx-pop{ position:absolute; z-index:60; right:0; top:calc(100% + 6px); width:min(420px,86vw); max-height:60vh; overflow:auto; background:#fff; border:1px solid #c9d6e3; border-radius:12px; box-shadow:0 18px 44px rgba(20,41,74,.28); padding:8px; font-family:"Segoe UI",Arial,sans-serif; }
+.ddx-pop[hidden]{ display:none; }
+.ddx-pop h4{ margin:4px 6px 6px; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:#8494a4; }
+.ddx-it{ display:block; width:100%; text-align:left; border:0; background:none; padding:7px 9px; border-radius:8px; cursor:pointer; font:500 12.5px/1.35 "Segoe UI",Arial,sans-serif; color:#243447; }
+.ddx-it:hover{ background:#eaf3fc; }
+.ddx-it b{ display:block; font-size:11px; color:#175a9f; margin-bottom:1px; }
+.ddx-it mark{ background:#ffe08a; color:#5a3b00; padding:0 2px; border-radius:3px; }
+.ddx-vazio{ padding:12px; font-size:12.5px; color:#7a8797; font-style:italic; }
+.ddx-wrapc{ position:relative; display:inline-block; }
+/* estatística no sumário */
+.ddx-stat{ margin:10px 4px 0; padding:10px 8px 2px; border-top:1px solid #edf1f5; font:11.5px/1.7 "Segoe UI",Arial,sans-serif; color:#5a6b7c; }
+.ddx-stat b{ color:#0a4d7c; font-weight:800; }
+.ddx-stat .ddx-pg{ display:flex; align-items:baseline; gap:6px; }
+.ddx-stat .ddx-pg big{ font-size:22px; font-weight:800; color:#0a4d7c; line-height:1; }
+/* bolha de formatação na seleção */
+.ddx-bolha{ position:fixed; z-index:2000300; display:flex; gap:2px; background:#0e2a47; border-radius:10px; padding:4px; box-shadow:0 10px 28px rgba(8,21,37,.4); transform:translate(-50%,-100%); }
+.ddx-bolha[hidden]{ display:none; }
+.ddx-bolha::after{ content:""; position:absolute; left:50%; bottom:-5px; width:10px; height:10px; background:#0e2a47; transform:translateX(-50%) rotate(45deg); }
+.ddx-bolha button{ border:0; background:transparent; color:#fff; border-radius:7px; padding:6px 10px; font:700 13px/1 "Segoe UI",Arial,sans-serif; cursor:pointer; }
+.ddx-bolha button:hover{ background:rgba(255,255,255,.16); }
+/* toast / paleta */
+.ddx-toast{ position:fixed; left:50%; bottom:26px; transform:translate(-50%,12px); z-index:2000400; display:flex; align-items:center; gap:12px; background:#0e2a47; color:#e8f1f8; padding:10px 16px; border-radius:22px; font:600 12.5px/1 "Segoe UI",Arial,sans-serif; opacity:0; pointer-events:none; transition:opacity .2s, transform .2s; box-shadow:0 12px 32px rgba(0,0,0,.4); }
+.ddx-toast.on{ opacity:1; transform:translate(-50%,0); pointer-events:auto; }
+.ddx-toast button{ border:0; background:#f2a900; color:#1b2a3a; border-radius:14px; padding:6px 12px; font:800 12px/1 inherit; cursor:pointer; }
+.ddx-ov{ position:fixed; inset:0; z-index:2000350; background:rgba(8,20,34,.6); display:flex; align-items:flex-start; justify-content:center; padding:12vh 16px 16px; }
+.ddx-box{ width:min(620px,96vw); background:#fff; border-radius:14px; box-shadow:0 26px 70px rgba(0,0,0,.5); overflow:hidden; font-family:"Segoe UI",Arial,sans-serif; }
+.ddx-in{ width:100%; box-sizing:border-box; border:0; border-bottom:2px solid #1F6FC0; padding:15px 18px; font-size:16px; outline:none; font-family:inherit; }
+.ddx-lista{ max-height:50vh; overflow:auto; padding:6px; }
+.ddx-c{ display:flex; justify-content:space-between; gap:12px; width:100%; border:0; background:none; text-align:left; padding:9px 12px; border-radius:8px; cursor:pointer; font:600 13px/1.3 inherit; color:#243447; }
+.ddx-c.on, .ddx-c:hover{ background:#e6f1fc; }
+.ddx-c em{ font-style:normal; color:#7a8797; font-size:11px; }
+.ddx-dica{ padding:8px 16px; font-size:11px; color:#7a8797; background:#f6f9fc; border-top:1px solid #e4ebf2; }
+</style>
+<script id="ddx-js">
+/* ===== DDX (04/10/2026): redação em foco para o Parecer Jurídico e o Relatório DESP-2 =====
+   Camada comum por cima do "modo Conteúdo" (.dd-*): topo compacto, sumário vivo (scroll-spy), pendências de
+   texto destacadas ([...], ___, XXX), foco, tamanho do texto, bolha de formatação, "desfazer" ao voltar ao
+   texto automático, estatísticas e paleta Ctrl+K. Não mexe nos geradores de PDF nem no armazenamento. */
+(function(){
+  "use strict";
+  var CFG = [
+    { id:"panel-desp1-parecer", nome:"Parecer", doc:"pardoc", nav:"pardoc_nav", main:"pardoc_main", caso:"par_caso_resumo", sw:"par_modo_sw",
+      form:"par_form", modo:function(m){ if(window.PARDOC_modo) window.PARDOC_modo(m); },
+      negrito:function(){ if(window.PARDOC_negrito) window.PARDOC_negrito(); }, marcador:function(){ if(window.PARDOC_marcador) window.PARDOC_marcador(); },
+      puxar:function(){ if(window.PAR_puxarDados) window.PAR_puxarDados(); },
+      pdf:function(){ if(window.TOPDL_item) window.TOPDL_item({ stopPropagation:function(){}, preventDefault:function(){} }, "parecer"); } },
+    { id:"panel-desp2-relatorio", nome:"DESP-2", doc:"d2doc", nav:"d2doc_nav", main:"d2doc_main", caso:null, casoCls:"d2t-row", sw:"d2_modo_sw",
+      form:"d2_topicos", modo:function(m){ if(window.D2DOC_modo) window.D2DOC_modo(m); },
+      negrito:function(){ if(window.D2DOC_estilo) window.D2DOC_estilo("bold"); }, marcador:function(){ if(window.D2DOC_estilo) window.D2DOC_estilo("b"); },
+      puxar:function(){ if(window.D2_puxar){ window.D2_puxar(true); if(window.D2_atualizarAuto) window.D2_atualizarAuto(); } },
+      pdf:function(){ var b = Array.prototype.filter.call(document.querySelectorAll("#panel-desp2-relatorio .vactions button"), function(x){ return /Gerar PDF/i.test(x.textContent); })[0]; if(b) b.click(); } }
+  ];
+  var $ = function(id){ return document.getElementById(id); };
+  var H = function(s){ return String(s == null ? "" : s).replace(/[&<>"]/g, function(c){ return ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]; }); };
+  var LS = { get:function(k, d){ try{ var v = localStorage.getItem(k); return v == null ? d : v; }catch(e){ return d; } }, set:function(k, v){ try{ localStorage.setItem(k, v); }catch(e){} } };
+  var PEND_RE = /\[(?!Sem |\d+\])[^\]\n]{1,80}\]|_{3,}|\bX{3,}\b|\bPREENCHER\b|\bA DEFINIR\b/g;
+  var ST = {};   // estado por painel
+
+  function toast(txt, acao, fn){
+    var t = $("ddx_toast");
+    if(!t){ t = document.createElement("div"); t.id = "ddx_toast"; t.className = "ddx-toast"; document.body.appendChild(t); }
+    t.innerHTML = '<span>' + H(txt) + '</span>' + (acao ? '<button type="button">' + H(acao) + '</button>' : "");
+    if(acao) t.querySelector("button").onclick = function(){ t.classList.remove("on"); fn(); };
+    t.classList.add("on"); clearTimeout(t._t); t._t = setTimeout(function(){ t.classList.remove("on"); }, acao ? 14000 : 2400);
+  }
+  function ativo(c){ var p = $(c.id); return !!(p && p.classList.contains("ativa")); }
+  function docVisivel(c){ var d = $(c.doc); return !!(d && d.style.display !== "none"); }
+  function editores(c){ return Array.prototype.slice.call(document.querySelectorAll("#" + c.main + " .dd-ed, #" + c.main + " .rtf-box")); }
+  function secoes(c){ return Array.prototype.slice.call(document.querySelectorAll("#" + c.main + " .dd-top")); }
+  function secId(sec){ return (sec.id || "").replace(/^(pardd_|dd_)/, ""); }
+
+  /* ---- modo conteúdo ligado/desligado: topo compacto ---- */
+  function aplicarModo(c){
+    var p = $(c.id); if(!p) return;
+    p.classList.toggle("ddx-on", docVisivel(c));
+    // bloco "dados do cadastro" recolhível
+    var blk = c.caso ? $(c.caso) : document.querySelector("#" + c.id + " ." + c.casoCls);
+    if(blk && !blk.__ddx){
+      blk.__ddx = true;
+      var b = document.createElement("button"); b.type = "button"; b.className = "ddx-caso-btn";
+      var aberto = LS.get("ddx_caso_" + c.id, "0") === "1";
+      function pinta(){
+        var resumo = (blk.innerText || "").split("\n").map(function(x){ return x.trim(); }).filter(Boolean).slice(0, 3).join(" · ").slice(0, 110);
+        b.innerHTML = '<span>' + (aberto ? "▾" : "▸") + '</span> Dados do cadastro <small>' + H(aberto ? "" : resumo) + '</small>';
+        blk.classList.toggle("ddx-caso-fechado", !aberto && p.classList.contains("ddx-on"));
+        b.style.display = p.classList.contains("ddx-on") ? "" : "none";
+      }
+      b.onclick = function(){ aberto = !aberto; LS.set("ddx_caso_" + c.id, aberto ? "1" : "0"); pinta(); };
+      blk.parentNode.insertBefore(b, blk); blk.__ddxPinta = pinta; pinta();
+    } else if(blk && blk.__ddxPinta) blk.__ddxPinta();
+  }
+
+  /* ---- barra: controles ---- */
+  function montarBarra(c){
+    var bar = document.querySelector("#" + c.doc + " .dd-bar"); if(!bar) return;
+    if(bar.querySelector(".ddx-ctl")){ return; }
+    var ctl = document.createElement("span"); ctl.className = "ddx-ctl";
+    ctl.innerHTML = '<button type="button" data-a="menos" title="Diminuir o texto">A−</button><button type="button" data-a="mais" title="Aumentar o texto">A+</button>' +
+      '<button type="button" data-a="foco" title="Foco: esmaece os outros tópicos (F)">🎯 Foco</button>' +
+      '<span class="ddx-wrapc"><button type="button" data-a="pend" class="pend" title="Pendências no texto: [ ], ___, XXX (Alt+P = próxima)">⚠ <b>0</b></button><div class="ddx-pop" data-p="pend" hidden></div></span>' +
+      '<button type="button" data-a="pal" title="Comandos (Ctrl+K)">⌨</button>';
+    var dica = bar.querySelector(".dd-bar-dica"); bar.insertBefore(ctl, dica || null);
+    var pr = document.createElement("div"); pr.className = "ddx-prog"; pr.innerHTML = "<i></i>"; bar.appendChild(pr);
+    ctl.addEventListener("mousedown", function(ev){ if(ev.target.closest("button")) ev.preventDefault(); });
+    ctl.addEventListener("click", function(ev){
+      var b = ev.target.closest("button[data-a]"); if(!b) return;
+      var a = b.getAttribute("data-a");
+      if(a === "mais" || a === "menos"){ tamanho(c, a === "mais" ? 1 : -1); }
+      else if(a === "foco"){ foco(c, !$(c.id).classList.contains("ddx-foco")); }
+      else if(a === "pend"){ var pp = ctl.querySelector('[data-p="pend"]'); var abre = pp.hidden; fecharPops(); if(abre){ listaPend(c, pp); pp.hidden = false; } }
+      else if(a === "pal"){ paleta(c); }
+    });
+    ctl.addEventListener("click", function(ev){
+      var it = ev.target.closest(".ddx-it[data-i]"); if(!it) return;
+      irPend(c, +it.getAttribute("data-i")); fecharPops();
+    });
+    document.addEventListener("click", function(ev){ if(!ev.target.closest || !ev.target.closest(".ddx-wrapc")) fecharPops(); });
+    var fs = parseFloat(LS.get("ddx_fs", "15")) || 15; $(c.id).style.setProperty("--ddx-fs", fs + "px");
+    if(LS.get("ddx_foco", "0") === "1") foco(c, true, true);
+  }
+  function fecharPops(){ Array.prototype.forEach.call(document.querySelectorAll(".ddx-pop"), function(p){ p.hidden = true; }); }
+  function tamanho(c, d){
+    var p = $(c.id), fs = parseFloat(getComputedStyle(p).getPropertyValue("--ddx-fs")) || 15;
+    fs = Math.max(12, Math.min(21, fs + d)); p.style.setProperty("--ddx-fs", fs + "px"); LS.set("ddx_fs", String(fs));
+    CFG.forEach(function(o){ var q = $(o.id); if(q) q.style.setProperty("--ddx-fs", fs + "px"); });
+    toast("texto " + fs + " px");
+  }
+  function foco(c, on, quieto){
+    var p = $(c.id); p.classList.toggle("ddx-foco", !!on); LS.set("ddx_foco", on ? "1" : "0");
+    Array.prototype.forEach.call(document.querySelectorAll("#" + c.doc + " .ddx-ctl [data-a='foco']"), function(b){ b.classList.toggle("on", !!on); });
+    if(!quieto) toast(on ? "foco ligado — os outros tópicos ficam esmaecidos" : "foco desligado");
+  }
+
+  /* ---- scroll-spy + progresso ---- */
+  function spy(c){
+    if(!ativo(c) || !docVisivel(c)) return;
+    var secs = secoes(c), atual = null, y0 = 150;
+    secs.forEach(function(s){ var r = s.getBoundingClientRect(); if(r.top <= y0 + 10 && r.bottom > y0) atual = s; });
+    if(!atual && secs.length){ atual = secs[0]; secs.forEach(function(s){ if(s.getBoundingClientRect().top <= y0 + 10) atual = s; }); }
+    var id = atual ? secId(atual) : null;
+    if(ST[c.id].spy !== id){
+      ST[c.id].spy = id;
+      secs.forEach(function(s){ s.classList.toggle("ddx-ativo", s === atual); });
+      var navs = Array.prototype.slice.call(document.querySelectorAll("#" + c.nav + " .nv"));
+      navs.forEach(function(a){ a.classList.toggle("ddx-ativo", a.getAttribute("data-ir") === id); });
+      var a = navs.filter(function(x){ return x.classList.contains("ddx-ativo"); })[0], w = document.querySelector("#" + c.doc + " .dd-navwrap");
+      if(a && w){ var ar = a.getBoundingClientRect(), wr = w.getBoundingClientRect(); if(ar.top < wr.top + 20 || ar.bottom > wr.bottom - 20) w.scrollTop += ar.top - wr.top - wr.height/2; }
+    }
+    var main = $(c.main), pr = document.querySelector("#" + c.doc + " .ddx-prog i");
+    if(main && pr){ var r = main.getBoundingClientRect(), tot = r.height - window.innerHeight*.6, vis = Math.max(0, -r.top + 120); pr.style.width = Math.max(0, Math.min(100, tot > 0 ? vis/tot*100 : 100)).toFixed(1) + "%"; }
+  }
+
+  /* ---- pendências no texto ---- */
+  function achar(c){
+    var out = [], eds = editores(c);
+    eds.forEach(function(ed){
+      if(ed.closest(".is-oculto")) return;
+      var w = document.createTreeWalker(ed, NodeFilter.SHOW_TEXT, null), n;
+      while((n = w.nextNode())){
+        var t = n.nodeValue, m; PEND_RE.lastIndex = 0;
+        while((m = PEND_RE.exec(t))){
+          var r = document.createRange(); r.setStart(n, m.index); r.setEnd(n, m.index + m[0].length);
+          var sec = ed.closest(".dd-top"), tit = sec ? ((sec.querySelector(".dd-num") || {}).textContent || "") + " " + ((sec.querySelector(".dd-tit") || {}).textContent || "") : "";
+          var ctx = t.slice(Math.max(0, m.index - 28), m.index) + "\u0001" + m[0] + "\u0002" + t.slice(m.index + m[0].length, m.index + m[0].length + 28);
+          out.push({ r:r, ed:ed, sec:sec, tit:tit.trim(), ctx:ctx });
+          if(m[0].length === 0) PEND_RE.lastIndex++;
+        }
+      }
+    });
+    return out;
+  }
+  function atualizarPend(c){
+    var s = ST[c.id]; if(!ativo(c) && !s.pend) return;
+    s.pend = docVisivel(c) ? achar(c) : [];
+    try{ if(window.CSS && CSS.highlights){ var h = new Highlight(); s.pend.forEach(function(p){ h.add(p.r); }); CSS.highlights.set("ddx-pend", h); } }catch(e){}
+    var b = document.querySelector("#" + c.doc + " .ddx-ctl [data-a='pend']");
+    if(b){ b.querySelector("b").textContent = s.pend.length; b.classList.toggle("zero", !s.pend.length); b.title = s.pend.length ? s.pend.length + " pendência(s) no texto — clique para ver (Alt+P = próxima)" : "Nenhuma pendência no texto"; }
+    estat(c);
+  }
+  function agendarPend(c, ms){ clearTimeout(ST[c.id].pt); ST[c.id].pt = setTimeout(function(){ atualizarPend(c); }, ms == null ? 450 : ms); }
+  function listaPend(c, pop){
+    var P = ST[c.id].pend || [];
+    pop.innerHTML = '<h4>Pendências no texto (' + P.length + ')</h4>' + (P.length ? P.map(function(p, i){
+      var x = p.ctx.split("\u0001"), y = x[1].split("\u0002");
+      return '<button type="button" class="ddx-it" data-i="' + i + '"><b>' + H(p.tit) + '</b>' + H(x[0]) + '<mark>' + H(y[0]) + '</mark>' + H(y[1]) + '</button>';
+    }).join("") : '<div class="ddx-vazio">Nada pendente: nenhum [campo], ___ ou XXX no texto.</div>');
+  }
+  function irPend(c, i){
+    var P = ST[c.id].pend || []; if(!P.length) return;
+    i = ((i % P.length) + P.length) % P.length; ST[c.id].pi = i;
+    var p = P[i]; if(!p.ed.isConnected){ atualizarPend(c); return; }
+    var el = p.r.startContainer.parentElement || p.ed; el.scrollIntoView({ block:"center", behavior:"smooth" });
+    p.ed.focus({ preventScroll:true });
+    try{ var s = getSelection(); s.removeAllRanges(); s.addRange(p.r); }catch(e){}
+    if(p.sec){ p.sec.classList.remove("pisca"); void p.sec.offsetWidth; p.sec.classList.add("pisca"); }
+  }
+
+  /* ---- estatísticas do sumário ---- */
+  function estat(c){
+    var w = document.querySelector("#" + c.doc + " .dd-navwrap"); if(!w) return;
+    var box = w.querySelector(".ddx-stat");
+    if(!box){ box = document.createElement("div"); box.className = "ddx-stat"; var leg = w.querySelector(".dd-legenda"); w.insertBefore(box, leg ? leg.nextSibling : null); }
+    var main = $(c.main); if(!main) return;
+    var txt = Array.prototype.map.call(secoes(c), function(s){ return s.classList.contains("is-oculto") ? "" : s.innerText; }).join(" ");
+    var pal = (txt.match(/\S+/g) || []).length, pag = Math.max(1, Math.round(pal/430*10)/10);
+    var man = main.querySelectorAll(".dd-top.is-manual").length, aut = main.querySelectorAll(".dd-top.is-auto").length;
+    var np = (ST[c.id].pend || []).length;
+    box.innerHTML = '<div class="ddx-pg"><big>≈ ' + String(pag).replace(".", ",") + '</big> páginas</div><div><b>' + pal.toLocaleString("pt-BR") + '</b> palavras</div>' +
+      '<div><b>' + man + '</b> de ' + aut + ' automáticos editados à mão</div><div>' + (np ? '<b style="color:#a86412">' + np + ' pendência(s)</b>' : '<b style="color:#0f6a2b">sem pendências</b>') + '</div>';
+  }
+
+  /* ---- voltar ao automático com "desfazer" ---- */
+  function snapSecao(sec){
+    return Array.prototype.map.call(sec.querySelectorAll(".dd-ed, .rtf-box"), function(e){ return e.innerHTML; });
+  }
+  function restaurarSnap(c, id, snap){
+    var sec = $((c.id === "panel-desp1-parecer" ? "pardd_" : "dd_") + id); if(!sec){ toast("não consegui localizar o tópico para desfazer"); return; }
+    var eds = sec.querySelectorAll(".dd-ed, .rtf-box");
+    Array.prototype.forEach.call(eds, function(e, i){
+      if(snap[i] == null) return;
+      e.innerHTML = snap[i];
+      if(e.classList.contains("rtf-box") && e.id && e.id.indexOf("rtf_") === 0 && window.RTF && window.RTF.sync){ try{ window.RTF.sync(e.id.slice(4)); }catch(x){} }
+      e.dispatchEvent(new Event("input", { bubbles:true }));
+    });
+    agendarPend(c, 100);
+    toast("texto anterior restaurado");
+  }
+  document.addEventListener("click", function(ev){
+    var b = ev.target && ev.target.closest && ev.target.closest(".dd-b[data-auto], .dd-b[data-act='auto']"); if(!b) return;
+    var c = CFG.filter(function(o){ return b.closest("#" + o.doc); })[0]; if(!c) return;
+    var sec = b.closest(".dd-top"); if(!sec) return;
+    var id = secId(sec), antes = snapSecao(sec);
+    setTimeout(function(){
+      var sec2 = $((c.id === "panel-desp1-parecer" ? "pardd_" : "dd_") + id), depois = sec2 ? snapSecao(sec2) : [];
+      if(JSON.stringify(antes) !== JSON.stringify(depois)) toast("Texto automático restaurado", "Desfazer", function(){ restaurarSnap(c, id, antes); });
+    }, 700);
+  }, true);
+
+  /* ---- bolha de formatação ---- */
+  var bolha = null;
+  function bolhaEl(){
+    if(bolha) return bolha;
+    bolha = document.createElement("div"); bolha.className = "ddx-bolha"; bolha.hidden = true;
+    bolha.innerHTML = '<button type="button" data-f="n" title="Negrito (Ctrl+B)"><b>N</b></button><button type="button" data-f="m" title="Marcador na linha">•</button>';
+    document.body.appendChild(bolha);
+    bolha.addEventListener("mousedown", function(ev){ ev.preventDefault(); });
+    bolha.addEventListener("click", function(ev){
+      var b = ev.target.closest("button[data-f]"); if(!b) return;
+      var c = CFG.filter(function(o){ var s = getSelection(); return s.anchorNode && s.anchorNode.parentElement && s.anchorNode.parentElement.closest("#" + o.main); })[0]; if(!c) return;
+      if(b.getAttribute("data-f") === "n") c.negrito(); else c.marcador();
+    });
+    return bolha;
+  }
+  document.addEventListener("selectionchange", function(){
+    var s = getSelection(), b = bolhaEl();
+    if(!s.rangeCount || s.isCollapsed){ b.hidden = true; return; }
+    var n = s.anchorNode && (s.anchorNode.nodeType === 1 ? s.anchorNode : s.anchorNode.parentElement);
+    var ed = n && n.closest && n.closest(".dd-ed, .rtf-box"); if(!ed || !ed.closest("#pardoc_main, #d2doc_main")){ b.hidden = true; return; }
+    var r = s.getRangeAt(0).getBoundingClientRect(); if(!r.width && !r.height){ b.hidden = true; return; }
+    b.hidden = false; b.style.left = Math.max(70, Math.min(window.innerWidth - 70, r.left + r.width/2)) + "px"; b.style.top = Math.max(60, r.top - 10) + "px";
+  });
+  window.addEventListener("scroll", function(){ if(bolha) bolha.hidden = true; }, true);
+
+  /* ---- paleta Ctrl+K e atalhos ---- */
+  function paleta(c){
+    if($("ddx_pal")) return;
+    var cmds = [];
+    function add(t, fn, k){ cmds.push({ t:t, fn:fn, k:k || "" }); }
+    add("Ir ao próximo ponto pendente", function(){ irPend(c, (ST[c.id].pi == null ? -1 : ST[c.id].pi) + 1); }, "Alt+P");
+    add("Alternar foco (esmaece os outros tópicos)", function(){ foco(c, !$(c.id).classList.contains("ddx-foco")); }, "Alt+F");
+    add("Aumentar o texto", function(){ tamanho(c, 1); }); add("Diminuir o texto", function(){ tamanho(c, -1); });
+    add("Voltar ao formulário", function(){ c.modo("form"); });
+    add("Puxar dados da DESP-1", function(){ c.puxar(); });
+    add("Gerar o PDF", function(){ c.pdf(); });
+    add("Ir ao topo do documento", function(){ $(c.doc).scrollIntoView({ behavior:"smooth", block:"start" }); });
+    Array.prototype.forEach.call(document.querySelectorAll("#" + c.nav + " .nv"), function(a){
+      var id = a.getAttribute("data-ir"), t = a.innerText.replace(/\s+/g, " ").trim();
+      add("Ir para: " + t, function(){ a.click(); }, "");
+    });
+    var ov = document.createElement("div"); ov.id = "ddx_pal"; ov.className = "ddx-ov";
+    ov.innerHTML = '<div class="ddx-box"><input class="ddx-in" placeholder="Ir para um tópico, gerar PDF, próxima pendência, foco…" autocomplete="off"><div class="ddx-lista"></div><div class="ddx-dica">↑ ↓ navega · Enter executa · Esc fecha · Alt+↑/↓ tópico anterior/próximo · Alt+P próxima pendência</div></div>';
+    document.body.appendChild(ov);
+    var inp = ov.querySelector(".ddx-in"), lst = ov.querySelector(".ddx-lista"), sel = 0, vis = [];
+    function norm(t){ return String(t).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase(); }
+    function pinta(){
+      var q = norm(inp.value).split(/\s+/).filter(Boolean);
+      vis = cmds.filter(function(x){ var t = norm(x.t); return q.every(function(w){ return t.indexOf(w) >= 0; }); }).slice(0, 14);
+      if(sel >= vis.length) sel = 0;
+      lst.innerHTML = vis.map(function(x, i){ return '<button type="button" class="ddx-c' + (i === sel ? " on" : "") + '" data-i="' + i + '"><span>' + H(x.t) + '</span>' + (x.k ? '<em>' + H(x.k) + '</em>' : "") + '</button>'; }).join("") || '<div class="ddx-vazio">nada encontrado</div>';
+    }
+    function rodar(i){ var x = vis[i]; if(!x) return; ov.remove(); try{ x.fn(); }catch(e){ console.warn(e); } }
+    inp.addEventListener("input", function(){ sel = 0; pinta(); });
+    inp.addEventListener("keydown", function(ev){
+      if(ev.key === "ArrowDown"){ sel = Math.min(vis.length - 1, sel + 1); pinta(); ev.preventDefault(); }
+      else if(ev.key === "ArrowUp"){ sel = Math.max(0, sel - 1); pinta(); ev.preventDefault(); }
+      else if(ev.key === "Enter"){ rodar(sel); ev.preventDefault(); }
+      else if(ev.key === "Escape"){ ov.remove(); ev.stopPropagation(); }
+    });
+    lst.addEventListener("click", function(ev){ var b = ev.target.closest(".ddx-c"); if(b) rodar(+b.getAttribute("data-i")); });
+    ov.addEventListener("click", function(ev){ if(ev.target === ov) ov.remove(); });
+    pinta(); inp.focus();
+  }
+  function ativoCfg(){ return CFG.filter(function(c){ return ativo(c) && docVisivel(c); })[0] || null; }
+  window.addEventListener("keydown", function(ev){
+    var c = ativoCfg(); if(!c) return;
+    var k = ev.key.toLowerCase();
+    if((ev.ctrlKey || ev.metaKey) && k === "k"){ ev.preventDefault(); ev.stopImmediatePropagation(); paleta(c); return; }
+    if(ev.altKey && k === "p"){ ev.preventDefault(); irPend(c, (ST[c.id].pi == null ? -1 : ST[c.id].pi) + (ev.shiftKey ? -1 : 1)); return; }
+    if(ev.altKey && k === "f"){ ev.preventDefault(); foco(c, !$(c.id).classList.contains("ddx-foco")); return; }
+    if(ev.altKey && (k === "arrowdown" || k === "arrowup")){
+      ev.preventDefault();
+      var secs = secoes(c).filter(function(s){ return s.getBoundingClientRect().height > 0; }), y0 = 130, i = 0;
+      secs.forEach(function(s, j){ if(s.getBoundingClientRect().top <= y0 + 10) i = j; });
+      var alvo = secs[Math.max(0, Math.min(secs.length - 1, i + (k === "arrowdown" ? 1 : -1)))];
+      if(alvo){ alvo.scrollIntoView({ behavior:"smooth", block:"start" }); alvo.classList.remove("pisca"); void alvo.offsetWidth; alvo.classList.add("pisca"); var ed = alvo.querySelector(".dd-ed, .rtf-box"); if(ed) setTimeout(function(){ ed.focus({ preventScroll:true }); }, 350); }
+    }
+  }, true);
+
+  /* ---- ligação ---- */
+  function iniciar(c){
+    if(!$(c.id)) return;
+    ST[c.id] = ST[c.id] || { spy:null, pend:[], pi:null, pt:0 };
+    var tick = function(){ aplicarModo(c); montarBarra(c); if(ativo(c)){ spy(c); } };
+    var obs = new MutationObserver(function(){ clearTimeout(ST[c.id].ot); ST[c.id].ot = setTimeout(function(){ aplicarModo(c); montarBarra(c); agendarPend(c, 200); }, 120); });
+    [c.main, c.nav].forEach(function(id){ var e = $(id); if(e) obs.observe(e, { childList:true }); });
+    var d = $(c.doc); if(d) new MutationObserver(function(){ aplicarModo(c); agendarPend(c, 200); }).observe(d, { attributes:true, attributeFilter:["style"] });
+    var p = $(c.id); new MutationObserver(function(){ if(ativo(c)){ aplicarModo(c); montarBarra(c); agendarPend(c, 300); spy(c); } }).observe(p, { attributes:true, attributeFilter:["class"] });
+    document.addEventListener("input", function(ev){ if(ev.target && ev.target.closest && ev.target.closest("#" + c.main)) agendarPend(c); }, true);
+    var raf = 0; window.addEventListener("scroll", function(){ if(raf) return; raf = requestAnimationFrame(function(){ raf = 0; spy(c); }); }, { passive:true });
+    tick(); agendarPend(c, 600);
+  }
+  function boot(){ CFG.forEach(iniciar); }
+  if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", function(){ setTimeout(boot, 300); }); else setTimeout(boot, 300);
+  window.DDX = { pendencias:function(id){ return (ST[id] && ST[id].pend || []).length; }, cfg:CFG };
+})();
+</script>
+<style id="tec-css">
+/* ===== Técnica v2: trilha, soltar KMLs, miniaturas ===== */
+#panel-desp1-tecnica #tec_trilha{ position:sticky; top:0; z-index:30; display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+  background:rgba(238,242,246,.95); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px); border:1px solid #d3dbe4; border-radius:14px;
+  padding:10px 14px; margin:0 0 18px; box-shadow:0 8px 24px rgba(30,50,80,.10); font-family:"Segoe UI",Arial,sans-serif; }
+.tec-anel{ position:relative; width:46px; height:46px; flex:none; }
+.tec-anel svg{ width:46px; height:46px; transform:rotate(-90deg); }
+.tec-anel circle{ fill:none; stroke-width:4; }
+.tec-anel circle.b{ stroke:#dbe5ee; }
+.tec-anel circle.p{ stroke:#159a3c; stroke-linecap:round; transition:stroke-dasharray .6s cubic-bezier(.2,.8,.2,1); }
+.tec-anel b{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:11px; color:#0a4d7c; }
+.tec-passos{ display:flex; gap:8px; flex-wrap:wrap; flex:1 1 440px; }
+.tec-st{ display:flex; align-items:center; gap:8px; border:1px solid #d3dbe4; background:#fff; border-radius:11px; padding:6px 12px 6px 7px; cursor:pointer; font-family:inherit; text-align:left; transition:transform .12s, box-shadow .12s; }
+.tec-st:hover{ transform:translateY(-1px); box-shadow:0 4px 12px rgba(30,50,80,.12); }
+.tec-st i{ width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-style:normal; font-weight:800; font-size:12px; background:#fff0cf; color:#8a5a00; flex:none; }
+.tec-st.ok i{ background:#d9f3e1; color:#0f6a2b; }
+.tec-st.neutro i{ background:#e7edf3; color:#5a6b7c; }
+.tec-st.falta{ border-color:#ecd49a; }
+.tec-st b{ display:block; font-size:12px; color:#243447; }
+.tec-st em{ display:block; font-style:normal; font-size:10.5px; color:#7a8797; max-width:190px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.tec-acoes{ display:flex; gap:8px; }
+.tec-acoes button{ border:1px solid #b3bfcc; background:#fff; color:#243447; border-radius:9px; padding:8px 14px; font:700 12.5px/1.2 inherit; cursor:pointer; }
+.tec-acoes button:hover{ border-color:#1F6FC0; background:#eaf3fc; }
+.tec-flash{ animation:tecflash 1.4s ease; }
+@keyframes tecflash{ 0%,100%{ background:transparent; } 25%,70%{ background:#fff0b8; } }
+/* soltar KMLs */
+#tec_drop{ border:2px dashed #9cc3ea; background:linear-gradient(135deg,#f3f9ff,#eaf3fc); border-radius:14px; padding:18px 18px; margin:0 0 16px; text-align:center; cursor:pointer; transition:background .15s, border-color .15s, transform .15s; font-family:"Segoe UI",Arial,sans-serif; }
+#tec_drop:hover, #tec_drop.over{ border-color:#1F6FC0; background:linear-gradient(135deg,#e3f0fd,#d6e9fb); }
+#tec_drop.over{ transform:scale(1.01); }
+#tec_drop b{ display:block; font-size:14.5px; color:#175a9f; margin-bottom:3px; }
+#tec_drop span{ font-size:12px; color:#5a6b7c; }
+.tec-mini{ display:inline-flex; align-items:center; gap:8px; vertical-align:middle; margin-left:6px; }
+.tec-mini svg{ width:96px; height:56px; border:1px solid #d3dbe4; border-radius:8px; background:#fff; }
+.tec-mini small{ font:600 11.5px/1.3 "Segoe UI",Arial,sans-serif; color:#0a4d7c; }
+/* modal de classificação */
+.tec-ov{ position:fixed; inset:0; z-index:2000100; background:rgba(8,20,34,.7); display:flex; align-items:center; justify-content:center; padding:16px; font-family:"Segoe UI",Arial,sans-serif; }
+.tec-box{ background:#fff; border-radius:14px; width:min(780px,96vw); max-height:90vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 26px 70px rgba(0,0,0,.5); color:#243447; }
+.tec-box header{ display:flex; align-items:center; padding:13px 18px; border-bottom:1px solid #e4ebf2; background:#f4f8fc; }
+.tec-box header h3{ margin:0; flex:1; font-size:15px; color:#175a9f; }
+.tec-box header button{ border:0; background:none; font-size:24px; color:#6b7887; cursor:pointer; }
+.tec-corpo{ padding:14px 18px; overflow:auto; flex:1; }
+.tec-box footer{ display:flex; gap:8px; justify-content:flex-end; padding:12px 18px; border-top:1px solid #e4ebf2; }
+.tec-box footer button{ border:1px solid #b3bfcc; background:#fff; color:#243447; border-radius:9px; padding:10px 18px; font:700 13.5px/1 inherit; cursor:pointer; }
+.tec-box footer button.pri{ background:#1F6FC0; border-color:#1F6FC0; color:#fff; }
+.tec-p{ font-size:12.5px; color:#5a6b7c; line-height:1.5; margin:0 0 10px; }
+.tec-arq{ display:grid; grid-template-columns:100px 1fr 230px; gap:12px; align-items:center; padding:9px 4px; border-bottom:1px solid #eef2f6; }
+.tec-arq svg{ width:100px; height:58px; border:1px solid #d3dbe4; border-radius:8px; background:#fff; }
+.tec-arq b{ display:block; font-size:12.5px; word-break:break-all; }
+.tec-arq small{ color:#7a8797; font-size:11.5px; }
+.tec-arq select{ border:1px solid #b3bfcc; border-radius:8px; padding:7px 9px; font:inherit; font-size:12.5px; }
+.tec-arq .sub{ color:#a35f00; font-weight:700; font-size:11px; }
+</style>
+<script id="tec-js">
+/* ===== Técnica v2 (04/10/2026): trilha, próximo campo vazio, soltar vários KMLs com classificação,
+   miniatura e medidas de cada KML. Camada por cima da aba (não muda nenhum dado nem gerador). ===== */
+(function(){
+  "use strict";
+  var $ = function(id){ return document.getElementById(id); };
+  var H = function(s){ return String(s == null ? "" : s).replace(/[&<>"]/g, function(c){ return ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]; }); };
+  var SLOTS = [
+    { k:"desap", rot:"Área desapropriada", tipo:"poligono", dados:"rel_kml_dados", file:function(){ return $("rel_kml_file"); }, re:/desap|loca[cç][aã]o|perimetro|per[ií]metro|plinha|expropri|trecho/i },
+    { k:"area", rot:"Área total do imóvel", tipo:"poligono", dados:"imv_kml_area_dados", file:function(){ return document.querySelector('input[data-imvfile="area"]'); }, re:/area[_\s-]*total|total|matr[ií]cula|im[oó]vel|propriedade|gleba|sigef|poligono|pol[ií]gono/i },
+    { k:"vias", rot:"Vias de acesso", tipo:"linha", dados:"imv_kml_vias_dados", file:function(){ return document.querySelector('input[data-imvfile="vias"]'); }, re:/\bvias?\b|acesso|estrada|caminho|rodovia|trilha/i },
+    { k:"app", rot:"APP estimada", tipo:"poligono", dados:"imv_kml_app_dados", file:function(){ return document.querySelector('input[data-imvfile="app"]'); }, re:/\bapp\b|preserva[cç]/i },
+    { k:"benf", rot:"Benfeitorias", tipo:"misto", dados:"imv_kml_benf_dados", file:function(){ return document.querySelector('input[data-imvfile="benf"]'); }, re:/benf|constru|edifica|casa|curral/i },
+    { k:"hidro", rot:"Hidrografia", tipo:"linha", dados:"imv_kml_hidro_dados", file:function(){ return document.querySelector('input[data-imvfile="hidro"]'); }, re:/hidro|\brio\b|c[oó]rrego|[aá]gua|nascente|drenagem|ribeir/i },
+    { k:"cercas", rot:"Cercas", tipo:"linha", dados:"imv_kml_cercas_dados", file:function(){ return document.querySelector('input[data-imvfile="cercas"]'); }, re:/cerca/i }
+  ];
+  var ORDEM_NOME = ["cercas", "benf", "hidro", "app", "vias", "desap", "area"];
+
+  /* ---------- análise de KML ---------- */
+  function analisa(txt){
+    var r = { poli:[], linhas:[], pontos:0, ok:false };
+    try{
+      var d = new DOMParser().parseFromString(txt, "text/xml");
+      if(d.getElementsByTagName("parsererror").length) return r;
+      function coords(el){
+        var c = el.getElementsByTagName("coordinates")[0]; if(!c) return [];
+        return c.textContent.trim().split(/\s+/).map(function(t){ var p = t.split(","); return [parseFloat(p[0]), parseFloat(p[1])]; }).filter(function(p){ return isFinite(p[0]) && isFinite(p[1]); });
+      }
+      Array.prototype.forEach.call(d.getElementsByTagName("Polygon"), function(pg){
+        var ob = pg.getElementsByTagName("outerBoundaryIs")[0]; var c = coords(ob || pg); if(c.length > 2) r.poli.push(c);
+      });
+      Array.prototype.forEach.call(d.getElementsByTagName("LineString"), function(ls){ var c = coords(ls); if(c.length > 1) r.linhas.push(c); });
+      r.pontos = d.getElementsByTagName("Point").length;
+      r.ok = r.poli.length + r.linhas.length + r.pontos > 0;
+    }catch(e){}
+    return r;
+  }
+  function proj(c, lon0, lat0){ var kx = Math.cos(lat0*Math.PI/180)*111320, ky = 110574; return c.map(function(p){ return [(p[0] - lon0)*kx, (p[1] - lat0)*ky]; }); }
+  function medidas(a){
+    var todos = [].concat.apply([], a.poli).concat([].concat.apply([], a.linhas));
+    if(!todos.length) return { txt:a.pontos ? a.pontos + " ponto(s)" : "—", tipo:"ponto" };
+    var lon0 = todos.reduce(function(s, p){ return s + p[0]; }, 0)/todos.length, lat0 = todos.reduce(function(s, p){ return s + p[1]; }, 0)/todos.length;
+    var area = 0, comp = 0, nv = 0;
+    a.poli.forEach(function(c){ var q = proj(c, lon0, lat0), s = 0; for(var i = 0; i < q.length; i++){ var j = (i + 1)%q.length; s += q[i][0]*q[j][1] - q[j][0]*q[i][1]; } area += Math.abs(s/2); nv += c.length; });
+    a.linhas.forEach(function(c){ var q = proj(c, lon0, lat0); for(var i = 1; i < q.length; i++) comp += Math.hypot(q[i][0] - q[i-1][0], q[i][1] - q[i-1][1]); nv += c.length; });
+    var partes = [];
+    if(a.poli.length) partes.push(((area/10000).toLocaleString("pt-BR", { minimumFractionDigits:2, maximumFractionDigits:2 })) + " ha" + (a.poli.length > 1 ? " (" + a.poli.length + " polígonos)" : ""));
+    if(a.linhas.length) partes.push((comp >= 1000 ? (comp/1000).toLocaleString("pt-BR", { maximumFractionDigits:2 }) + " km" : Math.round(comp) + " m") + (a.linhas.length > 1 ? " (" + a.linhas.length + " linhas)" : ""));
+    if(a.pontos) partes.push(a.pontos + " ponto(s)");
+    partes.push(nv + " vértices");
+    return { txt:partes.join(" · "), tipo:a.poli.length && a.linhas.length ? "misto" : (a.poli.length ? "poligono" : (a.linhas.length ? "linha" : "ponto")) };
+  }
+  function svgMini(a, w, h){
+    var todos = [].concat.apply([], a.poli).concat([].concat.apply([], a.linhas)); if(!todos.length) return '<svg viewBox="0 0 ' + w + ' ' + h + '"></svg>';
+    var xs = todos.map(function(p){ return p[0]; }), ys = todos.map(function(p){ return p[1]; });
+    var x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs), y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
+    var kx = Math.cos(((y0 + y1)/2)*Math.PI/180), dx = (x1 - x0)*kx || 1e-9, dy = (y1 - y0) || 1e-9, m = 5, esc = Math.min((w - 2*m)/dx, (h - 2*m)/dy);
+    var ox = (w - dx*esc)/2, oy = (h - dy*esc)/2;
+    function pt(p){ return (ox + (p[0] - x0)*kx*esc).toFixed(1) + "," + (h - oy - (p[1] - y0)*esc).toFixed(1); }
+    var s = '<svg viewBox="0 0 ' + w + ' ' + h + '" xmlns="http://www.w3.org/2000/svg">';
+    a.poli.forEach(function(c){ s += '<polygon points="' + c.map(pt).join(" ") + '" fill="rgba(31,111,192,.18)" stroke="#1F6FC0" stroke-width="1.4" stroke-linejoin="round"/>'; });
+    a.linhas.forEach(function(c){ s += '<polyline points="' + c.map(pt).join(" ") + '" fill="none" stroke="#c0392b" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"/>'; });
+    return s + '</svg>';
+  }
+
+  /* ---------- miniaturas nos slots ---------- */
+  var SIG = {};
+  function statusEl(slot){
+    if(slot.k === "desap") return $("rel_kml_status");
+    return document.querySelector('[data-imvst="' + slot.k + '"]');
+  }
+  function refrescarMinis(){
+    SLOTS.forEach(function(sl){
+      var ta = $(sl.dados), st = statusEl(sl); if(!ta || !st) return;
+      var v = ta.value || "", sig = v.length + ":" + v.slice(0, 40);
+      var mini = st.parentNode.querySelector(".tec-mini");
+      if(SIG[sl.k] === sig && (mini || !v)) return;
+      SIG[sl.k] = sig;
+      if(mini) mini.remove();
+      if(!v) return;
+      var a = analisa(v), m = medidas(a);
+      var el = document.createElement("span"); el.className = "tec-mini";
+      el.innerHTML = svgMini(a, 96, 56) + '<small>' + H(m.txt) + '</small>';
+      st.parentNode.insertBefore(el, st.nextSibling);
+    });
+  }
+
+  /* ---------- soltar vários KMLs ---------- */
+  function classifica(nome, info, usados){
+    var base = nome.replace(/\.kml$/i, "");
+    for(var i = 0; i < ORDEM_NOME.length; i++){
+      var sl = SLOTS.filter(function(s){ return s.k === ORDEM_NOME[i]; })[0];
+      if(sl.re.test(base) && !usados[sl.k]) return sl.k;
+    }
+    var tipo = medidas(info).tipo;
+    if(/^INFRA_|CTD/i.test(base) && !usados.desap && tipo === "poligono") return "desap";
+    if(tipo === "linha"){ var l = ["vias", "hidro", "cercas"].filter(function(k){ return !usados[k]; })[0]; return l || ""; }
+    if(tipo === "poligono"){ var q = ["desap", "area", "app"].filter(function(k){ return !usados[k]; })[0]; return q || ""; }
+    if(tipo === "misto" || tipo === "ponto") return usados.benf ? "" : "benf";
+    return "";
+  }
+  async function receber(files){
+    files = Array.prototype.filter.call(files, function(f){ return /\.kml$/i.test(f.name); });
+    if(!files.length){ alert("Solte arquivos .kml (se o seu é .kmz, abra no Google Earth e salve como KML)."); return; }
+    var itens = [], usados = {};
+    for(var i = 0; i < files.length; i++){
+      var f = files[i], txt = await f.text(), info = analisa(txt);
+      var k = info.ok ? classifica(f.name, info, usados) : "";
+      if(k) usados[k] = true;
+      itens.push({ f:f, info:info, k:k, med:medidas(info) });
+    }
+    modal(itens);
+  }
+  function modal(itens){
+    var old = $("tec_ov"); if(old) old.remove();
+    var opts = '<option value="">— não usar —</option>' + SLOTS.map(function(s){ return '<option value="' + s.k + '">' + H(s.rot) + '</option>'; }).join("");
+    var ov = document.createElement("div"); ov.id = "tec_ov"; ov.className = "tec-ov";
+    ov.innerHTML = '<div class="tec-box"><header><h3>📥 Classificar os KMLs recebidos</h3><button type="button" data-x>×</button></header><div class="tec-corpo">' +
+      '<p class="tec-p">Sugeri o destino de cada arquivo pelo nome e pelo tipo de geometria (polígono/linha/ponto). Confira e ajuste; nada é gravado antes de você confirmar.</p>' +
+      itens.map(function(it, i){
+        var ja = it.k && ($(SLOTS.filter(function(s){ return s.k === it.k; })[0].dados) || {}).value;
+        return '<div class="tec-arq" data-i="' + i + '">' + (it.info.ok ? svgMini(it.info, 100, 58) : '<svg></svg>') +
+          '<div><b>' + H(it.f.name) + '</b><small>' + H(it.info.ok ? it.med.txt : "não encontrei geometria neste arquivo") + '</small><span class="sub" data-sub style="display:' + (ja ? "block" : "none") + '">substitui o KML já inserido</span></div>' +
+          '<select>' + opts + '</select></div>';
+      }).join("") + '</div><footer><button type="button" data-x>Cancelar</button><button type="button" class="pri" id="tec_aplicar">Aplicar</button></footer></div>';
+    document.body.appendChild(ov);
+    Array.prototype.forEach.call(ov.querySelectorAll(".tec-arq"), function(row, i){
+      var sel = row.querySelector("select"); sel.value = itens[i].k || "";
+      sel.onchange = function(){ var sl = SLOTS.filter(function(s){ return s.k === sel.value; })[0]; var ja = sl && ($(sl.dados) || {}).value; row.querySelector("[data-sub]").style.display = ja ? "block" : "none"; };
+    });
+    ov.addEventListener("click", function(ev){ if(ev.target === ov || (ev.target.hasAttribute && ev.target.hasAttribute("data-x"))) ov.remove(); });
+    $("tec_aplicar").onclick = function(){
+      var escolhas = {}, dup = false;
+      Array.prototype.forEach.call(ov.querySelectorAll(".tec-arq"), function(row, i){
+        var k = row.querySelector("select").value; if(!k) return;
+        if(escolhas[k]) dup = true; escolhas[k] = itens[i];
+      });
+      if(dup){ alert("Dois arquivos foram para o mesmo destino. Cada destino recebe um KML só."); return; }
+      var n = 0;
+      Object.keys(escolhas).forEach(function(k){
+        var sl = SLOTS.filter(function(s){ return s.k === k; })[0], inp = sl.file();
+        if(!inp) return;
+        try{ var dt = new DataTransfer(); dt.items.add(escolhas[k].f); inp.files = dt.files; inp.dispatchEvent(new Event("change", { bubbles:true })); n++; }catch(e){ console.warn("KML:", e); }
+      });
+      ov.remove();
+      setTimeout(function(){ SIG = {}; refrescarMinis(); trilha(); }, 900);
+      toast(n + " KML(s) aplicado(s)");
+    };
+  }
+  function toast(t){
+    var e = $("tec_toast"); if(!e){ e = document.createElement("div"); e.id = "tec_toast"; e.style.cssText = "position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:#0e2329;color:#e8f1f3;padding:9px 18px;border-radius:22px;font:600 12.5px/1 'Segoe UI',Arial,sans-serif;z-index:2000200;box-shadow:0 10px 30px rgba(0,0,0,.4);transition:opacity .2s;"; document.body.appendChild(e); }
+    e.textContent = t; e.style.opacity = "1"; clearTimeout(e._t); e._t = setTimeout(function(){ e.style.opacity = "0"; }, 2600);
+  }
+  function montarDrop(){
+    var card = $("tec_kmls_card"); if(!card || $("tec_drop")) return;
+    var grade = card.querySelector(".imv-kml-grade"); if(!grade) return;
+    var d = document.createElement("div"); d.id = "tec_drop"; d.setAttribute("role", "button"); d.tabIndex = 0;
+    d.innerHTML = '<b>📥 Solte aqui todos os KMLs do imóvel de uma vez</b><span>ou clique para escolher vários — eu reconheço cada um pelo nome e pela forma (polígono, linha, ponto) e você confirma antes</span><input type="file" multiple accept=".kml" style="display:none">';
+    var inp = d.querySelector("input");
+    d.onclick = function(ev){ if(ev.target !== inp) inp.click(); };
+    d.onkeydown = function(ev){ if(ev.key === "Enter" || ev.key === " "){ ev.preventDefault(); inp.click(); } };
+    inp.onchange = function(){ if(inp.files.length) receber(inp.files); inp.value = ""; };
+    ["dragenter", "dragover"].forEach(function(e){ d.addEventListener(e, function(ev){ ev.preventDefault(); d.classList.add("over"); }); });
+    ["dragleave", "drop"].forEach(function(e){ d.addEventListener(e, function(ev){ ev.preventDefault(); d.classList.remove("over"); }); });
+    d.addEventListener("drop", function(ev){ if(ev.dataTransfer && ev.dataTransfer.files.length) receber(ev.dataTransfer.files); });
+    grade.parentNode.insertBefore(d, grade);
+  }
+
+  /* ---------- trilha ---------- */
+  function grupos(){
+    var p = $("panel-desp1-tecnica"), w = p && p.querySelector(".wrap"); if(!w) return null;
+    var K = Array.prototype.slice.call(w.children), g = {};
+    var iAreas = K.findIndex(function(e){ return /^ÁREAS DE LOCAÇÃO/.test((e.innerText || "").trim()); });
+    g.areas = iAreas >= 0 ? [K[iAreas]] : [];
+    g.kml = $("tec_kmls_card") ? [$("tec_kmls_card")] : [];
+    var iCam = K.findIndex(function(e){ return /^QUADRO DE CAMADAS/.test((e.innerText || "").trim()); });
+    g.cam = iCam >= 0 ? [K[iCam], K[iCam + 1]].filter(Boolean) : [];
+    var iB = K.findIndex(function(e){ return /^BENFEITORIAS \(ITENS/.test((e.innerText || "").trim()); }), iP = K.findIndex(function(e){ return /^PLANTAS E ROTEIRO/.test((e.innerText || "").trim()); });
+    g.benf = iB >= 0 ? K.slice(iB, iP >= 0 ? iP : K.length) : [];
+    g.plantas = iP >= 0 ? K.slice(iP) : [];
+    return g;
+  }
+  function campos(els){
+    var out = [];
+    els.forEach(function(e){ Array.prototype.forEach.call(e.querySelectorAll("input[type=text],input:not([type]),input[type=number],select,textarea"), function(c){ if(c.type === "hidden" || c.type === "file" || c.disabled) return; if(c.offsetParent === null && !c.closest("details")) return; if(c.getAttribute("aria-hidden") === "true" || c.style.display === "none") return; out.push(c); }); });
+    return out;
+  }
+  function passos(){
+    var g = grupos(); if(!g) return [];
+    var P = [];
+    var ca = campos(g.areas), cf = ca.filter(function(c){ return String(c.value).trim(); }).length;
+    var ess = ["fb_area_desap", "fb_georref"].every(function(id){ var e = $(id); return e && String(e.value).trim(); });
+    P.push({ id:"areas", t:"Áreas de locação", ok:ess, det:cf + " de " + ca.length + " campos", alvo:g.areas[0] });
+    var n = SLOTS.filter(function(s){ var t = $(s.dados); return t && t.value; }).length, dz = $("rel_kml_dados") && $("rel_kml_dados").value;
+    P.push({ id:"kml", t:"KMLs do imóvel", ok:!!dz, det:n + " de " + SLOTS.length + " · desapropriada " + (dz ? "✓" : "—"), alvo:g.kml[0] });
+    P.push({ id:"cam", t:"Estilo das camadas", ok:null, det:"padrão do servidor", alvo:g.cam[0] });
+    var cb = campos(g.benf), cbf = cb.filter(function(c){ return String(c.value).trim(); }).length;
+    P.push({ id:"benf", t:"Benfeitorias 12 e 13", ok:null, det:cbf + " campo(s) preenchido(s)", alvo:g.benf[0] });
+    var imgs = 0, ph = 0;
+    g.plantas.forEach(function(e){ imgs += e.querySelectorAll("img").length; Array.prototype.forEach.call(e.querySelectorAll("*"), function(x){ if(!x.children.length && /Clique para inserir imagem/.test(x.textContent) && x.offsetParent !== null) ph++; }); });
+    P.push({ id:"plantas", t:"Plantas e roteiro", ok:ph === 0 && imgs > 0, det:imgs + " figura(s) · " + ph + " sem imagem", alvo:g.plantas[0] });
+    return P;
+  }
+  function trilha(){
+    var p = $("panel-desp1-tecnica"); if(!p) return;
+    var box = $("tec_trilha");
+    if(!box){
+      var w = p.querySelector(".wrap"); if(!w) return;
+      box = document.createElement("div"); box.id = "tec_trilha";
+      var sub = w.querySelector(".sub"); w.insertBefore(box, sub ? sub.nextSibling : w.children[1]);
+    }
+    var P = passos(), com = P.filter(function(x){ return x.ok !== null; }), ok = com.filter(function(x){ return x.ok; }).length, fr = com.length ? ok/com.length : 0, R = 18, C = 2*Math.PI*R;
+    var html = '<div class="tec-anel" title="' + ok + ' de ' + com.length + ' etapas prontas"><svg viewBox="0 0 44 44"><circle cx="22" cy="22" r="' + R + '" class="b"/><circle cx="22" cy="22" r="' + R + '" class="p" stroke-dasharray="' + (C*fr).toFixed(1) + ' ' + C.toFixed(1) + '"/></svg><b>' + Math.round(fr*100) + '%</b></div>' +
+      '<div class="tec-passos">' + P.map(function(x, i){
+        var cl = x.ok === null ? "neutro" : (x.ok ? "ok" : "falta");
+        return '<button type="button" class="tec-st ' + cl + '" data-i="' + i + '" title="' + H(x.det) + '"><i>' + (x.ok === null ? "•" : (x.ok ? "✓" : (i + 1))) + '</i><span><b>' + H(x.t) + '</b><em>' + H(x.det) + '</em></span></button>';
+      }).join("") + '</div><div class="tec-acoes"><button type="button" data-a="vazio">↓ Próximo campo vazio</button></div>';
+    box._P = P;
+    if(box._h !== html){ box._h = html; box.innerHTML = html; }
+  }
+  var tt = 0; function trilhaAgendar(){ clearTimeout(tt); tt = setTimeout(trilha, 250); }
+  document.addEventListener("click", function(ev){
+    var b = ev.target.closest && ev.target.closest("#tec_trilha button"); if(!b) return;
+    var box = $("tec_trilha");
+    if(b.getAttribute("data-a") === "vazio"){ proximoVazio(); return; }
+    var x = box._P && box._P[+b.getAttribute("data-i")]; if(x && x.alvo){ x.alvo.scrollIntoView({ behavior:"smooth", block:"start" }); x.alvo.classList.remove("tec-flash"); void x.alvo.offsetWidth; x.alvo.classList.add("tec-flash"); }
+  });
+  var ultimo = -1;
+  function proximoVazio(){
+    var p = $("panel-desp1-tecnica"), todos = campos([p]).filter(function(c){ return !c.closest("#tec_trilha") && !String(c.value).trim() && c.offsetParent !== null; });
+    if(!todos.length){ toast("nenhum campo vazio nesta aba"); return; }
+    var atual = todos.indexOf(document.activeElement), i = atual >= 0 ? (atual + 1) % todos.length : (ultimo + 1) % todos.length;
+    var c = todos[i]; ultimo = i;
+    c.scrollIntoView({ block:"center", behavior:"smooth" });
+    var w = c.closest(".vfield") || c.parentNode; w.classList.remove("tec-flash"); void w.offsetWidth; w.classList.add("tec-flash");
+    setTimeout(function(){ try{ c.focus({ preventScroll:true }); }catch(e){} }, 350);
+    toast((i + 1) + " de " + todos.length + " campos vazios");
+  }
+
+  /* ---------- ligação ---------- */
+  function ativo(){ var p = $("panel-desp1-tecnica"); return !!(p && p.classList.contains("ativa")); }
+  function tick(){ if(!ativo()) return; montarDrop(); refrescarMinis(); trilha(); }
+  function boot(){
+    var p = $("panel-desp1-tecnica"); if(!p) return;
+    new MutationObserver(function(){ if(ativo()){ setTimeout(tick, 120); } }).observe(p, { attributes:true, attributeFilter:["class"] });
+    document.addEventListener("input", function(ev){ if(ev.target.closest && ev.target.closest("#panel-desp1-tecnica")) trilhaAgendar(); }, true);
+    document.addEventListener("change", function(ev){ if(ev.target.closest && ev.target.closest("#panel-desp1-tecnica")){ trilhaAgendar(); setTimeout(refrescarMinis, 700); } }, true);
+    setInterval(function(){ if(ativo()){ refrescarMinis(); trilhaAgendar(); } }, 2000);
+    tick();
+  }
+  if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", function(){ setTimeout(boot, 400); }); else setTimeout(boot, 400);
+})();
+</script>
 </body>
 
 
