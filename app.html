@@ -2737,6 +2737,34 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
 })();
 </script>
 
+<style>
+/* ===== Escolha da atividade (depois do login) ===== */
+#ativGate{ display:none; position:fixed; inset:0; z-index:100001; background:linear-gradient(135deg,#0f2742 0%,#1b4a7a 100%); align-items:center; justify-content:center; padding:20px; overflow:auto; }
+body.logado.ativ-pendente #ativGate{ display:flex; }
+#ativGate .ativ-box{ width:min(920px,100%); text-align:center; color:#fff; }
+#ativGate h1{ font-size:22px; letter-spacing:.5px; margin:0 0 6px; font-weight:800; }
+#ativGate .ativ-sub{ font-size:13px; color:#b9cde2; margin:0 0 26px; }
+#ativGate .ativ-cards{ display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+#ativGate .ativ-card{ background:#fff; color:#1b2a3a; border:0; border-radius:14px; padding:26px 18px 22px; cursor:pointer; text-align:center; font-family:inherit; box-shadow:0 10px 30px rgba(0,0,0,.25); transition:transform .15s, box-shadow .15s; }
+#ativGate .ativ-card:hover, #ativGate .ativ-card:focus-visible{ transform:translateY(-4px); box-shadow:0 16px 38px rgba(0,0,0,.32); outline:3px solid #28a745; }
+#ativGate .ativ-ico{ font-size:40px; line-height:1; margin-bottom:12px; display:block; }
+#ativGate .ativ-tit{ font-size:16px; font-weight:800; display:block; margin-bottom:6px; }
+#ativGate .ativ-desc{ font-size:12.5px; color:#5d6b7a; line-height:1.45; display:block; }
+#ativGate .ativ-rodape{ margin-top:22px; font-size:11px; letter-spacing:1.5px; color:#8fa9c4; }
+@media (max-width:760px){ #ativGate .ativ-cards{ grid-template-columns:1fr; } }
+.btn-ativ{ display:none; background:#f1f5f9; color:#1b2a3a; border:1px solid #d5dde6; border-radius:8px; font-weight:600; font-size:12.5px; padding:7px 12px; cursor:pointer; font-family:inherit; }
+.btn-ativ:hover{ background:#e6edf4; }
+body.logado:not(.ativ-pendente) .btn-ativ{ display:inline-flex; align-items:center; }
+/* o que cada atividade enxerga */
+body.ativ-cadastro #topTabs .top-tab[data-secao="utilitarios"],
+body.ativ-cadastro .pg-btn[onclick="PG_utilitarios()"]{ display:none !important; }
+body.ativ-pesquisa .app-sidebar, body.ativ-pesquisa .sb-collapse-btn, body.ativ-pesquisa .mob-burger,
+body.ativ-pesquisa #topTabs, body.ativ-util #topTabs, body.ativ-pesquisa .fab-unir, body.ativ-util .fab-unir,
+body.ativ-pesquisa .app-header .btn-cad, body.ativ-util .app-header .btn-cad,
+body.ativ-pesquisa .top-dl, body.ativ-util .top-dl,
+body.ativ-pesquisa .btn-unir, body.ativ-util .btn-unir, body.ativ-pesquisa .unir-status, body.ativ-util .unir-status{ display:none !important; }
+body.ativ-util .app-sidebar .sb-link[data-alvo="panel-util-pesquisa"]{ display:none !important; }
+</style>
 <!-- ===== TELA DE LOGIN (ACESSO RESTRITO) ===== -->
 <div id="loginGate">
   <div class="login-card">
@@ -2755,6 +2783,29 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
 </div>
 
 
+<!-- ===== ESCOLHA DA ATIVIDADE (depois do login) ===== -->
+<div id="ativGate" role="dialog" aria-modal="true" aria-labelledby="ativTitulo">
+  <div class="ativ-box">
+    <h1 id="ativTitulo">O que você vai fazer agora?</h1>
+    <p class="ativ-sub">Escolha a atividade. Você poderá trocar depois pelo botão “Trocar atividade”.</p>
+    <div class="ativ-cards">
+      <button type="button" class="ativ-card" onclick="ATIV_escolher('cadastro')">
+        <span class="ativ-ico">🗂️</span><span class="ativ-tit">Sistema de Cadastro</span>
+        <span class="ativ-desc">Painel Geral, fichas, relatórios, DESP 1, DESP 2 e DESP 3 dos cadastros.</span>
+      </button>
+      <button type="button" class="ativ-card" onclick="ATIV_escolher('pesquisa')">
+        <span class="ativ-ico">📊</span><span class="ativ-tit">Pesquisa de Mercado</span>
+        <span class="ativ-desc">Pesquisas de mercado, fichas de avaliação e RGV.</span>
+      </button>
+      <button type="button" class="ativ-card" onclick="ATIV_escolher('util')">
+        <span class="ativ-ico">🧰</span><span class="ativ-tit">Utilitários</span>
+        <span class="ativ-desc">Relatório fotográfico, unir PDF, compilar documento, roteiro, benfeitorias e calculadora.</span>
+      </button>
+    </div>
+    <div class="ativ-rodape">ENPROL ENGENHARIA E PROJETOS · CONFIDENCIAL</div>
+  </div>
+</div>
+
 <div class="credito-dev">desenvolvido por Fernando Serafim</div>
 
 <header class="app-header">
@@ -2768,6 +2819,7 @@ body.modal-aberto .app-header{ pointer-events:none !important; opacity:.45 !impo
       <button class="top-tab ativa" data-secao="infra" onclick="TOP_abrir(this)">INFRA</button>
       <button class="top-tab" data-secao="utilitarios" onclick="TOP_abrir(this)">UTILITÁRIOS</button>
     </nav>
+    <button type="button" class="btn-ativ" id="btnTrocarAtiv" onclick="ATIV_trocar()" title="Voltar à escolha da atividade">⇄ Trocar atividade</button>
     <button class="btn-cad" id="btnSalvarCad" onclick="CAD_salvarNuvem()" title="Salvar cadastro no servidor da empresa">💾 Salvar</button>
     <button class="btn-cad" id="btnAbrirCad" onclick="CAD_abrirModal()" title="Abrir cadastro salvo no servidor da empresa">Abrir</button>
     <button class="btn-cad" id="btnNovoCad" onclick="CAD_novoCadastro()" title="Limpar tudo e começar um cadastro novo">Novo Cadastro</button>
@@ -5714,7 +5766,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 <div class="vsub">4.8 — Sentidos de Identificação (Autorreconhecimento)</div><div class="vfield grow"><label>4.8.1 O Sr. ou a Sra. se autorreconhece como:</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_481_0" value="Quilombola – Liderança"> Quilombola – Liderança</label><label class="fb-chk"><input type="checkbox" id="fb_481_1" value="Indígena – Liderança"> Indígena – Liderança</label><label class="fb-chk"><input type="checkbox" id="fb_481_2" value="Comunidade tradicional – Liderança"> Comunidade tradicional – Liderança</label><label class="fb-chk"><input type="checkbox" id="fb_481_3" value="Outros"> Outros</label></div></div><div class="vfield grow" id="fb_481_esp_wrap" style="display:none;"><label>D) Outros — especificar</label><textarea data-rtf id="fb_481_esp" rows="2" placeholder="Especificar..."></textarea></div>
 <div class="vsub">4.9 — Aproveitamento da Terra</div><div class="vfield grow"><label>4.9.1 Uso das terras</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_491_uso_0" value="Seca"> Seca</label><label class="fb-chk"><input type="checkbox" id="fb_491_uso_1" value="Chuva"> Chuva</label><label class="fb-chk"><input type="checkbox" id="fb_491_uso_2" value="Plantio"> Plantio</label><label class="fb-chk"><input type="checkbox" id="fb_491_uso_3" value="Criação de animais"> Criação de animais</label></div></div><div class="vfield grow" id="fb_491_plantio_wrap" style="display:none;"><label>Plantio — especificar</label><textarea data-rtf id="fb_491_plantio" rows="2" placeholder="Ex.: Imbuzeiro, acerola, milho, feijão e pastagem"></textarea></div><div class="vfield grow" id="fb_491_criacao_wrap" style="display:none;"><label>Criação de animais — especificar</label><textarea data-rtf id="fb_491_criacao" rows="2" placeholder="Descrição da criação de animais"></textarea></div><div class="vfield grow"><label>4.9.1 Uso das terras — descrição</label><textarea data-rtf id="fb_491_desc" rows="2" placeholder="Descrição geral do uso das terras..."></textarea></div><div class="vfield grow"><label>4.9.2 O que é produzido na propriedade</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_492_prod_0" value="Extrativismo"> Extrativismo</label><label class="fb-chk"><input type="checkbox" id="fb_492_prod_1" value="Agricultura"> Agricultura</label><label class="fb-chk"><input type="checkbox" id="fb_492_prod_2" value="Pecuária"> Pecuária</label></div></div><div class="vfield grow"><label>4.9.3 Quais impactos concebidos pela comunidade sobre a construção da ferrovia, e qual sua opinião?</label><textarea data-rtf id="fb_493_impactos" rows="4" placeholder="Percepção da comunidade sobre a ferrovia..."></textarea></div>
 <div class="vsub">4.10 — Outras Informações</div><div class="vfield grow"><label>4.10.1 Quais as expectativas futuras da família em relação à moradia atual e pós desapropriação</label><div class="fb-checks"><label class="fb-chk"><input type="checkbox" id="fb_4101_0" value="Continuar morando nas redondezas da localidade"> Continuar morando nas redondezas da localidade</label><label class="fb-chk"><input type="checkbox" id="fb_4101_1" value="Construir em outro local fora da localidade"> Construir em outro local fora da localidade</label><label class="fb-chk"><input type="checkbox" id="fb_4101_2" value="Outra"> Outra</label></div></div><div class="vfield grow"><label>Outra (especificar)</label><input type="text" id="fb_4101_outra" placeholder="Especificar"></div><div class="vrow"><div class="vfield grow"><label>4.10.2 A família recebe algum benefício do Governo Federal</label><select id="fb_4102"><option value="">Selecione</option><option>1 - Sim</option><option>2 - Não</option></select></div><div class="vfield grow"><label>Qual?</label><input type="text" id="fb_4102_qual" placeholder="Qual benefício"></div></div><div class="vrow"><div class="vfield grow"><label>4.10.3 A família participa de algum programa do município</label><select id="fb_4103"><option value="">Selecione</option><option>1 - Sim</option><option>2 - Não</option></select></div><div class="vfield grow"><label>Qual?</label><input type="text" id="fb_4103_qual" placeholder="Qual programa"></div></div><div class="vrow"><div class="vfield grow"><label>4.10.4 A família participa de projetos e organizações da comunidade</label><select id="fb_4104"><option value="">Selecione</option><option>1 - Sim</option><option>2 - Não</option></select></div><div class="vfield grow"><label>Qual?</label><input type="text" id="fb_4104_qual" placeholder="Qual projeto/organização"></div></div><div class="vfield grow"><label>4.10.5 Dados relativos sobre saúde, educação, segurança comunitária e questões sociais, situações de vulnerabilidades relacionadas à família e seus membros</label><textarea data-rtf id="fb_4105" rows="6" placeholder="Relato da abordagem social..."></textarea></div></div>
-<h2 class="vsec acc" onclick="FV_toggleSec(this)"><span>5 — INFORMAÇÕES COMPLEMENTARES (PROPRIEDADE)</span><span class="acc-chevron">▾</span></h2><div class="vcard"><div class="vfield grow"><label>5.1 Obras e Melhorias das Terras</label><input type="text" id="fb_51_obras" placeholder="Ex.: AUSENTES"></div><div class="vfield grow"><label>5.2 Outras Atividades</label><input type="text" id="fb_52_ativ" placeholder="Ex.: NÃO HÁ"></div><div class="vsub">5.3 Fotografias do imóvel</div><label class="img-drop" id="fb_fotos_drop"><span class="ic">📷</span><span class="t">Clique ou arraste as fotografias do imóvel</span><span class="h">Várias imagens • JPG ou PNG</span><input type="file" accept="image/*" multiple id="fb_fotos_file"></label><div class="fb-fotos-prev" id="fb_fotos_prev"></div><div class="vsub">Assinatura do(a) vistoriador(a)</div><div class="vfield grow"><label>Nome do(a) vistoriador(a)</label><input type="text" id="fb_ass_nome" placeholder="Nome"></div><div class="vrow"><div class="vfield grow"><label>Cargo/Função</label><input type="text" id="fb_ass_cargo" placeholder="Ex.: Assistente Social"></div><div class="vfield grow"><label>Registro (CRESS/CREA)</label><input type="text" id="fb_ass_reg" placeholder="Ex.: CRESS-PE 14780"></div></div><div class="vfield grow"><label>Local e data</label><input type="text" id="fb_ass_local" placeholder="Ex.: Custódia-PE, 16 de agosto de 2026"></div><div class="vsub">Assinatura digitalizada (imagem)</div><label class="img-drop" id="fb_ass_img_drop"><span class="ic">✍️</span><span class="t">Clique para enviar a imagem da assinatura</span><span class="h">Imagem única • JPG ou PNG</span><input type="file" accept="image/*" id="fb_ass_img_file"></label><div id="fb_ass_img_prev" style="margin-top:8px;"></div></div>
+<h2 class="vsec acc" onclick="FV_toggleSec(this)"><span>5 — INFORMAÇÕES COMPLEMENTARES (PROPRIEDADE)</span><span class="acc-chevron">▾</span></h2><div class="vcard"><div class="vfield grow"><label>5.1 Obras e Melhorias das Terras</label><input type="text" id="fb_51_obras" placeholder="Ex.: AUSENTES"></div><div class="vfield grow"><label>5.2 Outras Atividades</label><input type="text" id="fb_52_ativ" placeholder="Ex.: NÃO HÁ"></div><div class="vsub">5.3 Fotografias do imóvel</div><label class="img-drop" id="fb_fotos_drop"><span class="ic">📷</span><span class="t">Clique ou arraste as fotografias do imóvel</span><span class="h">Várias imagens • JPG ou PNG</span><input type="file" accept="image/*" multiple id="fb_fotos_file"></label><div class="vactions" style="margin:8px 0;"><button class="vbtn vbtn-ghost vbtn-sm" type="button" onclick="FB_importarFotosCampo()">↧ Importar fotos da aba Campo (sem repetir)</button></div><div class="fb-fotos-prev" id="fb_fotos_prev"></div><div class="vsub">Assinatura do(a) vistoriador(a)</div><div class="vfield grow"><label>Nome do(a) vistoriador(a)</label><input type="text" id="fb_ass_nome" placeholder="Nome"></div><div class="vrow"><div class="vfield grow"><label>Cargo/Função</label><input type="text" id="fb_ass_cargo" placeholder="Ex.: Assistente Social"></div><div class="vfield grow"><label>Registro (CRESS/CREA)</label><input type="text" id="fb_ass_reg" placeholder="Ex.: CRESS-PE 14780"></div></div><div class="vfield grow"><label>Local e data</label><input type="text" id="fb_ass_local" placeholder="Ex.: Custódia-PE, 16 de agosto de 2026"></div><div class="vsub">Assinatura digitalizada (imagem)</div><label class="img-drop" id="fb_ass_img_drop"><span class="ic">✍️</span><span class="t">Clique para enviar a imagem da assinatura</span><span class="h">Imagem única • JPG ou PNG</span><input type="file" accept="image/*" id="fb_ass_img_file"></label><div id="fb_ass_img_prev" style="margin-top:8px;"></div></div>
 <div class="vactions"><span style="font-size:12.5px;color:#7a8797;">Os downloads (PDF / backup) ficam no botão <b>⬇️ Download</b> na barra do topo.</span></div>
 </div>
 </section>
@@ -19515,6 +19567,7 @@ function AV_gerarDescSituacao(){
       }catch(e){}
       if(erro) erro.textContent = "";
       window.__PG_aplicarModo && window.__PG_aplicarModo();
+      window.ATIV_iniciar && window.ATIV_iniciar();
     } else {
       if(erro) erro.textContent = "Usuário ou senha inválidos.";
       if(p){ p.value = ""; p.focus(); }
@@ -19545,6 +19598,64 @@ function AV_gerarDescSituacao(){
 })();
 </script>
 
+<script>
+/* ===== Escolha da atividade + utilitário de fotos sem repetição ===== */
+(function(){
+  var KEY = "enprol_atividade";
+  function get(){ try{ return sessionStorage.getItem(KEY); }catch(e){ return null; } }
+  function set(v){ try{ if(v) sessionStorage.setItem(KEY, v); else sessionStorage.removeItem(KEY); }catch(e){} }
+
+  function aplicar(at){
+    var b = document.body;
+    ["cadastro","pesquisa","util"].forEach(function(a){ b.classList.remove("ativ-"+a); });
+    if(!at || ["cadastro","pesquisa","util"].indexOf(at) < 0){ b.classList.add("ativ-pendente"); return; }
+    b.classList.remove("ativ-pendente");
+    b.classList.add("ativ-"+at);
+    if(at === "cadastro"){
+      var t = document.querySelector('.top-tab[data-secao="infra"]');
+      if(t && window.TOP_abrir) window.TOP_abrir(t);
+      return;
+    }
+    // Pesquisa de Mercado e Utilitários: sem Painel Geral/cadastro
+    try{ sessionStorage.setItem("enprol_modo","cadastro"); }catch(e){}
+    b.classList.remove("modo-painel"); document.documentElement.classList.remove("modo-painel");
+    var u = document.querySelector('.top-tab[data-secao="utilitarios"]');
+    if(u && window.TOP_abrir) window.TOP_abrir(u);
+    var alvo = (at === "pesquisa") ? "panel-util-pesquisa" : "panel-util-foto";
+    var l = document.querySelector('.sb-link[data-alvo="'+alvo+'"]');
+    if(l && window.trocarAba) window.trocarAba(l);
+    if(at === "pesquisa" && window.PESQ_carregar) window.PESQ_carregar();
+  }
+  window.ATIV_iniciar = function(){ aplicar(get()); };
+  window.ATIV_escolher = function(at){
+    set(at);
+    if(at === "cadastro"){
+      try{ sessionStorage.setItem("enprol_modo","painel"); }catch(e){}
+      aplicar(at);
+      if(window.__PG_aplicarModo) window.__PG_aplicarModo();
+    } else aplicar(at);
+  };
+  window.ATIV_trocar = function(){
+    if(window.__CAD_ATUAL && !confirm("Trocar de atividade?\n\nSe houver alterações não salvas neste cadastro, elas serão perdidas.")) return;
+    set(null);
+    try{ sessionStorage.setItem("enprol_modo","painel"); }catch(e){}
+    location.reload();
+  };
+  function ligar(){
+    try{ if(sessionStorage.getItem("enprol_logado") === "1") window.ATIV_iniciar(); }catch(e){}
+  }
+  if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", ligar); else ligar();
+
+  /* Impressão digital de uma foto (data URL): serve para não repetir a mesma imagem quando
+     ela vem de mais de uma aba (Campo, Assistência Social, DESP 2). */
+  window.FOTO_chave = function(src){
+    src = String(src || "");
+    var h = 5381;
+    for(var i = 0; i < src.length; i++){ h = ((h << 5) + h + src.charCodeAt(i)) | 0; }
+    return src.length + ":" + (h >>> 0);
+  };
+})();
+</script>
 <script>
 /* ===== Máscara de data dd/mm/aaaa ===== */
 (function(){
@@ -21029,6 +21140,19 @@ function AV_gerarDescSituacao(){
       else if(it && it.src){ fotos.push({src:it.src, legenda:it.legenda||""}); }
     });
     renderFotos();
+  };
+
+  // Traz para 5.3 as fotografias da aba Campo que ainda não estão aqui (compara a imagem, não o nome).
+  window.FB_importarFotosCampo=function(){
+    var fc=((window.CAMPO_getFotos?window.CAMPO_getFotos():[])||[]).filter(function(f){ return f && f.src; });
+    if(!fc.length){ alert("A aba Campo ainda não tem fotografias (importe a ficha de campo primeiro)."); return; }
+    var tem={}; fotos.forEach(function(f){ tem[window.FOTO_chave(f.src)]=1; });
+    var novas=[];
+    fc.forEach(function(f){ var k=window.FOTO_chave(f.src); if(tem[k]) return; tem[k]=1; novas.push({src:f.src, legenda:f.legenda||""}); });
+    if(!novas.length){ alert("Todas as fotografias de Campo já estão nesta lista — nada foi repetido."); return; }
+    novas.forEach(function(n){ fotos.push(n); });
+    renderFotos();
+    alert(novas.length+" fotografia(s) de Campo adicionada(s). "+(fc.length-novas.length)+" já estavam na lista e não foram repetidas.");
   };
 
   // ---- Word do Anexo B (fiel ao MODELO) ----
@@ -27470,6 +27594,9 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       var fc=(window.CAMPO_getFotos?window.CAMPO_getFotos():[])||[];
       fc.forEach(function(f){ novas.push({src:(f.src||""),legenda:(f.legenda||"")}); });
     }
+    // a mesma foto costuma existir na Ficha de Vistoria e no Campo: entra só uma vez
+    var vistas={};
+    novas=novas.filter(function(f){ if(!f.src) return false; var k=window.FOTO_chave(f.src); if(vistas[k]) return false; vistas[k]=1; return true; });
     if(!novas.length){ alert("Selecione ao menos uma fonte com fotos."); return; }
     D2_fotos=novas; // substitui (o relatório constará as fotos da opção sinalada)
     D2_renderFotos(); D2_renderImportarFotos();
