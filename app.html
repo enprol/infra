@@ -21754,7 +21754,11 @@ function AV_gerarDescSituacao(){
     var r = await fetch(CAD_API + caminho, opt);
     var txt = await r.text();
     var js = txt ? JSON.parse(txt) : null;
-    if (!r.ok) throw new Error((js && js.erro) ? js.erro : ("HTTP " + r.status));
+    if (!r.ok){
+      var err = new Error((js && js.erro) ? js.erro : ("HTTP " + r.status));
+      err.status = r.status; err.payload = js;     // 409 (conflito de gravação) lê daqui
+      throw err;
+    }
     return js;
   }
 
@@ -21921,14 +21925,34 @@ function AV_gerarDescSituacao(){
       if (window.__comprimirImagensPacote){ if (btn) btn.textContent = "💾 Otimizando imagens…"; pacote = await window.__comprimirImagensPacote(pacote); }
       if (btn) btn.textContent = "💾 Salvando…";
       var processoSei = _rotuloProc();
-      var resp = await _apiComRetry("PUT", "/api/cadastros/" + encodeURIComponent(secao) + "/" + encodeURIComponent(ctd), {
-        versao: VERSAO, processo_sei: processoSei || null, pacote: pacote,
-        renomear_de: renomearDe || undefined
-      }, function(n, t){ if (btn) btn.textContent = "💾 Servidor não respondeu — tentando de novo (" + n + "/" + t + ")…"; });
+      // 05/10/2026: manda junto o "atualizado_em" do cadastro que ESTA tela abriu/salvou por último. Se outra
+      // pessoa salvou o mesmo cadastro nesse meio tempo, o servidor responde 409 e nada é sobrescrito sem aviso.
+      var baseVersao = (aberto && aberto.atualizado_em) ? aberto.atualizado_em : undefined;
+      var urlPut = "/api/cadastros/" + encodeURIComponent(secao) + "/" + encodeURIComponent(ctd);
+      var _aoRetentar = function(n, t){ if (btn) btn.textContent = "💾 Servidor não respondeu — tentando de novo (" + n + "/" + t + ")…"; };
+      var resp;
+      try{
+        resp = await _apiComRetry("PUT", urlPut, {
+          versao: VERSAO, processo_sei: processoSei || null, pacote: pacote,
+          renomear_de: renomearDe || undefined, base_atualizado_em: baseVersao
+        }, _aoRetentar);
+      }catch(e409){
+        if (!e409 || e409.status !== 409) throw e409;
+        var quando = ""; try{ quando = new Date(e409.payload.atualizado_em_servidor).toLocaleString("pt-BR"); }catch(x){}
+        if (!confirm("ATENÇÃO — conflito de gravação.\n\n" +
+                     'O cadastro "' + ctd + '" foi salvo por outra pessoa (ou em outra máquina)' + (quando ? " em " + quando : "") + ", depois que você o abriu.\n\n" +
+                     "OK = salvar mesmo assim (as alterações dela serão substituídas — a versão anterior fica guardada na pasta _versoes do cadastro).\n" +
+                     "Cancelar = não salvar. Seus dados continuam na tela; use “Salvar em arquivo” para guardar uma cópia e depois reabra o cadastro para ver o que mudou.")) return;
+        if (btn) btn.textContent = "💾 Salvando…";
+        resp = await _apiComRetry("PUT", urlPut, {
+          versao: VERSAO, processo_sei: processoSei || null, pacote: pacote,
+          renomear_de: renomearDe || undefined, base_atualizado_em: baseVersao, forcar: true
+        }, _aoRetentar);
+      }
       // o servidor devolve a pasta em que realmente gravou (pode ser a antiga, se o
       // nome novo já pertencia a outro cadastro) — é ela que vale daqui pra frente.
       var ctdFinal = (resp && resp.ctd) || ctd;
-      window.__CAD_ATUAL = { secao: secao, ctd: ctdFinal, ctdCalc: ctdCalc, pacote: pacote };
+      window.__CAD_ATUAL = { secao: secao, ctd: ctdFinal, ctdCalc: ctdCalc, pacote: pacote, atualizado_em: (resp && resp.atualizado_em) || null };
       var extra = (pacote._orfaos && Object.keys(pacote._orfaos).length)
         ? ("\n(" + Object.keys(pacote._orfaos).length + " campo(s) de layout antigo preservados no arquivo.)") : "";
       if (renomearDe && resp && resp.renomeado){
@@ -22044,7 +22068,7 @@ function AV_gerarDescSituacao(){
     }catch(e){ if (L) L.ocultar(); throw e; }
     // ctdCalc = nome calculado do texto identificador NO MOMENTO da abertura; é com ele
     // que o save compara pra saber se o usuário mudou o texto (e precisa renomear a pasta).
-    window.__CAD_ATUAL = { secao: secao, ctd: ctd, ctdCalc: _ctdAtual(), pacote: pacote };
+    window.__CAD_ATUAL = { secao: secao, ctd: ctd, ctdCalc: _ctdAtual(), pacote: pacote, atualizado_em: js.atualizado_em || null };
     if (L) L.ocultar();
     _tp.total_ms = Math.round(performance.now() - _tp.ini); _tp.montar_ms = _tp.total_ms - _tp.baixar_ms;
     window.__CAD_TEMPOS = _tp; console.info("CADASTRO aberto — tempos (ms):", _tp);
