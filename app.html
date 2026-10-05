@@ -79,6 +79,12 @@ window.RTF = (function(){
     if(s.replace(/\s/g,'')==='') return '';
     return s.split('\n').map(function(ln){
       if(ln.trim()===''){ return '<div><br></div>'; }
+      // estilos de par\u00E1grafo do modo Conte\u00FAdo do Parecer (mesma marca\u00E7\u00E3o da DESP-2): \u00A7R romano, \u00A7A seta, \u00A7C cita\u00E7\u00E3o, \u00A7L:a al\u00EDnea
+      var est=/^\s*\u00A7([RAC])(?:\s+|$)/.exec(ln), alin=!est && /^\s*\u00A7L:(\w)(?:\s+|$)/.exec(ln);
+      if(est || alin){
+        var htmE=esc(ln.slice((est||alin)[0].length)).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');
+        return '<div class="dl" data-k="'+(est?est[1]:'L')+'"'+(alin?(' data-l="'+alin[1]+'"'):'')+'>'+(htmE||'<br>')+'</div>';
+      }
       var bullet=/^[\u2022\u2023\u25E6\-\*]\s+/.test(ln);
       var body=bullet?ln.replace(/^[\u2022\u2023\u25E6\-\*]\s+/,''):ln;
       var htm=esc(body).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');
@@ -112,6 +118,9 @@ window.RTF = (function(){
         else if(n.nodeType===1){
           var line=serialLine(n).replace(/\n+$/,'');
           if((n.className||'').indexOf('rtf-li')>=0){ line='\u2022 '+line.replace(/^[\u2022\u2023\u25E6]\s*/,''); }
+          var dk=n.getAttribute&&n.getAttribute('data-k');
+          if(dk==='R'||dk==='A'||dk==='C'){ line='\u00A7'+dk+' '+line; }
+          else if(dk==='L'){ line='\u00A7L:'+(n.getAttribute('data-l')||'a')+' '+line; }
           lines.push(line);
         }
       });
@@ -121,16 +130,28 @@ window.RTF = (function(){
   function ta(id){ return document.getElementById(id); }
   function box(id){ return document.getElementById('rtf_'+id); }
   function markEmpty(v){ v.setAttribute('data-empty', (v.textContent.replace(/\s/g,'')==='' ? '1':'0')); }
+  // numeração das listas de parágrafo (romanos e alíneas), como na DESP-2: a sequência reinicia fora da lista
+  function romano(n){ var r=[[1000,'M'],[900,'CM'],[500,'D'],[400,'CD'],[100,'C'],[90,'XC'],[50,'L'],[40,'XL'],[10,'X'],[9,'IX'],[5,'V'],[4,'IV'],[1,'I']], o=''; r.forEach(function(p){ while(n>=p[0]){ o+=p[1]; n-=p[0]; } }); return o; }
+  function norm(v){
+    var nR=0, ult=null;
+    Array.prototype.forEach.call(v.children, function(d){
+      var k=d.getAttribute('data-k');
+      if(k==='R'){ nR++; d.setAttribute('data-n', romano(nR)); } else { nR=0; d.removeAttribute('data-n'); }
+      if(k==='L'){ var l=ult?String.fromCharCode(ult.charCodeAt(0)+1):(d.getAttribute('data-l')||'a'); d.setAttribute('data-l', l); ult=l; } else { ult=null; }
+    });
+  }
   function render(id){
     var v=box(id), t=ta(id);
     if(!v||!t) return;
     if(document.activeElement===v){ markEmpty(v); return; }
     v.innerHTML = mdToHtml(t.value);
+    norm(v);
     markEmpty(v);
   }
   function sync(id){
     var v=box(id), t=ta(id);
     if(!v||!t) return;
+    norm(v);
     var md=htmlToMd(v);
     if(t.value!==md){ t.value=md; t.dispatchEvent(new Event('input',{bubbles:true})); }
     markEmpty(v);
@@ -187,7 +208,7 @@ window.RTF = (function(){
   function refreshAll(){ document.querySelectorAll('textarea[data-rtf]').forEach(function(t){ if(t.id) render(t.id); }); }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', function(){ scan(); });
   else scan();
-  return { scan:scan, upgrade:upgrade, render:render, refresh:render, refreshAll:refreshAll, sync:sync, bold:bold, mdToHtml:mdToHtml, htmlToMd:htmlToMd };
+  return { scan:scan, upgrade:upgrade, render:render, refresh:render, refreshAll:refreshAll, sync:sync, bold:bold, mdToHtml:mdToHtml, htmlToMd:htmlToMd, norm:norm, romano:romano };
 })();
 </script>
 <script>
@@ -7169,6 +7190,9 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
          painel de propósito — o coletarCampos() salva todo input com id em panel-*, então a
          marca viaja no cadastro e sobrevive a fechar e reabrir. -->
     <input type="hidden" id="par_manuais">
+    <!-- edições de estrutura do modo Conteúdo (títulos, tópicos ocultos, seções/subseções novas e imagens):
+         JSON {heads,hide,extras,imgs}. Mesmo motivo do par_manuais: dentro do painel, viaja no cadastro. -->
+    <input type="hidden" id="par_doc">
 
     <div class="dd-sw" id="par_modo_sw" role="tablist" aria-label="Forma de edição do Parecer">
       <button type="button" role="tab" data-m="doc" onclick="PARDOC_modo('doc')"><b>📖 Conteúdo do parecer</b><small>o parecer inteiro, na ordem e na numeração do PDF — editável no próprio lugar</small></button>
@@ -7183,13 +7207,20 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
           <div class="dd-legenda"><span><i class="m-manual"></i>texto gerado automaticamente</span><span><i class="m-extra"></i>escrito à mão</span></div>
         </nav>
         <div class="dd-col">
-          <div class="dd-bar" role="toolbar" aria-label="Formatação do texto">
-            <span class="dd-bar-rot">Texto:</span>
-            <button type="button" class="dd-bold" onmousedown="event.preventDefault()" onclick="PARDOC_negrito()" title="Negrito — selecione o trecho e clique (ou Ctrl+B)"><b>N</b> Negrito</button>
-            <button type="button" onmousedown="event.preventDefault()" onclick="PARDOC_marcador()" title="Põe/tira o marcador (•) na linha onde está o cursor">• Marcador</button>
+          <div class="dd-bar" role="toolbar" aria-label="Estilo do parágrafo">
+            <span class="dd-bar-rot">Parágrafo:</span>
+            <button type="button" onmousedown="event.preventDefault()" onclick="PARDOC_estilo('p')" title="Texto normal">¶ Texto</button>
+            <button type="button" onmousedown="event.preventDefault()" onclick="PARDOC_estilo('b')" title="Lista com marcador (clique de novo para tirar)">• Marcador</button>
+            <button type="button" onmousedown="event.preventDefault()" onclick="PARDOC_estilo('A')" title="Lista com seta">➢ Seta</button>
+            <button type="button" onmousedown="event.preventDefault()" onclick="PARDOC_estilo('R')" title="Lista numerada em romanos">I. Romano</button>
+            <button type="button" onmousedown="event.preventDefault()" onclick="PARDOC_estilo('C')" title="Citação (itálico, recuada) — leis, resoluções, acórdãos">❝ Citação</button>
+            <button type="button" onmousedown="event.preventDefault()" onclick="PARDOC_estilo('L')" title="Alínea de citação: a), b), c)...">a) Alínea</button>
+            <span class="dd-bar-sep"></span>
+            <button type="button" class="dd-bold" onmousedown="event.preventDefault()" onclick="PARDOC_estilo('bold')" title="Negrito — selecione o trecho e clique (ou Ctrl+B)"><b>N</b> Negrito</button>
+            <button type="button" onmousedown="event.preventDefault()" onclick="PARDOC_inserirImg()" title="Insere uma imagem com legenda no tópico onde está o cursor">🖼 Imagem</button>
             <span class="dd-bar-sep"></span>
             <button type="button" onclick="PAR_puxarDados()" title="Relê a Ficha de Vistoria e o Relatório Técnico e regera os textos automáticos">↧ Puxar dados da DESP-1</button>
-            <span class="dd-bar-dica" id="pardoc_dica">o PDF do Parecer sai pelo ⬇️ Download, na barra do topo</span>
+            <span class="dd-bar-dica" id="pardoc_dica">Enter cria novo parágrafo · Enter num item vazio encerra a lista · o PDF sai pelo ⬇️ Download, na barra do topo</span>
           </div>
           <div id="pardoc_main" class="dd-doc"></div>
         </div>
@@ -14848,12 +14879,13 @@ function AV_gerarDescSituacao(){
     // eixo: linha contínua laranja com traços perpendiculares (símbolo de ferrovia, como na legenda da planta)
     g.eixos.forEach(function(l){
       L.polyline(l, Object.assign({renderer:rFix}, ESTILO_EIXO)).addTo(grp);
-      grp.addLayer(tracosFerrovia(l));
+      grp.addLayer(tracosFerrovia([l]));
     });
     return grp;
   }
-  // traços perpendiculares ao longo da linha (desenhados em px, a cada 14 px — acompanha o zoom)
-  function tracosFerrovia(pts){
+  // traços perpendiculares ao longo das linhas (desenhados em px, a cada 14 px — acompanha o zoom).
+  // `linhas` = lista de polilinhas; serve ao eixo do KML fixo (SPS 04) e ao eixo do Projeto revisado (SPS 07).
+  function tracosFerrovia(linhas){
     var Cls = L.Layer.extend({
       onAdd: function(m){
         this._m = m; var c = this._c = L.DomUtil.create('canvas', 'leaflet-zoom-hide');
@@ -14861,25 +14893,27 @@ function AV_gerarDescSituacao(){
         m.on('moveend zoomend resize', this._r, this); this._r();
       },
       onRemove: function(m){ L.DomUtil.remove(this._c); m.off('moveend zoomend resize', this._r, this); },
-      getBounds: function(){ return L.latLngBounds(pts); },
+      getBounds: function(){ return L.latLngBounds([].concat.apply([], linhas)); },
       _r: function(){
         var m = this._m, sz = m.getSize(), c = this._c;
         c.width = sz.x; c.height = sz.y; L.DomUtil.setPosition(c, m.containerPointToLayerPoint([0, 0]));
         var ctx = c.getContext('2d'); ctx.strokeStyle = ESTILO_EIXO.color; ctx.lineWidth = 1.5; ctx.beginPath();
-        var pass = 14, met = 4.5, acum = 0, W = sz.x + 40, H = sz.y + 40;
-        var q = pts.map(function(p){ return m.latLngToContainerPoint(p); });
-        for(var i = 1; i < q.length; i++){
-          var a = q[i-1], b = q[i], dx = b.x - a.x, dy = b.y - a.y, L2 = Math.hypot(dx, dy);
-          if(!L2) continue;
-          var ux = dx / L2, uy = dy / L2, d = (pass - acum % pass) % pass;
-          if(Math.max(a.x, b.x) < -20 || Math.min(a.x, b.x) > W || Math.max(a.y, b.y) < -20 || Math.min(a.y, b.y) > H){ acum += L2; continue; }
-          for(; d < L2; d += pass){
-            var x = a.x + ux * d, y = a.y + uy * d;
-            if(x < -10 || x > W || y < -10 || y > H) continue;
-            ctx.moveTo(x - uy * met, y + ux * met); ctx.lineTo(x + uy * met, y - ux * met);
+        var pass = 14, met = 4.5, W = sz.x + 40, H = sz.y + 40;
+        linhas.forEach(function(pts){
+          var acum = 0, q = pts.map(function(p){ return m.latLngToContainerPoint(p); });
+          for(var i = 1; i < q.length; i++){
+            var a = q[i-1], b = q[i], dx = b.x - a.x, dy = b.y - a.y, L2 = Math.hypot(dx, dy);
+            if(!L2) continue;
+            var ux = dx / L2, uy = dy / L2, d = (pass - acum % pass) % pass;
+            if(Math.max(a.x, b.x) < -20 || Math.min(a.x, b.x) > W || Math.max(a.y, b.y) < -20 || Math.min(a.y, b.y) > H){ acum += L2; continue; }
+            for(; d < L2; d += pass){
+              var x = a.x + ux * d, y = a.y + uy * d;
+              if(x < -10 || x > W || y < -10 || y > H) continue;
+              ctx.moveTo(x - uy * met, y + ux * met); ctx.lineTo(x + uy * met, y - ux * met);
+            }
+            acum += L2;
           }
-          acum += L2;
-        }
+        });
         ctx.stroke();
       }
     });
@@ -15478,6 +15512,14 @@ function AV_gerarDescSituacao(){
   // devolve [{layer, zmin}] para a camada conforme o tipo do manifest
   function criarCamadaProj(c, d){
     var e = c.estilo || {};
+    if(c.tipo === 'linhas' && e.simbolo === 'ferrovia'){
+      // eixo da ferrovia do projeto (SPS 07): o MESMO desenho do eixo do KML fixo do SPS 04 — laranja, traços perpendiculares, mesma camada
+      var linhasEixo = _swap(d.l);
+      return [
+        { layer: L.polyline(linhasEixo, Object.assign({renderer:rFix, smoothFactor:1.2}, ESTILO_EIXO)) },
+        { layer: tracosFerrovia(linhasEixo) }
+      ];
+    }
     if(c.tipo === 'linhas'){
       return [{ layer: L.polyline(_swap(d.l), {pane:'projLin', renderer:rendProj('projLin'), color:e.cor, weight:e.peso, opacity:e.opacidade, interactive:false, smoothFactor:1.2, noClip:false}) }];
     }
@@ -15600,7 +15642,8 @@ function AV_gerarDescSituacao(){
       h += '<label class="pgm-projunica" title="' + escH(cams.map(function(c){ return c.codigo; }).join(' · ')) + '"><input type="checkbox" data-projgrp="' + escH(g.pasta) + '"' + (ligadas ? ' checked' : '') + '>'
         + '<span class="pgm-sw-inc" style="border:1.5px solid #8a8f98;background:linear-gradient(135deg,rgba(255,140,26,.5) 0 34%,rgba(224,85,155,.5) 34% 67%,rgba(139,90,43,.55) 67%)"></span> <b>' + escH(g.titulo || g.grupo) + '</b> '
         + '<span class="pgm-cg" data-projgst="' + escH(g.pasta) + '"></span></label>';
-      h += '<div class="pgm-incra-nota" style="margin:0 0 4px 34px">' + escH(g.fonte || '') + '<br>Projeto, adições, estacas (100 m e 20 m; números a partir do zoom 16), aterro, hachura, corte, ferrovia e rodovia — tudo numa só camada.</div>';
+      h += '<div class="pgm-incra-nota" style="margin:0 0 4px 34px">' + escH(g.fonte || '') + '<br>Projeto, adições, estacas (100 m e 20 m; números a partir do zoom 16), aterro, hachura, corte, ferrovia e rodovia — tudo numa só camada.'
+        + (cams.some(function(c){ return c.estilo && c.estilo.simbolo === 'ferrovia'; }) ? ' O eixo da ferrovia sai laranja com traços, como o do SPS 04.' : '') + '</div>';
     });
     return h;
   }
@@ -21278,6 +21321,7 @@ function AV_gerarDescSituacao(){
   const VERSAO = 1;
 
   function coletarCampos(){
+    try{ if(window.PARDOC_flush) window.PARDOC_flush(); }catch(e){}   // edição do Parecer ainda no "debounce"
     const dados = {};
     // TODAS as abas: qualquer campo com id dentro de um painel (panel-*)
     document.querySelectorAll('[id^="panel-"] [id]').forEach(el=>{
@@ -25569,17 +25613,24 @@ window.UFOTO_rodapeHTML=rodapeHTML;
       yc+=1.5;
     }
 
-    // parágrafo com suporte a **negrito** e a linhas de marcador "• "
+    // parágrafo com suporte a **negrito**, marcador "• " e os estilos do modo Conteúdo
+    // (§R romano · §A seta · §C citação · §L:a alínea — mesma marcação da DESP-2)
+    function romanoPDF(n){ var v=[[10,"X"],[9,"IX"],[5,"V"],[4,"IV"],[1,"I"]], r=""; v.forEach(function(p){ while(n>=p[0]){ r+=p[1]; n-=p[0]; } }); return r; }
     function parRica(t, opts){
       if(!t) return; opts=opts||{};
-      var fs=opts.fontSize||10.6, LHp=opts.lh||5.7;
-      var justif=(opts.justif!==false);
+      var fs0=opts.fontSize||10.6, LH0=opts.lh||5.7;
+      var justif=(opts.justif!==false), nRom=0;
       String(t).split("\n").forEach(function(parText){
-        if(!parText.trim()){ yc+=LHp*0.5; return; }
-        var isBullet=/^\s*•\s?/.test(parText);
-        var cleanText=isBullet?parText.replace(/^\s*•\s?/,""):parText;
-        var flI = isBullet?0:((opts.flIndent!==undefined)?opts.flIndent:0);  // sem recuo de 1ª linha
-        var li = isBullet?6:(opts.indent||0);
+        if(!parText.trim()){ yc+=LH0*0.5; nRom=0; return; }
+        var kind="p", letra="", cleanText=parText, mm;
+        if((mm=/^\s*§([RAC])(?:\s+|$)/.exec(parText))){ kind=mm[1]; cleanText=parText.slice(mm[0].length); }
+        else if((mm=/^\s*§L:(\w)(?:\s+|$)/.exec(parText))){ kind="L"; letra=mm[1]; cleanText=parText.slice(mm[0].length); }
+        else if(/^\s*•\s?/.test(parText)){ kind="b"; cleanText=parText.replace(/^\s*•\s?/,""); }
+        nRom=(kind==="R")?nRom+1:0;
+        var it=(kind==="C"||kind==="L"), cor=it?[40,40,40]:[0,0,0];
+        var fs=it?fs0-0.6:fs0, LHp=it?LH0-0.5:LH0;
+        var flI=(kind==="p" && opts.flIndent!==undefined)?opts.flIndent:0;   // sem recuo de 1ª linha
+        var li=({b:6, A:9.5, R:13, C:14, L:20})[kind]; if(li===undefined) li=opts.indent||0;
         var x0=mL+li, wFull=cw-li;
         var segs=cleanText.split(/\*\*/);
         var words=[];
@@ -25587,9 +25638,9 @@ window.UFOTO_rodapeHTML=rodapeHTML;
           var bold=(si%2===1);
           seg.split(/\s+/).filter(function(w){return w.length;}).forEach(function(w){ words.push({text:w,bold:bold}); });
         });
-        if(isBullet && words.length){ words[0]={text:"•  "+words[0].text, bold:words[0].bold}; }
+        if(kind==="b" && words.length){ words[0]={text:"•  "+words[0].text, bold:words[0].bold}; }
         if(!words.length) return;
-        function setFS(bold){ pdf.setFont(FONT, bold?"bold":"normal"); pdf.setFontSize(fs); }
+        function setFS(bold){ pdf.setFont(FONT, it?(bold?"bolditalic":"italic"):(bold?"bold":"normal")); pdf.setFontSize(fs); pdf.setTextColor(cor[0],cor[1],cor[2]); }
         setFS(false); var spW=pdf.getTextWidth(" ");
         function wWidth(w){ setFS(w.bold); return pdf.getTextWidth(w.text); }
         var wFirst=wFull-flI;
@@ -25604,20 +25655,25 @@ window.UFOTO_rodapeHTML=rodapeHTML;
         lines.forEach(function(ln,idx){
           if(yc+LHp>botY){ rod(); nova(); }
           var first=(idx===0), last=(idx===lines.length-1);
+          if(first){
+            if(kind==="A"){ pdf.setFillColor(0,0,0); var tx=mL+1.8, ty=yc-2.6; pdf.triangle(tx,ty, tx+2.4,ty+1.3, tx,ty+2.6, "F"); }   // a fonte não tem o glifo ➢
+            else if(kind==="R"){ pdf.setFont(FONT,"normal"); pdf.setFontSize(fs); pdf.setTextColor(0,0,0); pdf.text(romanoPDF(nRom)+".", mL+9, yc, {align:"right"}); }
+            else if(kind==="L"){ pdf.setFont(FONT,"italic"); pdf.setFontSize(fs); pdf.setTextColor(cor[0],cor[1],cor[2]); pdf.text(letra+")", mL+14, yc); }
+          }
           var x=first?(x0+flI):x0;
           if(!last && justif && ln.w.length>1){
             var nat=0; ln.w.forEach(function(w){ nat+=wWidth(w); }); nat+=spW*(ln.w.length-1);
             var extra=(ln.tw-nat)/(ln.w.length-1); if(extra<0) extra=0; if(extra>spW*3) extra=spW*3;
             var cx=x;
-            ln.w.forEach(function(w,i){ setFS(w.bold); pdf.setTextColor(0,0,0); pdf.text(w.text,cx,yc); cx+=wWidth(w); if(i<ln.w.length-1) cx+=spW+extra; });
+            ln.w.forEach(function(w,i){ setFS(w.bold); pdf.text(w.text,cx,yc); cx+=wWidth(w); if(i<ln.w.length-1) cx+=spW+extra; });
           } else {
             var cx2=x;
-            ln.w.forEach(function(w,i){ setFS(w.bold); pdf.setTextColor(0,0,0); pdf.text(w.text,cx2,yc); cx2+=wWidth(w); if(i<ln.w.length-1) cx2+=spW; });
+            ln.w.forEach(function(w,i){ setFS(w.bold); pdf.text(w.text,cx2,yc); cx2+=wWidth(w); if(i<ln.w.length-1) cx2+=spW; });
           }
           yc+=LHp;
         });
       });
-      yc+=LHp*0.55;
+      yc+=LH0*0.55; pdf.setTextColor(0,0,0);
     }
 
     function desenharChecklist(rotulo, arr){
@@ -25667,10 +25723,10 @@ window.UFOTO_rodapeHTML=rodapeHTML;
       yc+=4;
     }
 
-    function desenharPendencias(lista){
+    function desenharPendencias(lista, titulo){
       if(!lista||!lista.length) return;
       ensure(14); pdf.setFont(FONT,"bold"); pdf.setFontSize(10.5); pdf.setTextColor(140,30,20);
-      pdf.text("Pendências identificadas", mL, yc); yc+=6;
+      pdf.text(titulo||"Pendências identificadas", mL, yc); yc+=6;
       var wI=cw*0.34, wP=cw*0.18, wS=cw-wI-wP;
       function cabecalho(){
         var hh=7; pdf.setFillColor(253,236,236); pdf.rect(mL,yc,cw,hh,'F');
@@ -25700,27 +25756,52 @@ window.UFOTO_rodapeHTML=rodapeHTML;
       yc+=4;
     }
 
-    // ---------- Corpo ----------
-    yc=0; cab(); yc=topY;
-    pdf.setFont(FONT,"bold"); pdf.setFontSize(15); pdf.setTextColor(20,40,70);
-    var titLs=pdf.splitTextToSize("PARECER PARA REGULARIZAÇÃO FUNDIÁRIA E DOCUMENTAL", cw);
-    titLs.forEach(function(l){ ensure(8); pdf.text(l, W/2, yc, {align:"center"}); yc+=7; });
-    yc+=4;
+    // ---- a estrutura vem do modo Conteúdo: ordem, títulos, tópicos ocultos, seções novas e imagens ----
+    var EST=(window.PARDOC_estado ? window.PARDOC_estado() : {topicos:[], imgs:[]});
+    var FIG_MAXH=150, FIG_MINH=70, FIG_CAP=15;
+    function imgsDe(topico){ return (EST.imgs||[]).filter(function(x){ return x.topico===topico && /^data:image\/(jpe?g|png)/i.test(x.src||""); }); }
+    // imagens avulsas do tópico (modo Conteúdo › "🖼 + Imagem"): mesmo desenho das figuras da DESP-2
+    function imagens(topico){
+      imgsDe(topico).forEach(function(x){
+        var iw=cw, ih=iw*0.6, ar=0.6;
+        try{ var p=pdf.getImageProperties(x.src); if(p&&p.width&&p.height){ ar=p.height/p.width; ih=iw*ar; if(ih>FIG_MAXH){ ih=FIG_MAXH; iw=ih/ar; } } }catch(e){}
+        var leg=String(x.leg||"").trim(), fonte=String(x.fonte||"").trim();
+        var capH=(leg?4.4*Math.max(1,pdf.splitTextToSize(leg,cw-8).length):0)+(fonte?6.5:2);
+        if(yc>topY+5) yc-=3;
+        var sobra=botY-yc-capH;
+        if(ih>sobra){
+          if(sobra>=FIG_MINH && yc>topY+0.5){ ih=sobra; iw=ih/ar; if(iw>cw){ iw=cw; ih=iw*ar; } }
+          else { rod(); nova(); }
+        }
+        var fmt=/^data:image\/png/i.test(x.src)?"PNG":"JPEG";
+        try{ pdf.addImage(x.src,fmt,mL+(cw-iw)/2,yc,iw,ih); }catch(e){}
+        yc+=ih+3.5;
+        if(leg){ pdf.setFont(FONT,"bolditalic"); pdf.setFontSize(9.5); pdf.setTextColor(0,0,0); pdf.splitTextToSize(leg,cw-8).forEach(function(l){ pdf.text(l,W/2,yc,{align:"center"}); yc+=4.4; }); }
+        if(fonte){ pdf.setFont(FONT,"italic"); pdf.setFontSize(8.5); pdf.setTextColor(90,100,115); pdf.text("Fonte: "+fonte,W/2,yc,{align:"center"}); yc+=6.5; pdf.setTextColor(0,0,0); }
+        else yc+=2;
+      });
+    }
+    function subt3(t){
+      ensure(9); pdf.setFont(FONT,"bolditalic"); pdf.setFontSize(10.6); pdf.setTextColor(0,0,0);
+      pdf.splitTextToSize(t, cw).forEach(function(l){ ensure(5.2); pdf.text(l, mL, yc); yc+=5.2; });
+      yc+=1.2;
+    }
+    function tituloSec(tp){ tituloRom((tp.num ? tp.num+" – " : "")+tp.head); }
 
-    campo("Processo Administrativo", pf("par_processo"));
-    campo("SEI nº", pf("par_sei"));
-    campo("Interessado", pf("par_interessado"));
-    campo("Proprietária(o)", pf("par_prop"));
-    campo("Contato", pf("par_contato"));
-    campo("Imóvel", pf("par_imovel"));
-    campo("Município", pf("par_municipio"));
-    campo("Matrícula", pf("par_matricula"));
-    campo("Área total do imóvel", pf("par_area_total")?(pf("par_area_total")+" ha"):"");
-    campo("Área total a ser desapropriada", pf("par_area_desap")?(pf("par_area_desap")+" ha"):"");
-    campo("CCIR", pf("par_ccir"));
-    campo("NIRF", pf("par_nirf"));
-    yc+=2;
-    (function(){
+    function identificacao(){
+      campo("Processo Administrativo", pf("par_processo"));
+      campo("SEI nº", pf("par_sei"));
+      campo("Interessado", pf("par_interessado"));
+      campo("Proprietária(o)", pf("par_prop"));
+      campo("Contato", pf("par_contato"));
+      campo("Imóvel", pf("par_imovel"));
+      campo("Município", pf("par_municipio"));
+      campo("Matrícula", pf("par_matricula"));
+      campo("Área total do imóvel", pf("par_area_total")?(pf("par_area_total")+" ha"):"");
+      campo("Área total a ser desapropriada", pf("par_area_desap")?(pf("par_area_desap")+" ha"):"");
+      campo("CCIR", pf("par_ccir"));
+      campo("NIRF", pf("par_nirf"));
+      yc+=2;
       // Áreas de Locação — identificadas igual à capa: uma por linha, "ÁREA N: KM x ao KM y (Tipo)"
       var areasLoc=(window.REL_getAreas?window.REL_getAreas():[]).map(function(a){
         if(!a) return "";
@@ -25737,10 +25818,9 @@ window.UFOTO_rodapeHTML=rodapeHTML;
         ensure(8); pdf.setFont(FONT,"bold"); pdf.setFontSize(10.5); pdf.setTextColor(0,0,0);
         pdf.text("Área: "+pf("par_area_km"), W/2, yc, {align:"center"}); yc+=10;
       }
-    })();
+    }
 
-    tituloRom("I – Relatório");
-    (function(){
+    function textoRelatorio(){
       var rel=pf("par_relatorio")||"";
       // rede de segurança p/ textos já gerados: tira o SEI repetido "<nº>** (SEI nº **<mesmo nº>**)"
       rel=rel.replace(/([0-9][0-9.\/-]{5,}[0-9])(\*\*)?\s*\(SEI\s*n[ºo°]:?\s*(?:\*\*)?\1(?:\*\*)?\s*\)/gi, "$1$2");
@@ -25767,40 +25847,53 @@ window.UFOTO_rodapeHTML=rodapeHTML;
         }
       }
       parRica(rel);
-    })();
+    }
 
-    novaPaginaForcada();
-    tituloRom("II – Fundamentação Legal");
-    parRica(pf("par_fundamentacao"));
+    function fechoAssinatura(){
+      // "É o parecer, salvo melhor juízo." + data + assinatura: sempre juntos, na mesma página
+      ensure(46);
+      pdf.setFont(FONT,"normal"); pdf.setFontSize(11); pdf.setTextColor(0,0,0);
+      pdf.text("É o parecer, salvo melhor juízo.", mL, yc);
+      var dataTxt=computeParData();
+      if(dataTxt){ pdf.setFont(FONT,"italic"); pdf.setFontSize(10.5); pdf.text(dataTxt, W-mR, yc, {align:"right"}); }
+      yc+=26;
 
-    tituloRom("III – Análise Técnica e Jurídica");
-    subt("Titularidade e Registro do Imóvel"); parRica(pf("par_titularidade"));
-    subt("Objetivo da Desapropriação"); parRica(pf("par_objetivo"));
-    subt("Levantamento de Campo e Contato com o Representante"); parRica(pf("par_levantamento"));
-    subt("Regularidade e Viabilidade da Desapropriação"); parRica(pf("par_regularidade"));
-    subt("Check List Documental do Expropriado");
-    CHECKLIST_TABS.forEach(function(tab,n){ desenharChecklist(tab.titulo, tabelasPAR[n]||[]); });
-    if(pf("par_analise_doc")){ subt("Análise Documental"); parRica(pf("par_analise_doc")); }
-    subt("Impeditivos para Levantamento da Indenização em Processos Judiciais");
-    parRica(pf("par_impeditivos"));
+      pdf.setFont(FONT,"normal"); pdf.setFontSize(11); pdf.setTextColor(0,0,0);
+      pdf.text("Sávio Túlio Saraiva", W/2, yc, {align:"center"}); yc+=5.5;
+      pdf.setFont(FONT,"bold"); pdf.setFontSize(10.5);
+      pdf.text("Analista de Regularização Fundiária", W/2, yc, {align:"center"});
+    }
 
-    novaPaginaForcada();
-    tituloRom("IV – Conclusão");
-    parRica(pf("par_conclusao"));
-    desenharPendencias(listaPendenciasAtual());
+    // ---------- Corpo ----------
+    yc=0; cab(); yc=topY;
+    pdf.setFont(FONT,"bold"); pdf.setFontSize(15); pdf.setTextColor(20,40,70);
+    var titLs=pdf.splitTextToSize("PARECER PARA REGULARIZAÇÃO FUNDIÁRIA E DOCUMENTAL", cw);
+    titLs.forEach(function(l){ ensure(8); pdf.text(l, W/2, yc, {align:"center"}); yc+=7; });
+    yc+=4;
 
-    // "É o parecer, salvo melhor juízo." + data + assinatura: sempre juntos, na mesma página
-    ensure(46);
-    pdf.setFont(FONT,"normal"); pdf.setFontSize(11); pdf.setTextColor(0,0,0);
-    pdf.text("É o parecer, salvo melhor juízo.", mL, yc);
-    var dataTxt=computeParData();
-    if(dataTxt){ pdf.setFont(FONT,"italic"); pdf.setFontSize(10.5); pdf.text(dataTxt, W-mR, yc, {align:"right"}); }
-    yc+=26;
-
-    pdf.setFont(FONT,"normal"); pdf.setFontSize(11); pdf.setTextColor(0,0,0);
-    pdf.text("Sávio Túlio Saraiva", W/2, yc, {align:"center"}); yc+=5.5;
-    pdf.setFont(FONT,"bold"); pdf.setFontSize(10.5);
-    pdf.text("Analista de Regularização Fundiária", W/2, yc, {align:"center"});
+    EST.topicos.forEach(function(tp){
+      if(tp.oculto) return;                       // "Ocultar" no modo Conteúdo: fora do PDF
+      var id=tp.id;
+      if(tp.pagina) novaPaginaForcada();          // II e IV abrem página própria
+      if(tp.extra){                               // seção / subseção / subtítulo criados no modo Conteúdo
+        if(tp.lv===1) tituloSec(tp); else if(tp.lv===2) subt(tp.head); else subt3(tp.head);
+        parRica(tp.txt); imagens(id); return;
+      }
+      if(id==="ident"){ identificacao(); imagens(id); }
+      else if(id==="par_relatorio"){ tituloSec(tp); textoRelatorio(); imagens(id); }
+      else if(id==="par_fundamentacao"){ tituloSec(tp); parRica(pf(id)); imagens(id); }
+      else if(id==="sec3"){ tituloSec(tp); imagens(id); }
+      else if(id==="checklist"){
+        subt(tp.head);
+        CHECKLIST_TABS.forEach(function(tab,n){ desenharChecklist(tab.titulo, tabelasPAR[n]||[]); });
+        imagens(id);
+      }
+      else if(id==="par_analise_doc"){ if(pf(id) || imgsDe(id).length){ subt(tp.head); parRica(pf(id)); imagens(id); } }
+      else if(id==="par_conclusao"){ tituloSec(tp); parRica(pf(id)); imagens(id); }
+      else if(id==="pendencias"){ desenharPendencias(listaPendenciasAtual(), tp.head); imagens(id); }
+      else if(id==="fecho"){ imagens(id); fechoAssinatura(); }
+      else { subt(tp.head); parRica(pf(id)); imagens(id); }   // titularidade, objetivo, levantamento, regularidade, impeditivos
+    });
 
     rod();
     var blob=pdf.output("blob");
@@ -25822,6 +25915,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     return out;
   }
   function PAR_coletarDadosDESP1(){
+    try{ if(window.PARDOC_flush) window.PARDOC_flush(); }catch(e){}
     var campos={};
     document.querySelectorAll('#panel-desp1-vist [id], #panel-desp1-rel [id], #panel-desp1-parecer [id]').forEach(function(el){
       var tag=el.tagName;
@@ -25912,10 +26006,10 @@ window.UFOTO_rodapeHTML=rodapeHTML;
      bloco: id do pedaço de HTML emprestado;  sem bloco: a .rtf-wrap do campo de mesmo id;
      auto:  qual texto o PAR_gerarTexto regera;  secao: só o título, sem corpo. */
   var TOPICOS=[
-    { id:"ident", lv:1, num:"", head:"Identificação do processo", bloco:"par_card_id",
+    { id:"ident", lv:1, num:"", semNum:true, semTitulo:true, head:"Identificação do processo", bloco:"par_card_id",
       nota:"Cabeçalho do parecer. Quase tudo vem da Ficha de Vistoria e do Relatório Técnico; o que não vier pode ser escrito aqui." },
     { id:"par_relatorio",     lv:1, num:"I",   head:"Relatório", auto:"relatorio" },
-    { id:"par_fundamentacao", lv:1, num:"II",  head:"Fundamentação Legal", auto:"fundamentacao" },
+    { id:"par_fundamentacao", lv:1, num:"II",  head:"Fundamentação Legal", auto:"fundamentacao", pagina:true },
     { id:"sec3",              lv:1, num:"III", head:"Análise Técnica e Jurídica", secao:true },
     { id:"par_titularidade",  lv:2, head:"Titularidade e Registro do Imóvel", auto:"titularidade" },
     { id:"par_objetivo",      lv:2, head:"Objetivo da Desapropriação", auto:"objetivo" },
@@ -25924,9 +26018,9 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     { id:"checklist",         lv:2, head:"Check List Documental do Expropriado", bloco:"par_bloco_checklist" },
     { id:"par_analise_doc",   lv:2, head:"Análise Documental" },
     { id:"par_impeditivos",   lv:2, head:"Impeditivos para Levantamento da Indenização em Processos Judiciais" },
-    { id:"par_conclusao",     lv:1, num:"IV",  head:"Conclusão", auto:"conclusao" },
+    { id:"par_conclusao",     lv:1, num:"IV",  head:"Conclusão", auto:"conclusao", pagina:true },
     { id:"pendencias",        lv:2, head:"Pendências identificadas", bloco:"par_bloco_pend" },
-    { id:"fecho",             lv:2, head:"Fecho, data e assinatura", bloco:"par_bloco_fecho" }
+    { id:"fecho",             lv:2, semTitulo:true, head:"Fecho, data e assinatura", bloco:"par_bloco_fecho" }
   ];
 
   /* ---- empréstimo dos blocos: guarda de onde saiu para devolver no lugar exato ---- */
@@ -25954,43 +26048,148 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     var t=$(tp.id); return !(t && String(t.value||"").replace(/\s/g,""));
   }
 
+  /* ===================================================================
+     EDIÇÃO DO DOCUMENTO — mesmas opções da DESP-2 (05/10/2026)
+     Títulos editáveis, ocultar/incluir tópico, seções/subseções/subtítulos
+     novos (com mover, nível e excluir), imagens com legenda e fonte, e os
+     estilos de parágrafo (marcador, seta, romano, citação, alínea).
+     Tudo mora no campo oculto #par_doc (JSON) — por isso viaja no cadastro
+     — e o PAR_gerarPDF lê o resultado por PARDOC_estado().
+     =================================================================== */
+  var _str=null, _obj=null, _tm=0, _escrevendo=false;
+  function romano(n){ return (window.RTF && window.RTF.romano) ? window.RTF.romano(n) : String(n); }
+  function S(){
+    var el=$("par_doc"), v=el?String(el.value||""):"";
+    if(_obj && v===_str) return _obj;
+    var o=null; try{ o=v?JSON.parse(v):null; }catch(e){}
+    if(!o || typeof o!=="object") o={};
+    _obj={
+      heads:Object.assign({}, o.heads||{}),
+      hide:Object.assign({}, o.hide||{}),
+      extras:(Array.isArray(o.extras)?o.extras:[]).filter(function(x){ return x && x.id; })
+        .map(function(x){ return {id:x.id, after:x.after, level:x.level||2, head:x.head||"", txt:x.txt||""}; }),
+      imgs:(Array.isArray(o.imgs)?o.imgs:[]).filter(function(x){ return x && x.src; })
+        .map(function(x){ return {id:x.id, topico:x.topico, src:x.src, leg:x.leg||"", fonte:x.fonte||""}; })
+    };
+    _str=v; return _obj;
+  }
+  function gravar(){
+    clearTimeout(_tm); _tm=0;
+    var el=$("par_doc"); if(!el || !_obj) return;
+    var vazioS=!Object.keys(_obj.heads).length && !Object.keys(_obj.hide).length && !_obj.extras.length && !_obj.imgs.length;
+    var s=vazioS ? "" : JSON.stringify({heads:_obj.heads, hide:_obj.hide, extras:_obj.extras, imgs:_obj.imgs});
+    _str=s; el.value=s; _escrevendo=true;
+    try{ el.dispatchEvent(new Event("input",{bubbles:true})); }finally{ _escrevendo=false; }
+    try{ if(window.CAD_marcarSujo) window.CAD_marcarSujo(); }catch(e){}
+  }
+  function salvar(imediato){ S(); if(imediato){ gravar(); } else { clearTimeout(_tm); _tm=setTimeout(gravar,300); } }
+  window.PARDOC_flush=function(){ if(_tm) gravar(); };
+  // cadastro aberto/limpo (restaurarCampos / _resetCamposCadastro mexem no campo por fora): relê e redesenha
+  document.addEventListener("input", function(ev){
+    var t=ev.target; if(!t || t.id!=="par_doc" || _escrevendo) return;
+    _obj=null; if(visivel()) render();
+  }, true);
+
+  function extraDe(id){ var s=S(); for(var i=0;i<s.extras.length;i++){ if(s.extras[i].id===id) return s.extras[i]; } return null; }
+  function baseDe(id){ for(var i=0;i<TOPICOS.length;i++){ if(TOPICOS[i].id===id) return TOPICOS[i]; } return null; }
+  function imgDe(id){ var s=S(); for(var i=0;i<s.imgs.length;i++){ if(s.imgs[i].id===id) return s.imgs[i]; } return null; }
+
+  // ordem final do documento: tópicos do modelo + os novos logo abaixo do tópico escolhido; seções (nível 1) renumeradas em romanos
+  function listaTopicos(){
+    var s=S(), out=[], vistos={};
+    function mk(x){ return {id:x.id, lv:x.level||2, num:"", head:x.head||"", txt:x.txt||"", extra:true}; }
+    function apos(a){ s.extras.forEach(function(x){ if(x.after===a && !vistos[x.id]){ vistos[x.id]=1; out.push(mk(x)); apos(x.id); } }); }
+    TOPICOS.forEach(function(tp){ var c=Object.assign({}, tp); if(s.heads[tp.id]) c.head=s.heads[tp.id]; out.push(c); apos(tp.id); });
+    s.extras.forEach(function(x){ if(!vistos[x.id]){ vistos[x.id]=1; out.push(mk(x)); apos(x.id); } });
+    var n=0;
+    out.forEach(function(t){
+      t.oculto=!!s.hide[t.id];
+      if(t.oculto){ t.num=""; return; }
+      if(t.lv===1 && !t.semNum){ n++; t.num=romano(n); } else t.num="";
+    });
+    return out;
+  }
+  window.PARDOC_estado=function(){ var s=S(); return { topicos:listaTopicos(), imgs:s.imgs }; };
+
   /* ---- sumário e documento ---- */
-  function navHtml(){
-    return TOPICOS.map(function(tp){
-      var mk = tp.auto ? '<i class="m-manual" title="texto gerado automaticamente"></i>'
-             : ((tp.bloco||tp.secao) ? '' : '<i class="m-extra" title="escrito à mão"></i>');
-      return '<a href="#" class="nv lv'+tp.lv+(vazio(tp)?' is-oculto':'')+'" data-ir="'+tp.id+'">'
-        +'<span class="nv-n">'+esc(tp.num||(tp.lv===2?"\·":""))+'</span>'
-        +'<span class="nv-t">'+esc(tp.head)+'</span>'+mk+'</a>';
+  function ddBtn(act,txt,title,extra){ return '<button type="button" class="dd-b" data-act="'+act+'"'+(title?' title="'+esc(title)+'"':'')+(extra||'')+'>'+txt+'</button>'; }
+  function navHtml(lista){
+    return lista.map(function(tp){
+      var mk = tp.extra ? '<i class="m-extra" title="tópico novo"></i>'
+             : (tp.auto ? '<i class="m-manual" title="texto gerado automaticamente"></i>'
+             : ((tp.bloco||tp.secao) ? '' : '<i class="m-extra" title="escrito à mão"></i>'));
+      var vz = tp.oculto || (!tp.extra && vazio(tp));
+      var num = tp.oculto ? "–" : (tp.num || (tp.lv>=2 ? "·" : ""));
+      return '<a href="#" class="nv lv'+tp.lv+(vz?' is-oculto':'')+'" data-ir="'+tp.id+'">'
+        +'<span class="nv-n">'+esc(num)+'</span>'
+        +'<span class="nv-t">'+esc(tp.head||"(sem título)")+'</span>'+mk+'</a>';
     }).join("");
   }
-  function secHtml(tp){
-    var acts = tp.auto
-      ? '<span class="dd-acts"><button type="button" class="dd-b" data-auto="'+tp.auto+'" title="Descarta o que está escrito aqui e volta ao texto gerado a partir dos dados">\↻ Texto automático</button></span>'
-      : '';
-    var manual = tp.auto && window.PAR_ehManual && window.PAR_ehManual(tp.auto);
-    return '<section class="dd-top lv'+tp.lv+(tp.auto?' is-auto':'')+(manual?' is-manual':'')+'" id="pardd_'+tp.id+'" data-id="'+tp.id+'">'
-      +'<div class="dd-head"><span class="dd-num">'+esc(tp.num||"")+'</span>'
-      +'<span class="dd-tit">'+esc(tp.head)+'</span>'
-      +(tp.auto?'<span class="dd-tags"><span class="dd-tag t-auto">automático</span><span class="dd-tag t-manual">editado à mão</span></span>':'')
-      +acts+'</div>'
-      +(tp.nota?'<p class="dd-nota">'+esc(tp.nota)+'</p>':'')
-      +'<div class="dd-corpo"></div></section>';
+  function imgsHtml(topico){
+    return S().imgs.filter(function(x){ return x.topico===topico; }).map(function(x){
+      var id=esc(x.id);
+      return '<figure class="dd-fig dd-img" data-img="'+id+'">'
+        +'<img src="'+x.src+'" alt="">'
+        +'<div class="dd-fig-acts">'
+          +'<label class="dd-b">Trocar imagem<input type="file" accept="image/*" class="dd-imgin" data-img="'+id+'" style="display:none"></label>'
+          +ddBtn('imgup','↑','Mover a imagem para cima',' data-img="'+id+'"')+ddBtn('imgdown','↓','Mover a imagem para baixo',' data-img="'+id+'"')
+          +ddBtn('imgrm','🗑 Remover','Tira esta imagem do parecer',' data-img="'+id+'"')
+        +'</div>'
+        +'<figcaption><span class="dd-cap" contenteditable="true" spellcheck="true" data-imgcap="leg" data-img="'+id+'" data-ph="Legenda — ex.: Figura 1 – Vista da faixa de domínio">'+esc(x.leg)+'</span>'
+        +'<span class="dd-fonte">Fonte: <span class="dd-cap" contenteditable="true" data-imgcap="fonte" data-img="'+id+'" data-ph="Autor, 2026">'+esc(x.fonte)+'</span></span></figcaption>'
+        +'</figure>';
+    }).join('');
   }
-  function render(){
+  function secHtml(tp){
+    var id=tp.id, ex=!!tp.extra;
+    var manual = tp.auto && window.PAR_ehManual && window.PAR_ehManual(tp.auto);
+    var cls='dd-top lv'+tp.lv+(tp.auto?' is-auto':'')+(manual?' is-manual':'')+(ex?' is-extra':'')+(tp.oculto?' is-oculto':'');
+    var acts='';
+    if(tp.auto) acts+='<button type="button" class="dd-b" data-auto="'+tp.auto+'" title="Descarta o que está escrito aqui e volta ao texto gerado a partir dos dados">↻ Texto automático</button>';
+    acts+=ddBtn('addimg','🖼 + Imagem','Insere uma imagem com legenda no fim deste tópico')
+        +ddBtn('add','+ Inserir abaixo','Novo tópico, subtópico ou subtítulo logo abaixo deste');
+    if(ex) acts+=ddBtn('up','↑','Mover para cima')+ddBtn('down','↓','Mover para baixo')+ddBtn('nivel','Nível','Alterna Seção / Subseção / Subtítulo')+ddBtn('del','🗑','Excluir este tópico');
+    else acts+=ddBtn(tp.oculto?'show':'hide', tp.oculto?'👁 Incluir no parecer':'Ocultar', 'Tira/põe este tópico no PDF');
+    var menu='<div class="dd-menu" hidden><span>Inserir abaixo:</span>'
+      +ddBtn('addx','Seção <small>(I, II…)</small>','',' data-lv="1"')+ddBtn('addx','Subseção','',' data-lv="2"')+ddBtn('addx','Subtítulo','',' data-lv="3"')+'</div>';
+    var editavel = !tp.semTitulo;
+    var corpo = ex
+      ? '<div class="rtf-box" contenteditable="true" spellcheck="true" data-x="'+id+'" data-ph="Clique para escrever o texto deste tópico…"></div>'
+      : '<div class="pd-slot"></div>';
+    return '<section class="'+cls+'" id="pardd_'+id+'" data-id="'+id+'">'
+      +'<div class="dd-head"><span class="dd-num">'+esc(tp.oculto?"—":(tp.num||""))+'</span>'
+      +'<span class="dd-tit"'+(editavel?' contenteditable="true" spellcheck="true"':'')+' data-id="'+id+'">'+esc(tp.head)+'</span>'
+      +'<span class="dd-tags"><span class="dd-tag t-auto">automático</span><span class="dd-tag t-manual">editado à mão</span><span class="dd-tag t-extra">novo</span><span class="dd-tag t-oculto">fora do parecer</span></span>'
+      +'<span class="dd-acts">'+acts+'</span></div>'+menu
+      +(tp.nota?'<p class="dd-nota">'+esc(tp.nota)+'</p>':'')
+      +'<div class="dd-corpo">'+corpo+'<div class="pd-imgs">'+imgsHtml(id)+'</div></div></section>';
+  }
+  function marcarVazio(b){ b.setAttribute("data-empty", b.textContent.replace(/\s/g,"")==="" ? "1" : "0"); }
+  function render(foco){
     if(!$("pardoc")) return;
+    var y=window.scrollY;
     devolver();                                   // devolve antes de refazer o HTML, senão some
     var nav=$("pardoc_nav"), main=$("pardoc_main"); if(!nav||!main) return;
-    nav.innerHTML=navHtml();
-    main.innerHTML=TOPICOS.map(secHtml).join("");
-    TOPICOS.forEach(function(tp){
-      emprestar(corpoDe(tp), main.querySelector('#pardd_'+tp.id+' > .dd-corpo'));
+    var lista=listaTopicos();
+    nav.innerHTML=navHtml(lista);
+    main.innerHTML=lista.map(secHtml).join("");
+    lista.forEach(function(tp){
+      if(tp.extra){
+        var b=main.querySelector('#pardd_'+tp.id+' .rtf-box[data-x]');
+        if(b && window.RTF){ b.innerHTML=window.RTF.mdToHtml(tp.txt); window.RTF.norm(b); marcarVazio(b); }
+      } else emprestar(corpoDe(tp), main.querySelector('#pardd_'+tp.id+' .pd-slot'));
     });
     if(window.RTF && window.RTF.refreshAll) window.RTF.refreshAll();
+    window.scrollTo(0,y);
+    if(foco){
+      var t=main.querySelector('.dd-tit[data-id="'+foco+'"]');
+      if(t){ t.scrollIntoView({block:"center"}); t.focus(); try{ var r=document.createRange(); r.selectNodeContents(t); var s=getSelection(); s.removeAllRanges(); s.addRange(r); }catch(e){} }
+    }
   }
   window.PARDOC_render=render;
   function visivel(){ var b=$("pardoc"); return !!(b && b.style.display!=="none"); }
   window.PARDOC_renderSeVisivel=function(){ if(visivel()) render(); };
+  function navAtualizar(){ var n=$("pardoc_nav"); if(n) n.innerHTML=navHtml(listaTopicos()); }
 
   window.PARDOC_modo=function(m){
     var doc=(m!=="form");
@@ -26004,17 +26203,17 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     if(sw) sw.querySelectorAll("button").forEach(function(b){ b.classList.toggle("on",(b.getAttribute("data-m")==="doc")===doc); });
   };
 
-  /* ---- barra: negrito e marcador agem no campo onde o cursor está ---- */
+  /* ---- barra: negrito, estilos de parágrafo e imagem agem na caixa onde o cursor está ---- */
   var ultimo=null;
   document.addEventListener("focusin", function(ev){
     var t=ev.target; if(!t || !t.closest) return;
     var b=t.closest("#pardoc .rtf-box");
-    if(b && b.id.indexOf("rtf_")===0) ultimo=b.id.slice(4);
+    if(b) ultimo=b;
   });
-  function campoAtual(){
+  function caixaAtual(){
     var a=document.activeElement;
-    if(a && a.closest){ var b=a.closest("#pardoc .rtf-box"); if(b && b.id.indexOf("rtf_")===0) return b.id.slice(4); }
-    return ultimo;
+    if(a && a.closest){ var b=a.closest("#pardoc .rtf-box"); if(b) return b; }
+    return (ultimo && ultimo.isConnected && ultimo.closest("#pardoc")) ? ultimo : null;
   }
   function dica(txt){
     var d=$("pardoc_dica"); if(!d) return;
@@ -26024,32 +26223,213 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     d.textContent=txt; d.style.color="#b03a2e";
     d._t=setTimeout(function(){ d.textContent=antes; d.style.color=""; }, 3500);
   }
-  window.PARDOC_negrito=function(){
-    var id=campoAtual();
-    if(!id){ dica("Clique dentro do texto e selecione o trecho antes de usar o negrito."); return; }
-    if(window.RTF) window.RTF.bold(id);
-  };
-  window.PARDOC_marcador=function(){
-    var id=campoAtual();
-    if(!id){ dica("Clique dentro do texto, na linha que deve virar item."); return; }
-    var cx=$("rtf_"+id); if(!cx) return;
-    var s=getSelection(); if(!s.rangeCount){ cx.focus(); return; }
-    var n=s.getRangeAt(0).startContainer; if(n.nodeType!==1) n=n.parentNode;
-    while(n && n.parentNode && n.parentNode!==cx) n=n.parentNode;
-    if(!n || n.parentNode!==cx || n.nodeType!==1){ dica("Clique dentro do texto, na linha que deve virar item."); return; }
-    var cls=n.className||"";
-    if(cls.indexOf("rtf-li")>=0){
-      n.className=cls.replace(/\brtf-li\b/,"").trim();
-      var f=n.firstChild;                                       // tira só o marcador inicial, sem mexer nos negritos
-      while(f && f.nodeType===3 && /^\s*$/.test(f.nodeValue)) f=f.nextSibling;
-      if(f && f.nodeType===3) f.nodeValue=f.nodeValue.replace(/^[\u2022\u2023\u25E6]\s*/,"");
-    } else {
-      n.className=(cls+" rtf-li").trim();
-      if(!/^[\u2022\u2023\u25E6]\s/.test(n.textContent)) n.insertBefore(document.createTextNode("\u2022 "), n.firstChild);
+  // grava o que está na caixa: campo do formulário (RTF) ou texto do tópico novo
+  function salvarCaixa(b){
+    if(b.id && b.id.indexOf("rtf_")===0){ if(window.RTF) window.RTF.sync(b.id.slice(4)); return; }
+    var id=b.getAttribute("data-x"), x=id?extraDe(id):null;
+    if(x && window.RTF){ window.RTF.norm(b); x.txt=window.RTF.htmlToMd(b); marcarVazio(b); salvar(); }
+  }
+  // cada linha vira um bloco (div); texto solto entra num bloco
+  function blocos(b){
+    var soltos=[];
+    Array.prototype.slice.call(b.childNodes).forEach(function(n){
+      if(n.nodeType===1 && (n.tagName==="DIV"||n.tagName==="P")) return;
+      if(n.nodeType===3 && !n.nodeValue.trim()) return;
+      soltos.push(n);
+    });
+    if(soltos.length){ var d=document.createElement("div"); b.insertBefore(d,soltos[0]); soltos.forEach(function(n){ d.appendChild(n); }); }
+    if(!b.children.length) b.innerHTML="<div><br></div>";
+    return Array.prototype.slice.call(b.children);
+  }
+  function limparLinha(d){
+    if(/\brtf-li\b/.test(d.className||"")){
+      var f=d.firstChild; while(f && f.nodeType===3 && /^\s*$/.test(f.nodeValue)) f=f.nextSibling;
+      if(f && f.nodeType===3) f.nodeValue=f.nodeValue.replace(/^[•‣◦]\s*/,"");   // tira só o marcador, sem mexer nos negritos
     }
-    if(window.RTF) window.RTF.sync(id);
-    cx.focus();
+    d.removeAttribute("class"); d.removeAttribute("data-k"); d.removeAttribute("data-l"); d.removeAttribute("data-n");
+    if(!d.textContent.trim() && !d.querySelector("br")) d.innerHTML="<br>";
+  }
+  function aplicar(d,k){
+    limparLinha(d);
+    if(k==="b"){
+      d.className="rtf-li";
+      if(!/^[•‣◦]\s/.test(d.textContent)){
+        if(d.innerHTML==="<br>") d.innerHTML="";
+        d.insertBefore(document.createTextNode("• "), d.firstChild);
+      }
+    } else if(k==="A"||k==="R"||k==="C"||k==="L"){
+      d.className="dl"; d.setAttribute("data-k",k); if(k==="L") d.setAttribute("data-l","a");
+    }
+  }
+  function blocoAtual(b){
+    var s=getSelection(); if(!s.rangeCount) return null;
+    var n=s.getRangeAt(0).startContainer; if(n.nodeType!==1) n=n.parentNode;
+    while(n && n.parentNode!==b) n=n.parentNode;
+    return (n && n.parentNode===b && n.nodeType===1) ? n : null;
+  }
+  window.PARDOC_estilo=function(k){
+    var b=caixaAtual();
+    if(!b){ dica("Clique dentro do texto de um tópico antes de formatar."); return; }
+    if(k==="bold"){
+      b.focus();
+      try{ document.execCommand("styleWithCSS",false,false); document.execCommand("bold"); }catch(e){}
+      salvarCaixa(b); return;
+    }
+    var bl=blocos(b), s=getSelection(), r=s.rangeCount?s.getRangeAt(0):null;
+    var alvo=r ? bl.filter(function(d){ return r.intersectsNode(d); }) : [];
+    if(!alvo.length){ dica("Clique dentro do texto, na linha que deve mudar de estilo."); return; }
+    // marcador liga/desliga (como sempre foi); os demais estilos são trocados
+    if(k==="b" && alvo.every(function(d){ return /\brtf-li\b/.test(d.className||""); })) k="p";
+    alvo.forEach(function(d){ aplicar(d,k); });
+    if(window.RTF) window.RTF.norm(b);
+    salvarCaixa(b); b.focus();
   };
+  window.PARDOC_negrito=function(){ window.PARDOC_estilo("bold"); };
+  window.PARDOC_marcador=function(){ window.PARDOC_estilo("b"); };
+
+  /* ---- imagens ---- */
+  function lerImg(file){
+    return new Promise(function(ok,falha){
+      var fr=new FileReader();
+      fr.onload=function(){
+        var conv=window.D2_paraJpeg || function(u){ return window.AV_normalizarImagem ? window.AV_normalizarImagem(u,{maxLado:1600,q:.82}) : Promise.resolve(u); };
+        Promise.resolve(conv(fr.result)).then(function(u){ if(u) ok(u); else falha(new Error("formato")); }, falha);
+      };
+      fr.onerror=falha; fr.readAsDataURL(file);
+    });
+  }
+  function avisoFormato(){ alert("Não consegui ler esta imagem. Use JPG, PNG ou TIFF comum (sem camadas/compactação especial)."); }
+  function novaImg(topico){
+    var inp=document.createElement("input"); inp.type="file"; inp.accept="image/*"; inp.multiple=true;
+    inp.onchange=function(){
+      var fs=Array.prototype.slice.call(inp.files||[]); if(!fs.length) return;
+      Promise.all(fs.map(function(f){ return lerImg(f).catch(function(){ return null; }); })).then(function(srcs){
+        if(srcs.some(function(u){ return !u; })) avisoFormato();
+        var s=S(), ultimoX=null;
+        srcs.filter(Boolean).forEach(function(src){
+          ultimoX={id:"i_"+Date.now().toString(36)+Math.random().toString(36).slice(2,6), topico:topico, src:src, leg:"", fonte:"Autor, 2026"};
+          s.imgs.push(ultimoX);
+        });
+        if(!ultimoX) return;
+        salvar(true); render();
+        var c=document.querySelector('#pardoc [data-imgcap="leg"][data-img="'+ultimoX.id+'"]');
+        if(c){ c.scrollIntoView({block:"center"}); c.focus(); }
+      });
+    };
+    inp.click();
+  }
+  window.PARDOC_inserirImg=function(){
+    var n=document.activeElement && document.activeElement!==document.body ? document.activeElement : null;
+    var sec=n && n.closest ? n.closest("#pardoc .dd-top") : null;
+    if(!sec){ var b=caixaAtual(); sec=b?b.closest(".dd-top"):null; }
+    if(!sec){ dica("Clique primeiro dentro do tópico onde a imagem deve entrar (ou use “🖼 + Imagem” no próprio tópico)."); return; }
+    novaImg(sec.getAttribute("data-id"));
+  };
+
+  /* ---- tópicos novos ---- */
+  function novoExtra(depoisDe,lv){
+    var s=S();
+    var x={id:"x_"+Date.now().toString(36)+Math.random().toString(36).slice(2,5), after:depoisDe, level:lv, head:(lv===1?"Nova seção":lv===2?"Nova subseção":"Novo subtítulo"), txt:""};
+    var pos=-1; for(var i=0;i<s.extras.length;i++){ if(s.extras[i].after===depoisDe){ pos=i; break; } }
+    if(pos<0) s.extras.push(x); else s.extras.splice(pos,0,x);
+    salvar(true); render(x.id);
+  }
+  function moverExtra(id,dir){
+    var s=S(), x=extraDe(id); if(!x) return;
+    var irmaos=s.extras.filter(function(e){ return e.after===x.after; }), o=irmaos[irmaos.indexOf(x)+dir];
+    if(!o) return;
+    var a=s.extras.indexOf(x), b=s.extras.indexOf(o); s.extras[a]=o; s.extras[b]=x;
+    salvar(true); render();
+  }
+  function excluirExtra(id){
+    var s=S(), x=extraDe(id); if(!x) return;
+    var nImgs=s.imgs.filter(function(i){ return i.topico===id; }).length;
+    if(((x.txt||"").trim() || nImgs) && !confirm("Excluir o tópico “"+(x.head||"sem título")+"” e o conteúdo dele"+(nImgs?" (inclui "+nImgs+" imagem(ns))":"")+"?")) return;
+    s.extras.forEach(function(e){ if(e.after===id) e.after=x.after; });   // filhos sobem para o lugar dele
+    s.extras.splice(s.extras.indexOf(x),1);
+    s.imgs=s.imgs.filter(function(i){ return i.topico!==id; });
+    delete s.hide[id];
+    salvar(true); render();
+  }
+
+  /* ---- ligações do documento ---- */
+  function ligar(){
+    var box=$("pardoc"); if(!box || box.__ligado) return; box.__ligado=true;
+
+    box.addEventListener("input", function(e){
+      var t=e.target; if(!t || !t.closest) return;
+      var rb=t.closest(".rtf-box[data-x]");
+      if(rb){ salvarCaixa(rb); return; }
+      var cap=t.closest(".dd-cap[data-imgcap]");
+      if(cap){ var xi=imgDe(cap.getAttribute("data-img")); if(xi){ xi[cap.getAttribute("data-imgcap")]=cap.textContent.replace(/\s+/g," ").trim(); salvar(); } }
+    });
+    box.addEventListener("focusout", function(e){
+      var t=e.target; if(!t || !t.closest) return;
+      var tit=t.closest(".dd-tit[contenteditable]");
+      if(tit){
+        var id=tit.getAttribute("data-id"), v=tit.textContent.replace(/\s+/g," ").trim(), x=extraDe(id), s=S();
+        if(x){ x.head=v; }
+        else {
+          var b=baseDe(id);
+          if(!v || (b && v===b.head)){ delete s.heads[id]; if(!v && b) tit.textContent=b.head; }
+          else s.heads[id]=v;
+        }
+        salvar(true); navAtualizar(); return;
+      }
+      if(window.PARDOC_flush) window.PARDOC_flush();
+    });
+    box.addEventListener("keydown", function(e){
+      var t=e.target; if(!t || !t.closest) return;
+      if(t.closest(".dd-tit") || t.closest(".dd-cap")){ if(e.key==="Enter"){ e.preventDefault(); t.blur(); } return; }
+      var rb=t.closest(".rtf-box"); if(!rb) return;
+      if(!rb.id && (e.ctrlKey||e.metaKey) && (e.key==="b"||e.key==="B")){ e.preventDefault(); window.PARDOC_estilo("bold"); return; }
+      if(e.key==="Enter" && !e.shiftKey){
+        var d=blocoAtual(rb);
+        var estilada=d && (/\brtf-li\b/.test(d.className||"") || /^[RACL]$/.test(d.getAttribute("data-k")||""));
+        if(estilada && d.textContent.replace(/[•‣◦\s ]/g,"")===""){
+          e.preventDefault(); aplicar(d,"p"); if(window.RTF) window.RTF.norm(rb); salvarCaixa(rb);   // Enter em item vazio encerra a lista, como no Word
+        }
+      }
+    });
+    box.addEventListener("paste", function(e){
+      var t=e.target; if(!t || !t.closest) return;
+      if(!t.closest(".rtf-box[data-x], .dd-tit, .dd-cap")) return;
+      e.preventDefault();
+      var txt=(e.clipboardData||window.clipboardData).getData("text/plain")||"";
+      if(t.closest(".dd-tit, .dd-cap")) txt=txt.replace(/\s+/g," ");
+      document.execCommand("insertText",false,txt.replace(/\r/g,""));
+    });
+    box.addEventListener("change", function(e){
+      var inp=e.target;
+      if(inp.classList && inp.classList.contains("dd-imgin") && inp.files && inp.files[0]){
+        var xt=imgDe(inp.getAttribute("data-img"));
+        if(xt) lerImg(inp.files[0]).then(function(src){ xt.src=src; salvar(true); render(); }, avisoFormato);
+      }
+    });
+    box.addEventListener("click", function(e){
+      var b=e.target.closest && e.target.closest("[data-act]"); if(!b) return;
+      var act=b.getAttribute("data-act"), sec=b.closest(".dd-top"), id=sec?sec.getAttribute("data-id"):null, s=S();
+      if(act==="add"){ var mn=sec.querySelector(".dd-menu"); mn.hidden=!mn.hidden; return; }
+      if(act==="addimg"){ novaImg(id); return; }
+      if(act==="addx"){ novoExtra(id,+b.getAttribute("data-lv")); return; }
+      if(act==="hide"){ s.hide[id]=true; salvar(true); render(); return; }
+      if(act==="show"){ delete s.hide[id]; salvar(true); render(); return; }
+      if(act==="up"){ moverExtra(id,-1); return; }
+      if(act==="down"){ moverExtra(id,1); return; }
+      if(act==="nivel"){ var x=extraDe(id); if(x){ x.level=(x.level%3)+1; salvar(true); render(); } return; }
+      if(act==="del"){ excluirExtra(id); return; }
+      if(act==="imgup"||act==="imgdown"||act==="imgrm"){
+        var xm=imgDe(b.getAttribute("data-img")); if(!xm) return;
+        if(act==="imgrm"){ if(!confirm("Remover esta imagem do parecer?")) return; s.imgs.splice(s.imgs.indexOf(xm),1); }
+        else {
+          var irm=s.imgs.filter(function(z){ return z.topico===xm.topico; }), o=irm[irm.indexOf(xm)+(act==="imgup"?-1:1)];
+          if(!o) return;
+          var a1=s.imgs.indexOf(xm), b1=s.imgs.indexOf(o); s.imgs[a1]=o; s.imgs[b1]=xm;
+        }
+        salvar(true); render(); return;
+      }
+    });
+  }
 
   /* ---- cliques do sumário e do "voltar ao texto automático" ---- */
   document.addEventListener("click", function(ev){
@@ -26074,6 +26454,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
 
   function init(){
     if(!$("pardoc")) return;
+    ligar();
     var m="doc"; try{ m=localStorage.getItem("par_modo")||"doc"; }catch(e){}
     window.PARDOC_modo(m);
     // ao entrar na aba, o documento se põe em dia (os textos automáticos são refeitos antes)
