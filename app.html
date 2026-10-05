@@ -3066,6 +3066,10 @@ body.ativ-pesquisa, body.ativ-util{ overflow:hidden; }
     .pgm-dem-ajustes input[type=range]{ width:100%; margin:2px 0; accent-color:#00e5ff; }
     .pgm-dem-ajustes select{ width:100%; margin-top:3px; padding:4px 6px; border-radius:6px; border:1px solid #2a4a53; background:#12303a; color:#e8f1f3; font-size:12px; }
     .pgm-dem-box label.pgm-lin2{ font-weight:600; margin-top:6px; }
+    .pgm-base{ margin-bottom:7px; padding-bottom:7px; border-bottom:1px solid #23444d; }
+    .pgm-base .pgm-l{ display:flex; justify-content:space-between; color:#c8dde1; margin-top:4px; }
+    .pgm-base select{ width:100%; margin-top:3px; padding:4px 6px; border-radius:6px; border:1px solid #2a4a53; background:#12303a; color:#e8f1f3; font-size:12px; }
+    .pgm-base input[type=range]{ width:100%; margin:2px 0; accent-color:#00e5ff; }
     .pgm-int{ color:#9cb7bd; font-weight:500; font-size:11px; }
     .pgm-leg{ margin-top:7px; }
     .pgm-leg[hidden]{ display:none; }
@@ -3185,6 +3189,16 @@ body.ativ-pesquisa, body.ativ-util{ overflow:hidden; }
       <div class="pgm-mapa" id="pgmMapa"></div>
       <div class="pgm-cota" id="pgmCota" hidden>Passe o mouse no mapa para ver a cota</div>
       <div class="pgm-dem-box" id="pgmDemBox">
+        <div class="pgm-base">
+          <div class="pgm-l"><span>Imagem de fundo</span></div>
+          <select id="pgmBase" aria-label="Imagem de fundo do mapa">
+            <option value="esri">Satélite Esri</option>
+            <option value="google">Satélite Google Maps</option>
+            <option value="nenhum">Sem imagem</option>
+          </select>
+          <div class="pgm-l"><span>Transparência do satélite</span><b id="pgmSatOpV">0%</b></div>
+          <input type="range" id="pgmSatOp" min="0" max="90" value="0" aria-label="Transparência do satélite">
+        </div>
         <label class="pgm-lin"><input type="checkbox" id="pgmDemOn"> DEM (relevo)</label>
         <div class="pgm-dem-ajustes" id="pgmDemAj" hidden>
           <div class="pgm-l"><span>Transparência</span><b id="pgmDemOpV">40%</b></div>
@@ -3330,6 +3344,12 @@ body.ativ-pesquisa, body.ativ-util{ overflow:hidden; }
     <label class="pg-filtpop-all"><input type="checkbox" id="pgSelAllSei" checked onchange="PG_toggleTodos('sei',this.checked)"> Selecionar todos</label>
     <div class="pg-filtpop-list" id="pgListaSei"></div>
     <div class="pg-filtpop-actions"><button type="button" class="pg-btn pg-btn-primaria" onclick="PG_fecharFiltro('sei')">OK</button></div>
+  </div>
+  <div class="pg-filtpop" id="pgPopProprietario" hidden>
+    <div class="pg-filtpop-search"><input type="text" placeholder="Buscar…" oninput="PG_filtrarLista('proprietario',this.value)"></div>
+    <label class="pg-filtpop-all"><input type="checkbox" id="pgSelAllProprietario" checked onchange="PG_toggleTodos('proprietario',this.checked)"> Selecionar todos</label>
+    <div class="pg-filtpop-list" id="pgListaProprietario"></div>
+    <div class="pg-filtpop-actions"><button type="button" class="pg-btn pg-btn-primaria" onclick="PG_fecharFiltro('proprietario')">OK</button></div>
   </div>
   <div class="pg-filtpop" id="pgPopPosseiro" hidden>
     <div class="pg-filtpop-search"><input type="text" placeholder="Buscar…" oninput="PG_filtrarLista('posseiro',this.value)"></div>
@@ -3603,6 +3623,16 @@ body.modo-painel .pgx-barra{ flex:0 0 auto; }
 .pgx-resumo b{ color:#0a4d7c; font-weight:800; }
 /* filtros por coluna: ocultos até clicar em Filtros */
 .pg-tabela:not(.pgx-filtros-aberto) thead tr.pg-filtros{ display:none; }
+/* clicar no título: lista de opções (filtro) + ordenação dentro do popover — 05/10/2026 */
+.pg-tabela thead tr.pg-cabecalho th.pgx-filtravel::after{ content:" \25BE"; font-size:10px; color:#8a97a6; }
+.pg-tabela thead tr.pg-cabecalho th.pgx-filtravel.pgx-asc::after{ content:" \25B2\25BE"; color:#1F6FC0; }
+.pg-tabela thead tr.pg-cabecalho th.pgx-filtravel.pgx-desc::after{ content:" \25BC\25BE"; color:#1F6FC0; }
+.pg-tabela thead tr.pg-cabecalho th.pgx-filtrado{ color:#0a4d7c; box-shadow:inset 0 -3px 0 #1F6FC0; }
+.pg-tabela thead tr.pg-cabecalho th.pgx-filtrado::after{ color:#1F6FC0; }
+.pgx-ord{ display:flex; gap:6px; padding-bottom:8px; border-bottom:1px solid #eef2f6; }
+.pgx-ord button{ flex:1; font-weight:600; font-size:12px; line-height:1.2; font-family:inherit; border:1px solid #d3dce6; background:#fff; border-radius:6px; padding:5px 6px; cursor:pointer; color:#243447; }
+.pgx-ord button:hover{ background:#f1f6fb; }
+.pgx-ord button.on{ background:#eaf3fc; border-color:#1F6FC0; color:#0a4d7c; }
 /* ordenar clicando no título */
 .pg-tabela thead tr.pg-cabecalho th:not(.pg-col-resumo){ cursor:pointer; user-select:none; }
 .pg-tabela thead tr.pg-cabecalho th:not(.pg-col-resumo):hover{ color:#0a4d7c; }
@@ -13904,10 +13934,10 @@ function AV_gerarDescSituacao(){
 
   var _pgItens = [];
   var _pgTimer = null;
-  var _PG_CAMPOS = ['medicao','lote','sei','cad','posseiro','campo','social','tecnica','juridica','melhorias'];
+  var _PG_CAMPOS = ['medicao','lote','sei','cad','proprietario','posseiro','campo','social','tecnica','juridica','melhorias'];
   var _PG_STATUS_CAMPOS = ['campo','social','tecnica','juridica'];
-  var _PG_SUFIXOS = {medicao:'Medicao', lote:'Lote', sei:'Sei', cad:'Cad', posseiro:'Posseiro', campo:'Campo', social:'Social', tecnica:'Tecnica', juridica:'Juridica', melhorias:'Melhorias'};
-  var _pgSel = {medicao:null, lote:null, sei:null, cad:null, posseiro:null, campo:null, social:null, tecnica:null, juridica:null, melhorias:null}; // null = "todos" (sem filtro); senão Set com os valores marcados
+  var _PG_SUFIXOS = {medicao:'Medicao', lote:'Lote', sei:'Sei', cad:'Cad', proprietario:'Proprietario', posseiro:'Posseiro', campo:'Campo', social:'Social', tecnica:'Tecnica', juridica:'Juridica', melhorias:'Melhorias'};
+  var _pgSel = {medicao:null, lote:null, sei:null, cad:null, proprietario:null, posseiro:null, campo:null, social:null, tecnica:null, juridica:null, melhorias:null}; // null = "todos" (sem filtro); senão Set com os valores marcados
   var _pgCtxAlvo = null; // {ctd, secao} do cadastro clicado com o botão direito
 
   // Medição — coluna que só existe no Painel Geral (não é campo de cadastro e
@@ -13938,6 +13968,7 @@ function AV_gerarDescSituacao(){
       if (st.iniciado === undefined) return 'pendente';
       return st.iniciado ? 'pendente' : 'nao_iniciado';
     }
+    if (campo === 'proprietario') return it.proprietario ? nomeFmt(it.proprietario) : '__sem';
     return campo === 'lote' ? (it.lote||"") : ctdFmt(it.ctd);
   }
 
@@ -13980,6 +14011,7 @@ function AV_gerarDescSituacao(){
       if (v === '__nd') return '(sem dado — servidor desatualizado)';
       return v;
     }
+    if (campo === 'proprietario') return v === '__sem' ? '(sem proprietário)' : v;
     if (campo === 'lote') return loteFmt(v);
     if (campo === 'medicao') return v === PG_MEDICAO_VAZIO ? '(sem medição)' : v;
     if (_PG_STATUS_CAMPOS.indexOf(campo) >= 0){
@@ -14050,7 +14082,7 @@ function AV_gerarDescSituacao(){
     if (campo === 'medicao'){
       // ordem cronológica, não alfabética ("Ago/26" antes de "Set/26")
       opcoes.sort(function(a,b){ return PG_MEDICAO_OPCOES.indexOf(a) - PG_MEDICAO_OPCOES.indexOf(b); });
-    } else if (campo === 'posseiro' || campo === 'melhorias' || campo === 'sei'){
+    } else if (campo === 'posseiro' || campo === 'melhorias' || campo === 'sei' || campo === 'proprietario'){
       // "(sem …)" primeiro, depois alfabético; "Outras" por último nas melhorias
       var pos = function(v){ return v === '__sem' ? 0 : (v === '__nd' ? 1 : (v === PG_MELH_OUTRAS ? 9 : 5)); };
       opcoes.sort(function(a,b){ return (pos(a) - pos(b)) || String(a).localeCompare(String(b), "pt-BR"); });
@@ -14349,8 +14381,12 @@ function AV_gerarDescSituacao(){
     ths.forEach(function(th, i){
       var k = _PGX_COLS[i];
       if(!k || th.dataset.pgx) return;
-      th.dataset.pgx = '1'; th.title = 'Clique para ordenar';
-      th.addEventListener('click', function(){
+      var filtravel = _PG_CAMPOS.indexOf(k) >= 0;
+      th.dataset.pgx = '1';
+      th.title = filtravel ? 'Clique para filtrar (lista de opções) ou ordenar' : 'Clique para ordenar';
+      if(filtravel) th.classList.add('pgx-filtravel');
+      th.addEventListener('click', function(ev){
+        if(filtravel){ PGX_abrirFiltroTitulo(ev, th, k); return; }     // 05/10/2026: o título abre a lista de opções
         if(_pgxOrd.col === k){ if(_pgxOrd.dir === 1) _pgxOrd.dir = -1; else _pgxOrd.col = null; }
         else { _pgxOrd.col = k; _pgxOrd.dir = 1; }
         PG_renderizar();
@@ -14360,8 +14396,36 @@ function AV_gerarDescSituacao(){
       var k = _PGX_COLS[i];
       th.classList.toggle('pgx-asc', !!k && _pgxOrd.col === k && _pgxOrd.dir === 1);
       th.classList.toggle('pgx-desc', !!k && _pgxOrd.col === k && _pgxOrd.dir === -1);
+      th.classList.toggle('pgx-filtrado', !!k && _PG_CAMPOS.indexOf(k) >= 0 && !!_pgSel[k]);
     });
   }
+  // clique no título: abre o popover de filtro (lista de opções com busca) logo abaixo do próprio título
+  function PGX_abrirFiltroTitulo(ev, th, campo){
+    var pop = document.getElementById('pgPop' + _PG_SUFIXOS[campo]); if(!pop) return;
+    PG_toggleFiltro(ev, campo);                         // fecha os outros, monta a lista e abre/fecha este
+    if(pop.hidden) return;
+    PGX_barraOrdem(pop, campo);
+    var r = th.getBoundingClientRect(), w = pop.offsetWidth || 240;
+    pop.style.left = Math.max(6, Math.min(Math.round(r.left), window.innerWidth - w - 8)) + 'px';
+    pop.style.top = Math.round(r.bottom + 2) + 'px';
+    var bs = pop.querySelector('.pg-filtpop-search input');
+    if(bs){ bs.value = ''; PG_filtrarLista(campo, ''); try{ bs.focus(); }catch(e){} }
+  }
+  // ordenar sem perder o filtro: botões no topo do popover
+  function PGX_barraOrdem(pop, campo){
+    if(!pop) return;
+    var b = pop.querySelector('.pgx-ord');
+    if(!b){ b = document.createElement('div'); b.className = 'pgx-ord'; pop.insertBefore(b, pop.firstChild); }
+    var on = function(d){ return (_pgxOrd.col === campo && _pgxOrd.dir === d) ? ' on' : ''; };
+    b.innerHTML = '<button type="button" class="' + on(1).trim() + '" onclick="PGX_ordenar(\'' + campo + '\',1)" title="Ordem crescente (A→Z, menor→maior)">↑ Crescente</button>'
+      + '<button type="button" class="' + on(-1).trim() + '" onclick="PGX_ordenar(\'' + campo + '\',-1)" title="Ordem decrescente (Z→A, maior→menor)">↓ Decrescente</button>';
+  }
+  window.PGX_ordenar = function(campo, dir){
+    if(_pgxOrd.col === campo && _pgxOrd.dir === dir) _pgxOrd.col = null;       // clicar de novo tira a ordem
+    else { _pgxOrd.col = campo; _pgxOrd.dir = dir; }
+    PG_renderizar();
+    PGX_barraOrdem(document.getElementById('pgPop' + _PG_SUFIXOS[campo]), campo);
+  };
   // visões prontas
   var _PGX_PEND = ['pendente', 'nao_iniciado'];
   function PGX_listaVisoes(){
@@ -15151,9 +15215,33 @@ function AV_gerarDescSituacao(){
     }
     // base: satélite Esri
     var ok = 0, err = 0;
-    var sat = L.tileLayer(ESRI + 'World_Imagery/MapServer/tile/{z}/{y}/{x}', {maxNativeZoom:18, maxZoom:21, attribution:ATTR_ESRI, className:'tiles-sat'}).addTo(mapa);
-    sat.on('tileload', function(){ ok++; if(ok === 1) msg(''); });
-    sat.on('tileerror', function(){ err++; if(err > 6 && !ok) msg('Sem imagens de satélite: sem internet ou o servidor de mapas está bloqueado nesta rede. Os KMLs continuam desenhados.'); });
+    var satEsri = L.tileLayer(ESRI + 'World_Imagery/MapServer/tile/{z}/{y}/{x}', {maxNativeZoom:18, maxZoom:21, attribution:ATTR_ESRI, className:'tiles-sat'});
+    // Google Maps — satélite puro (lyrs=s; o híbrido seria lyrs=y)
+    var satGoogle = L.tileLayer('https://mt{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {subdomains:'0123', maxNativeZoom:20, maxZoom:21, attribution:'Imagens © Google', className:'tiles-sat'});
+    var baseAtiva = null, satOp = 1, baseSel = 'esri';
+    try{ var bs = localStorage.getItem('pgm_base'), so = localStorage.getItem('pgm_satTransp'); if(bs) baseSel = bs; if(so != null && so !== '') satOp = 1 - (+so)/100; }catch(e){}
+    function trocarBase(v){
+      baseSel = v;
+      if(baseAtiva){ mapa.removeLayer(baseAtiva); baseAtiva = null; }
+      var l = v === 'google' ? satGoogle : (v === 'nenhum' ? null : satEsri);
+      if(l){ l.setOpacity(satOp); l.addTo(mapa); l.bringToBack && l.bringToBack(); baseAtiva = l; }
+      try{ localStorage.setItem('pgm_base', v); }catch(e){}
+    }
+    [satEsri, satGoogle].forEach(function(l){
+      l.on('tileload', function(){ ok++; if(ok === 1) msg(''); });
+      l.on('tileerror', function(){ err++; if(err > 6 && !ok) msg('Sem imagens de satélite: sem internet ou o servidor de mapas está bloqueado nesta rede. Os KMLs continuam desenhados.'); });
+    });
+    var selB = $('pgmBase'), rngS = $('pgmSatOp');
+    if(selB){ if(!/^(esri|google|nenhum)$/.test(baseSel)) baseSel = 'esri'; selB.value = baseSel; selB.onchange = function(){ trocarBase(this.value); }; }
+    if(rngS){
+      rngS.value = Math.round((1 - satOp)*100); $('pgmSatOpV').textContent = rngS.value + '%';
+      rngS.oninput = function(){
+        satOp = 1 - (+this.value)/100; $('pgmSatOpV').textContent = this.value + '%';
+        satEsri.setOpacity(satOp); satGoogle.setOpacity(satOp);
+        try{ localStorage.setItem('pgm_satTransp', this.value); }catch(e){}
+      };
+    }
+    trocarBase(baseSel);
     ligarControlesDem();
     if(window.ResizeObserver){ new ResizeObserver(function(){ if(mapa) mapa.invalidateSize(); }).observe($('pgmMapa')); }
   }
@@ -16200,8 +16288,51 @@ function AV_gerarDescSituacao(){
 
   /* ---------------- estado ---------------- */
   var G = null;                 // geometria analisada
-  var ST = { inverter:false, inicio:0, area:0 };   // area = índice da poligonal ativa
+  var ST = { inverter:false, inicio:0, area:0, geral:false };   // area = índice da poligonal ativa; geral = planta com TODAS as poligonais
   var ANEIS = [];               // todas as poligonais do KML (maior primeiro)
+
+  /* ---- vários perímetros no mesmo cadastro (05/10/2026): planta geral + escala própria de cada um ---- __AJ0510__
+     escalas guardadas em extras().escalas = { geral:N, a0:N, a1:N… }. Formato antigo (extras().escala, uma só)
+     continua valendo para a Área 1. */
+  var _AC = { k:"", l:[] };
+  function aneisUtm(){
+    if(!G) return [];
+    var k = G.fuso + "|" + ANEIS.map(function(a){ return a.pts.length + "," + a.pts[0][0] + "," + a.pts[a.pts.length-1][1]; }).join(";");
+    if(_AC.k === k) return _AC.l;
+    var l = [];
+    ANEIS.forEach(function(a, idx){
+      var pts = a.pts.slice();
+      while(pts.length > 1 && Math.abs(pts[0][0]-pts[pts.length-1][0]) < 1e-9 && Math.abs(pts[0][1]-pts[pts.length-1][1]) < 1e-9) pts.pop();
+      if(pts.length < 3) return;
+      var uv = pts.map(function(p){ var u = utm(p[0], p[1], G.fuso); return { E:u.E, N:u.N }; });
+      var s2 = 0, per = 0, n = uv.length;
+      for(var i = 0; i < n; i++){ var j = (i+1)%n; s2 += uv[i].E*uv[j].N - uv[j].E*uv[i].N; per += Math.hypot(uv[j].E-uv[i].E, uv[j].N-uv[i].N); }
+      l.push({ i:idx, nome:a.nome || "", v:uv, area_m2:Math.abs(s2/2), perim:per });
+    });
+    _AC = { k:k, l:l }; return l;
+  }
+  function geralAtivo(){ return !!(ST.geral && ANEIS.length > 1 && G); }
+  function contornos(){ return geralAtivo() ? aneisUtm().map(function(a){ return a.v; }) : [G.v]; }
+  function limitesPlanta(){
+    var x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    contornos().forEach(function(c){ c.forEach(function(p){ if(p.E < x0) x0 = p.E; if(p.E > x1) x1 = p.E; if(p.N < y0) y0 = p.N; if(p.N > y1) y1 = p.N; }); });
+    return [x0, x1, y0, y1];
+  }
+  function somaAreasHa(){ return aneisUtm().reduce(function(s, a){ return s + a.area_m2; }, 0)/10000; }
+  function somaPerim(){ return aneisUtm().reduce(function(s, a){ return s + a.perim; }, 0); }
+  function escKey(){ return (ST.geral && ANEIS.length > 1) ? "geral" : "a" + ST.area; }
+  function escLer(){
+    var ex = extras(), o = ex.escalas, k = escKey();
+    if(o && typeof o === "object" && o[k] != null && o[k] !== "") return parseInt(o[k], 10) || 0;
+    if(k === "a0" && ex.escala) return parseInt(ex.escala, 10) || 0;
+    return 0;
+  }
+  function gravarEscala(v){
+    var ex = extras(), o = (ex.escalas && typeof ex.escalas === "object") ? Object.assign({}, ex.escalas) : {}, k = escKey();
+    if(v) o[k] = v; else delete o[k];
+    setExtra("escalas", o);
+    if(k === "a0") setExtra("escala", v || "");
+  }
   function extras(){            // campos do memorial/carimbo que NÃO vêm do cadastro
     var o = {};
     try{ o = JSON.parse(gv("mdp_extras") || "{}") || {}; }catch(e){}
@@ -16278,6 +16409,15 @@ function AV_gerarDescSituacao(){
     return idx;
   }
   function setConf(idx){ gravarConfBruto(confParaCoord(idx)); }
+  // 05/10/2026: a tabela chama os handlers com o número da linha E a chave (coordenadas) do trecho; se G girou
+  // (P01 reancorado) entre o desenho da tabela e o clique, a chave manda — nenhum dado cai em outro vértice
+  function idxPorChave(i, k){
+    if(!G || !k) return i;
+    var n = G.v.length;
+    if(i >= 0 && i < n && kSeg(G.v[i], G.v[(i+1)%n]) === k) return i;
+    for(var j = 0; j < n; j++) if(kSeg(G.v[j], G.v[(j+1)%n]) === k) return j;
+    return i;
+  }
   function gravarConfBruto(o){
     var r = confRaiz(), novo;
     if(ST.area){ r["area" + ST.area] = o; novo = r; }
@@ -16298,6 +16438,7 @@ function AV_gerarDescSituacao(){
     ANEIS = aneisDoKml(kml);
     if(!ANEIS.length){ G = null; return { erro:"Não encontrei um perímetro (Polygon/LinearRing/LineString) neste KML." }; }
     if(ST.area >= ANEIS.length) ST.area = 0;
+    if(ANEIS.length < 2) ST.geral = false;
     var anel = ANEIS[ST.area];
     var pts = anel.pts.slice();
     // fecha/abre: trabalha com a lista SEM repetir o primeiro no fim
@@ -16344,6 +16485,7 @@ function AV_gerarDescSituacao(){
       cx: cx, cy: cy, nomeKml: gv("rel_kml_nome"), rotuloAnel: anel.nome || ""
     };
     publicarArea();
+    if(TAB_P1 && TAB_P1 !== kPt(G.v[0])) setTimeout(function(){ if(G && TAB_P1 !== kPt(G.v[0])) renderTabela(); }, 0);
     return G;
   }
   // a área desapropriada passa a NASCER do KML: escreve em fb_area_desap (Técnica), que é de onde
@@ -16476,6 +16618,23 @@ function AV_gerarDescSituacao(){
     return true;
   }
   async function prepararP1(){ if(!G) analisar(); if(!G) return; await carregarContexto(); ancorarP1NoEixo(); }
+  /* Divisas CONSECUTIVAS com o mesmo confrontante formam um grupo. O perímetro é circular: se a primeira e a última
+     divisa têm o mesmo confrontante, são UM grupo só (05/10/2026 — o nome saía duas vezes).
+     Devolve [{ nome, segs:[índices dos trechos, em ordem de caminhamento] }]. */
+  function gruposConf(cs){
+    var n = G.segs.length, grupos = [], ult = null;
+    G.segs.forEach(function(s, i){
+      var nm = String((cs && cs[i]) || "").trim();
+      if(!nm){ ult = null; return; }
+      if(nm !== ult){ grupos.push({ nome:nm, segs:[i] }); ult = nm; }
+      else grupos[grupos.length-1].segs.push(i);
+    });
+    if(grupos.length > 1){
+      var a = grupos[0], z = grupos[grupos.length-1];
+      if(a.nome === z.nome && a.segs[0] === 0 && z.segs[z.segs.length-1] === n - 1){ grupos.pop(); a.segs = z.segs.concat(a.segs); }
+    }
+    return grupos;
+  }
   // limites por rumo: usa o azimute de cada segmento (a face olha 90° à direita do caminhamento horário)
   function limites(){
     var ex = extras();
@@ -16484,12 +16643,7 @@ function AV_gerarDescSituacao(){
     // agrupa TRECHOS CONTÍGUOS com o mesmo confrontante e usa a normal externa do grupo
     // (caminhamento horário → a face olha para az-90). Lado de ponta às vezes pede ajuste:
     // por isso os 4 campos são editáveis no painel e, preenchidos, mandam.
-    var cs = confrontantes(), grupos = [], ult = null;
-    G.segs.forEach(function(s, i){
-      var nm = cs[i] || "";
-      if(nm !== ult){ grupos.push({ nome:nm, segs:[s] }); ult = nm; }
-      else grupos[grupos.length-1].segs.push(s);
-    });
+    var cs = confrontantes(), grupos = gruposConf(cs).map(function(g){ return { nome:g.nome, segs:g.segs.map(function(i){ return G.segs[i]; }) }; });
     var peso = { N:{}, S:{}, L:{}, O:{} };
     grupos.forEach(function(g){
       if(!g.nome) return;
@@ -16977,11 +17131,9 @@ function AV_gerarDescSituacao(){
   var PAN = { x:0, y:0 };                                     // deslocamento manual da janela (mm na folha)
   function enquadrar(op){
     var mar = 1.12;                                          // folga
-    var bx0 = Math.min.apply(null, G.v.map(function(p){ return p.E; })), bx1 = Math.max.apply(null, G.v.map(function(p){ return p.E; }));
-    var by0 = Math.min.apply(null, G.v.map(function(p){ return p.N; })), by1 = Math.max.apply(null, G.v.map(function(p){ return p.N; }));
+    var bb = limitesPlanta(), bx0 = bb[0], bx1 = bb[1], by0 = bb[2], by1 = bb[3];
     var lg = (bx1-bx0)*mar, al = (by1-by0)*mar;
-    var ex = extras();
-    var esc = (op && op.escala) || (ex.escala ? parseInt(ex.escala,10) : 0);
+    var esc = (op && op.escala) || escLer();
     if(!esc){
       esc = ESCALAS.find(function(s){ return lg/(s/1000) <= MAPA.w - 6 && al/(s/1000) <= MAPA.h - 6; }) || 10000;
     }
@@ -17005,9 +17157,8 @@ function AV_gerarDescSituacao(){
      mapa-chave; as tabelas de coordenadas vão todas para as pranchas do fim. */
   function planoMapa(){
     if(!G) return null;
-    var xs = G.v.map(function(q){ return q.E; }), ys = G.v.map(function(q){ return q.N; });
-    var bx0 = Math.min.apply(null, xs), bx1 = Math.max.apply(null, xs), by0 = Math.min.apply(null, ys), by1 = Math.max.apply(null, ys);
-    var ex = extras(), esc = OPC.escala || (ex.escala ? parseInt(ex.escala, 10) : 0);
+    var bb = limitesPlanta(), bx0 = bb[0], bx1 = bb[1], by0 = bb[2], by1 = bb[3];
+    var esc = OPC.escala || escLer();
     function cabe(e){ return (bx1-bx0)*1.12/(e/1000) <= MAPA.w - 6 && (by1-by0)*1.12/(e/1000) <= MAPA.h - 6; }
     if(!esc) esc = ESCALAS.find(cabe) || ESCALAS[ESCALAS.length - 1];
     if(cabe(esc)) return { esc:esc, tiles:null };
@@ -17020,10 +17171,12 @@ function AV_gerarDescSituacao(){
     }
     // contorno em pontos (vértices + arestas amostradas): é o que cada quadro precisa cobrir
     var passo = Math.min(wm, hm)/50, pts = [];
-    for(var i = 0; i < G.v.length; i++){
-      var a = G.v[i], b = G.v[(i + 1) % G.v.length], L = Math.hypot(b.E - a.E, b.N - a.N), n = Math.max(1, Math.ceil(L/passo));
-      for(var j = 0; j < n; j++) pts.push({ E:a.E + (b.E - a.E)*j/n, N:a.N + (b.N - a.N)*j/n });
-    }
+    contornos().forEach(function(cv){
+      for(var i = 0; i < cv.length; i++){
+        var a = cv[i], b = cv[(i + 1) % cv.length], L = Math.hypot(b.E - a.E, b.N - a.N), n = Math.max(1, Math.ceil(L/passo));
+        for(var j = 0; j < n; j++) pts.push({ E:a.E + (b.E - a.E)*j/n, N:a.N + (b.N - a.N)*j/n });
+      }
+    });
     pts.forEach(function(q){ q.s = q.E*dir[0] + q.N*dir[1]; q.ok = false; });
     pts.sort(function(p, q){ return p.s - q.s; });
     // quadros em sequência: cada um nasce no primeiro ponto ainda sem cobertura (o de menor posição na direção
@@ -17373,9 +17526,9 @@ function AV_gerarDescSituacao(){
       var x0 = K[i].E, y0 = K[i].N, dx = K[i+1].E - x0, dy = K[i+1].N - y0, L2 = dx*dx + dy*dy; if(!L2) continue;
       var t = ((E - x0)*dx + (N - y0)*dy)/L2; if(t < -.6 || t > 1.6) continue;
       var px = x0 + t*dx, py = y0 + t*dy, d = Math.hypot(E - px, N - py);
-      if(!melhor || d < melhor.d) melhor = { d:d, ch:K[i].ch + t*100, off:((E - px)*(-dy) + (N - py)*dx)/Math.sqrt(L2) };
+      if(!melhor || d < melhor.d) melhor = { d:d, ch:K[i].ch + t*100, off:((E - px)*(-dy) + (N - py)*dx)/Math.sqrt(L2), px:px, py:py };
     }
-    return melhor ? { ch:melhor.ch, off:melhor.off } : null;
+    return melhor ? { ch:melhor.ch, off:melhor.off, px:melhor.px, py:melhor.py } : null;
   }
   function distPolilinha(pts, E, N){
     var m = Infinity;
@@ -17393,7 +17546,7 @@ function AV_gerarDescSituacao(){
       var r = kmEixo(K, p.E, p.N); if(!r) return { ch:null };
       var dFD = Infinity;
       if(fixo) fixo.limites.forEach(function(l){ var d = distPolilinha(l, p.E, p.N); if(d < dFD) dFD = d; });
-      return { ch:r.ch, off:r.off, dFD:dFD, noLim:dFD <= 1.2 };
+      return { ch:r.ch, off:r.off, dFD:dFD, noLim:dFD <= 1.2, px:r.px, py:r.py };
     });
     var ok = v.filter(function(x){ return x.ch != null; }); if(!ok.length) return null;
     var lim = ok.filter(function(x){ return x.noLim; }), base = lim.length ? lim : ok;
@@ -17409,6 +17562,16 @@ function AV_gerarDescSituacao(){
     if(eix.length){
       var a = eix.reduce(function(m, i){ return v[i].ch < v[m].ch ? i : m; }), b = eix.reduce(function(m, i){ return v[i].ch > v[m].ch ? i : m; });
       r.ini = v[a].ch; r.fim = v[b].ch; r.iIni = a; r.iFim = b; r.ext = r.fim - r.ini; r.txt = kmTxt(r.ini) + " ao " + kmTxt(r.fim); r.doEixo = true;
+    } else {
+      // 05/10/2026: o perímetro NÃO cruza o eixo (margeia a faixa de domínio — SPS-07, e o SPS-04 mais adiante).
+      // KM inicial/final = projeção PERPENDICULAR, no eixo, dos vértices extremos do perímetro inteiro
+      // (antes valiam só os vértices que tocam a faixa).
+      var a2 = -1, b2 = -1;
+      v.forEach(function(x, i){ if(x.ch == null) return; if(a2 < 0 || x.ch < v[a2].ch) a2 = i; if(b2 < 0 || x.ch > v[b2].ch) b2 = i; });
+      if(a2 >= 0 && b2 >= 0){
+        r.ini = v[a2].ch; r.fim = v[b2].ch; r.iIni = a2; r.iFim = b2; r.ext = r.fim - r.ini;
+        r.txt = kmTxt(r.ini) + " ao " + kmTxt(r.fim); r.porExtremos = true;
+      }
     }
     return r;
   }
@@ -17641,10 +17804,20 @@ function AV_gerarDescSituacao(){
     var ct = (g.camadas || []).filter(function(x){ return x.tipo === "texto"; })[0], dt = ct && PROJ.dados[g.pasta + "|" + ct.arquivo];
     // de 1:5.000 em diante (escala menor) o número entra só de 200 em 200 m: de 100 em 100 m os textos se atropelam
     var so200 = T.esc >= 5000;
+    // 05/10/2026: o número da estaca fica a uma distância FIXA do eixo em mm de papel (a do CAD é fixa em metros: 7,4 m →
+    // 10 mm em 1:750 e o texto se afastava e caía em cima dos confrontantes). Mínimo: logo depois da ponta do traço de 100 m.
+    var kmapa = {}; if(de && de.k) de.k.forEach(function(k){ kmapa[k[2]] = k; });
+    var dMaxEst = Math.max(4.0, 1.5*T.mmPorM + 1.9);
     if(dt && dt.t) dt.t.forEach(function(t){
       if(!dentro([t[0], t[1]])) return;
       if(so200){ var mq = /(\d+)\s*\+\s*(\d+)/.exec(String(t[2])); if(mq && (parseInt(mq[2], 10) % 200) !== 0) return; }
-      var p = mm([t[0], t[1]]); if(!noMapa(p, -3)) return;
+      var p = mm([t[0], t[1]]);
+      var mqk = /(\d+)\s*\+\s*(\d+)/.exec(String(t[2])), kk = mqk ? kmapa[parseInt(mqk[1], 10)*1000 + parseInt(mqk[2], 10)] : null;
+      if(kk){
+        var s0 = mm([kk[0], kk[1]]), ddx = p[0] - s0[0], ddy = p[1] - s0[1], dd = Math.hypot(ddx, ddy);
+        if(dd > dMaxEst) p = [s0[0] + ddx*dMaxEst/dd, s0[1] + ddy*dMaxEst/dd];
+      }
+      if(!noMapa(p, -3)) return;
       var a = ((t[4] % 360) + 360) % 360; if(a > 90 && a <= 270) a -= 180;
       P.texto(p[0], p[1] + 1, String(t[2]), { tam:TAM.estaca, rot:a, align:"center", cor:"#111", halo:true });
       // caixa ocupada (o rótulo de KM do eixo não pode cair em cima do número da estaca)
@@ -17995,66 +18168,123 @@ function AV_gerarDescSituacao(){
     return caixas;
   }
 
+  /* ---- planta geral: todas as áreas juntas (05/10/2026) ---- */
+  function desenharAreasGerais(P, T, ep){
+    aneisUtm().forEach(function(a){
+      var pol = a.v.map(function(q){ return [T.x(q.E), T.y(q.N)]; });
+      hachurar(P, pol, ep.ang, ep.esp, { cor:ep.tram, peso:fTram("poligono", .13) });
+      P.poli(pol, { cor:ep.cor, peso:ep.peso });
+    });
+  }
+  function desenharNomesAreas(P, T){
+    var tam = TAM.confMapa*.9, tam2 = TAM.dist;
+    aneisUtm().forEach(function(a){
+      var pol = a.v.map(function(q){ return [T.x(q.E), T.y(q.N)]; });
+      var x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+      pol.forEach(function(p){ x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); });
+      var cx = (x0 + x1)/2, cy = (y0 + y1)/2;
+      var t1 = "ÁREA " + (a.i + 1), t2 = br(a.area_m2/10000, 4) + " ha";
+      var h1 = tam*.3528*.78, h2 = tam2*.3528*.78, hh = h1 + 1 + h2;
+      var w = Math.max(P.largura(t1, { tam:tam, bold:true }), P.largura(t2, { tam:tam2, bold:true })) + 1.6;
+      var dentro = ptEmPoli(cx, cy, pol) && (x1 - x0) > w + 2 && (y1 - y0) > hh + 2;
+      var yb = dentro ? cy - hh/2 + h1 : y0 - 3 - h2 - 1;          // dentro quando cabe; senão logo acima do perímetro
+      if(!noMapa([cx, yb], -2)) return;
+      P.texto(cx, yb, t1, { tam:tam, bold:true, align:"center", cor:"#14425f", halo:true });
+      P.texto(cx, yb + 1 + h2, t2, { tam:tam2, bold:true, align:"center", cor:"#14425f", halo:true });
+    });
+  }
+  function desenharResumoAreas(P, x, y, larg){
+    var L = aneisUtm(), cab = ["ÁREA", "ÁREA (ha)", "PERÍM. (m)", "VÉRT."], fr = [.22, .32, .30, .16], CX = [], acc = 0;
+    fr.forEach(function(f){ CX.push([x + acc*larg, x + (acc + f)*larg]); acc += f; });
+    P.ret(x, y, larg, ALT_CAB, { peso:.15, fill:"#eef2f6" });
+    cab.forEach(function(c, i){ P.texto((CX[i][0] + CX[i][1])/2, y + 2.95, c, { tam:TAM.tabCab, bold:true, align:"center" }); });
+    var y0 = y; y += ALT_CAB;
+    var alt = 4.4, tam = Math.min(TAM.tab + .6, 7);
+    function linha(v, neg, k){
+      if(k % 2) P.ret(x, y, larg, alt, { peso:0, fill:"#f5f8fb" });
+      v.forEach(function(s, i){
+        var o = { tam:tam, bold:neg };
+        if(i === 0){ o.align = "center"; P.texto((CX[i][0] + CX[i][1])/2, y + alt*.5 + tam*.3528*.36, s, o); }
+        else { o.align = "right"; P.texto(CX[i][1] - 1.2, y + alt*.5 + tam*.3528*.36, s, o); }
+      });
+      P.linha(x, y + alt, x + larg, y + alt, { cor:"#c9d3de", peso:.08 });
+      y += alt;
+    }
+    L.forEach(function(a, k){ linha(["Área " + (a.i + 1), br(a.area_m2/10000, 4), br(a.perim, 2), String(a.v.length)], false, k); });
+    linha(["TOTAL", br(somaAreasHa(), 4), br(somaPerim(), 2), ""], true, L.length);
+    P.ret(x, y0, larg, y - y0, { peso:.18 });
+    CX.slice(0, 3).forEach(function(c){ P.linha(c[1], y0, c[1], y, { cor:"#c9d3de", peso:.1 }); });
+    return y + 2;
+  }
+
   /* Nome do confrontante ao longo do perímetro: um rótulo por trecho contínuo
      (não repete enquanto o confrontante não muda), sempre na horizontal, do lado
      de fora do polígono e afastado da divisa. */
   function desenharConfrontantesMapa(P, T, pol, caixas, cs){
     if(!cs || !cs.length) return;
-    var grupos = [], ult = null;
-    G.segs.forEach(function(s, i){
-      var nm = (cs[i] || "").trim();
-      if(!nm){ ult = null; return; }
-      if(nm !== ult){ grupos.push({ nome:nm, segs:[i] }); ult = nm; }
-      else grupos[grupos.length-1].segs.push(i);
-    });
+    var grupos = gruposConf(cs);                        // 1ª e última divisa do mesmo confrontante já vêm juntas
     if(!grupos.length) return;
     var cgx = 0, cgy = 0;
     pol.forEach(function(p){ cgx += p[0]; cgy += p[1]; });
     cgx /= pol.length; cgy /= pol.length;
     var tam = TAM.confMapa;
-    /* 04/10/2026: o nome do confrontante fica FORA do perímetro, centralizado no trecho da divisa e
-       GIRADO no mesmo sentido da linha (legível: o ângulo é sempre normalizado para -90..90), com corpo
-       1,5x maior que o anterior. Se não couber, afasta, desliza ao longo do trecho e, por último, reduz. */
-    grupos.forEach(function(g){
+    /* 05/10/2026: o conjunto de divisas do mesmo confrontante é lido como UMA linha — o nome fica centralizado no
+       comprimento TOTAL e orientado pela corda (1º ao último vértice do conjunto). Primeiro tenta um corpo em que o
+       nome caiba nesse comprimento; só depois relaxa. Evita os números de estaca; fica FORA do perímetro. */
+    function posicionarGrupo(g, segsG){
       var pts = [], tot = 0;
-      g.segs.forEach(function(i){
-        var s = G.segs[i], A = pol[s.de], B = pol[s.para];
-        var L = Math.hypot(B[0]-A[0], B[1]-A[1]);
+      segsG.forEach(function(i){
+        var s = G.segs[i], A = pol[s.de], B = pol[s.para], L = Math.hypot(B[0]-A[0], B[1]-A[1]);
         pts.push({ A:A, B:B, L:L, ini:tot }); tot += L;
       });
-      if(!tot) return;
-      // ponto, normal (para fora) e direção do trecho na fração f do comprimento acumulado do grupo
+      if(!tot) return false;
+      var p0 = pts[0].A, p1 = pts[pts.length-1].B, cdx = p1[0]-p0[0], cdy = p1[1]-p0[1], cL = Math.hypot(cdx, cdy);
+      var reta = cL > 1 && cL >= tot*.7;                 // quase reto: segue a corda; muito dobrado: segue o trecho sob o texto
       function sobre(f){
         var alvo = pts[pts.length-1], t = 1, d = tot*f;
         for(var k = 0; k < pts.length; k++){ if(d <= pts[k].ini + pts[k].L){ alvo = pts[k]; t = pts[k].L ? (d - pts[k].ini)/pts[k].L : .5; break; } }
         var dx = alvo.B[0]-alvo.A[0], dy = alvo.B[1]-alvo.A[1], L = Math.hypot(dx,dy) || 1;
-        var nx = -dy/L, ny = dx/L;
-        var mx = alvo.A[0] + dx*t, my = alvo.A[1] + dy*t;
+        var mx = alvo.A[0] + dx*t, my = alvo.A[1] + dy*t, tx = dx/L, ty = dy/L;
+        if(reta){ tx = cdx/cL; ty = cdy/cL; }
+        var nx = -ty, ny = tx;
         if((mx - cgx)*nx + (my - cgy)*ny < 0){ nx = -nx; ny = -ny; }
-        return { mx:mx, my:my, nx:nx, ny:ny, tx:dx/L, ty:dy/L };
+        return { mx:mx, my:my, nx:nx, ny:ny, tx:tx, ty:ty };
       }
       var nome = g.nome.length > 42 ? g.nome.slice(0,41) + "…" : g.nome, posto = false;
       var fracs = [.5, .4, .6, .3, .7, .2, .8], escalas = [1, .88, .76, .64, .52];
-      for(var si = 0; si < escalas.length && !posto; si++){
-        var tz = tam*escalas[si], hz = tz*.3528*.78;
-        var w = P.largura(nome, { tam:tz, bold:true }) + 1.4;
-        for(var d = 4.6 + hz/2; d <= 36 && !posto; d += 2.8){
-          for(var fi = 0; fi < fracs.length && !posto; fi++){
-            var q = sobre(fracs[fi]);
-            var ang = -Math.atan2(q.ty, q.tx)*180/Math.PI; if(ang > 90) ang -= 180; if(ang <= -90) ang += 180;
-            var r = ang*Math.PI/180, up = [-Math.sin(r), -Math.cos(r)], ux = Math.cos(r), uy = -Math.sin(r);   // up = "para cima" do texto; (ux,uy) = sentido da leitura
-            var cx = q.mx + q.nx*d, cy = q.my + q.ny*d;
-            var bb = caixaRot(cx, cy, w, hz + .8, ang);
-            if(!noMapa([bb[0], bb[1]], -1) || !noMapa([bb[2], bb[3]], -1)) continue;
-            // o texto inteiro (centro e as duas pontas) precisa ficar fora do perímetro
-            if(ptEmPoli(cx, cy, pol) || ptEmPoli(cx + ux*w/2, cy + uy*w/2, pol) || ptEmPoli(cx - ux*w/2, cy - uy*w/2, pol)) continue;
-            if(caixas.some(function(b){ return caixasSeCruzam(bb, b, .4); })) continue;
-            caixas.push(bb);
-            P.texto(cx - up[0]*hz/2, cy - up[1]*hz/2, nome, { tam:tz, bold:true, align:"center", rot:ang, cor:"#14425f", halo:true });
-            posto = true;
+      for(var fase = 0; fase < 3 && !posto; fase++){
+        for(var si = 0; si < escalas.length && !posto; si++){
+          var tz = tam*escalas[si], hz = tz*.3528*.78;
+          var w = P.largura(nome, { tam:tz, bold:true }) + 1.4;
+          if(fase === 0 && w > tot + .5) continue;       // 1ª tentativa: o nome cabe no comprimento total das divisas
+          for(var d = 4.6 + hz/2; d <= 36 && !posto; d += 2.8){
+            for(var fi = 0; fi < fracs.length && !posto; fi++){
+              var q = sobre(fracs[fi]);
+              var ang = -Math.atan2(q.ty, q.tx)*180/Math.PI; if(ang > 90) ang -= 180; if(ang <= -90) ang += 180;
+              var r = ang*Math.PI/180, up = [-Math.sin(r), -Math.cos(r)], ux = Math.cos(r), uy = -Math.sin(r);
+              var cx = q.mx + q.nx*d, cy = q.my + q.ny*d;
+              var bb = caixaRot(cx, cy, w, hz + .8, ang);
+              if(!noMapa([bb[0], bb[1]], -1) || !noMapa([bb[2], bb[3]], -1)) continue;
+              if(ptEmPoli(cx, cy, pol) || ptEmPoli(cx + ux*w/2, cy + uy*w/2, pol) || ptEmPoli(cx - ux*w/2, cy - uy*w/2, pol)) continue;
+              if(caixas.some(function(b){ return caixasSeCruzam(bb, b, .4); })) continue;
+              if(fase < 2 && CAIXAS_ESTACA.some(function(b){ return caixasSeCruzam(bb, b, .4); })) continue;
+              caixas.push(bb);
+              P.texto(cx - up[0]*hz/2, cy - up[1]*hz/2, nome, { tam:tz, bold:true, align:"center", rot:ang, cor:"#14425f", halo:true });
+              posto = true;
+            }
           }
         }
       }
+      return posto;
+    }
+    grupos.forEach(function(g){
+      var tent = [g.segs];
+      if(g.segs.length >= G.segs.length){                // um confrontante só em TODO o perímetro: fica no trecho onde foi preenchido (P01 → P02…)
+        var cc = conf(), p0i = 0;
+        for(var qi = 0; qi < G.segs.length; qi++){ if(cc[qi] && cc[qi].c){ p0i = qi; break; } }
+        tent = [[p0i], g.segs];                          // sem lugar nesse trecho: volta ao meio do perímetro
+      }
+      for(var ti = 0; ti < tent.length; ti++){ if(posicionarGrupo(g, tent[ti])) break; }
     });
   }
 
@@ -18098,14 +18328,21 @@ function AV_gerarDescSituacao(){
           if(!melhor || custo < melhor.custo) melhor = { cx:cx, cy:cy, bb:bb, custo:custo };
         }
       }
+      // perímetro que não cruza o eixo: a linha perpendicular ao eixo que marca o KM (do eixo até o vértice extremo)
+      var kv = e.km && e.km.v && e.km.v[a.i];
+      if(e.km && !e.km.doEixo && kv && kv.px != null){
+        var ax = T.x(kv.px), ay = T.y(kv.py);
+        P.linha(ax, ay, q[0], q[1], { cor:"#000000", peso:.25, tracejado:[1.6, 1] });
+        P.circ(ax, ay, .9, { cor:"#000000", peso:.25, fill:"#fff" });
+      }
       P.circ(q[0], q[1], 1.5, { cor:COR_KM, peso:.35, fill:"#fff" });
       if(!melhor) return;
       caixas.push(melhor.bb);
       // chamada até a borda da caixa mais próxima do vértice
       var ex = Math.max(melhor.bb[0], Math.min(q[0], melhor.bb[2])), ey = Math.max(melhor.bb[1], Math.min(q[1], melhor.bb[3]));
       P.linha(q[0], q[1], ex, ey, { cor:COR_KM, peso:.3 });
-      P.texto(melhor.cx, melhor.cy - hh/2 + h1, a.txt, { tam:tam, bold:true, align:"center", cor:COR_KM, halo:true });
-      P.texto(melhor.cx, melhor.cy + hh/2, a.coord, { tam:tam2, bold:true, align:"center", cor:COR_KM, halo:true });
+      P.texto(melhor.cx, melhor.cy - hh/2 + h1, a.txt, { tam:tam, bold:true, align:"center", cor:"#000000", halo:true });   // texto preto, contorno branco (05/10/2026)
+      P.texto(melhor.cx, melhor.cy + hh/2, a.coord, { tam:tam2, bold:true, align:"center", cor:"#000000", halo:true });
     });
   }
 
@@ -18247,7 +18484,7 @@ function AV_gerarDescSituacao(){
   function geomChave(pg, w, hmax){
     var tl = pg.tiles || [], wm = pg.wm, hm = pg.hm;
     var x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
-    G.v.forEach(function(q){ x0 = Math.min(x0, q.E); x1 = Math.max(x1, q.E); y0 = Math.min(y0, q.N); y1 = Math.max(y1, q.N); });
+    contornos().forEach(function(cv){ cv.forEach(function(q){ x0 = Math.min(x0, q.E); x1 = Math.max(x1, q.E); y0 = Math.min(y0, q.N); y1 = Math.max(y1, q.N); }); });
     tl.forEach(function(t){ x0 = Math.min(x0, t.cx - wm/2); x1 = Math.max(x1, t.cx + wm/2); y0 = Math.min(y0, t.cy - hm/2); y1 = Math.max(y1, t.cy + hm/2); });
     var k = Math.min((w - 6)/(x1 - x0), (hmax - 8)/(y1 - y0));
     var h = Math.min(hmax, (y1 - y0)*k + 12);                       // a moldura se ajusta ao desenho
@@ -18257,7 +18494,7 @@ function AV_gerarDescSituacao(){
   async function garantirChave(pg, op, dpi){
     if(!pg || !pg.mapa || !op || !(op.satelite || op.ortofoto)) return;
     var d = chaveDims(), g = geomChave(pg, d.w, d.hmax);
-    var chave = [pg.esc, pg.tiles.length, Math.round(pg.tiles[0].cx), Math.round(pg.tiles[0].cy), Math.round(g.k*1e4), Math.round(d.w), Math.round(g.h), dpi, G.v.length].join("|");
+    var chave = [pg.esc, pg.tiles.length, Math.round(pg.tiles[0].cx), Math.round(pg.tiles[0].cy), Math.round(g.k*1e4), Math.round(d.w), Math.round(g.h), dpi, G.v.length, (ST.geral ? "g" : "a" + ST.area)].join("|");
     if(CACHE_CHAVE.chave === chave && CACHE_CHAVE.url) return;
     CACHE_CHAVE = { chave:chave, url:null, el:null };
     var Tc = { E:function(mx){ return (mx - g.ox)/g.k; }, N:function(my){ return (g.oy - my)/g.k; } };
@@ -18277,7 +18514,7 @@ function AV_gerarDescSituacao(){
     var sat = !!(CACHE_CHAVE.url && CACHE_CHAVE.chave.indexOf(pg.esc + "|" + tl.length + "|") === 0);
     if(sat) P.img({ el:CACHE_CHAVE.el, url:CACHE_CHAVE.url }, x, y, w, h);
     P.ret(x, y, w, h, { peso:.15 });
-    P.poli(G.v.map(function(q){ return [X(q.E), Y(q.N)]; }), { cor:"#1F6FC0", peso:.25, fill:"#f6d04d", opacFill:(sat ? .55 : .8) });
+    contornos().forEach(function(cv){ P.poli(cv.map(function(q){ return [X(q.E), Y(q.N)]; }), { cor:"#1F6FC0", peso:.25, fill:"#f6d04d", opacFill:(sat ? .55 : .8) }); });
     tl.forEach(function(t, i){
       if(i === pg.k) return;
       P.ret(X(t.cx - wm/2), Y(t.cy + hm/2), wm*k, hm*k, { cor:"#6b7a89", peso:.18 });
@@ -18318,7 +18555,7 @@ function AV_gerarDescSituacao(){
   /* Quantas folhas a descrição precisa: a 1ª leva a planta + o que couber na
      coluna da direita; o resto vai para folhas só de tabela, numeradas sozinhas. */
   function planoFolhas(){
-    var total = G.segs.length;
+    var total = geralAtivo() ? 0 : G.segs.length;      // planta geral: sem tabela de vértices
     var pm = planoMapa();
     if(pm && pm.tiles){
       // área extensa: uma prancha por quadro do mapa e, no fim, só as tabelas
@@ -18419,17 +18656,21 @@ function AV_gerarDescSituacao(){
     }
 
     // área a desapropriar: hachura amarela + contorno azul (legenda aprovada), depois as divisas de cada trecho
+    var geral = geralAtivo();
     var pol = G.v.map(function(p){ return [T.x(p.E), T.y(p.N)]; });
     var ep = EST("poligono");
-    hachurar(P, pol, ep.ang, ep.esp, { cor:ep.tram, peso:fTram("poligono", .13) });
-    P.poli(pol, { cor:ep.cor, peso:ep.peso });
-    G.segs.forEach(function(s, i){
-      if(dv[i] === "area") return;
-      tracar(P, [pol[s.de], pol[s.para]], dv[i]);
-    });
+    if(geral){ desenharAreasGerais(P, T, ep); }
+    else {
+      hachurar(P, pol, ep.ang, ep.esp, { cor:ep.tram, peso:fTram("poligono", .13) });
+      P.poli(pol, { cor:ep.cor, peso:ep.peso });
+      G.segs.forEach(function(s, i){
+        if(dv[i] === "area") return;
+        tracar(P, [pol[s.de], pol[s.para]], dv[i]);
+      });
+    }
 
     // demais poligonais do mesmo cadastro, como contorno de contexto
-    if(ANEIS.length > 1){
+    if(ANEIS.length > 1 && !geral){
       ANEIS.forEach(function(a, i){
         if(i === ST.area) return;
         var po = a.pts.map(function(p){ var u = utm(p[0], p[1], G.fuso); return [T.x(u.E), T.y(u.N)]; });
@@ -18443,13 +18684,23 @@ function AV_gerarDescSituacao(){
 
     // vértices
     var caixasRot = [];
-    if(op.vertices){
-      var ev = EST("vertice");
-      G.v.forEach(function(p, i){ P.circ(pol[i][0], pol[i][1], ev.raio, { cor:ev.cor, peso:ev.peso, fill:ev.fill }); });
-      if(op.rotulos) caixasRot = desenharRotulos(P, T, op, pol) || [];
+    if(geral){
+      if(op.vertices){
+        var evg = EST("vertice");
+        aneisUtm().forEach(function(a){ a.v.forEach(function(q){ P.circ(T.x(q.E), T.y(q.N), evg.raio, { cor:evg.cor, peso:evg.peso, fill:evg.fill }); }); });
+      }
+      desenharNomesAreas(P, T);
+    } else {
+      if(op.vertices){
+        var ev = EST("vertice");
+        G.v.forEach(function(p, i){ P.circ(pol[i][0], pol[i][1], ev.raio, { cor:ev.cor, peso:ev.peso, fill:ev.fill }); });
+        if(op.rotulos) caixasRot = desenharRotulos(P, T, op, pol) || [];
+      }
+      var umSo = G.segs.length && gruposConf(cs).some(function(g){ return g.segs.length >= G.segs.length; });
+      if(umSo && op.km) desenharKmEixo(P, T, pol, caixasRot);        // confrontante único: o KM (obrigatório) escolhe o lugar primeiro
+      if(op.confMapa !== false) desenharConfrontantesMapa(P, T, pol, caixasRot, cs);
+      if(!umSo && op.km) desenharKmEixo(P, T, pol, caixasRot);
     }
-    if(op.confMapa !== false) desenharConfrontantesMapa(P, T, pol, caixasRot, cs);
-    if(op.km) desenharKmEixo(P, T, pol, caixasRot);
     if(op.fixo && op.fixoDados) desenharCotasFaixa(P, T, op.fixoDados);
     if(op.cotas !== false) desenharCotas(P, T);
     P.clipOff();
@@ -18476,7 +18727,7 @@ function AV_gerarDescSituacao(){
       // sem logotipos no topo: os do carimbo bastam, e a altura livre vira linha de tabela
       P.ret(TAB.x, TAB.y, TAB.w, TAB.h, { peso:.3 });
       var y = TAB.y + 5.8;
-      P.texto(TAB.x + TAB.w/2, y, "TABELA DE DISTÂNCIA, COORDENADAS E AZIMUTES", { tam:6.4, bold:true, align:"center" }); y += 4.6;
+      P.texto(TAB.x + TAB.w/2, y, geral ? "RESUMO DAS ÁREAS A DESAPROPRIAR" : "TABELA DE DISTÂNCIA, COORDENADAS E AZIMUTES", { tam:6.4, bold:true, align:"center" }); y += 4.6;
       P.texto(TAB.x + 2, y, "DATUM DE REFERÊNCIA: SIRGAS 2000", { tam:5.3 });
       P.texto(TAB.x + TAB.w - 2, y, "ZONA UTM: " + G.fuso + G.letra, { tam:5.3, align:"right" }); y += 2.4;
       // Colunas: distância e coordenadas ficaram mais estreitas para alargar a janela da planta.
@@ -18488,6 +18739,8 @@ function AV_gerarDescSituacao(){
         y = desenharMapaChave(P, TAB.x + 2, y, larg, chaveDims().hmax, pg) + 1.5;
         P.texto(TAB.x + 2, y + 3.4, "tabelas nas folhas " + (pg.kTotal + 1) + (pg.total > pg.kTotal + 1 ? ("–" + pg.total) : "") + "/" + pg.total + " →", { tam:5, bold:true, cor:"#0a5c86" });
         y += 3.4;
+      } else if(geral){
+        y = desenharResumoAreas(P, TAB.x + 2, y, larg);
       } else {
         y = desenharGradeCoords(P, TAB.x + 2, y, larg, pg.de, pg.ate, TAB.y + TAB.h - 47 - y).y;
         if(pg.total > 1){
@@ -18497,22 +18750,20 @@ function AV_gerarDescSituacao(){
       }
       // confrontações + KM — só os trechos com confrontante informado (sem "P01–P01: —" nem NORTE/SUL/LESTE/OESTE)
       y += 4;
-      var grupos = [], ult = null;
-      G.segs.forEach(function(s, i){
-        var nm = cs[i] || "—";
-        if(nm !== ult){ grupos.push({ nome:nm, de:G.v[s.de].nome, para:G.v[s.para].nome }); ult = nm; }
-        else grupos[grupos.length-1].para = G.v[s.para].nome;
+      // 1ª e última divisa com o mesmo confrontante = um grupo só (perímetro circular) — 05/10/2026
+      var grupos = geral ? [] : gruposConf(cs).map(function(g){
+        var a0 = G.segs[g.segs[0]], z0 = G.segs[g.segs[g.segs.length-1]];
+        return { nome:g.nome, de:G.v[a0.de].nome, para:G.v[z0.para].nome };
       });
-      grupos = grupos.filter(function(g){ return g.nome && g.nome !== "—"; });
       if(grupos.length){ P.texto(TAB.x + 2, y, "CONFRONTAÇÕES", { tam:5.8, bold:true }); y += 3.9; }
-      var espaco = TAB.y + TAB.h - 3 - y, nlin = grupos.length + (op.km ? 1 : 0), passo = Math.min(3.9, Math.max(2.6, espaco/nlin));
+      var espaco = TAB.y + TAB.h - 3 - y, nlin = grupos.length + ((op.km && !geral) ? 1 : 0), passo = Math.min(3.9, Math.max(2.6, espaco/nlin));
       var tc = Math.min(TAM.conf, passo*1.5);
       grupos.slice(0, 10).forEach(function(g){
         P.texto(TAB.x + 2, y, g.de + "–" + g.para + ":", { tam:tc, bold:true });
         P.texto(TAB.x + 22, y, g.nome, { tam:tc });
         y += passo;
       });
-      if(op.km){ P.texto(TAB.x + 2, y, "KM inicial / final:", { tam:tc, bold:true }); P.texto(TAB.x + 30, y, op.km.txt.replace(" ao ", "  /  "), { tam:tc }); }
+      if(op.km && !geral){ P.texto(TAB.x + 2, y, "KM inicial / final:", { tam:tc, bold:true }); P.texto(TAB.x + 30, y, op.km.txt.replace(" ao ", "  /  "), { tam:tc }); }
     })();
 
     /* ---------- carimbo ---------- */
@@ -18706,11 +18957,11 @@ function AV_gerarDescSituacao(){
         { f:.27, l:"Segmento:", v:seg } ] },
       { p:1.10, cel:[
         { f:.20, l:"Área Total da Propriedade\nMatrícula:", v:ex.area_total_prop || c.areaTotal || "" },
-        { f:.16, l:"Área Total a Desapropriar:", v:ex.area_total_desap || "" },
+        { f:.16, l:"Área Total a Desapropriar:", v:ex.area_total_desap || (ANEIS.length > 1 && aneisUtm().length > 1 ? br(somaAreasHa(), 4) + " ha" : "") },
         { f:.17, l:"Área Total da Propriedade\nParcela/Lote:", v:ex.area_parcela || "" },
-        { f:.16, l:"Área a Desapropriar:\nParcela/Lote:", v:br(G.area_ha,4) + " ha" },
+        { f:.16, l:"Área a Desapropriar:\n" + (geralAtivo() ? "Planta geral" : "Parcela/Lote:"), v:br(geralAtivo() ? somaAreasHa() : G.area_ha,4) + " ha" },
         { f:.19, l:"Área Remanescente da\nPropriedade Parcela/Lote:", v:ex.area_remanescente || "" },
-        { f:.12, l:"Perímetro:", v:br(G.perim,2) + " m" } ] },
+        { f:.12, l:"Perímetro:", v:br(geralAtivo() ? somaPerim() : G.perim,2) + " m" } ] },
       { p:1.55, cel:[
         { f:.42, dupla:[ { l:"Propriedade:", v:c.denominacao || "" },
                          { l:c.posseiro ? "Posseiro(a):" : "Expropriado(a):", v:c.posseiro || c.expropriado || "" } ] },
@@ -18778,6 +19029,7 @@ function AV_gerarDescSituacao(){
                ["cotas","Cotas","Cotas de distância marcadas à mão na sala de composição"]];
   function barraHtml(){
     return BARRA.map(function(b){ return '<label class="mdp-chk" title="' + esc(b[2]) + '"><input type="checkbox" data-opc="' + b[0] + '"' + (OPC[b[0]] ? " checked" : "") + '> ' + b[1] + '</label>'; }).join("") +
+      '<select class="mdp-sel" data-opc-area title="Perímetro da planta (geral ou cada área)" style="display:none;margin-right:6px;"></select>' +
       '<select class="mdp-sel" data-opc-fmt title="Formato da prancha">' +
       Object.keys(FORMATOS).map(function(k){ var f = FORMATOS[k];
         return '<option value="' + k + '">' + esc(f.nome) + ' — ' + f.W + '×' + f.H + ' mm</option>'; }).join("") + '</select>' +
@@ -18802,13 +19054,23 @@ function AV_gerarDescSituacao(){
     Array.prototype.forEach.call(document.querySelectorAll("[data-opc]"), function(cb){ cb.checked = !!OPC[cb.getAttribute("data-opc")]; });
     Array.prototype.forEach.call(document.querySelectorAll("[data-opc-esc]"), function(s){ s.value = String(OPC.escala || 0); });
     Array.prototype.forEach.call(document.querySelectorAll("[data-opc-fmt]"), function(s){ s.value = OPC.formato || "a3"; });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-opc-area]"), function(s){
+      var n = ANEIS.length;
+      if(n < 2){ s.style.display = "none"; return; }
+      s.style.display = "";
+      if(s.options.length !== n + 1){
+        s.innerHTML = '<option value="g">Planta geral</option>' + ANEIS.map(function(a, i){ return '<option value="' + i + '">Área ' + (i+1) + (a.nome ? ' — ' + esc(a.nome) : '') + '</option>'; }).join("");
+      }
+      s.value = ST.geral ? "g" : String(ST.area);
+    });
   }
   function ligarBarras(){
     if(document.body.__mdpBarras) return; document.body.__mdpBarras = true;
     document.addEventListener("change", function(ev){
       var t = ev.target; if(!t || !t.getAttribute) return;
       if(t.hasAttribute("data-opc")){ OPC[t.getAttribute("data-opc")] = t.checked; CACHE_SAT.chave = ""; sincronizarBarras(); agendarPreview(60); }
-      else if(t.hasAttribute("data-opc-esc")){ OPC.escala = parseInt(t.value, 10) || 0; setExtra("escala", OPC.escala || ""); sincronizarBarras(); agendarPreview(60); }
+      else if(t.hasAttribute("data-opc-esc")){ OPC.escala = parseInt(t.value, 10) || 0; gravarEscala(OPC.escala); sincronizarBarras(); agendarPreview(60); }
+      else if(t.hasAttribute("data-opc-area")){ if(t.value === "g") window.MDP_usarGeral(); else window.MDP_usarArea(parseInt(t.value, 10) || 0); }
       else if(t.hasAttribute("data-opc-fmt")){ OPC.formato = t.value; OPC.folha = 0; setExtra("formato", t.value); CACHE_SAT.chave = ""; aplicarFormato(t.value); sincronizarBarras(); agendarPreview(60); }
       else if(t.hasAttribute("data-opc-folha")){ OPC.folha = parseInt(t.value, 10) || 0; agendarPreview(30); }
     });
@@ -19392,7 +19654,8 @@ function AV_gerarDescSituacao(){
       }
     }
     var c = doCadastro();
-    var nome = "PLANTA_SITUACAO_INFRA_" + (c.ferrovia||"FTN") + "_CTD-" + (c.ctd||"000") + (opts.sufixo || "") + ".pdf";
+    var sufPer = ANEIS.length > 1 ? (ST.geral ? "_GERAL" : "_AREA-" + (ST.area + 1)) : "";
+    var nome = "PLANTA_SITUACAO_INFRA_" + (c.ferrovia||"FTN") + "_CTD-" + (c.ctd||"000") + sufPer + (opts.sufixo || "") + ".pdf";
     var blob = pdf.output("blob");
     if(load) load.style.display = "none";
     if(opts.retornar) return { blob:blob, nome:nome };
@@ -19570,17 +19833,20 @@ function AV_gerarDescSituacao(){
     var achou = LISTA_CONF.itens.filter(function(it){ return it.ctd.toUpperCase() === cod.toUpperCase(); })[0];
     return achou ? achou.nome : t;
   }
-  window.MDP_confResolver = function(i, v){ window.MDP_conf(i, "c", resolverConf(v)); };
-  window.MDP_conf = function(i, campo, v){
+  window.MDP_confResolver = function(i, v, k){ window.MDP_conf(i, "c", resolverConf(v), k); };
+  window.MDP_conf = function(i, campo, v, k){
+    i = idxPorChave(i, k);
     var c = conf(); c[i] = c[i] || {}; c[i][campo] = v; setConf(c);
     renderTabela(); renderMemorial(); agendarPreview(500);
   };
   // enquanto digita: grava sem redesenhar a tabela (senão o campo perde o foco a cada letra)
-  window.MDP_confIn = function(i, campo, v){
+  window.MDP_confIn = function(i, campo, v, k){
+    i = idxPorChave(i, k);
     var c = conf(); c[i] = c[i] || {}; c[i][campo] = v; setConf(c);
     renderMemorial(); agendarPreview(900);
   };
-  window.MDP_confAbaixo = function(i){
+  window.MDP_confAbaixo = function(i, k){
+    i = idxPorChave(i, k);
     var c = conf(), val = (c[i] && c[i].c) || "";
     if(!val || !G) return;
     var dval = (c[i] && c[i].d) || "", mval = (c[i] && c[i].m) || "";
@@ -19616,15 +19882,20 @@ function AV_gerarDescSituacao(){
     var h = "";
     if(ANEIS.length > 1){
       h += '<div class="mdp-km" style="margin:0 0 14px;"><div class="mdp-km-t">' + ANEIS.length +
-        ' poligonais neste KML — a planta descreve uma por vez</div>' +
+        ' poligonais neste KML — há uma planta geral e uma planta de cada área</div>' +
         '<div class="mdp-barra" style="margin:0;">' +
+        '<label class="mdp-chk" style="' + (ST.geral ? 'border-color:var(--azul);background:#eaf3fc;font-weight:800;' : '') + '">' +
+          '<input type="radio" name="mdp_area" value="g"' + (ST.geral ? ' checked' : '') + ' onchange="MDP_usarGeral()"> Planta geral (todas as áreas)</label>' +
         ANEIS.map(function(a, i){
-          return '<label class="mdp-chk" style="' + (i === ST.area ? 'border-color:var(--azul);background:#eaf3fc;font-weight:800;' : '') + '">' +
-            '<input type="radio" name="mdp_area" value="' + i + '"' + (i === ST.area ? ' checked' : '') +
+          var on = (i === ST.area && !ST.geral);
+          return '<label class="mdp-chk" style="' + (on ? 'border-color:var(--azul);background:#eaf3fc;font-weight:800;' : '') + '">' +
+            '<input type="radio" name="mdp_area" value="' + i + '"' + (on ? ' checked' : '') +
             ' onchange="MDP_usarArea(' + i + ')"> Área ' + (i+1) + (a.nome ? ' — ' + esc(a.nome) : '') + '</label>';
         }).join("") + '</div>' +
-        '<p class="hint-inline" style="margin:8px 0 0;">Cada área guarda os próprios confrontantes e gera a sua planta. ' +
-        'As demais aparecem tracejadas no desenho, como contexto.</p></div>';
+        '<p class="hint-inline" style="margin:8px 0 0;">Cada área guarda os próprios confrontantes e a própria escala; a planta geral tem escala própria e mostra todas juntas. ' +
+        'Nas plantas de cada área, as demais aparecem tracejadas como contexto. ' +
+        '<button type="button" class="vbtn vbtn-ghost vbtn-sm" style="margin-left:6px" onclick="MDP_pdfPlantasTodas({satelite:true},\'_COM-SATELITE\')">📄 PDF de todas (com satélite)</button>' +
+        '<button type="button" class="vbtn vbtn-ghost vbtn-sm" style="margin-left:6px" onclick="MDP_pdfPlantasTodas({satelite:false,ortofoto:false},\'_SEM-SATELITE\')">📄 PDF de todas (sem satélite)</button></p></div>';
     }
     h += '<div class="mdp-nums">' + nums.map(function(n){
       return '<div class="mdp-num"><span>' + esc(n[0]) + '</span><b>' + esc(n[1]) + '</b></div>'; }).join("") + '</div>' +
@@ -19648,8 +19919,8 @@ function AV_gerarDescSituacao(){
         '<div class="mdp-num"><span>Extensão</span><b>' + br(km.ext,2) + ' m</b></div></div>' +
         '<p class="hint-inline">' + (km.doEixo
           ? 'Os mesmos KM da planta: vértices que caem sobre o próprio eixo — o menor é <b>' + vi + '</b> e o maior <b>' + vf + '</b>.'
-          : 'Projeção perpendicular no eixo dos vértices ' + (km.porLimite ? 'que tocam os limites esquerdo e direito da faixa de domínio' : '(todos, pois a faixa de domínio não foi localizada)') +
-            ': o menor cai em <b>' + vi + '</b> e o maior em <b>' + vf + '</b>.') +
+          : 'O perímetro não cruza o eixo: KM inicial e final = projeção perpendicular, no eixo, dos vértices extremos do perímetro' +
+            ' — o menor cai em <b>' + vi + '</b> e o maior em <b>' + vf + '</b>.') +
         (km.doEixo ? ' Pelos limites da faixa de domínio: <b>' + kmTxt(km.faixaIni) + '</b> a <b>' + kmTxt(km.faixaFim) + '</b> (' + br(km.faixaFim - km.faixaIni,2) + ' m).' : '') + '</p>' +
         '<div class="vactions" style="margin-top:12px;"><button type="button" class="vbtn vbtn-ghost vbtn-sm" onclick="MDP_usarKm(\'eixo\')">Usar no carimbo (KM da planta)</button>' +
         (km.doEixo ? '<button type="button" class="vbtn vbtn-ghost vbtn-sm" onclick="MDP_usarKm(\'faixa\')">Usar no carimbo (limites da faixa)</button>' : '') + '</div></div>';
@@ -19660,9 +19931,11 @@ function AV_gerarDescSituacao(){
     }
     box.innerHTML = h;
   }
+  var TAB_P1 = "";
   function renderTabela(){
     var box = $("mdp_tabela"); if(!box) return;
     if(!G){ box.innerHTML = ""; return; }
+    TAB_P1 = kPt(G.v[0]);
     var c = conf(), cs = confrontantes(), dv = divisasDe(), km = kmAtual(), ms = matriculas();
     var h = '<div class="mdp-tab-topo"><button type="button" class="vbtn vbtn-ghost vbtn-sm" onclick="MDP_tabelaJpg()" title="Vértices, azimutes, distâncias, coordenadas e confrontantes — sem as colunas de KM">🖼️ Gerar imagem JPG da tabela</button></div>' +
       '<div class="mdp-tab-wrap"><table class="mdp-tab"><thead><tr>' +
@@ -19671,19 +19944,20 @@ function AV_gerarDescSituacao(){
     var nomeDiv = {}; DIVISAS.forEach(function(d){ nomeDiv[d[0]] = d[1]; });
     G.segs.forEach(function(s, i){
       var a = G.v[s.de], b = G.v[s.para];
+      var kj = ",\'" + kSeg(a, b) + "\'";
       var own = (c[i] && c[i].c) ? c[i].c : "", ownD = (c[i] && c[i].d) ? c[i].d : "";
       var kv = km && km.v[s.de] && km.v[s.de].ch != null ? km.v[s.de] : null;
       h += '<tr><td><b>' + a.nome + '</b></td><td>' + b.nome + '</td><td class="mdp-c">' + dms(s.az) + '</td>' +
         '<td class="mdp-r">' + br(s.dist,2) + '</td><td class="mdp-r">' + br(a.N,3) + '</td><td class="mdp-r">' + br(a.E,3) + '</td>' +
         '<td class="mdp-kmauto" title="' + (kv ? ('Distância ao eixo: ' + br(Math.abs(kv.off),1) + ' m') : '') + '">' + (kv ? (kmTxt(kv.ch) + (kv.noLim ? '<i title="toca o limite da faixa de domínio">●</i>' : '')) : '—') + '</td>' +
         (function(){ var man = kmManual(s.de), au = kmAuto(s.de);
-          return '<td><input type="text" value="' + esc(man || au) + '"' + (!man && au ? ' class="mdp-kmauto-in"' : '') + ' placeholder="—" style="min-width:110px" title="' + (au ? 'Vértice sobre o eixo da ferrovia — KM calculado (sai no memorial). Pode editar.' : 'Só os vértices inicial e final sobre o eixo levam KM no memorial') + '" oninput="MDP_confIn(' + s.de + ',\'km\',this.value)"></td>'; })() +
-        '<td><select' + (ownD ? '' : ' class="mdp-herd"') + ' onchange="MDP_conf(' + i + ',\'d\',this.value)"><option value=""' + (ownD ? '' : ' selected') + '>' + (i === 0 && !ownD ? '(padrão) ' : '↑ ') + esc(nomeDiv[dv[i]] || "") + '</option>' +
+          return '<td><input type="text" value="' + esc(man || au) + '"' + (!man && au ? ' class="mdp-kmauto-in"' : '') + ' placeholder="—" style="min-width:110px" title="' + (au ? 'Vértice sobre o eixo da ferrovia — KM calculado (sai no memorial). Pode editar.' : 'Só os vértices inicial e final sobre o eixo levam KM no memorial') + '" oninput="MDP_confIn(' + s.de + ',\'km\',this.value' + kj + ')"></td>'; })() +
+        '<td><select' + (ownD ? '' : ' class="mdp-herd"') + ' onchange="MDP_conf(' + i + ',\'d\',this.value' + kj + ')"><option value=""' + (ownD ? '' : ' selected') + '>' + (i === 0 && !ownD ? '(padrão) ' : '↑ ') + esc(nomeDiv[dv[i]] || "") + '</option>' +
           DIVISAS.map(function(d){ return '<option value="' + d[0] + '"' + (ownD === d[0] ? ' selected' : '') + '>' + esc(d[1]) + '</option>'; }).join("") + '</select></td>' +
         (function(){ var ownM = (c[i] && c[i].m) ? c[i].m : "";
-          return '<td><input type="text" value="' + esc(ownM) + '" placeholder="' + esc(ownM ? "" : (ms[i] ? ("↑ " + ms[i]) : "nº da matrícula")) + '" style="min-width:110px" oninput="MDP_confIn(' + i + ',\'m\',this.value)" onchange="MDP_conf(' + i + ',\'m\',this.value)"' + (ownM ? '' : ' class="mdp-herd"') + '></td>'; })() +
-        '<td><input type="text" list="mdp_dl_conf" value="' + esc(own) + '" placeholder="' + esc(own ? "" : (cs[i] ? ("↑ " + cs[i]) : "nome ou nº do CTD")) + '" oninput="MDP_confIn(' + i + ',\'c\',this.value)" onchange="MDP_confResolver(' + i + ',this.value)"' + (own ? '' : ' class="mdp-herd"') + '></td>' +
-        '<td><button type="button" class="mdp-mini" title="Repetir confrontante, matrícula e divisa nos trechos seguintes" onclick="MDP_confAbaixo(' + i + ')">↓</button></td></tr>';
+          return '<td><input type="text" value="' + esc(ownM) + '" placeholder="' + esc(ownM ? "" : (ms[i] ? ("↑ " + ms[i]) : "nº da matrícula")) + '" style="min-width:110px" oninput="MDP_confIn(' + i + ',\'m\',this.value' + kj + ')" onchange="MDP_conf(' + i + ',\'m\',this.value' + kj + ')"' + (ownM ? '' : ' class="mdp-herd"') + '></td>'; })() +
+        '<td><input type="text" list="mdp_dl_conf" value="' + esc(own) + '" placeholder="' + esc(own ? "" : (cs[i] ? ("↑ " + cs[i]) : "nome ou nº do CTD")) + '" oninput="MDP_confIn(' + i + ',\'c\',this.value' + kj + ')" onchange="MDP_confResolver(' + i + ',this.value' + kj + ')"' + (own ? '' : ' class="mdp-herd"') + '></td>' +
+        '<td><button type="button" class="mdp-mini" title="Repetir confrontante, matrícula e divisa nos trechos seguintes" onclick="MDP_confAbaixo(' + i + kj + ')">↓</button></td></tr>';
     });
     h += '</tbody></table></div>';
     var lim = limites();
@@ -19737,16 +20011,39 @@ function AV_gerarDescSituacao(){
     else if(ancorarP1NoEixo()){ renderResumo(); renderTabela(); renderMemorial(); agendarPreview(100); }
   }
   window.MDP_usarArea = function(i){
-    ST.area = i|0; ST.inicio = 0; ST.inverter = false;
-    G = null; PAN.x = 0; PAN.y = 0; CACHE_SAT.chave = "";
-    analisar(); renderTudo(); agendarPreview(60);
+    ST.area = i|0; ST.inicio = 0; ST.inverter = false; ST.geral = false;
+    G = null; PAN.x = 0; PAN.y = 0; CACHE_SAT.chave = ""; OPC.folha = 0;
+    analisar(); OPC.escala = escLer(); sincronizarBarras(); renderTudo(); agendarPreview(60);
+  };
+  window.MDP_usarGeral = function(){
+    if(ANEIS.length < 2) return;
+    ST.geral = true; PAN.x = 0; PAN.y = 0; CACHE_SAT.chave = ""; OPC.folha = 0;
+    OPC.escala = escLer(); sincronizarBarras(); renderTudo(); agendarPreview(60);
+  };
+  // PDF da planta geral + um de cada área (cada um na sua escala), um arquivo por perímetro
+  window.MDP_pdfPlantasTodas = async function(sobre, sufixo){
+    var a = analisar(); if(a.erro){ alert(a.erro); return; }
+    if(ANEIS.length < 2){ return window.MDP_pdfPlanta({ sobre:sobre, sufixo:sufixo }); }
+    var est0 = { geral:ST.geral, area:ST.area, esc:OPC.escala };
+    try{
+      var modos = [{ g:true }].concat(ANEIS.map(function(x, i){ return { g:false, i:i }; }));
+      for(var k = 0; k < modos.length; k++){
+        ST.geral = modos[k].g; if(!modos[k].g){ ST.area = modos[k].i; ST.inicio = 0; ST.inverter = false; }
+        G = null; PAN.x = 0; PAN.y = 0; CACHE_SAT.chave = ""; OPC.folha = 0;
+        analisar(); OPC.escala = escLer();
+        await window.MDP_pdfPlanta({ sobre:sobre, sufixo:sufixo });
+      }
+    } finally {
+      ST.geral = est0.geral; ST.area = est0.area; G = null; PAN.x = 0; PAN.y = 0; CACHE_SAT.chave = "";
+      analisar(); OPC.escala = escLer(); sincronizarBarras(); renderTudo(); agendarPreview(60);
+    }
   };
   window.MDP_render = function(){
     var ex = extras();
     if(ex.formato && FORMATOS[ex.formato]) OPC.formato = ex.formato;
-    if(ex.escala) OPC.escala = parseInt(ex.escala, 10) || 0;
+    OPC.escala = escLer();
     aplicarFormato(OPC.formato);
-    analisar(); renderCampos(); renderTudo(); sincronizarBarras(); agendarPreview(250);
+    analisar(); OPC.escala = escLer(); renderCampos(); renderTudo(); sincronizarBarras(); agendarPreview(250);
   };
 
   /* ---- tabela de confrontação para o DRL (vetorial no PDF, tabela no Word) ---- */
@@ -19883,7 +20180,7 @@ function AV_gerarDescSituacao(){
       });
       var ex = extras();
       if(ex.formato && FORMATOS[ex.formato]) OPC.formato = ex.formato;
-      OPC.escala = ex.escala ? (parseInt(ex.escala, 10) || 0) : 0;
+      OPC.escala = escLer();
       aplicarFormato(OPC.formato);
       CACHE_SAT.chave = ""; analisar(); renderTabela(); renderMemorial(); renderCampos(); sincronizarBarras(); v2Trilha();
       if(compAberto()){ compCotasLista(); compPintar(); } else agendarPreview(80);
@@ -20380,7 +20677,7 @@ function AV_gerarDescSituacao(){
   function v2LimparTransf(){ ["mdp_comp_cv", "mdp_comp_svg", "v2_svg"].forEach(function(id){ var e = $(id); if(e){ e.style.transform = ""; e.style.transformOrigin = ""; } }); }
   function v2ZoomCommit(){
     var z = V2.zoomPend; V2.zoomPend = null; if(!z) return;
-    OPC.escala = z.esc; setExtra("escala", z.esc);
+    OPC.escala = z.esc; gravarEscala(z.esc);
     PAN.x = 0; PAN.y = 0;
     var T0 = enquadrarPg(pgDoQuadro()), k = T0.mmPorM, xc = MAPA.x + MAPA.w/2, yc = MAPA.y + MAPA.h/2;
     var cxN = z.E - (z.ancora[0] - xc)/k, cyN = z.N + (z.ancora[1] - yc)/k;
@@ -20388,11 +20685,11 @@ function AV_gerarDescSituacao(){
     v2LimparTransf(); sincronizarBarras(); CACHE_SAT.chave = ""; compPintar();
   }
   function v2Encaixar(){
-    v2Antes(); OPC.escala = 0; setExtra("escala", ""); PAN.x = 0; PAN.y = 0; v2LimparTransf(); sincronizarBarras(); CACHE_SAT.chave = ""; compPintar();
+    v2Antes(); OPC.escala = 0; gravarEscala(0); PAN.x = 0; PAN.y = 0; v2LimparTransf(); sincronizarBarras(); CACHE_SAT.chave = ""; compPintar();
   }
   function v2CentrarEm(q, esc1){
     var pm = planoMapa(); if(pm && pm.tiles) return;
-    if(esc1){ OPC.escala = esc1; setExtra("escala", esc1); }
+    if(esc1){ OPC.escala = esc1; gravarEscala(esc1); }
     PAN.x = 0; PAN.y = 0; var T0 = enquadrarPg(pgDoQuadro()), k = T0.mmPorM;
     PAN.x = (T0.cx - q.E)*k; PAN.y = (q.N - T0.cy)*k;
     CACHE_SAT.chave = ""; compPintar();
@@ -20468,7 +20765,7 @@ function AV_gerarDescSituacao(){
     add("Memorial descritivo — PDF", function(){ window.MDP_pdfMemorial(); });
     add("Memorial descritivo — Word", function(){ window.MDP_wordMemorial(); });
     add("Inverter sentido do perímetro", function(){ window.MDP_inverter(); });
-    ESCALAS.forEach(function(e){ add("Escala 1:" + e.toLocaleString("pt-BR"), function(){ var m = [MAPA.x + MAPA.w/2, MAPA.y + MAPA.h/2]; V2.zoomPend = null; OPC.escala = e; setExtra("escala", e); sincronizarBarras(); CACHE_SAT.chave = ""; compPintar(); }); });
+    ESCALAS.forEach(function(e){ add("Escala 1:" + e.toLocaleString("pt-BR"), function(){ var m = [MAPA.x + MAPA.w/2, MAPA.y + MAPA.h/2]; V2.zoomPend = null; OPC.escala = e; gravarEscala(e); sincronizarBarras(); CACHE_SAT.chave = ""; compPintar(); }); });
     Object.keys(FORMATOS).forEach(function(k){ add("Formato " + FORMATOS[k].nome + " (" + FORMATOS[k].W + "×" + FORMATOS[k].H + " mm)", function(){ OPC.formato = k; OPC.folha = 0; setExtra("formato", k); aplicarFormato(k); sincronizarBarras(); CACHE_SAT.chave = ""; compPintar(); }); });
     BARRA.forEach(function(b){ add("Camada: " + b[1] + " (liga/desliga)", function(){ OPC[b[0]] = !OPC[b[0]]; CACHE_SAT.chave = ""; sincronizarBarras(); v2ContaCamadas(); agendarPreview(40); }); });
     Object.keys(V2_RECEITAS).forEach(function(n){ add("Receita: " + n, function(){ v2RecAplicar(V2_RECEITAS[n]); }); });
