@@ -20052,16 +20052,18 @@ function AV_gerarDescSituacao(){
   // tópico 5 (05/10/2026): modelo do carimbo + campos que dependem dele. Em branco = preenchimento automático
   // (o valor que vai sair aparece em cinza); o que você digitar vale no lugar do automático.
   function camposCarimbo(){
-    var c = doCadastro(), mod = modeloCarimbo(), au = G ? autoCarimbo(c) : {};
+    var c = doCadastro(), mod = modeloCarimbo(), au = G ? autoCarimbo(c) : {}, ex0 = extras();
     var ph = function(v, dica){ return v ? ("automático: " + v) : (dica || ""); };
     var vem = function(rot, v, onde){ return '<div class="vfield grow"><label>' + esc(rot) + ' <span class="hint-auto">' + esc(onde) + '</span></label><input type="text" class="bloqueado" readonly value="' + esc(v || "—") + '"></div>'; };
     var h = '<div class="vfield grow"><label>Modelo do carimbo</label><select onchange="MDP_carModelo(this.value)">' +
       MODELOS_CAR.map(function(m){ return '<option value="' + m[0] + '"' + (m[0] === mod ? " selected" : "") + '>' + esc(m[1]) + '</option>'; }).join("") + '</select></div>';
     h += inputEx("ferrovia_tit", "Ferrovia (3ª linha do título)", "FERROVIA TRANSNORDESTINA - EF - 232");
-    h += inputEx("trecho", "Trecho", ph(au.trecho, "vem do SPS (lote) da Ficha de Assistência Social"));
+    // 06/10/2026: o que não precisa de ajuste fica recolhido; o que depende de um dado de origem fica à vista, com aviso se faltar
+    var aviso = function(msg){ return '<p class="hint-inline" style="flex:1 1 100%;margin:-4px 0 4px;color:#b3141b;font-weight:600">⚠ ' + esc(msg) + '</p>'; };
     h += inputEx("segmento", "Segmento", ph(au.segmento, "KM calculado no eixo a partir do KML"));
+    if(G && !(ex0.segmento) && !au.segmento) h += aviso("Sem KM no eixo: este SPS não tem estacas do projeto revisado — o Segmento sairá em branco; digite-o aqui.");
     h += inputEx("area_total_prop", "Área total da propriedade (matrícula)", ph(au.area_total_prop, "Técnica › 1.4 Propriedade"));
-    h += inputEx("area_total_desap", "Área total a desapropriar", ph(au.area_total_desap, "somada do(s) KML da área desapropriada"));
+    if(G && !(ex0.area_total_prop) && !au.area_total_prop) h += aviso("A área total do imóvel não está preenchida na Técnica (1.4 Propriedade): o carimbo sai sem ela e sem a área remanescente.");
     if(mod === "sps04_006"){
       h += inputEx("area_parcela", "Área total da propriedade (parcela/lote)", "descrito por você — ex.: 15,2797 ha");
       h += inputEx("area_remanescente", "Área remanescente da propriedade (parcela/lote)", "descrito por você — ex.: 12,8000 ha");
@@ -20079,8 +20081,12 @@ function AV_gerarDescSituacao(){
     h += inputEx("app", "Área de APP (ha)", "0,0000");
     h += inputEx("car_ref", "Referência base do CAR", "AGOSTO/2026");
     var nf = G ? contagemFolhas() : null;
-    h += vem("Data", dataImpressao() + " — data da impressão do PDF", "automática");
-    h += vem("Folha (desenho)", nf ? folhasTxt(nf) : "", "automática — conta a planta geral e todas as áreas");
+    h += '<details style="flex:1 1 100%;margin-top:6px"><summary style="cursor:pointer;font-weight:700;color:#175a9f;font-size:12.5px">Automáticos — não precisam de ajuste (clique para ver ou substituir)</summary><div class="vrow" style="margin-top:10px">' +
+      inputEx("trecho", "Trecho", ph(au.trecho, "vem do SPS (lote) da Ficha de Assistência Social")) +
+      inputEx("area_total_desap", "Área total a desapropriar", ph(au.area_total_desap, "somada do(s) KML da área desapropriada")) +
+      vem("Data", dataImpressao() + " — data da impressão do PDF", "automática") +
+      vem("Folha (desenho)", nf ? folhasTxt(nf) : "", "automática — conta a planta geral e todas as áreas") +
+      '</div></details>';
     return h;
   }
   function inputEx(k, rot, ph){
