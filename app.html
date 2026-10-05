@@ -16591,7 +16591,7 @@ function AV_gerarDescSituacao(){
 
   /* ---------------- confrontantes / limites ---------------- */
   // lista de confrontantes na ordem dos segmentos, repetindo o último preenchido
-  function confrontantes(){
+  function confrontantesBrutos(){
     if(!G) return [];
     var c = conf(), out = [], ult = "";
     G.segs.forEach(function(s, i){
@@ -16602,6 +16602,13 @@ function AV_gerarDescSituacao(){
     // o primeiro segmento herda do último preenchido (perímetro é circular)
     if(!out[0]){ for(var k = out.length-1; k >= 0; k--){ if(out[k]){ out[0] = out[k]; break; } } }
     return out;
+  }
+  // 06/10/2026: a opção "Área remanescente" vale o nome do proprietário/posseiro do PRÓPRIO cadastro — na planta, no memorial,
+  // no DRL e na tabela. O valor guardado continua "Área remanescente" (por isso o tipo "rem", em azul, ainda é reconhecido).
+  function nomeRemanescente(){ var c = doCadastro(); return String(c.posseiro || c.expropriado || "").trim(); }
+  function confrontantes(){
+    var nm = nomeRemanescente();
+    return confrontantesBrutos().map(function(v){ return (nm && /remanescente/i.test(String(v || ""))) ? nm : v; });
   }
   // matrícula do confrontante por trecho: em branco repete a do trecho anterior SÓ se o confrontante é o mesmo
   function matriculas(){
@@ -17770,13 +17777,13 @@ function AV_gerarDescSituacao(){
       case "eixo_ant":P.poli(pts, { cor:C, peso:W, fechar:false }); tracos(P, pts, 3.4, 1.15, C, W*.75); break;
       case "fd_ant":  P.poli(pts, { cor:C, peso:W, fechar:false }); break;
       case "sem":     P.poli(pts, { cor:C, peso:W, fechar:false }); break;
-      case "com":     P.poli(pts, { cor:C, peso:W, fechar:false }); percorrer(pts, 7, 3.5, function(x, y){ xis(P, x, y, .95, C, W*.8); }); break;
-      case "cerca":   P.poli(pts, { cor:C, peso:W, fechar:false, tracejado:[4.4, 2.6] }); percorrer(pts, 7, 5.7, function(x, y){ xis(P, x, y, .95, C, W); }); break;
+      case "com":     P.poli(pts, { cor:C, peso:W, fechar:false }); percorrer(pts, 7, 3.5, function(x, y){ xis(P, x, y, .95, C, Math.min(W*.8, .4)); }); break;
+      case "cerca":   P.poli(pts, { cor:C, peso:W, fechar:false, tracejado:[4.4, 2.6] }); percorrer(pts, 7, 5.7, function(x, y){ xis(P, x, y, .95, C, Math.min(W, .4)); }); break;
       case "divisa":
         P.poli(pts, { cor:C, peso:W, fechar:false });
         var tot = 0; for(var i = 1; i < pts.length; i++) tot += Math.hypot(pts[i][0]-pts[i-1][0], pts[i][1]-pts[i-1][1]);
         if(tot > 9) percorrer(pts, tot + 1, tot/2, function(x, y, ux, uy){
-          P.linha(x - uy*3.4, y + ux*3.4, x + uy*3.4, y - ux*3.4, { cor:C, peso:W*.8 });
+          P.linha(x - uy*3.4, y + ux*3.4, x + uy*3.4, y - ux*3.4, { cor:C, peso:Math.min(W*.8, .5) });
           seta(P, x + ux*2.6, y + uy*2.6, ux, uy, C); seta(P, x - ux*2.6, y - uy*2.6, -ux, -uy, C);
         });
         break;
@@ -18141,13 +18148,13 @@ function AV_gerarDescSituacao(){
     fd:        { cor:CORES.fd,       peso:.45 },
     eixo:      { cor:CORES.eixo,     peso:.40 },
     eixo_ant:  { cor:CORES.ant,      peso:.40 },
-    fd_ant:    { cor:CORES.ant,      peso:.45 },
-    sem:       { cor:CORES.vermelho, peso:.60 },
-    com:       { cor:CORES.vermelho, peso:.50 },
-    cerca:     { cor:CORES.cerca,    peso:.40 },
-    divisa:    { cor:CORES.vermelho, peso:.50 },
-    acesso:    { cor:CORES.acesso,   peso:.40 },
-    corrego:   { cor:CORES.corrego,  peso:.55 },
+    fd_ant:    { cor:CORES.ant,      peso:1.0 },     // 06/10/2026: tipos de divisa/limite na mesma espessura do contorno da área (1,0 mm)
+    sem:       { cor:CORES.vermelho, peso:1.0 },
+    com:       { cor:CORES.vermelho, peso:1.0 },
+    cerca:     { cor:CORES.cerca,    peso:1.0 },
+    divisa:    { cor:CORES.vermelho, peso:1.0 },
+    acesso:    { cor:CORES.acesso,   peso:1.0 },
+    corrego:   { cor:CORES.corrego,  peso:1.0 },
     area:      { cor:CORES.area,     peso:1.0 },     // contorno da área a desapropriar (05/10/2026: 0,5 -> 1,0 mm)
     area_d:       { cor:CORES.area, peso:.45, tram:CORES.hachura, esp:1.5 },
     remanescente: { cor:"#6b6b6b",  peso:.30, tram:"#6b6b6b",     esp:1.7 },
@@ -18314,7 +18321,13 @@ function AV_gerarDescSituacao(){
     var cgx = 0, cgy = 0;
     pol.forEach(function(p){ cgx += p[0]; cgy += p[1]; });
     cgx /= pol.length; cgy /= pol.length;
-    var tam = TAM.confMapa;
+    var tam = TAM.confMapa, brutosM = confrontantesBrutos(), dvM = divisasDe();
+    /* 06/10/2026: confrontante comum sai em duas linhas — "Expropriado:" e, embaixo, o nome. A área remanescente (que já é
+       o nome do próprio cadastro) e a faixa de domínio saem só com o texto. */
+    function prefixoDe(g){
+      var raw = String(brutosM[g.segs[0]] || ""), tp = tipoConf(raw, dvM[g.segs[0]]);
+      return (tp === "" && raw.trim()) ? "Expropriado:" : "";
+    }
     /* 05/10/2026: o conjunto de divisas do mesmo confrontante é lido como UMA linha — o nome fica centralizado no
        comprimento TOTAL e orientado pela corda (1º ao último vértice do conjunto). Primeiro tenta um corpo em que o
        nome caiba nesse comprimento; só depois relaxa. Evita os números de estaca; fica FORA do perímetro. */
@@ -18337,26 +18350,29 @@ function AV_gerarDescSituacao(){
         if((mx - cgx)*nx + (my - cgy)*ny < 0){ nx = -nx; ny = -ny; }
         return { mx:mx, my:my, nx:nx, ny:ny, tx:tx, ty:ty };
       }
-      var nome = g.nome.length > 42 ? g.nome.slice(0,41) + "…" : g.nome, posto = false;
+      var nome = g.nome.length > 42 ? g.nome.slice(0,41) + "…" : g.nome, posto = false, pref = prefixoDe(g);
       var fracs = [.5, .4, .6, .3, .7, .2, .8], escalas = [1, .88, .76, .64, .52];
       for(var fase = 0; fase < 3 && !posto; fase++){
         for(var si = 0; si < escalas.length && !posto; si++){
           var tz = tam*escalas[si], hz = tz*.3528*.78;
-          var w = P.largura(nome, { tam:tz, bold:true }) + 1.4;
+          var tp2 = tz*.82, hp = pref ? tp2*.3528*.78 + 1.2 : 0, hbox = hz + hp;   // hp = altura do "Expropriado:" + folga
+          var w = Math.max(P.largura(nome, { tam:tz, bold:true }), pref ? P.largura(pref, { tam:tp2 }) : 0) + 1.4;
           if(fase === 0 && w > tot + .5) continue;       // 1ª tentativa: o nome cabe no comprimento total das divisas
-          for(var d = 4.6 + hz/2; d <= 36 && !posto; d += 2.8){
+          for(var d = 4.6 + hbox/2; d <= 36 && !posto; d += 2.8){
             for(var fi = 0; fi < fracs.length && !posto; fi++){
               var q = sobre(fracs[fi]);
               var ang = -Math.atan2(q.ty, q.tx)*180/Math.PI; if(ang > 90) ang -= 180; if(ang <= -90) ang += 180;
               var r = ang*Math.PI/180, up = [-Math.sin(r), -Math.cos(r)], ux = Math.cos(r), uy = -Math.sin(r);
               var cx = q.mx + q.nx*d, cy = q.my + q.ny*d;
-              var bb = caixaRot(cx, cy, w, hz + .8, ang);
+              var bb = caixaRot(cx, cy, w, hbox + .8, ang);
               if(!noMapa([bb[0], bb[1]], -1) || !noMapa([bb[2], bb[3]], -1)) continue;
               if(ptEmPoli(cx, cy, pol) || ptEmPoli(cx + ux*w/2, cy + uy*w/2, pol) || ptEmPoli(cx - ux*w/2, cy - uy*w/2, pol)) continue;
               if(caixas.some(function(b){ return caixasSeCruzam(bb, b, .4); })) continue;
               if(fase < 2 && CAIXAS_ESTACA.some(function(b){ return caixasSeCruzam(bb, b, .4); })) continue;
               caixas.push(bb);
-              P.texto(cx - up[0]*hz/2, cy - up[1]*hz/2, nome, { tam:tz, bold:true, align:"center", rot:ang, cor:"#14425f", halo:true });
+              // bloco centrado em (cx,cy), eixo "up" para cima: o nome fica embaixo e o "Expropriado:" logo acima dele
+              P.texto(cx - up[0]*hbox/2, cy - up[1]*hbox/2, nome, { tam:tz, bold:true, align:"center", rot:ang, cor:"#14425f", halo:true });
+              if(pref) P.texto(cx + up[0]*(hz + 1.2 - hbox/2), cy + up[1]*(hz + 1.2 - hbox/2), pref, { tam:tp2, align:"center", rot:ang, cor:"#14425f", halo:true });
               posto = true;
             }
           }
@@ -18574,7 +18590,7 @@ function AV_gerarDescSituacao(){
     var n = Math.max(1, ate - de);
     var alt = Math.min(ALT_LIN_MAX, Math.max(ALT_LIN_MIN, (hDisp - ALT_CAB)/n));
     var tam = Math.min(TAM.tab, Math.max(3.8, alt*1.46));
-    var csT = confrontantes(), dvT = divisasDe(), cfT = conf(), COR_TIPO = { rem:"#1565c0", faixa:"#d32f2f" };
+    var csT = confrontantesBrutos(), dvT = divisasDe(), cfT = conf(), COR_TIPO = { rem:"#1565c0", faixa:"#d32f2f" };
     for(var j = de; j < ate && j < G.segs.length; j++){
       var s = G.segs[j], a = G.v[s.de], b = G.v[s.para];
       if(j % 2) P.ret(x, y, larg, alt, { peso:0, fill:"#f5f8fb" });
@@ -19097,7 +19113,7 @@ function AV_gerarDescSituacao(){
     var assinImg = assinK && op && op.assin && op.assin[assinK];
     [["Desenhista:", ex.desenhista || "", "", ex.data_desenho || dataImpR],
      ["Res. Técnico:", c.resp || "", "ENGº AGRÔNOMO - CREA 351993 V/MG", dataImpR],
-     ["Aprovação:", ex.aprovacao || "", "", ex.data_aprov || dataImpR]].forEach(function(b, i){
+     ["Aprovação:", ex.aprovacao || "", "", ""]].forEach(function(b, i){
       var by = ry0 + i*hB, lin = by + hB - 5.4;
       var cm = (c2 + cd)/2, wN = cd - c2 - 4.4, wD = c3 - cd - 4;
       P.texto(c2 + 1.8, by + 4, b[0], { tam:5.85, cor:"#4a5a6a" });
@@ -20076,7 +20092,7 @@ function AV_gerarDescSituacao(){
   window.MDP_setObs = function(i, v){ var o = extras().obs || []; o[i] = v; setExtra("obs", o); };
   /* ---- lista de opções do confrontante: CTDs já cadastrados no mesmo SPS + áreas remanescentes ---- */
   var LISTA_CONF = { sps:null, itens:[], carregando:false };
-  var REMANESCENTES = ["Área remanescente Norte", "Área remanescente Sul", "Área remanescente Leste", "Área remanescente Oeste"];
+  var REMANESCENTES = ["Área remanescente"];   // uma só opção: sai com o nome do proprietário/posseiro do cadastro
   function spsAtual(){ var l = gv("fb_proc_lote"); return l ? String(parseInt(l,10)).padStart(2,"0") : ""; }
   function sps2(l){ var d = String(l == null ? "" : l).replace(/\D/g,""); return d ? ("0" + d).slice(-2) : ""; }
   function ctdCurto(v){ var m = String(v||"").match(/CTD\s*([A-Za-z0-9]+(?:[-.\/][A-Za-z0-9]+)*)/i); return m ? m[1] : String(v||""); }
@@ -20097,7 +20113,7 @@ function AV_gerarDescSituacao(){
   }
   function renderDatalist(){
     var dl = $("mdp_dl_conf"); if(!dl) return;
-    var h = REMANESCENTES.map(function(t){ return '<option value="' + esc(t) + '">área remanescente</option>'; }).join("")
+    var h = REMANESCENTES.map(function(t){ return '<option value="' + esc(t) + '">remanescente — usa o nome do proprietário/posseiro deste cadastro</option>'; }).join("")
       + '<option value="Faixa de domínio da ferrovia">faixa de domínio</option>';
     h += LISTA_CONF.itens.map(function(it){
       return '<option value="' + esc(it.nome) + '">CTD ' + esc(it.ctd) + (it.posseiro ? (" · posseiro: " + esc(it.posseiro)) : "") + '</option>';
