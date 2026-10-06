@@ -5533,30 +5533,30 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
     </div>
 
     <div class="vsub">I — Dimensionamento da Variável CCU</div>
-    <label class="img-drop" id="av_ccu_drop">
+    <label class="img-drop av-so-obs" id="av_ccu_drop">
       <span class="ic">🖼️</span>
       <span class="t">Clique ou arraste a imagem (Figura 1 — glebas do imóvel)</span>
       <span class="h">JPG ou PNG</span>
       <input type="file" accept="image/*" id="av_ccu_file" placeholder="Preencher este campo">
     </label>
-    <div class="img-preview" id="av_ccu_prev"></div>
+    <div class="img-preview av-so-obs" id="av_ccu_prev"></div>
 
     <!-- Classes / Glebas dinâmicas -->
-    <div class="vsub">Classes de Capacidade de Uso (CCU) por gleba
+    <div class="vsub" id="av_vs_cls">Classes de Capacidade de Uso (CCU) por gleba
       <span class="hint-auto">preenchida automaticamente pela Tabela de Nota Agronômica — edite apenas o Fator mais restritivo</span>
     </div>
-    <div class="antes-depois-sel">
+    <div class="antes-depois-sel" id="av_ad_sel">
       <label class="ad-lbl">Cálculo de Nota Agronômica com "Antes e Depois"?</label>
       <label class="ad-opt"><input type="radio" name="av_antesdepois" value="nao" checked onchange="AV_antesDepoisToggle()"> Não</label>
       <label class="ad-opt"><input type="radio" name="av_antesdepois" value="sim" onchange="AV_antesDepoisToggle()"> Sim</label>
     </div>
-    <div class="av-area-aval">
+    <div class="av-area-aval" id="av_area_blk">
       <label>Área avaliada de referência (ha) — base do cálculo de %</label>
       <input type="text" id="av_area_aval" readonly class="bloqueado" placeholder="Área avaliada de referência (ha) — base do cálculo de %">
       <span class="hint-inline">Repete automaticamente a Área Total do Imóvel (item 3.36). Bloqueada para edição.</span>
     </div>
 
-    <div class="vsub">Tabela de Nota Agronômica (CCU × Situação/Circulação)</div>
+    <div class="vsub" id="av_vs_tab">Tabela de Nota Agronômica (CCU × Situação/Circulação)</div>
     <div class="na-tabela-wrap">
       <table class="na-tabela" id="av_na_tabela">
         <thead>
@@ -12106,8 +12106,17 @@ window.FOTO_rodapeHTML=rodapeHTML;
     const bloco = document.getElementById("av_t11");
     const host = document.getElementById(m === "obs" ? "av_t11_host_obs" : "av_t11_host_ftn");
     if(bloco){ if(host && bloco.parentNode !== host) host.appendChild(bloco); bloco.setAttribute("data-modo", m); }
+    // ordem dos itens do tópico I: na FTN a Tabela de Nota Agronômica vem primeiro (com "Antes e Depois" e a área de referência
+    // logo abaixo do título) e o título "Classes de Capacidade de Uso por gleba" desce para depois da tabela; no Obsoleto, como era
+    const E = id => document.getElementById(id), vsC = E("av_vs_cls"), vsT = E("av_vs_tab"), ad = E("av_ad_sel"), ar = E("av_area_blk"), gl = E("av_glebas");
+    if(vsC && vsT && ad && ar && gl && ad.parentNode === vsC.parentNode){
+      const pai = ad.parentNode;
+      if(m === "ftn"){ pai.insertBefore(vsT, ad); pai.insertBefore(vsC, gl); }
+      else { pai.insertBefore(vsC, ad); pai.insertBefore(vsT, E("av_na_tabela").closest(".na-tabela-wrap")); }
+    }
     recalc();
   };
+  document.addEventListener("DOMContentLoaded", function(){ setTimeout(function(){ try{ window.AV_setModo(window.__AV_MODO__); }catch(e){} }, 0); });
   // geradores de documento que precisam de um modelo específico (e devolvem o bloco como estava)
   window.AV_comModo = async function(m, fn){
     const m0 = window.__AV_MODO__; window.AV_setModo(m);
@@ -13033,7 +13042,8 @@ window.FOTO_rodapeHTML=rodapeHTML;
     novaPagina(doc,ctx);
     subLbl(doc,ctx,"I — Dimensionamento da Variável CCU");
     const ccuImg = window.__AV_IMAGENS__ && window.__AV_IMAGENS__.ccu;
-    if(ccuImg){
+    if(ftn){ /* FTN: sem a Figura 1 */ }
+    else if(ccuImg){
       inserirImagem(doc, ctx, ccuImg, 300);
       doc.setFont("helvetica","italic"); doc.setFontSize(8); doc.setTextColor(90,100,112);
       ensure(doc,ctx,12);
