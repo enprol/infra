@@ -13028,6 +13028,173 @@ window.FOTO_rodapeHTML=rodapeHTML;
   };
 
   // ---------- LAUDO 11 ----------
+  // PDF "Avaliação da terra nua" (aba Avaliação FTN), versão compacta (06/10/2026): as tabelas da tela — Nota Agronômica,
+  // glebas por classe, escala de valor da CCU — mais a memória de cálculo (IV) e, em seguida, a tabela do imóvel avaliando.
+  // Sem os textos longos das variáveis, sem as tabelas de referência e sem a amostra do SISDEA.
+  function desenharFtnCompacto(doc,ctx){
+    const E = id => document.getElementById(id), L = ctx.MR-ctx.ML;
+    const txt = id => { const e=E(id); return e ? String(e.value!=null && e.tagName!=="SPAN" && e.tagName!=="DIV" ? e.value : e.textContent).trim() : ""; };
+    novaPagina(doc,ctx);
+
+    // --- canhoto de identificação do documento (sem capa): documento, processo administrativo, ocupante e localização
+    (function(){
+      const mun = [txt("av_municipio"), txt("av_uf")].filter(Boolean).join("/");
+      const campos = [
+        [["Documento","Memorial de Cálculo da avaliação"]],
+        [["Processo administrativo", txt("fv_processo") || "—"]],
+        [["Proprietário / ocupante", txt("av_nome") || "—"],["Localidade", txt("av_localidade") || "—"],["Município / UF", mun || "—"]]
+      ];
+      const h = 15 + campos.length*21 - 3, y0 = ctx.y;
+      doc.setFillColor(244,248,252); doc.setDrawColor(188,214,240); doc.setLineWidth(0.6);
+      doc.roundedRect(ctx.ML, y0, L, h, 3, 3, "FD");
+      doc.setFillColor(31,111,192); doc.rect(ctx.ML, y0, 4, h, "F");
+      let yy = y0 + 5;
+      campos.forEach(function(lin){
+        const w = (L - 20) / lin.length; let xx = ctx.ML + 12;
+        lin.forEach(function(c){
+          doc.setFont("helvetica","bold"); doc.setFontSize(6.3); doc.setTextColor(100,112,128);
+          doc.text(c[0].toUpperCase(), xx, yy + 6);
+          doc.setFont("helvetica","bold"); doc.setFontSize(8.6); doc.setTextColor(20,40,70);
+          let v = String(c[1]); while(v.length > 4 && doc.getTextWidth(v) > w - 8) v = v.slice(0, -2);
+          doc.text(v === String(c[1]) ? v : v.trim() + "…", xx, yy + 16);
+          xx += w;
+        });
+        yy += 21;
+      });
+      ctx.y = y0 + h + 10; doc.setTextColor(30,40,55);
+    })();
+
+    secBar(doc,ctx,"AVALIAÇÃO DA TERRA NUA");
+
+    // --- explicação das variáveis (os mesmos textos da tela)
+    [["Variável Área do Imóvel (ha)","av_var_area"],["Variável Nota Agronômica (N.A.)","av_var_na"],["Variável Influência Vila","av_var_vila"],["Variável Situação","av_situacao_txt"]].forEach(function(v){
+      subLbl(doc,ctx,v[0]); paragrafo(doc,ctx, (txt(v[1]) || "—").replace(/\n/g, v[1]==="av_var_vila" ? "\n\n" : "\n"), 8.5);
+    });
+
+    // --- Tabela de Nota Agronômica (CCU × Situação/Circulação)
+    subLbl(doc,ctx,"Tabela de Nota Agronômica (CCU × Situação/Circulação)");
+    const ad = document.querySelector('input[name="av_antesdepois"]:checked');
+    doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.setTextColor(60,70,85);
+    doc.text('Cálculo de Nota Agronômica com "Antes e Depois": '+(ad && ad.value==="sim" ? "Sim" : "Não")+'     ·     Área avaliada de referência (ha): '+(txt("av_area_aval")||"—"), ctx.ML, ctx.y+6);
+    ctx.y += 14;
+    const cw = [.09,.11,.13,.17,.09,.25,.16].map(f=>f*L), hh = 15, hr = 13.5;
+    ensure(doc,ctx, hh*2 + hr*10);
+    let x = ctx.ML;
+    doc.setFont("helvetica","bold"); doc.setFontSize(7.5); doc.setTextColor(255,255,255);
+    doc.setFillColor(23,90,159); doc.rect(ctx.ML,ctx.y,cw[0]+cw[1]+cw[2]+cw[3]+cw[4],hh,"F");
+    doc.setFillColor(21,128,61); doc.rect(ctx.ML+cw[0]+cw[1]+cw[2]+cw[3]+cw[4],ctx.y,cw[5]+cw[6],hh,"F");
+    doc.text("Classe de Capacidade de Uso do Solo — CCU", ctx.ML+(cw[0]+cw[1]+cw[2]+cw[3]+cw[4])/2, ctx.y+10, {align:"center"});
+    doc.text("Nota Agronômica — NA", ctx.ML+cw[0]+cw[1]+cw[2]+cw[3]+cw[4]+(cw[5]+cw[6])/2, ctx.y+10, {align:"center"});
+    ctx.y += hh;
+    const cab = ["Classe","Escala (%)","Área (ha)","Classif. % imóvel","CCU","Situação / Circulação","N.A."];
+    doc.setFillColor(31,111,192); doc.rect(ctx.ML,ctx.y,L,hh,"F");
+    doc.setFontSize(7); x = ctx.ML;
+    cab.forEach((c,i)=>{ doc.text(c, x+cw[i]/2, ctx.y+10, {align:"center"}); x+=cw[i]; });
+    ctx.y += hh;
+    doc.setDrawColor(200,210,222); doc.setLineWidth(0.3);
+    document.querySelectorAll("#av_na_tbody tr").forEach(tr=>{
+      if(!tr.dataset.classe) return;
+      const td = tr.querySelectorAll("td"); if(td.length < 7) return;
+      const inp = td[2].querySelector("input");
+      const cel = [td[0].textContent, td[1].textContent, inp ? inp.value||"0,0" : td[2].textContent, td[3].textContent, td[4].textContent, td[5].textContent, td[6].textContent].map(s=>String(s).trim());
+      const sel = td[5].classList.contains("sel"), cheia = inp && parseFloat(String(inp.value).replace(/\./g,"").replace(",",".")) > 0;
+      x = ctx.ML;
+      cw.forEach((w,i)=>{
+        if(i === 5 && sel){ doc.setFillColor(21,128,61); doc.rect(x,ctx.y,w,hr,"FD"); }
+        else if(i === 2 && cheia){ doc.setFillColor(255,249,232); doc.rect(x,ctx.y,w,hr,"FD"); }
+        else if(i === 0){ doc.setFillColor(240,245,250); doc.rect(x,ctx.y,w,hr,"FD"); }
+        else doc.rect(x,ctx.y,w,hr);
+        const forte = (i === 0) || (i === 6 && cel[6]) || (i === 5 && sel);
+        doc.setFont("helvetica", forte ? "bold" : "normal"); doc.setFontSize(7.5);
+        if(i === 5 && sel) doc.setTextColor(255,255,255); else if(i === 6) doc.setTextColor(21,128,61); else doc.setTextColor(35,45,60);
+        doc.text(cel[i], x+w/2, ctx.y+9.2, {align:"center"});
+        x += w;
+      });
+      ctx.y += hr;
+    });
+    x = ctx.ML; doc.setFillColor(238,244,250);
+    const tot = ["Total","", txt_t(".na-total-area"), (txt_t(".na-total-pct")||"0"), txt_t(".na-total-ccu"), "", ""];
+    function txt_t(sel){ const e = document.querySelector("#av_na_tbody "+sel); return e ? e.textContent.trim() : ""; }
+    cw.forEach((w,i)=>{ doc.setFillColor(238,244,250); doc.setDrawColor(200,210,222); doc.rect(x,ctx.y,w,hr,"FD"); doc.setFont("helvetica","bold"); doc.setFontSize(7.5); doc.setTextColor(23,90,159); doc.text(tot[i], x+w/2, ctx.y+9.2, {align:"center"}); x+=w; });
+    ctx.y += hr + 8; doc.setTextColor(30,40,55);
+
+    // --- Classes de Capacidade de Uso (CCU) por gleba
+    subLbl(doc,ctx,"Classes de Capacidade de Uso (CCU) por gleba");
+    const gl = document.querySelectorAll("#av_glebas .gleba-linha");
+    gl.forEach((g,idx)=>{
+      const q = s => { const e = g.querySelector(s); return e ? (e.value!=null && e.tagName!=="DIV" ? e.value : e.textContent) : ""; };
+      const optTxt = s => { const e = g.querySelector(s); return (e && e.selectedIndex >= 0 && e.value !== "") ? e.options[e.selectedIndex].textContent.trim() : ""; };
+      const fator = String(q(".g-fator")).trim() || "—";
+      const lin = doc.splitTextToSize(fator, L-20);
+      const alt = 20 + lin.length*9 + 4;
+      ensure(doc,ctx,alt+4);
+      doc.setFillColor(247,250,253); doc.setDrawColor(188,214,240); doc.setLineWidth(0.5);
+      doc.roundedRect(ctx.ML,ctx.y,L,alt,3,3,"FD");
+      doc.setFont("helvetica","bold"); doc.setFontSize(8.5); doc.setTextColor(23,90,159);
+      doc.text("Gleba "+String(idx+1).padStart(2,"0"), ctx.ML+8, ctx.y+12.5);
+      doc.setFontSize(7.5); doc.setTextColor(35,45,60);
+      doc.text("CLASSE "+String(q(".g-classe-disp")).trim()+"     ÁREA "+String(q(".g-area-disp")).trim()+" ha", ctx.ML+70, ctx.y+12.5);
+      doc.setFillColor(230,242,252); doc.roundedRect(ctx.MR-62,ctx.y+3,54,14,3,3,"F");
+      doc.setFont("helvetica","bold"); doc.setFontSize(8.5); doc.setTextColor(23,90,159);
+      doc.text(String(q(".pct-val")).trim(), ctx.MR-35, ctx.y+12.8, {align:"center"});
+      doc.setFont("helvetica","normal"); doc.setFontSize(7.3); doc.setTextColor(70,80,95);
+      lin.forEach((ln,li)=> doc.text(ln, ctx.ML+8, ctx.y+24+li*9));
+      ctx.y += alt + 4;
+    });
+    if(!gl.length){ paragrafo(doc,ctx,"(Sem glebas: preencha as áreas na Tabela de Nota Agronômica.)"); }
+    ctx.y += 2;
+
+    // --- Escala de Valor da CCU (título e caixa na mesma página)
+    ensure(doc,ctx,17+46+24);
+    subLbl(doc,ctx,"Escala de Valor da CCU");
+    ensure(doc,ctx,46);
+    doc.setFillColor(240,247,255); doc.setDrawColor(188,214,240);
+    doc.roundedRect(ctx.ML,ctx.y,L,40,4,4,"FD");
+    doc.setFont("courier","normal"); doc.setFontSize(9); doc.setTextColor(10,77,124);
+    doc.text(E("av_ccu_l1").textContent, ctx.ML+8, ctx.y+12);
+    doc.text(E("av_ccu_l2").textContent, ctx.ML+8, ctx.y+24);
+    doc.setFont("courier","bold");
+    doc.text(E("av_ccu_l3").textContent, ctx.ML+8, ctx.y+35);
+    ctx.y += 48; doc.setTextColor(30,40,55);
+
+    // --- N.A.
+    ensure(doc,ctx,22);
+    doc.setFont("helvetica","bold"); doc.setFontSize(10.5); doc.setTextColor(23,90,159);
+    const es = E("av_na_escala"), esT = es && es.selectedIndex >= 0 ? es.options[es.selectedIndex].textContent.trim() : "";
+    doc.text("N.A. = CCU "+txt("av_na_ccu")+" × escala "+(es ? es.value.replace(".",",") : "")+(esT ? " ("+esT+")" : "")+" = "+txt("av_na_result"), ctx.ML, ctx.y+10);
+    ctx.y += 22; doc.setTextColor(30,40,55);
+
+    // --- IV — Memória de Cálculo para Terra Nua
+    subLbl(doc,ctx,"Memória de Cálculo para Terra Nua");
+    const rows = [
+      ["ÁREA DO IMÓVEL (ha)","e^(-0,6346406128 × ln(Área (ha)))", txt("av_mem_area"), E("av_mem_area_r").textContent],
+      ["NOTA AGRONÔMICA (N.A.)","e^(+8,17860439 × N.A.²)", txt("av_mem_na"), E("av_mem_na_r").textContent],
+      ["INFLUÊNCIA VILA","e^(+1,076288644 × Influência Vila)", E("av_mem_vila").value || "—", E("av_mem_vila_r").textContent]
+    ];
+    ensure(doc,ctx, 16+rows.length*15+60);
+    const cols=[ctx.ML, ctx.ML+130, ctx.ML+320, ctx.ML+400];
+    doc.setFillColor(31,111,192); doc.rect(ctx.ML,ctx.y,L,15,"F");
+    doc.setFont("helvetica","bold"); doc.setFontSize(7.5); doc.setTextColor(255,255,255);
+    ["VARIÁVEIS","FRAGMENTOS MODELO","COEF.","RESULTADO"].forEach((c,i)=> doc.text(c, cols[i]+3, ctx.y+10));
+    ctx.y += 15;
+    doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.setTextColor(35,45,60); doc.setDrawColor(211,219,228);
+    rows.forEach(r=>{
+      doc.rect(ctx.ML,ctx.y,L,15);
+      doc.text(r[0], cols[0]+3, ctx.y+9.5); doc.text(r[1], cols[1]+3, ctx.y+9.5);
+      doc.text(String(r[2]), cols[2]+3, ctx.y+9.5); doc.text(String(r[3]), cols[3]+3, ctx.y+9.5);
+      ctx.y += 15;
+    });
+    ctx.y += 8;
+    ensure(doc,ctx,44);
+    doc.setFillColor(255,244,230); doc.setDrawColor(240,200,145);
+    doc.roundedRect(ctx.ML,ctx.y,L,38,4,4,"FD");
+    doc.setFont("courier","normal"); doc.setFontSize(7); doc.setTextColor(138,90,26);
+    doc.text(doc.splitTextToSize("R$/ha = 3127,488781 × e^(-0,6346406128 × ln(Área)) × e^(+8,17860439 × N.A.²) × e^(+1,076288644 × Influência Vila)", L-16), ctx.ML+8, ctx.y+12);
+    doc.setFont("helvetica","bold"); doc.setFontSize(13); doc.setTextColor(192,112,10);
+    doc.text("VTN/ha = "+E("av_vtn").textContent, ctx.ML+8, ctx.y+31);
+    ctx.y += 46; doc.setTextColor(30,40,55);
+  }
+
   // ftn = true: aba "Avaliação FTN" (PDF "Avaliação da terra nua", só o conteúdo da aba); false: laudo antigo (Obsoleto)
   function desenharLaudo11(doc,ctx,ftn){
     novaPagina(doc,ctx);
@@ -13343,13 +13510,22 @@ window.FOTO_rodapeHTML=rodapeHTML;
     return window.AV_comModo("ftn", async function(){
       window.AV_recalcular();
       const {jsPDF}=window.jspdf, doc=new jsPDF({unit:"pt",format:"a4"}), ctx=makeCtx(doc);
-      desenharLaudo11(doc,ctx,true);
+      desenharFtnCompacto(doc,ctx);
+      const yFim = ctx.y;                                      // onde terminou o conteúdo na última página
       doc.deletePage(1);                                       // a 1ª página (em branco) nasce com o documento
       const lau = await PDFLib.PDFDocument.load(doc.output("arraybuffer"));
-      const fin = await PDFLib.PDFDocument.load(window.AV_paginasFinais(true,true,true));
+      const fin = await PDFLib.PDFDocument.load(window.AV_paginasFinais(false,true,true));   // sem a amostra do SISDEA
       const out = await PDFLib.PDFDocument.create();
       (await out.copyPages(lau, lau.getPageIndices())).forEach(function(pg){ out.addPage(pg); });
-      (await out.copyPages(fin, fin.getPageIndices())).forEach(function(pg){ out.addPage(pg); });
+      // a tabela "Imóvel avaliando" vem na mesma página da memória de cálculo, se couber (recorte da página dela, sem os logos)
+      const pf = fin.getPage(0), PW = pf.getWidth(), PH = pf.getHeight(), TOPO = 84, ALT = 316;
+      const ultima = out.getPage(out.getPageCount() - 1), yTopo = yFim + 16;
+      if(fin.getPageCount() === 1 && yTopo + ALT <= ctx.MB){
+        const emb = await out.embedPage(pf, { left:0, bottom:PH - TOPO - ALT, right:PW, top:PH - TOPO });
+        ultima.drawPage(emb, { x:0, y:ultima.getHeight() - yTopo - ALT, width:PW, height:ALT });
+      } else {
+        (await out.copyPages(fin, fin.getPageIndices())).forEach(function(pg){ out.addPage(pg); });
+      }
       return await out.save();
     });
   };
@@ -14010,20 +14186,20 @@ function AV_gerarDescSituacao(){
       doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor(255,255,255);
       doc.text(titulo, W/2, y+14, {align:"center"});
       y+=20;
-      const larg=W-80, cA=40, meio=cA+larg*0.62;
+      const larg=W-80, cA=40, lw=ftn?larg:lw, meio=cA+lw;
       // Características do imóvel | Mapa de Situação
       doc.setFillColor(23,90,159);
-      doc.rect(cA,y,larg*0.62,16,"F"); doc.rect(meio,y,larg*0.38,16,"F");
+      doc.rect(cA,y,lw,16,"F"); if(!ftn) doc.rect(meio,y,larg*0.38,16,"F");   // FTN: sem a coluna "Mapa de Situação"
       doc.setFontSize(8.5); doc.setTextColor(255,255,255);
-      doc.text("Características do imóvel", cA+larg*0.31, y+11, {align:"center"});
-      doc.text("Mapa de Situação", meio+larg*0.19, y+11, {align:"center"});
+      doc.text("Características do imóvel", cA+lw/2, y+11, {align:"center"});
+      if(!ftn) doc.text("Mapa de Situação", meio+larg*0.19, y+11, {align:"center"});
       y+=16;
       const linhas=[
         ["Área (ha)", dados.area||"—", "N.A.", dados.na||"—"],
         ftn ? ["Influência Vila", dados.vila||"—", "Município", dados.municipio||"—"] : ["Zona", dados.zona||"—", "Município", dados.municipio||"—"]
       ];
       doc.setTextColor(35,45,60); doc.setFontSize(8);
-      const q=larg*0.62/4;
+      const q=lw/4;
       const mapaY=y;
       linhas.forEach(row=>{
         doc.setDrawColor(180,195,210);
@@ -14038,14 +14214,14 @@ function AV_gerarDescSituacao(){
       });
       // equação (texto ajustado para caber dentro do quadro)
       const eqBoxH=44;
-      doc.setDrawColor(180,195,210); doc.rect(cA,y,larg*0.62,eqBoxH);
+      doc.setDrawColor(180,195,210); doc.rect(cA,y,lw,eqBoxH);
       doc.setFillColor(240,245,250); doc.rect(cA,y,q,eqBoxH,"F"); doc.rect(cA,y,q,eqBoxH);
       doc.setFont("helvetica","bold"); doc.setFontSize(8); doc.text("Equação", cA+q/2, y+eqBoxH/2+2, {align:"center"});
       doc.setFont("helvetica","normal");
       // usa caracteres compatíveis com a fonte (evita * unicode que causa sobreposição)
       const eq = ftn ? "Unitario (R$/ha) = 3127,488781 x e^(-0,6346406128 x ln(Area)) x e^(+8,17860439 x N.A.^2) x e^(+1,076288644 x Influencia Vila)"
                      : "Unitario (R$/ha) = +170930,8028 x e^(+0,7420810025 / Area) x e^(-0,7754092498 / N.A.^2) x e^(+0,3240766412 x Zona)";
-      const eqLarg=larg*0.62-q-10;
+      const eqLarg=lw-q-10;
       // reduz a fonte até as linhas caberem na altura do quadro
       let eqFs=7;
       let eqLinhas=doc.splitTextToSize(eq, eqLarg);
@@ -14055,8 +14231,9 @@ function AV_gerarDescSituacao(){
       eqLinhas.forEach(ln=>{ doc.text(ln, cA+q+5, eqY); eqY+=eqFs+1.5; });
       // moldura do mapa (imagem se houver)
       const mapaH=(y+44)-mapaY;
-      doc.setDrawColor(180,195,210); doc.rect(meio,mapaY,larg*0.38,mapaH);
-      if(window.__AV_IMAGENS__ && window.__AV_IMAGENS__.mapa){
+      if(!ftn) doc.setDrawColor(180,195,210);
+      if(!ftn) doc.rect(meio,mapaY,larg*0.38,mapaH);
+      if(!ftn && window.__AV_IMAGENS__ && window.__AV_IMAGENS__.mapa){
         try{
           const mp = window.__AV_IMAGENS__.mapa;
           let mfmt="JPEG"; const mm=/^data:image\/([a-z0-9+]+)/i.exec(mp);
@@ -14066,9 +14243,9 @@ function AV_gerarDescSituacao(){
       }
       y+=44;
       // Valores Unitário / Hectare
-      doc.setFillColor(31,111,192); doc.rect(cA,y,larg*0.62,15,"F");
+      doc.setFillColor(31,111,192); doc.rect(cA,y,lw,15,"F");
       doc.setFont("helvetica","bold"); doc.setTextColor(255,255,255); doc.setFontSize(8);
-      doc.text("Valores Unitário / Hectare (R$)", cA+larg*0.31, y+10, {align:"center"});
+      doc.text("Valores Unitário / Hectare (R$)", cA+lw/2, y+10, {align:"center"});
       y+=15;
       function linhaVal(lbl, a, b, c, destaque){
         doc.setDrawColor(180,195,210); doc.setTextColor(35,45,60);
@@ -14077,7 +14254,7 @@ function AV_gerarDescSituacao(){
         y+=14;
       }
       // cabeçalho colunas
-      doc.setFillColor(238,244,250); doc.rect(cA,y,larg*0.62,14,"F");
+      doc.setFillColor(238,244,250); doc.rect(cA,y,lw,14,"F");
       doc.setDrawColor(180,195,210); doc.setTextColor(23,90,159); doc.setFont("helvetica","bold"); doc.setFontSize(7.5);
       ["Valores","Mínimo","Médio","Máximo"].forEach((h,k)=>{ doc.rect(cA+k*q,y,q,14); doc.text(h,cA+k*q+q/2,y+9,{align:"center"}); });
       y+=14;
@@ -14089,22 +14266,22 @@ function AV_gerarDescSituacao(){
       y+=14;
       linhaVal("Campo de Arbítrio:", dados.ca_min||"—", dados.ca_med||"—", dados.ca_max||"—", true);
       // VTN
-      doc.setFillColor(31,111,192); doc.rect(cA,y,larg*0.62,15,"F");
+      doc.setFillColor(31,111,192); doc.rect(cA,y,lw,15,"F");
       doc.setFont("helvetica","bold"); doc.setTextColor(255,255,255); doc.setFontSize(8);
-      doc.text("Valor de Avaliação da Terra Nua (R$)", cA+larg*0.31, y+10, {align:"center"});
+      doc.text("Valor de Avaliação da Terra Nua (R$)", cA+lw/2, y+10, {align:"center"});
       y+=15;
       linhaVal("VTN", dados.vtn_min||"—", dados.vtn_med||"—", dados.vtn_max||"—", true);
       if(!ftn) return;
       // Valor de desapropriação da área desapropriada (área × valor unitário do SISDEA)
-      doc.setFillColor(31,111,192); doc.rect(cA,y,larg*0.62,15,"F");
+      doc.setFillColor(31,111,192); doc.rect(cA,y,lw,15,"F");
       doc.setFont("helvetica","bold"); doc.setTextColor(255,255,255); doc.setFontSize(8);
-      doc.text("Valor de Desapropriação da Área Desapropriada (R$)", cA+larg*0.31, y+10, {align:"center"});
+      doc.text("Valor de Desapropriação da Área Desapropriada (R$)", cA+lw/2, y+10, {align:"center"});
       y+=15;
       doc.setDrawColor(180,195,210); doc.rect(cA,y,q,14); doc.setFillColor(240,245,250); doc.rect(cA,y,q,14,"F"); doc.rect(cA,y,q,14);
       doc.setFont("helvetica","bold"); doc.setTextColor(35,45,60); doc.setFontSize(7.5); doc.text("Área desapropriada", cA+q/2, y+9, {align:"center"});
       doc.rect(cA+q,y,q*3,14); doc.setFont("helvetica","normal"); doc.text(String(dados.dsp_area||"—"), cA+q+(q*3)/2, y+9, {align:"center"});
       y+=14;
-      doc.setFillColor(238,244,250); doc.rect(cA,y,larg*0.62,14,"F");
+      doc.setFillColor(238,244,250); doc.rect(cA,y,lw,14,"F");
       doc.setDrawColor(180,195,210); doc.setTextColor(23,90,159); doc.setFont("helvetica","bold"); doc.setFontSize(7.5);
       ["Valores","Mínimo","Médio","Máximo"].forEach((h,k)=>{ doc.rect(cA+k*q,y,q,14); doc.text(h,cA+k*q+q/2,y+9,{align:"center"}); });
       y+=14;
