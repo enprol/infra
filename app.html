@@ -5552,8 +5552,14 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
     </div>
     <div class="av-area-aval" id="av_area_blk">
       <label>Área avaliada de referência (ha) — base do cálculo de %</label>
+      <select id="av_area_base" class="av-so-ftn" title="Qual área da Ficha de Vistoria serve de base para o cálculo de %">
+        <option value="total">Área total do imóvel</option>
+        <option value="ocupada">Área total ocupada</option>
+        <option value="desap">Área de desapropriação</option>
+      </select>
       <input type="text" id="av_area_aval" readonly class="bloqueado" placeholder="Área avaliada de referência (ha) — base do cálculo de %">
-      <span class="hint-inline">Repete automaticamente a Área Total do Imóvel (item 3.36). Bloqueada para edição.</span>
+      <span class="hint-inline av-so-obs">Repete automaticamente a Área Total do Imóvel (item 3.36). Bloqueada para edição.</span>
+      <span class="hint-inline av-so-ftn" id="av_area_base_hint">Escolha a área-base; o valor vem da Ficha de Vistoria (1.4 Propriedade). Bloqueado para edição.</span>
     </div>
 
     <div class="vsub" id="av_vs_tab">Tabela de Nota Agronômica (CCU × Situação/Circulação)</div>
@@ -6088,6 +6094,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
     <div class="vrow">
       <div class="vfield grow"><label>Identificação</label><input type="text" id="fb_prop_id" placeholder="Identificação"></div>
       <div class="vfield"><label>Área Total (ha)</label><input type="text" id="fb_area_total" class="num4" inputmode="decimal" placeholder="0,0000"></div>
+      <div class="vfield"><label>Área total ocupada (ha)</label><input type="text" id="fb_area_ocupada" class="num4" inputmode="decimal" placeholder="0,0000"></div>
     </div>
     <div class="vrow">
       <div class="vfield grow"><label>Endereço</label><input type="text" id="fb_prop_end" placeholder="Endereço"></div>
@@ -11809,7 +11816,18 @@ window.FOTO_rodapeHTML=rodapeHTML;
     // área avaliada de referência repete a Área Total do Imóvel (3.36) e fica bloqueada
     const areaTotalEl = document.getElementById("av_areatotal");
     const areaAvalEl = document.getElementById("av_area_aval");
-    if(areaTotalEl && areaAvalEl && areaTotalEl.value.trim()) areaAvalEl.value = areaTotalEl.value.trim();
+    const selBase = document.getElementById("av_area_base"), dicaBase = document.getElementById("av_area_base_hint");
+    if(window.__AV_MODO__ !== "obs" && selBase && areaAvalEl){
+      // FTN: a área-base do % é escolhida (total do imóvel, total ocupada ou área de desapropriação); sem valor, cai na área total
+      const fonte = { total:"av_areatotal", ocupada:"fb_area_ocupada", desap:"fb_area_desap" }[selBase.value] || "av_areatotal";
+      const ev = document.getElementById(fonte), vb = ev ? String(ev.value || "").trim() : "";
+      const vt = areaTotalEl ? areaTotalEl.value.trim() : "";
+      if(vb) areaAvalEl.value = vb; else if(vt) areaAvalEl.value = vt;
+      if(dicaBase){
+        dicaBase.textContent = (!vb && fonte !== "av_areatotal") ? "A área escolhida ainda não está preenchida na Ficha de Vistoria (1.4 Propriedade): usando a Área total do imóvel." : "Escolha a área-base; o valor vem da Ficha de Vistoria (1.4 Propriedade). Bloqueado para edição.";
+        dicaBase.style.color = (!vb && fonte !== "av_areatotal") ? "#b45309" : "";
+      }
+    } else if(areaTotalEl && areaAvalEl && areaTotalEl.value.trim()) areaAvalEl.value = areaTotalEl.value.trim();
     const areaAval = num(areaAvalEl.value);
 
     // FONTE DE DADOS: áreas por classe vêm da Tabela de Nota Agronômica (editável)
@@ -12183,9 +12201,10 @@ window.FOTO_rodapeHTML=rodapeHTML;
     autoFill(); bindSync();
     // listeners de recálculo em campos que afetam contas
     ["av_area_aval","av_na_escala","av_mem_zona","av_mem_vila","av_areatotal","av_fd_area","av_rem_area",
-     "rs_121","rs_122","rs_123","rs_124","rs_12","rs_13"].forEach(id=>{
+     "rs_121","rs_122","rs_123","rs_124","rs_12","rs_13","fb_area_ocupada","fb_area_desap"].forEach(id=>{
       const el=document.getElementById(id); if(el) el.addEventListener("input", recalc);
     });
+    { const sb=document.getElementById("av_area_base"); if(sb){ sb.addEventListener("change", recalc); sb.addEventListener("input", recalc); } }
     // ao mudar a Situação/Circulação, regenerar a descrição automática (item II)
     const escSel=document.getElementById("av_na_escala");
     if(escSel){ escSel.addEventListener("change", ()=>{ if(typeof AV_gerarDescSituacao==="function") AV_gerarDescSituacao(); }); }
@@ -13075,7 +13094,7 @@ window.FOTO_rodapeHTML=rodapeHTML;
     subLbl(doc,ctx,"Tabela de Nota Agronômica (CCU × Situação/Circulação)");
     const ad = document.querySelector('input[name="av_antesdepois"]:checked');
     doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.setTextColor(60,70,85);
-    doc.text('Cálculo de Nota Agronômica com "Antes e Depois": '+(ad && ad.value==="sim" ? "Sim" : "Não")+'     ·     Área avaliada de referência (ha): '+(txt("av_area_aval")||"—"), ctx.ML, ctx.y+6);
+    doc.text('Cálculo de Nota Agronômica com "Antes e Depois": '+(ad && ad.value==="sim" ? "Sim" : "Não")+'     ·     Área avaliada de referência (ha): '+(txt("av_area_aval")||"—")+(E("av_area_base") ? " ("+E("av_area_base").options[E("av_area_base").selectedIndex].textContent.toLowerCase()+")" : ""), ctx.ML, ctx.y+6);
     ctx.y += 14;
     const cw = [.09,.11,.13,.17,.09,.25,.16].map(f=>f*L), hh = 15, hr = 13.5;
     ensure(doc,ctx, hh*2 + hr*10);
@@ -23552,8 +23571,9 @@ function AV_gerarDescSituacao(){
     rv("Identificação:",gvW("fb_prop_id"),{tab:TW(30)});
     rv("Endereço:",gvW("fb_prop_end"),{tab:TW(30)});
     line2("CEP:",gvW("fb_prop_cep"),"Município:",gvW("fb_prop_mun"),TW(30),TW(60));
-    line2("Área Total (ha):",gvW("fb_area_total"),"Matrícula:",gvW("fb_matricula"),TW(30),TW(100));
-    line2("Área de desapropriação (ha):",gvW("fb_area_desap"),"Cartório:",gvW("fb_cartorio"),TW(52),TW(100));
+    line2("Área Total (ha):",gvW("fb_area_total"),"Área total ocupada (ha):",gvW("fb_area_ocupada"),TW(30),TW(100));
+    line2("Área de desapropriação (ha):",gvW("fb_area_desap"),"Matrícula:",gvW("fb_matricula"),TW(52),TW(100));
+    rv("Cartório:",gvW("fb_cartorio"),{tab:TW(30)});
     K.push(new Paragraph({spacing:{after:40},children:[R("")]}));
     h2("1.5 Observações:");
     para(gvW("fb_15_obs"),0,true);
@@ -24293,6 +24313,7 @@ function AV_gerarDescSituacao(){
     rv("CEP:", gv("fb_prop_cep"), {navy2:true, valTab:49});
     rv2("Município:", gv("fb_prop_mun"), "UF:", gv("fb_prop_uf"), {navy:true, valTab:49});
     rv("Área Total (ha):", gv("fb_area_total"), {navy2:true, valTab:49});
+    rv("Área total ocupada (ha):", gv("fb_area_ocupada"), {navy2:true, valTab:49});
     rv("Área de desapropriação (ha):", gv("fb_area_desap"), {navy2:true, valTab:49});
     rv("Matrícula:", gv("fb_matricula"), {navy2:true, valTab:49});
     rv("Cartório:", gv("fb_cartorio"), {navy2:true, valTab:49});
@@ -33122,6 +33143,7 @@ window.__ASSIN_DESENHISTA__ = {"andrezza": {"w": 460, "h": 164, "src": "data:ima
 .app-sidebar .sb-grp.sb-obsoleto{ margin-top:18px; padding-top:10px; border-top:1px dashed rgba(255,255,255,.28); opacity:.7; }
 .app-sidebar .sb-link.sb-link-obs{ opacity:.62; font-style:italic; }
 .app-sidebar .sb-link.sb-link-obs.ativa, .app-sidebar .sb-link.sb-link-obs:hover{ opacity:1; }
+#panel-avaliacao-ftn .av-area-aval select{ display:block; width:100%; max-width:260px; margin:0 0 6px; padding:7px 10px; border:1px solid #e0b400; border-radius:8px; background:#fff; font:600 13px "Segoe UI",Arial,sans-serif; color:#1f2d3d; cursor:pointer; }
 </style>
 <style id="ddx-css">
 /* ===== Documentos longos (Parecer Jurídico + DESP-2): redação em foco ===== */
