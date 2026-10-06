@@ -301,7 +301,7 @@ window.REL_baixarConjunto = async function(){
     try{
       if(window.showSaveFilePicker){
         var ext=(nome.split('.').pop()||'').toLowerCase();
-        var accept = ext==='pdf'?{'application/pdf':['.pdf']} : (ext==='zip'?{'application/zip':['.zip']} : (ext==='doc'?{'application/msword':['.doc']} : {'application/vnd.openxmlformats-officedocument.wordprocessingml.document':['.docx']}));
+        var accept = ext==='pdf'?{'application/pdf':['.pdf']} : (ext==='zip'?{'application/zip':['.zip']} : (ext==='doc'?{'application/msword':['.doc']} : ext==='dxf'?{'application/dxf':['.dxf']} : {'application/vnd.openxmlformats-officedocument.wordprocessingml.document':['.docx']}));
         // abre na pasta do último arquivo salvo (ex.: o Word da DESP-2 cai ao lado do PDF)
         var popt={suggestedName:nome, types:[{description:'Arquivo', accept:accept}]};
         if(window.__FS_ultimo) popt.startIn=window.__FS_ultimo;
@@ -18375,6 +18375,7 @@ function AV_gerarDescSituacao(){
     var x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs), y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
     var cx = (x0+x1)/2, cy = (y0+y1)/2, R = Math.hypot(x1-x0, y1-y0)/2 + 1, r = ang*Math.PI/180, ux = Math.cos(r), uy = -Math.sin(r), nx = -uy, ny = ux;
     if(R/esp > 900) esp = R/900;
+    if(P.hachura){ P.hachura(pol, ang, esp, o); return; }   // DXF: HATCH do CAD em vez de linhas recortadas
     P.clipPoli(pol);
     for(var t = -R; t <= R; t += esp) P.linha(cx + nx*t - ux*R, cy + ny*t - uy*R, cx + nx*t + ux*R, cy + ny*t + uy*R, o);
     P.clipOff();
@@ -18435,6 +18436,7 @@ function AV_gerarDescSituacao(){
     function mm(pt){ var u = utm(pt[0], pt[1], G.fuso); return [T.x(u.E), T.y(u.N)]; }
     ordem.forEach(function(id){
       var c = (g.camadas || []).filter(function(x){ return x.id === id; })[0]; if(!c) return;
+      CAMDXF(P, "ENP_PROJETO_" + String(id).toUpperCase().replace(/[^A-Z0-9]+/g, "_"));
       var d = PROJ.dados[g.pasta + "|" + c.arquivo]; if(!d) return;
       var e = c.estilo || {}, pLin = EST("proj_lin").peso, rPol = EST("proj_pol").peso/.12;
       if(d.tipo === "linhas"){
@@ -18456,7 +18458,7 @@ function AV_gerarDescSituacao(){
   /* estaqueamento (traços de 100/20 m + números): desacoplado do toggle "projeto"
      para acompanhar o EIXO. Chamado quando "Projeto revisado" OU "Faixa e eixo"
      estiver ligado, de modo que os números nunca andem separados do eixo. */
-  function desenharEstacas(P, T, g, lim){
+  function desenharEstacas(P, T, g, lim){ CAMDXF(P, "ENP_ESTACAS");
     if(!g) return;
     function dentro(pt){ return pt[0] >= lim.lo0 && pt[0] <= lim.lo1 && pt[1] >= lim.la0 && pt[1] <= lim.la1; }
     function mm(pt){ var u = utm(pt[0], pt[1], G.fuso); return [T.x(u.E), T.y(u.N)]; }
@@ -18475,6 +18477,7 @@ function AV_gerarDescSituacao(){
     // 10 mm em 1:750 e o texto se afastava e caía em cima dos confrontantes). Mínimo: logo depois da ponta do traço de 100 m.
     var kmapa = {}; if(de && de.k) de.k.forEach(function(k){ kmapa[k[2]] = k; });
     var dMaxEst = Math.max(4.0, 1.5*T.mmPorM + 1.9);
+    CAMDXF(P, "ENP_ESTACAS_TEXTO");
     if(dt && dt.t) dt.t.forEach(function(t){
       if(!dentro([t[0], t[1]])) return;
       if(so200){ var mq = /(\d+)\s*\+\s*(\d+)/.exec(String(t[2])); if(mq && (parseInt(mq[2], 10) % 200) !== 0) return; }
@@ -18496,7 +18499,9 @@ function AV_gerarDescSituacao(){
   var NUMF = { off:0, total:1 };   // numeração GLOBAL das pranchas (geral + cada perímetro) — ver contagemFolhas()
   function desenharFixo(P, T, f){
     var mmp = function(l){ return l.map(function(p){ return [T.x(p[0]), T.y(p[1])]; }); };
+    CAMDXF(P, "ENP_FAIXA_DOMINIO");
     f.limites.forEach(function(l){ recortar(mmp(l), 5).forEach(function(r){ tracar(P, r, "fd"); }); });
+    CAMDXF(P, "ENP_EIXO_FERROVIA");
     f.eixos.forEach(function(l){ recortar(mmp(l), 5).forEach(function(r){ tracar(P, r, "eixo"); }); });
   }
 
@@ -18529,8 +18534,11 @@ function AV_gerarDescSituacao(){
   function desenharAmbientais(P, T, A){
     if(!A) return;
     function mm(an){ return an.map(function(p){ return [T.x(p[0]), T.y(p[1])]; }); }
+    CAMDXF(P, "ENP_RESERVA_LEGAL");
     (A.rl || []).forEach(function(an){ var po = mm(an); if(caixaCruzaMapa(po, 40)) preencher(P, [po], "rl"); });
+    CAMDXF(P, "ENP_APP");
     (A.app || []).forEach(function(an){ var po = mm(an); if(caixaCruzaMapa(po, 40)) preencher(P, [po], "app"); });
+    CAMDXF(P, "ENP_APP_ESTIMADA");
     // APP estimada: mesma trama da APP, contorno tracejado para distinguir da declarada no CAR
     (A.est || []).forEach(function(an){
       var po = mm(an); if(!caixaCruzaMapa(po, 40)) return;
@@ -18551,6 +18559,7 @@ function AV_gerarDescSituacao(){
     camadasLer().arquivos.forEach(function(a){
       (a.camadas || []).forEach(function(c){
         if(!c.tipo || c.tipo === "ignorar") return;
+        CAMDXF(P, "ENP_EXTRA_" + String(c.tipo).toUpperCase());
         (c.f || []).forEach(function(f){
           var mmp = function(l){ return l.map(function(p){ return [T.x(p[0]), T.y(p[1])]; }); };
           if(f.k === "pl"){
@@ -18780,7 +18789,7 @@ function AV_gerarDescSituacao(){
 
   // rótulos dos vértices: destaca alguns (os de maior mudança de direção), centralizados acima do ponto,
   // nunca dentro do polígono e sem sobrepor outros rótulos; distâncias depois, no espaço que sobrar
-  function desenharRotulos(P, T, op, pol){
+  function desenharRotulos(P, T, op, pol){ CAMDXF(P, "ENP_VERTICES_TEXTO");
     var n = G.v.length, caixas = [], tam = TAM.vert, hh = tam*.3528*.78, res = [];
     G.v.forEach(function(p, i){
       var a = pol[(i-1+n)%n], b = pol[(i+1)%n], q = pol[i];
@@ -18815,6 +18824,7 @@ function AV_gerarDescSituacao(){
       var c = colocados[i]; P.texto(c[0], c[1], G.v[i].nome, { tam:tam, bold:true, align:"center", cor:"#111", halo:true });
     });
     // distâncias (paralelas ao lado, do lado de fora quando couber)
+    CAMDXF(P, "ENP_DISTANCIAS");
     if(op.medidas){
       var th = TAM.dist*.3528*.78;
       G.segs.forEach(function(s){
@@ -18838,14 +18848,14 @@ function AV_gerarDescSituacao(){
   }
 
   /* ---- planta geral: todas as áreas juntas (05/10/2026) ---- */
-  function desenharAreasGerais(P, T, ep){
+  function desenharAreasGerais(P, T, ep){ CAMDXF(P, "ENP_AREA_DESAPROPRIAR");
     aneisUtm().forEach(function(a){
       var pol = a.v.map(function(q){ return [T.x(q.E), T.y(q.N)]; });
       hachurar(P, pol, ep.ang, ep.esp, { cor:ep.tram, peso:fTram("poligono", .13) });
       P.poli(pol, { cor:EST("area").cor, peso:EST("area").peso });
     });
   }
-  function desenharNomesAreas(P, T){
+  function desenharNomesAreas(P, T){ CAMDXF(P, "ENP_AREA_TEXTO");
     var tam = TAM.confMapa*.9, tam2 = TAM.dist;
     aneisUtm().forEach(function(a){
       var pol = a.v.map(function(q){ return [T.x(q.E), T.y(q.N)]; });
@@ -18889,7 +18899,7 @@ function AV_gerarDescSituacao(){
   /* Nome do confrontante ao longo do perímetro: um rótulo por trecho contínuo
      (não repete enquanto o confrontante não muda), sempre na horizontal, do lado
      de fora do polígono e afastado da divisa. */
-  function desenharConfrontantesMapa(P, T, pol, caixas, cs){
+  function desenharConfrontantesMapa(P, T, pol, caixas, cs){ CAMDXF(P, "ENP_CONFRONTANTES");
     if(!cs || !cs.length) return;
     var grupos = gruposConf(cs);                        // 1ª e última divisa do mesmo confrontante já vêm juntas
     if(!grupos.length) return;
@@ -18969,7 +18979,7 @@ function AV_gerarDescSituacao(){
   /* KM inicial e final do eixo da ferrovia na área desapropriada: marca no vértice (o mesmo KM do
      memorial/carimbo — kmDe: manual da tabela ou calculado) + chamada até o rótulo. O rótulo vai
      FORA do polígono, sem cobrir outros rótulos e, se couber, fora da faixa de domínio (40 m do eixo). */
-  function desenharKmEixo(P, T, pol, caixas){
+  function desenharKmEixo(P, T, pol, caixas){ CAMDXF(P, "ENP_KM_EIXO");
     var e = eixoIniFim(); if(!e) return;
     var alvos = [];
     [[e.ini, "KM INICIAL"], [e.fim, "KM FINAL"]].forEach(function(a){
@@ -19034,7 +19044,7 @@ function AV_gerarDescSituacao(){
   function cotasLer(){ var c = extras().cotas; return Array.isArray(c) ? c : []; }
   function cotasGravar(c){ setExtra("cotas", c); }
   window.MDP_cotas = cotasLer;
-  function desenharCotas(P, T){
+  function desenharCotas(P, T){ CAMDXF(P, "ENP_COTAS");
     var L = cotasLer(); if(!L.length) return;
     var e = EST("cota");
     L.forEach(function(c){
@@ -19067,7 +19077,7 @@ function AV_gerarDescSituacao(){
   function leadersLer(){ var c = extras().leaders; return Array.isArray(c) ? c : []; }
   function leadersGravar(c){ setExtra("leaders", c); }
   window.MDP_leaders = leadersLer;
-  function desenharLeaders(P, T){
+  function desenharLeaders(P, T){ CAMDXF(P, "ENP_LEADERS");
     var L = leadersLer(); if(!L.length) return;
     var e = EST("leader"), tam = TAM.leader, lh = tam*.3528*1.28;
     L.forEach(function(c){
@@ -19088,7 +19098,7 @@ function AV_gerarDescSituacao(){
     });
   }
 
-  function desenharCotasFaixa(P, T, fixo){
+  function desenharCotasFaixa(P, T, fixo){ CAMDXF(P, "ENP_COTAS_FAIXA");
     if(!fixo || !fixo.eixos || !fixo.eixos.length) return;
     var meiaL = 40, totL = 80;                                  // nominal: 40 m por lado, 80 m no total
     var melhor = null;
@@ -19237,7 +19247,7 @@ function AV_gerarDescSituacao(){
   }
 
   /* folha de continuação: a área da planta vira tabela em várias colunas */
-  function painelTabelaLarga(P, T, pg){
+  function painelTabelaLarga(P, T, pg){ CAMDXF(P, "ENP_TABELA");
     var x = MAPA.x, y = MAPA.y, w = MAPA.w + 2 + TAB.w, h = MAPA.h;
     P.ret(x, y, w, h, { peso:.3 });
     var yy = y + 6.4;
@@ -19325,7 +19335,7 @@ function AV_gerarDescSituacao(){
   }
 
   /* marcas de dobra para A4 (210 × 297) — ABNT NBR 10068, traço leve na borda */
-  function marcasDobra(P){
+  function marcasDobra(P){ CAMDXF(P, "ENP_FOLHA");
     var cor = "#8fa0b0", t = 3.2;
     for(var x = 210; x < FL.W - 4; x += 210){
       P.linha(x, 0, x, t, { cor:cor, peso:.12 });
@@ -19352,6 +19362,7 @@ function AV_gerarDescSituacao(){
     pg = pg || { n:1, total:1, de:0, ate:G.segs.length };
     NUMF = (op && op.folhas) || { off:0, total:pg.total };
     var c = doCadastro(), ex = extras(), cs = confrontantes(), lim = limites(), dv = divisasDe();
+    CAMDXF(P, "ENP_FOLHA");
     P.ret(FL.m - 2, FL.m - 2, FL.W - (FL.m-2)*2, FL.H - (FL.m-2)*2, { peso:.5, cor:"#000" });
     marcasDobra(P);
     P.texto(FL.m - 2, FL.H - 1.3, "FORMATO " + FL.nome.toUpperCase() + " — " + br(FL.W,0) + " × " + br(FL.H,0) + " mm", { tam:4.2, cor:"#7a8797" });
@@ -19364,6 +19375,7 @@ function AV_gerarDescSituacao(){
 
     /* ---------- janela do mapa ---------- */
     CAIXAS_ESTACA = [];
+    CAMDXF(P, "ENP_MAPA_MOLDURA");
     P.ret(MAPA.x, MAPA.y, MAPA.w, MAPA.h, { peso:.3 });
     P.clip(MAPA.x, MAPA.y, MAPA.w, MAPA.h);
     if((op.satelite || op.ortofoto) && op.rasterSat) P.img({ el:op.rasterSatEl, url:op.rasterSat }, MAPA.x, MAPA.y, MAPA.w, MAPA.h, { opac:(op.opacSat != null ? op.opacSat : EST("raster").opac/100) });
@@ -19376,6 +19388,8 @@ function AV_gerarDescSituacao(){
 
     // malha de coordenadas
     if(op.malha){
+      CAMDXF(P, "ENP_MALHA_COORDENADAS");
+      if(P.soPapel) P.soPapel(true);                 // DXF: a malha é da moldura (vai para a prancha, não para o modelo)
       var passoM = [10,20,25,50,100,200,250,500,1000].find(function(m){ return m*T.mmPorM >= 26; }) || 1000;
       var em = EST("malha"), oM = { cor:em.cor, peso:em.peso, tracejado:(em.trac ? [1.2,1.2] : []), opac:.85 };
       var e0 = Math.ceil(T.E(MAPA.x)/passoM)*passoM, e1 = T.E(MAPA.x + MAPA.w);
@@ -19392,10 +19406,12 @@ function AV_gerarDescSituacao(){
         P.texto(MAPA.x + 3.6, yy - 1.1, br(N,0), { tam:TAM.grade, cor:em.corTxt, rot:90, halo:true });
         P.texto(MAPA.x + MAPA.w - 1.6, yy - 1.1, br(N,0), { tam:TAM.grade, cor:em.corTxt, rot:90, align:"right", halo:true });
       }
+      if(P.soPapel) P.soPapel(false);
     }
 
     // área a desapropriar: hachura amarela + contorno azul (legenda aprovada), depois as divisas de cada trecho
     var geral = geralAtivo();
+    CAMDXF(P, "ENP_AREA_DESAPROPRIAR");
     var pol = G.v.map(function(p){ return [T.x(p.E), T.y(p.N)]; });
     var ep = EST("poligono");
     if(geral){ desenharAreasGerais(P, T, ep); }
@@ -19404,12 +19420,14 @@ function AV_gerarDescSituacao(){
       P.poli(pol, { cor:EST("area").cor, peso:EST("area").peso });
       G.segs.forEach(function(s, i){
         if(dv[i] === "area") return;
+        CAMDXF(P, "ENP_DIVISA_" + String(dv[i]).toUpperCase());
         tracar(P, [pol[s.de], pol[s.para]], dv[i]);
       });
     }
 
     // demais poligonais do mesmo cadastro, como contorno de contexto
     if(ANEIS.length > 1 && !geral){
+      CAMDXF(P, "ENP_AREAS_CONTEXTO");
       ANEIS.forEach(function(a, i){
         if(i === ST.area) return;
         var po = a.pts.map(function(p){ var u = utm(p[0], p[1], G.fuso); return [T.x(u.E), T.y(u.N)]; });
@@ -19419,6 +19437,7 @@ function AV_gerarDescSituacao(){
     }
 
     // vértices
+    CAMDXF(P, "ENP_VERTICES");
     var caixasRot = [];
     if(geral){
       if(op.vertices){
@@ -19444,6 +19463,7 @@ function AV_gerarDescSituacao(){
 
     // escala gráfica + norte
     (function(){
+      CAMDXF(P, "ENP_ESCALA_NORTE");
       var bx = MAPA.x + 5, by = MAPA.y + MAPA.h - 8, passo = [10,20,25,50,100].find(function(m){ return m*T.mmPorM >= 14; }) || 100;
       var w = passo*T.mmPorM;
       P.ret(bx - 2, by - 6, w*2 + (op.figura ? 10 : 34), 11.6, { peso:0, fill:"#ffffff", opacFill:.8 });
@@ -19462,6 +19482,7 @@ function AV_gerarDescSituacao(){
     /* ---------- painel da direita: logotipos + tabela de coordenadas ---------- */
     (function(){
       // sem logotipos no topo: os do carimbo bastam, e a altura livre vira linha de tabela
+      CAMDXF(P, "ENP_TABELA");
       P.ret(TAB.x, TAB.y, TAB.w, TAB.h, { peso:.3 });
       var y = TAB.y + 5.8;
       P.texto(TAB.x + TAB.w/2, y, geral ? "RESUMO DAS ÁREAS A DESAPROPRIAR" : "TABELA DE DISTÂNCIA, COORDENADAS E AZIMUTES", { tam:6.4, bold:true, align:"center" }); y += 4.6;
@@ -19610,7 +19631,7 @@ function AV_gerarDescSituacao(){
     return { trecho:trechoAuto(c), segmento:segmentoAuto(), area_total_prop:haTxt(c.areaTotal),
              area_total_desap:br(totalDesapHa(), 4) + " ha", area_remanescente:remPropAuto(c) };
   }
-  function desenharCarimbo(P, T, c, ex, lim, op, pg){
+  function desenharCarimbo(P, T, c, ex, lim, op, pg){ CAMDXF(P, "ENP_CARIMBO");
     pg = pg || { n:1, total:1 };
     var x = CAR.x, y = CAR.y, w = CAR.w, h = CAR.h;
     var V = h/62, KL = Math.min(1.6, KC);            // V: fator vertical (A3 = 1)
@@ -19659,6 +19680,7 @@ function AV_gerarDescSituacao(){
     });
 
     /* LEGENDA — símbolos e textos como no desenho aprovado (posições do DXF, reescaladas) */
+    CAMDXF(P, "ENP_LEGENDA");
     tit(c1, y, "LEGENDA:");
     var hLeg = h - hcab, fy = hLeg/56.5, fx = (c2 - c1)/66.3;
     var legT = Math.min(5.85, 3.9*Math.max(1, hLeg/53)), legG = 1.9*(hLeg/53);
@@ -19676,6 +19698,7 @@ function AV_gerarDescSituacao(){
       it[1].forEach(function(t, k){ P.texto(XX(-55.5), t0 + k*legG, t, { tam:legT }); });
     });
 
+    CAMDXF(P, "ENP_CARIMBO");
     /* RESPONSÁVEL + DATA — um quadro só: cada assinatura leva a sua própria data */
     var cd = c3 - 22*KL;                              // divisória da sub-coluna de datas
     tit(c2, y, "RESPONSÁVEL");
@@ -20500,86 +20523,503 @@ function AV_gerarDescSituacao(){
     if(opts.retornar) return { blob:blob, nome:nome };
     await window.FS_salvar(blob, nome);
   };
-  /* ---- DXF da planta (02/10/2026) ----
-     Coordenadas UTM reais (E, N em metros, SIRGAS 2000), uma camada por tipo de elemento: contorno da área,
-     vértices e rótulos, cada divisa, faixa de domínio, eixo, estacas (traços e números), KM inicial/final e as
-     camadas extras importadas. DXF ASCII (AC1009) abre em qualquer CAD; para DWG, abrir no AutoCAD e "Salvar como". */
-  function dxfAscii(t){ return String(t == null ? "" : t).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\x20-\x7e]/g, "?"); }
-  window.MDP_exportarDxf = async function(){
+  /* ---- DXF da planta (refeito em 06/10/2026) ----
+     O DXF sai da MESMA rotina que desenha a tela e o PDF (desenharFolha), por um "pintor" que grava entidades em vez de pintar:
+     - MODELO: tudo o que fica dentro da janela do mapa, em coordenadas UTM reais (E, N em metros, SIRGAS 2000), uma camada por
+       elemento (ENP_*). Textos, raios, tracejados e espaçamento de hachura convertidos para a escala da planta.
+     - Uma PRANCHA (layout) por folha: moldura, tabela, confrontações, carimbo, legenda, escala e norte, em mm, com uma viewport
+       travada mostrando o modelo na escala exata da planta (1:esc). O arquivo abre direto na prancha 1.
+     - Cor RGB real (true color, com o ACI mais próximo), espessura de pena igual à do PDF, transparência, hachuras como HATCH
+       de verdade (sólido ou linhas), fontes Arial / Arial Negrito com acentos (DXF R2010 = UTF-8). Preto vira cor 7 (branco
+       na tela escura do CAD, preto na impressão).
+     - Satélite, ortofoto e assinatura (imagens) não entram; os logotipos INFRA e ENPROL entram como blocos vetoriais, tirados
+       do desenho aprovado (INFRA_FTN_CTD-006A).
+     Abre no AutoCAD 2010+, BricsCAD e QGIS; para DWG, "Salvar como" no AutoCAD. */
+  var DXF_ACI = "000000ff0000ffff0000ff0000ffff0000ffff00ffffffff808080c0c0c0ff0000ff7f7fa50000a552527f00007f3f3f4c00004c2626260000261313ff3f00ff9f7fa52900a567527f1f007f4f3f4c13004c2f26260900261713ff7f00ffbf7fa55200a57c527f3f007f5f3f4c26004c3926261300261c13ffbf00ffdf7fa57c00a591527f5f007f6f3f4c39004c4226261c00262113ffff00ffff7fa5a500a5a5527f7f007f7f3f4c4c004c4c26262600262613bfff00dfff7f7ca50091a5525f7f006f7f3f394c00424c261c26002126137fff00bfff7f52a5007ca5523f7f005f7f3f264c00394c261326001c26133fff009fff7f29a50067a5521f7f004f7f3f134c002f4c2609260017261300ff007fff7f00a50052a552007f003f7f3f004c00264c2600260013261300ff3f7fff9f00a52952a567007f1f3f7f4f004c13264c2f00260913581700ff7f7fffbf00a55252a57c007f3f3f7f5f004c26264c3900261313581c00ffbf7fffdf00a57c52a591007f5f3f7f6f004c39264c4200261c13585800ffff7fffff00a5a552a5a5007f7f3f7f7f004c4c264c4c00262613585800bfff7fdfff007ca55291a5005f7f3f6f7f00394c26427e001c26135858007fff7fbfff0052a5527ca5003f7f3f5f7f00264c26397e001326131c58003fff7f9fff0029a55267a5001f7f3f4f7f00134c262f7e0009261317580000ff7f7fff0000a55252a500007f3f3f7f00004c26267e0000261313583f00ff9f7fff2900a56752a51f007f4f3f7f13004c2f267e0900261713587f00ffbf7fff5200a57c52a53f007f5f3f7f26004c39267e1300261c1358bf00ffdf7fff7c00a59152a55f007f6f3f7f39004c42264c1c0026581358ff00ffff7fffa500a5a552a57f007f7f3f7f4c004c4c264c260026581358ff00bfff7fdfa5007ca552917f005f7f3f6f4c00394c264226001c581358ff007fff7fbfa50052a5527c7f003f7f3f5f4c00264c263926001358131cff003fff7f9fa50029a552677f001f7f3f4f4c00134c262f260009581317000000656565666666999999ccccccffffff";
+  var DXF_LOGOS = {"INFRA":{"w":5.5521,"it":[["h","00264c",[[0.3169,0.9982,0.0,0.9982,0.0,0.7113,0.206,0.6338,0.0,0.6338,0.0,0.0,0.3169,0.0,0.3169,0.9982],[1.3712,0.9982,1.0543,0.9982,1.0543,0.5244,0.695,0.9982,0.3781,0.9982,0.3781,0.0,0.695,0.0,0.695,0.4738,1.0543,0.0,1.3712,0.0,1.3712,0.9982],[1.7176,0.5862,1.7176,0.7113,2.177,0.7113,2.177,0.9982,1.4324,0.9982,1.4324,0.0,1.7176,0.0,1.7176,0.3169,2.0661,0.3169,2.0661,0.5862,1.7176,0.5862],[2.7599,0.713,2.7835,0.7105,2.8053,0.7021,2.8242,0.6884,2.8391,0.6699,2.8486,0.6481,2.852,0.625,2.8494,0.6018,2.8407,0.5798,2.8265,0.5607,2.8081,0.5463,2.7866,0.5372,2.7631,0.5339,2.6526,0.5339,2.6526,0.2962,2.8331,0.0,3.2042,0.0,2.9865,0.3424,3.0372,0.3737,3.0808,0.4122,3.1169,0.4569,3.145,0.5067,3.1646,0.5604,3.1751,0.6169,3.1761,0.6751,3.167,0.7339,3.148,0.7903,3.1203,0.8415,3.0849,0.8868,3.0428,0.9254,2.995,0.9566,2.9423,0.9797,2.8858,0.9938,2.8265,0.9982,2.2383,0.9982,2.2383,0.0,2.5551,0.0,2.5551,0.713,2.7599,0.713],[3.2654,0.0,3.6088,0.0,3.6663,0.1378,3.9375,0.1378,3.8353,0.3755,3.7655,0.3755,3.8424,0.5597,4.0829,0.0,4.4278,0.0,3.9989,0.9982,3.682,0.9982,3.2654,0.0]]],["l","003f7f",1,[0.206,0.6338,0.0,0.7113,0.0,0.9982,0.3169,0.9982,0.3169,0.0,0.0,0.0,0.0,0.6338,0.206,0.6338]],["l","003f7f",1,[0.695,0.9982,0.3781,0.9982,0.3781,0.0,0.695,0.0,0.695,0.4738,1.0543,0.0,1.3712,0.0,1.3712,0.9982,1.0543,0.9982,1.0543,0.5244,0.695,0.9982]],["l","003f7f",0,[2.177,0.9982,2.177,0.7113,1.7176,0.7113,1.7176,0.5862,2.0661,0.5862,2.0661,0.3169,1.7176,0.3169,1.7176,0.0,1.4324,0.0,1.4324,0.9982,2.177,0.9982,2.177,0.7113]],["l","003f7f",1,[2.5551,0.0,2.5551,0.713,2.7599,0.713,2.7835,0.7105,2.8053,0.7021,2.8242,0.6884,2.8391,0.6699,2.8486,0.6481,2.852,0.625,2.8494,0.6018,2.8407,0.5798,2.8265,0.5607,2.8081,0.5463,2.7866,0.5372,2.7631,0.5339,2.6526,0.5339,2.6526,0.2962,2.8331,0.0,3.2042,0.0,2.9865,0.3424,3.0372,0.3737,3.0808,0.4122,3.1169,0.4569,3.145,0.5067,3.1646,0.5604,3.1751,0.6169,3.1761,0.6751,3.167,0.7339,3.148,0.7903,3.1203,0.8415,3.0849,0.8868,3.0428,0.9254,2.995,0.9566,2.9423,0.9797,2.8858,0.9938,2.8265,0.9982,2.8265,0.9982,2.2383,0.9982,2.2383,0.0,2.5551,0.0]],["l","003f7f",1,[4.4278,0.0,3.9989,0.9982,3.682,0.9982,3.2654,0.0,3.6088,0.0,3.6663,0.1378,3.9375,0.1378,3.8353,0.3755,3.7655,0.3755,3.8424,0.5597,4.0829,0.0,4.4278,0.0]],["h","004c13",[[4.7235,0.5439,4.7558,0.5218,4.78,0.492,4.7949,0.4566,4.7992,0.4176,4.7922,0.3791,4.7749,0.3448,4.7487,0.3168,4.7149,0.297,4.6768,0.2877,4.6385,0.2895,4.6022,0.302,4.5703,0.3248,4.5585,0.3398,4.6123,0.4181,4.6386,0.3909,4.6486,0.3849,4.6597,0.382,4.6712,0.3824,4.6823,0.3861,4.6919,0.3928,4.699,0.4018,4.7033,0.4125,4.7044,0.4241,4.702,0.4356,4.6967,0.4457,4.6886,0.4539,4.6784,0.4596,4.641,0.4783,4.611,0.4969,4.5874,0.5224,4.5716,0.5533,4.5645,0.5879,4.5672,0.6231,4.5791,0.6558,4.5992,0.684,4.6268,0.7062,4.6593,0.72,4.6937,0.7245,4.7281,0.7195,4.7604,0.7053,4.7315,0.6126,4.7085,0.625,4.7,0.6282,4.6911,0.6289,4.6824,0.6273,4.6743,0.6233,4.6676,0.6172,4.6628,0.6097,4.6602,0.6012,4.66,0.5922,4.6623,0.5834,4.6667,0.5757,4.6731,0.5695,4.681,0.5651,4.7235,0.5439],[4.9542,0.4138,4.8275,0.4138,4.8275,0.2871,4.9542,0.2871,4.9542,0.4138],[5.1113,0.3663,5.2702,0.3663,5.2983,0.2871,5.3991,0.2871,5.2442,0.7245,5.1373,0.7245,4.9824,0.2871,5.0833,0.2871,5.1113,0.3663],[5.1394,0.4455,5.1908,0.5907,5.2422,0.4455,5.1394,0.4455],[5.5521,0.4138,5.4254,0.4138,5.4254,0.2871,5.5521,0.2871,5.5521,0.4138]]],["l","004c00",0,[4.7315,0.6126,4.7604,0.7053,4.7281,0.7195,4.6937,0.7245,4.6593,0.72,4.6268,0.7062,4.5992,0.684,4.5791,0.6558,4.5672,0.6231,4.5645,0.5879,4.5716,0.5533,4.5874,0.5224,4.611,0.4969,4.641,0.4783,4.6858,0.4559,4.6942,0.4488,4.7002,0.4399,4.7037,0.4296,4.7043,0.4186,4.7019,0.4079,4.6967,0.3984,4.6893,0.3905,4.6798,0.3849,4.6692,0.3821,4.6584,0.3822,4.648,0.3852,4.6386,0.3909,4.6123,0.4181,4.5585,0.3398,4.5703,0.3248,4.602,0.3021,4.6381,0.2896,4.6762,0.2876,4.7141,0.2967,4.7478,0.3161,4.7742,0.3438,4.7918,0.3777,4.7992,0.416,4.7954,0.4547,4.7811,0.4902,4.7575,0.5202,4.7257,0.5427,4.681,0.5651,4.6731,0.5695,4.6667,0.5757,4.6623,0.5834,4.66,0.5922,4.6602,0.6012,4.6628,0.6097,4.6676,0.6172,4.6743,0.6233,4.6824,0.6273,4.6911,0.6289,4.7,0.6282,4.7085,0.625,4.7315,0.6126]],["l","004c00",1,[4.8275,0.2871,4.8275,0.4138,4.9542,0.4138,4.9542,0.2871,4.8275,0.2871]],["l","004c00",0,[5.2442,0.7245,5.3991,0.2871,5.2983,0.2871,5.2702,0.3663,5.1113,0.3663,5.0833,0.2871,4.9824,0.2871,5.1373,0.7245,5.2442,0.7245]],["l","004c00",1,[5.4254,0.2871,5.4254,0.4138,5.5521,0.4138,5.5521,0.2871,5.4254,0.2871]],["l","004c00",1,[5.2422,0.4455,5.1908,0.5907,5.1394,0.4455,5.2422,0.4455]]]},"ENPROL":{"w":4.2768,"it":[["h","000926",[[1.0083,0.7397,1.007,0.7521,1.0033,0.764,0.9972,0.7748,0.9891,0.7843,0.9791,0.792,0.968,0.7974,0.956,0.8006,0.9435,0.8012,0.2981,0.7837,0.2708,0.7802,0.2468,0.7682,0.2282,0.7489,0.2169,0.7238,0.206,0.0696,0.2129,0.0444,0.2279,0.0239,0.2492,0.01,0.2747,0.0045,0.9336,0.0253,0.9625,0.0335,0.9856,0.0511,1.0008,0.0759,1.0061,0.1055,1.0083,0.7397],[0.8322,0.6224,0.8318,0.5204,0.3891,0.5084,0.3908,0.6104,0.8322,0.6224],[0.6909,0.4472,0.6906,0.3592,0.3865,0.351,0.388,0.4389,0.6909,0.4472],[0.831,0.2999,0.8307,0.1979,0.3837,0.1838,0.3854,0.2858,0.831,0.2999]]],["l","000926",1,[0.2981,0.7837,0.9435,0.8012,0.956,0.8006,0.968,0.7974,0.9791,0.792,0.9891,0.7843,0.9972,0.7748,1.0033,0.764,1.007,0.7521,1.0083,0.7397,1.0061,0.1055,1.0008,0.0759,0.9856,0.0511,0.9625,0.0335,0.9336,0.0253,0.2747,0.0045,0.2492,0.01,0.2279,0.0239,0.2129,0.0444,0.206,0.0696,0.2169,0.7238,0.2282,0.7489,0.2468,0.7682,0.2708,0.7802,0.2981,0.7837]],["h","00264c",[[0.1345,0.982,0.1127,0.9808,0.0919,0.9758,0.0726,0.9675,0.0551,0.956,0.0398,0.9417,0.0271,0.9249,0.0174,0.9059,0.011,0.885,0.0,0.2245,0.0008,0.2161,0.0023,0.2078,0.0044,0.1996,0.0071,0.1916,0.1924,0.0,0.181,0.0151,0.1723,0.0318,0.1666,0.0497,0.1638,0.0684,0.1748,0.7289,0.1812,0.7498,0.1909,0.7688,0.2036,0.7856,0.2189,0.7999,0.2364,0.8114,0.2558,0.8197,0.2765,0.8247,0.2984,0.8259,0.9403,0.8434,0.9608,0.8422,0.9805,0.8373,0.9991,0.8289,1.0158,0.817,0.8197,0.9923,0.8092,0.9957,0.7984,0.9981,0.7875,0.9993,0.7765,0.9994,0.1345,0.982]]],["l","00264c",1,[0.0071,0.1916,0.1924,0.0,0.181,0.0151,0.1723,0.0318,0.1666,0.0497,0.1638,0.0684,0.1748,0.7289,0.1812,0.7498,0.1909,0.7688,0.2036,0.7856,0.2189,0.7999,0.2364,0.8114,0.2558,0.8197,0.2765,0.8247,0.2984,0.8259,0.9426,0.8434,0.9625,0.8419,0.9816,0.8369,0.9996,0.8286,1.0158,0.817,0.8197,0.9923,0.8097,0.9956,0.7996,0.9979,0.7892,0.9992,0.7788,0.9995,0.1345,0.982,0.1127,0.9808,0.0919,0.9758,0.0726,0.9675,0.0551,0.956,0.0398,0.9417,0.0271,0.9249,0.0174,0.9059,0.011,0.885,0.0,0.2245,0.0008,0.2161,0.0023,0.2078,0.0044,0.1996,0.0071,0.1916]],["l","000926",1,[0.3908,0.6104,0.8322,0.6224,0.8318,0.5204,0.3891,0.5084,0.3908,0.6104]],["l","000926",1,[0.388,0.4389,0.6909,0.4472,0.6906,0.3592,0.3865,0.351,0.388,0.4389]],["l","000926",1,[0.3854,0.2858,0.831,0.2999,0.8307,0.1979,0.3837,0.1838,0.3854,0.2858]],["h","00264c",[[4.2519,0.2757,4.2519,0.3531,3.9616,0.3531,3.9616,0.6415,3.8737,0.6415,3.8737,0.2757,4.2519,0.2757]]],["l","00264c",1,[3.8737,0.6415,3.9616,0.6415,3.9616,0.3531,4.2519,0.3531,4.2519,0.2757,3.8737,0.2757,3.8737,0.6415]],["h","00264c",[[1.394,0.6415,1.394,0.2757,1.7806,0.2757,1.7806,0.3531,1.4924,0.3531,1.4924,0.4234,1.7806,0.4234,1.7806,0.4937,1.4924,0.4937,1.4924,0.5641,1.7806,0.5641,1.7806,0.6415,1.394,0.6415]]],["l","00264c",1,[1.394,0.6415,1.7806,0.6415,1.7806,0.5641,1.4924,0.5641,1.4924,0.4937,1.7806,0.4937,1.7806,0.4234,1.4924,0.4234,1.4924,0.3531,1.7806,0.3531,1.7806,0.2757,1.394,0.2757,1.394,0.6415]],["l","003fff",0,[2.875,0.2757,2.9734,0.2757]],["h","00264c",[[1.968,0.6415,1.8439,0.6415,1.8439,0.2757,1.9318,0.2757,1.9318,0.5571,2.1987,0.2757,2.3174,0.2757,2.3174,0.6415,2.2306,0.6415,2.2306,0.3647,1.968,0.6415]]],["l","00264c",1,[1.8439,0.6415,1.968,0.6415,2.2306,0.3647,2.2306,0.6415,2.3174,0.6415,2.3174,0.2757,2.1987,0.2757,1.9318,0.5571,1.9318,0.2757,1.8439,0.2757,1.8439,0.6415]],["h","00264c",[[2.6741,0.6415,2.3807,0.6415,2.3807,0.2757,2.4686,0.2757,2.4686,0.3741,2.6741,0.3741,2.7095,0.3782,2.742,0.3912,2.77,0.4122,2.7919,0.4403,2.8057,0.4731,2.8102,0.5078,2.8057,0.5425,2.7919,0.5753,2.77,0.6034,2.742,0.6244,2.7095,0.6374,2.6741,0.6415],[2.6696,0.5641,2.6904,0.5573,2.707,0.544,2.718,0.5258,2.722,0.5043,2.718,0.4827,2.707,0.4645,2.6904,0.4512,2.6696,0.4444,2.4686,0.4444,2.4686,0.5641,2.6696,0.5641]]],["l","00264c",1,[2.6696,0.5641,2.4686,0.5641,2.4686,0.4444,2.6696,0.4444,2.6904,0.4512,2.707,0.4645,2.718,0.4827,2.722,0.5043,2.718,0.5258,2.707,0.544,2.6904,0.5573,2.6696,0.5641]],["l","00264c",1,[2.6741,0.6415,2.7095,0.6374,2.742,0.6244,2.77,0.6034,2.7919,0.5753,2.8057,0.5425,2.8102,0.5078,2.8057,0.4731,2.7919,0.4403,2.77,0.4122,2.742,0.3912,2.7095,0.3782,2.6741,0.3741,2.4686,0.3741,2.4686,0.2757,2.3807,0.2757,2.3807,0.6415,2.6741,0.6415]],["h","00264c",[[3.1684,0.6415,2.875,0.6415,2.875,0.2757,2.9628,0.2757,2.9628,0.3741,3.1177,0.3741,3.1816,0.2757,3.2864,0.2757,3.2171,0.3824,3.2388,0.3927,3.2579,0.4064,3.2741,0.4229,3.2871,0.4419,3.2967,0.4628,3.3026,0.4852,3.3045,0.5086,3.3022,0.5325,3.2956,0.5556,3.2854,0.5767,3.2717,0.5955,3.2552,0.6115,3.2362,0.6244,3.2151,0.6339,3.1924,0.6397,3.1684,0.6415],[3.1638,0.4444,2.9628,0.4444,2.9628,0.5641,3.1638,0.5641,3.1847,0.5573,3.2013,0.544,3.2123,0.5258,3.2162,0.5043,3.2123,0.4827,3.2013,0.4645,3.1847,0.4512,3.1638,0.4444]]],["l","00264c",1,[3.1638,0.5641,2.9628,0.5641,2.9628,0.4444,3.1638,0.4444,3.1847,0.4512,3.2013,0.4645,3.2123,0.4827,3.2162,0.5043,3.2123,0.5258,3.2013,0.544,3.1847,0.5573,3.1638,0.5641]],["l","00264c",0,[3.1177,0.3741,2.9628,0.3741,2.9628,0.2757,2.875,0.2757,2.875,0.6415,3.1684,0.6415,3.1924,0.6397,3.2151,0.6339,3.2362,0.6244,3.2552,0.6115,3.2717,0.5955,3.2854,0.5767,3.2956,0.5556,3.3022,0.5325,3.3045,0.5086,3.3026,0.4852,3.2967,0.4628,3.2871,0.4419,3.2741,0.4229,3.2579,0.4064,3.2388,0.3927,3.2171,0.3824,3.2864,0.2757,3.1816,0.2757,3.1171,0.3751]],["h","00264c",[[3.5263,0.6415,3.4929,0.6369,3.4616,0.6267,3.433,0.6114,3.4077,0.5915,3.3862,0.5674,3.3692,0.5399,3.3571,0.5093,3.3505,0.4762,3.3505,0.4409,3.3571,0.4079,3.3692,0.3773,3.3862,0.3497,3.4077,0.3257,3.433,0.3058,3.4616,0.2904,3.4929,0.2802,3.5263,0.2757,3.6347,0.2757,3.6681,0.2802,3.6993,0.2904,3.7279,0.3058,3.7532,0.3257,3.7747,0.3497,3.7918,0.3773,3.8039,0.4079,3.8104,0.4409,3.8104,0.4762,3.8039,0.5093,3.7918,0.5399,3.7747,0.5674,3.7532,0.5915,3.7279,0.6114,3.6993,0.6267,3.6681,0.6369,3.6347,0.6415,3.5263,0.6415],[3.6347,0.5641,3.6519,0.5624,3.6683,0.5574,3.6834,0.5494,3.6968,0.5384,3.7078,0.525,3.7159,0.5099,3.7209,0.4935,3.7226,0.4762,3.7226,0.4409,3.7209,0.4237,3.7159,0.4073,3.7078,0.3922,3.6968,0.3788,3.6834,0.3678,3.6683,0.3597,3.6519,0.3548,3.6347,0.3531,3.5263,0.3531,3.509,0.3548,3.4926,0.3597,3.4775,0.3678,3.4641,0.3788,3.4531,0.3922,3.4451,0.4073,3.4401,0.4237,3.4384,0.4409,3.4384,0.4762,3.4401,0.4935,3.4451,0.5099,3.4531,0.525,3.4641,0.5384,3.4775,0.5494,3.4926,0.5574,3.509,0.5624,3.5263,0.5641,3.6347,0.5641]]],["l","00264c",1,[3.4384,0.4409,3.4384,0.4762,3.4401,0.4935,3.4451,0.5099,3.4531,0.525,3.4641,0.5384,3.4775,0.5494,3.4926,0.5574,3.509,0.5624,3.5263,0.5641,3.6347,0.5641,3.6519,0.5624,3.6683,0.5574,3.6834,0.5494,3.6968,0.5384,3.7078,0.525,3.7159,0.5099,3.7209,0.4935,3.7226,0.4762,3.7226,0.4409,3.7208,0.4232,3.7157,0.4067,3.6968,0.3788,3.6689,0.36,3.6524,0.3548,3.6347,0.3531,3.5263,0.3531,3.509,0.3548,3.4926,0.3597,3.4775,0.3678,3.4641,0.3788,3.4531,0.3922,3.4451,0.4073,3.4401,0.4237,3.4384,0.4409]],["l","00264c",1,[3.3505,0.4409,3.3505,0.4762,3.3571,0.5093,3.3692,0.5399,3.3862,0.5674,3.4077,0.5915,3.433,0.6114,3.4616,0.6267,3.4929,0.6369,3.5263,0.6415,3.6347,0.6415,3.6681,0.6369,3.6993,0.6267,3.7279,0.6114,3.7532,0.5915,3.7747,0.5674,3.7918,0.5399,3.8039,0.5093,3.8104,0.4762,3.8104,0.4409,3.8039,0.4079,3.7918,0.3773,3.7747,0.3497,3.7532,0.3257,3.7279,0.3058,3.6993,0.2904,3.6681,0.2802,3.6347,0.2757,3.5263,0.2757,3.4929,0.2802,3.4616,0.2904,3.433,0.3058,3.4077,0.3257,3.3862,0.3497,3.3692,0.3773,3.3571,0.4079,3.3505,0.4409]],["t","000926",3.4761,0.1923,0.0387,"DESDE 1980"],["t","001326",3.8574,0.6348,0.0309,"R"],["l","000926",1,[4.207,0.621,4.21,0.633,4.2177,0.6426,4.2289,0.6489,4.2424,0.651,4.2559,0.6482,4.2668,0.6414,4.274,0.6314,4.2764,0.6194,4.2734,0.6074,4.2657,0.5978,4.2545,0.5915,4.2409,0.5894,4.2275,0.5922,4.2166,0.599,4.2094,0.609,4.207,0.621]]]}};
+  var DXF_LW = [0,5,9,13,15,18,20,25,30,35,40,50,53,60,70,80,90,100,106,120,140,158,200,211];
+  function CAMDXF(P, n){ return P.camada ? P.camada(n) : null; }     // camada do DXF (no canvas e no PDF não faz nada)
+
+  function dxfDoc(){
+    var prox = 0x30;
+    function H(){ return (prox++).toString(16).toUpperCase(); }
+    var h = {};
+    ["tVport","tLtype","tLayer","tStyle","tView","tUcs","tAppid","tDim","tBr","raiz","dGrupo","dLayout","dPlot","phNormal",
+     "vpAtivo","ltBB","ltBL","ltCont","lay0","layVp","appAcad","dimStd","brModel","blkModel","endModel","layModel",
+     "stStd","stArial","stNeg","stMono"].forEach(function(k){ h[k] = H(); });
+    var D = { H:H, h:h, camadas:{}, ordemCam:[], ltypes:{}, ordemLt:[], blocos:{}, ordemBlocos:[], folhas:[],
+              ext:[Infinity, Infinity, -Infinity, -Infinity] };
+    D.modelo = { br:h.brModel, ents:[], papel:false, vistos:new Set() };
+    var cacheAci = {};
+    function nf(v){ if(!isFinite(v)) v = 0; var r = Math.round(v*1e4)/1e4; return (r === 0 ? 0 : r).toString(); }
+    D.nf = nf;
+    function rgb(c){
+      c = String(c || "#000").trim();
+      var m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(c);
+      if(m){ var x = m[1]; if(x.length === 3) x = x[0]+x[0]+x[1]+x[1]+x[2]+x[2]; return [parseInt(x.slice(0,2),16), parseInt(x.slice(2,4),16), parseInt(x.slice(4,6),16)]; }
+      m = /rgba?\(\s*(\d+)\D+(\d+)\D+(\d+)/i.exec(c);
+      return m ? [+m[1], +m[2], +m[3]] : [0, 0, 0];
+    }
+    // cor → { aci, tc }: preto/quase preto = 7 sem true color (some na tela escura do CAD se ficar preto de verdade)
+    D.cor = function(c){
+      var k = String(c || "#000"); if(cacheAci[k]) return cacheAci[k];
+      var v = rgb(c), r;
+      if(v[0] < 48 && v[1] < 48 && v[2] < 48) r = { aci:7, tc:null };
+      else {
+        var melhor = 7, dm = Infinity;
+        for(var i = 1; i < 256; i++){
+          var o = i*6, dr = parseInt(DXF_ACI.slice(o, o+2), 16) - v[0], dg = parseInt(DXF_ACI.slice(o+2, o+4), 16) - v[1], db = parseInt(DXF_ACI.slice(o+4, o+6), 16) - v[2];
+          var d = dr*dr*.3 + dg*dg*.59 + db*db*.11; if(d < dm){ dm = d; melhor = i; }
+        }
+        r = { aci:melhor, tc:(v[0] << 16) | (v[1] << 8) | v[2] };
+      }
+      return (cacheAci[k] = r);
+    };
+    D.lw = function(peso){                              // espessura em mm de papel → lineweight padrão do CAD (1/100 mm)
+      var a = Math.max(0, peso*100), m = 0, dm = Infinity;
+      DXF_LW.forEach(function(v){ var d = Math.abs(v - a); if(d < dm){ dm = d; m = v; } });
+      return m;
+    };
+    // tipo de linha tracejado com os comprimentos JÁ na unidade do espaço (mm no papel, m no modelo)
+    D.ltype = function(seg){
+      var ls = seg.map(function(v){ return Math.max(.001, Math.round(v*1000)/1000); });
+      var nome = "ENP_TRAC_" + ls.map(function(v){ return String(v).replace(".", "p"); }).join("x");   // ex.: ENP_TRAC_2p2x1p6 (vírgula é inválida em nome de tipo de linha)
+      if(!D.ltypes[nome]){ D.ltypes[nome] = { h:H(), seg:ls }; D.ordemLt.push(nome); }
+      return nome;
+    };
+    D.camada = function(nome, cor){
+      if(!D.camadas[nome]){ var c = D.cor(cor || "#000"); D.camadas[nome] = { h:H(), aci:c.aci, tc:c.tc }; D.ordemCam.push(nome); }
+      return nome;
+    };
+    D.novaFolha = function(nome, W, Hh){
+      var f = { nome:nome, W:W, H:Hh, br:H(), blk:H(), end:H(), lay:H(), vp1:H(), ents:[], papel:true, vp:null };
+      D.folhas.push(f); return f;
+    };
+    // bloco vetorial do logotipo (normalizado: altura 1)
+    D.bloco = function(qual){
+      var nome = "ENP_LOGO_" + qual; if(D.blocos[nome]) return nome;
+      var b = { br:H(), blk:H(), end:H(), ents:[], papel:false, bloco:true };
+      D.blocos[nome] = b; D.ordemBlocos.push(nome);
+      var L = DXF_LOGOS[qual];
+      function pares(fl){ var r = []; for(var i = 0; i + 1 < fl.length; i += 2) r.push([fl[i], fl[i+1]]); return r; }
+      L.it.forEach(function(it){
+        var c = D.cor("#" + it[1]), e = { aci:c.aci, tc:c.tc, lw:0 };
+        if(it[0] === "h") D.hatch(b, "0", e, it[2].map(pares), null);
+        else if(it[0] === "l") D.poli(b, "0", e, pares(it[3]), !!it[2]);
+        else if(it[0] === "t") D.texto(b, "0", { aci:c.aci, tc:c.tc }, it[2], it[3], it[4], it[5], 0, 0, 3, "ENP_ARIAL_NEGRITO");
+      });
+      return nome;
+    };
+    function estende(x, y){ var e = D.ext; if(x < e[0]) e[0] = x; if(y < e[1]) e[1] = y; if(x > e[2]) e[2] = x; if(y > e[3]) e[3] = y; }
+    // grava a entidade no espaço (modelo, folha ou bloco); no modelo, a mesma entidade vinda de duas pranchas entra uma vez só
+    function ent(sp, tipo, lay, e, corpo){
+      var g = ["100", "AcDbEntity"];
+      if(sp.papel) g.push("67", "1");
+      g.push("8", lay);
+      if(e.lt) g.push("6", e.lt);
+      g.push("62", String(e.aci == null ? 7 : e.aci));
+      if(e.lw != null) g.push("370", String(e.lw));
+      if(e.tc != null) g.push("420", String(e.tc));
+      if(e.transp != null) g.push("440", String(e.transp));
+      g = g.concat(corpo);
+      if(sp.vistos){ var chave = tipo + "\n" + g.join("\n"); if(sp.vistos.has(chave)) return false; sp.vistos.add(chave); }
+      sp.ents.push(["0", tipo, "5", H(), "330", sp.br].concat(g));
+      if(sp === D.modelo && tipo !== "HATCH") for(var i = 0; i + 3 < corpo.length; i++) if(corpo[i] === "10" && corpo[i+2] === "20") estende(+corpo[i+1], +corpo[i+3]);
+      return true;
+    }
+    D.linha = function(sp, lay, e, a, b){
+      ent(sp, "LINE", lay, e, ["100","AcDbLine","10",nf(a[0]),"20",nf(a[1]),"30","0","11",nf(b[0]),"21",nf(b[1]),"31","0"]);
+    };
+    D.poli = function(sp, lay, e, pts, fechada){
+      if(pts.length < 2) return;
+      var c = ["100","AcDbPolyline","90",String(pts.length),"70",String((fechada ? 1 : 0) | (e.lt ? 128 : 0)),"43","0"];
+      pts.forEach(function(p){ c.push("10", nf(p[0]), "20", nf(p[1])); });
+      ent(sp, "LWPOLYLINE", lay, e, c);
+    };
+    D.circulo = function(sp, lay, e, c, r){
+      ent(sp, "CIRCLE", lay, e, ["100","AcDbCircle","10",nf(c[0]),"20",nf(c[1]),"30","0","40",nf(r)]);
+    };
+    // ha: 0 esquerda, 1 centro, 2 direita; va: 0 linha de base, 3 topo
+    D.texto = function(sp, lay, e, x, y, h, txt, rot, ha, va, estilo){
+      txt = String(txt).replace(/[\r\n\t]+/g, " ").replace(/%%/g, "%%%");
+      var c = ["100","AcDbText","10",nf(x),"20",nf(y),"30","0","40",nf(h),"1",txt,"50",nf(rot || 0),"7",estilo || "ENP_ARIAL"];
+      if(ha || va) c.push("72", String(ha || 0), "11", nf(x), "21", nf(y), "31", "0");
+      c.push("100", "AcDbText");
+      if(va) c.push("73", String(va));
+      ent(sp, "TEXT", lay, { aci:e.aci, tc:e.tc, transp:e.transp }, c);
+    };
+    // texto com "halo" na tela → MTEXT com máscara de fundo (cor do fundo do desenho), que é como o CAD esconde o que passa por trás
+    D.textoMascara = function(sp, lay, e, x, y, h, txt, rot, ha, estilo){
+      txt = String(txt).replace(/[\r\n\t]+/g, " ").replace(/\\/g, "\\\\").replace(/([{}])/g, "\\$1");
+      var r = (rot || 0)*Math.PI/180;
+      ent(sp, "MTEXT", lay, { aci:e.aci, tc:e.tc, transp:e.transp },
+          ["100","AcDbMText","10",nf(x),"20",nf(y),"30","0","40",nf(h),"41","0","46","0","71",String(7 + (ha || 0)),"72","1",
+           "1",txt,"7",estilo || "ENP_ARIAL","11",nf(Math.cos(r)),"21",nf(Math.sin(r)),"31","0","73","1","44","1",
+           "90","3","63","256","45","1.1","441","0"]);
+    };
+    // aneis: [[ [x,y], ... ], ...] (já na unidade do espaço); padrao null = sólido, ou { ang, esp } = linhas paralelas
+    // circ: { c:[x,y], r } = contorno circular (2 arcos)
+    D.hatch = function(sp, lay, e, aneis, padrao, circ){
+      var c = ["100","AcDbHatch","10","0","20","0","30","0","210","0","220","0","230","1",
+               "2", padrao ? "_USER" : "SOLID", "70", padrao ? "0" : "1", "71", "0", "91", String(circ ? 1 : aneis.length)];
+      if(circ){
+        c.push("92","3","72","1","73","1","93","2","10",nf(circ.c[0] - circ.r),"20",nf(circ.c[1]),"42","1","10",nf(circ.c[0] + circ.r),"20",nf(circ.c[1]),"42","1","97","0");
+      } else aneis.forEach(function(an){
+        c.push("92","3","72","0","73","1","93",String(an.length));
+        an.forEach(function(p){ c.push("10", nf(p[0]), "20", nf(p[1])); });
+        c.push("97","0");
+      });
+      c.push("75","0","76", padrao ? "0" : "1");
+      if(padrao){
+        var r = padrao.ang*Math.PI/180;
+        c.push("52", nf(padrao.ang), "41", nf(padrao.esp), "77", "0", "78", "1",
+               "53", nf(padrao.ang), "43", "0", "44", "0", "45", nf(-Math.sin(r)*padrao.esp), "46", nf(Math.cos(r)*padrao.esp), "79", "0");
+      }
+      c.push("98", "0");
+      ent(sp, "HATCH", lay, e, c);
+    };
+    D.insert = function(sp, lay, nome, x, y, s){
+      ent(sp, "INSERT", lay, { aci:0 }, ["100","AcDbBlockReference","2",nome,"10",nf(x),"20",nf(y),"30","0","41",nf(s),"42",nf(s),"43",nf(s)]);
+    };
+    function vport(f, id, cx, cy, w, hh, vcx, vcy, vh, flags, lay){
+      return ["0","VIEWPORT","5",(id === 1 ? f.vp1 : H()),"330",f.br,"100","AcDbEntity","67","1","8",lay,"100","AcDbViewport",
+        "10",nf(cx),"20",nf(cy),"30","0","40",nf(w),"41",nf(hh),"68",String(id),"69",String(id),
+        "12",nf(vcx),"22",nf(vcy),"13","0","23","0","14","10","24","10","15","10","25","10","16","0","26","0","36","1",
+        "17","0","27","0","37","0","42","50","43","0","44","0","45",nf(vh),"50","0","51","0","72","100",
+        "90",String(flags),"1","","281","0","71","0","74","0","110","0","120","0","130","0","111","1","121","0","131","0",
+        "112","0","122","1","132","0","79","0","146","0","282","0"];
+    }
+
+    /* ---------- montagem do arquivo ---------- */
+    D.texto_ = function(){
+      var out = [];
+      function P(){ for(var i = 0; i < arguments.length; i++) out.push(arguments[i]); }
+      function A(arr){ for(var i = 0; i < arr.length; i++) out.push(arr[i]); }
+      function tabela(nome, hh, n, extra){ P("0","TABLE","2",nome,"5",hh,"330","0","100","AcDbSymbolTable","70",String(n)); if(extra) A(extra); }
+      function reg(tipo, hh, dono, sub){ P("0",tipo,"5",hh,"330",dono,"100","AcDbSymbolTableRecord","100",sub); }
+      var e = D.ext; if(!isFinite(e[0])) e = [0, 0, 1000, 1000];
+      var mcx = (e[0] + e[2])/2, mcy = (e[1] + e[3])/2, mh = Math.max(e[3] - e[1], (e[2] - e[0])/1.6, 10)*1.1;
+      var lays = D.folhas;
+      // HEADER
+      P("0","SECTION","2","HEADER",
+        "9","$ACADVER","1","AC1024","9","$ACADMAINTVER","70","6","9","$DWGCODEPAGE","3","ANSI_1252",
+        "9","$INSBASE","10","0","20","0","30","0",
+        "9","$EXTMIN","10",nf(e[0]),"20",nf(e[1]),"30","0","9","$EXTMAX","10",nf(e[2]),"20",nf(e[3]),"30","0",
+        "9","$LIMMIN","10",nf(e[0]),"20",nf(e[1]),"9","$LIMMAX","10",nf(e[2]),"20",nf(e[3]),
+        "9","$ORTHOMODE","70","0","9","$FILLMODE","70","1","9","$LTSCALE","40","1","9","$TEXTSIZE","40","2.5",
+        "9","$TEXTSTYLE","7","ENP_ARIAL","9","$CLAYER","8","0","9","$CELTYPE","6","ByLayer","9","$CECOLOR","62","256",
+        "9","$LUNITS","70","2","9","$LUPREC","70","3","9","$AUNITS","70","0","9","$AUPREC","70","4",
+        "9","$TILEMODE","70",(lays.length ? "0" : "1"),"9","$PSLTSCALE","70","0",
+        "9","$INSUNITS","70","6","9","$MEASUREMENT","70","1","9","$LWDISPLAY","290","1","9","$CELWEIGHT","370","-1",
+        "9","$PDMODE","70","0","9","$HANDSEED","5",(prox + 16).toString(16).toUpperCase(),
+        "0","ENDSEC");
+      // CLASSES
+      P("0","SECTION","2","CLASSES");
+      [["ACDBDICTIONARYWDFLT","AcDbDictionaryWithDefault"],["ACDBPLACEHOLDER","AcDbPlaceHolder"],["LAYOUT","AcDbLayout"]].forEach(function(c){
+        P("0","CLASS","1",c[0],"2",c[1],"3","ObjectDBX Classes","90","0","91","0","280","0","281","0");
+      });
+      P("0","ENDSEC");
+      // TABLES
+      P("0","SECTION","2","TABLES");
+      tabela("VPORT", h.tVport, 1);
+      reg("VPORT", h.vpAtivo, h.tVport, "AcDbViewportTableRecord");
+      P("2","*Active","70","0","10","0","20","0","11","1","21","1","12",nf(mcx),"22",nf(mcy),"13","0","23","0","14","10","24","10",
+        "15","10","25","10","16","0","26","0","36","1","17","0","27","0","37","0","40",nf(mh),"41","1.6","42","50","43","0","44","0",
+        "50","0","51","0","71","0","72","1000","73","1","74","3","75","0","76","0","77","0","78","0","281","0","65","0","146","0","0","ENDTAB");
+      tabela("LTYPE", h.tLtype, 3 + D.ordemLt.length);
+      [[h.ltBB,"ByBlock"],[h.ltBL,"ByLayer"],[h.ltCont,"Continuous"]].forEach(function(l){
+        reg("LTYPE", l[0], h.tLtype, "AcDbLinetypeTableRecord"); P("2",l[1],"70","0","3",(l[1] === "Continuous" ? "Solid line" : ""),"72","65","73","0","40","0");
+      });
+      D.ordemLt.forEach(function(n){
+        var lt = D.ltypes[n], seg = lt.seg.length % 2 ? lt.seg.concat(lt.seg) : lt.seg, tot = seg.reduce(function(a, v){ return a + v; }, 0);
+        reg("LTYPE", lt.h, h.tLtype, "AcDbLinetypeTableRecord");
+        P("2",n,"70","0","3","Tracejado da planta","72","65","73",String(seg.length),"40",nf(tot));
+        seg.forEach(function(v, i){ P("49", nf(i % 2 ? -v : v), "74", "0"); });
+      });
+      P("0","ENDTAB");
+      tabela("LAYER", h.tLayer, 2 + D.ordemCam.length);
+      reg("LAYER", h.lay0, h.tLayer, "AcDbLayerTableRecord"); P("2","0","70","0","62","7","6","Continuous","370","-3","390",h.phNormal);
+      reg("LAYER", h.layVp, h.tLayer, "AcDbLayerTableRecord"); P("2","ENP_VIEWPORT","70","0","62","8","6","Continuous","290","0","370","-3","390",h.phNormal);
+      D.ordemCam.forEach(function(n){
+        var l = D.camadas[n];
+        reg("LAYER", l.h, h.tLayer, "AcDbLayerTableRecord"); P("2",n,"70","0","62",String(l.aci));
+        if(l.tc != null) P("420", String(l.tc));
+        P("6","Continuous","370","-3","390",h.phNormal);
+      });
+      P("0","ENDTAB");
+      tabela("STYLE", h.tStyle, 4);
+      [[h.stStd,"Standard","arial.ttf"],[h.stArial,"ENP_ARIAL","arial.ttf"],[h.stNeg,"ENP_ARIAL_NEGRITO","arialbd.ttf"],[h.stMono,"ENP_MONO","consola.ttf"]].forEach(function(s){
+        reg("STYLE", s[0], h.tStyle, "AcDbTextStyleTableRecord"); P("2",s[1],"70","0","40","0","41","1","50","0","71","0","42","2.5","3",s[2],"4","");
+      });
+      P("0","ENDTAB");
+      tabela("VIEW", h.tView, 0); P("0","ENDTAB");
+      tabela("UCS", h.tUcs, 0); P("0","ENDTAB");
+      tabela("APPID", h.tAppid, 1); reg("APPID", h.appAcad, h.tAppid, "AcDbRegAppTableRecord"); P("2","ACAD","70","0","0","ENDTAB");
+      tabela("DIMSTYLE", h.tDim, 1, ["100","AcDbDimStyleTable"]);
+      P("0","DIMSTYLE","105",h.dimStd,"330",h.tDim,"100","AcDbSymbolTableRecord","100","AcDbDimStyleTableRecord","2","Standard","70","0",
+        "40","1","41","2.5","42","0.625","43","3.75","44","1.25","45","0","46","0","47","0","48","0","49","2.5","140","2.5","141","2.5",
+        "142","0","143","0.03937007874","144","1","145","0","146","1","147","0.625","148","0","69","0","70","0","71","0","72","0",
+        "73","0","74","0","75","0","76","0","77","1","78","8","79","3","170","0","171","3","172","1","173","0","174","0","175","0",
+        "176","0","177","0","178","0","179","2","271","2","272","2","273","2","274","3","275","0","276","0","277","2","278","44",
+        "279","0","280","0","281","0","282","0","283","0","284","8","285","0","286","0","288","0","289","3","290","0","371","-2","372","-2",
+        "0","ENDTAB");
+      tabela("BLOCK_RECORD", h.tBr, 1 + lays.length + D.ordemBlocos.length);
+      function br(hh, nome, layout){ reg("BLOCK_RECORD", hh, h.tBr, "AcDbBlockTableRecord"); P("2",nome,"340",layout || "0","70","0","280","1","281","0"); }
+      br(h.brModel, "*Model_Space", h.layModel);
+      lays.forEach(function(f, i){ br(f.br, i ? "*Paper_Space" + (i - 1) : "*Paper_Space", f.lay); });
+      D.ordemBlocos.forEach(function(n){ br(D.blocos[n].br, n, "0"); });
+      P("0","ENDTAB","0","ENDSEC");
+      // BLOCKS (a 1ª prancha e o modelo vão na seção ENTITIES, como o AutoCAD grava)
+      P("0","SECTION","2","BLOCKS");
+      function bloco(b, nome, papel, ents){
+        P("0","BLOCK","5",b.blk,"330",b.br,"100","AcDbEntity"); if(papel) P("67","1");
+        P("8","0","100","AcDbBlockBegin","2",nome,"70","0","10","0","20","0","30","0","3",nome,"1","");
+        if(ents) ents.forEach(A);
+        P("0","ENDBLK","5",b.end,"330",b.br,"100","AcDbEntity"); if(papel) P("67","1");
+        P("8","0","100","AcDbBlockEnd");
+      }
+      bloco({ blk:h.blkModel, end:h.endModel, br:h.brModel }, "*Model_Space", false, null);
+      lays.forEach(function(f, i){ bloco(f, i ? "*Paper_Space" + (i - 1) : "*Paper_Space", true, i ? f.ents : null); });
+      D.ordemBlocos.forEach(function(n){ bloco(D.blocos[n], n, false, D.blocos[n].ents); });
+      P("0","ENDSEC");
+      // ENTITIES
+      P("0","SECTION","2","ENTITIES");
+      D.modelo.ents.forEach(A);
+      if(lays[0]) lays[0].ents.forEach(A);
+      P("0","ENDSEC");
+      // OBJECTS
+      P("0","SECTION","2","OBJECTS");
+      P("0","DICTIONARY","5",h.raiz,"330","0","100","AcDbDictionary","281","1",
+        "3","ACAD_GROUP","350",h.dGrupo,"3","ACAD_LAYOUT","350",h.dLayout,"3","ACAD_PLOTSTYLENAME","350",h.dPlot);
+      P("0","DICTIONARY","5",h.dGrupo,"330",h.raiz,"100","AcDbDictionary","281","1");
+      P("0","DICTIONARY","5",h.dLayout,"330",h.raiz,"100","AcDbDictionary","281","1","3","Model","350",h.layModel);
+      lays.forEach(function(f){ P("3", f.nome, "350", f.lay); });
+      P("0","ACDBDICTIONARYWDFLT","5",h.dPlot,"330",h.raiz,"100","AcDbDictionary","281","1","3","Normal","350",h.phNormal,
+        "100","AcDbDictionaryWithDefault","340",h.phNormal);
+      P("0","ACDBPLACEHOLDER","5",h.phNormal,"330",h.dPlot);
+      function layout(hh, nome, ordem, brH, vpH, W, Hh, papelNome, modelo){
+        P("0","LAYOUT","5",hh,"330",h.dLayout,"100","AcDbPlotSettings","1","","2",(modelo ? "" : "DWG To PDF.pc3"),"4",papelNome,"6","",
+          "40","0","41","0","42","0","43","0","44",nf(W),"45",nf(Hh),"46","0","47","0","48","0","49","0","140","0","141","0",
+          "142","1","143","1","70",(modelo ? "1024" : "672"),"72","1","73","0","74","5","7","","75","16","76","0","77","2","78","300",
+          "147","1","148","0","149","0","100","AcDbLayout","1",nome,"70","1","71",String(ordem),
+          "10","0","20","0","11",nf(W),"21",nf(Hh),"12","0","22","0","32","0",
+          "14","0","24","0","34","0","15",nf(W),"25",nf(Hh),"35","0","146","0","13","0","23","0","33","0",
+          "16","1","26","0","36","0","17","0","27","1","37","0","76","1","330",brH);
+        if(vpH) P("331", vpH);
+      }
+      layout(h.layModel, "Model", 0, h.brModel, null, 420, 297, "", true);
+      lays.forEach(function(f, i){ layout(f.lay, f.nome, i + 1, f.br, f.vp1, f.W, f.H, f.papel, false); });
+      P("0","ENDSEC","0","EOF");
+      return out.join("\n") + "\n";
+    };
+    // viewports da prancha (a geral, id 1, e a do mapa) — chamada antes de montar o arquivo
+    D.fecharFolha = function(f){
+      var v = [vport(f, 1, f.W/2, f.H/2, f.W*1.1, f.H*1.1, f.W/2, f.H/2, f.H*1.1, 557088, "0")];
+      if(f.vp) v.push(vport(f, 2, f.vp.x, f.vp.y, f.vp.w, f.vp.h, f.vp.cx, f.vp.cy, f.vp.vh, 32768 | 16384 | 32, "ENP_VIEWPORT"));
+      f.ents = v.concat(f.ents);
+    };
+    return D;
+  }
+
+  /* ---- recorte de geometria (o DXF não tem "clip"): polígono qualquer ---- */
+  function dxfDentro(p, pol){
+    var x = p[0], y = p[1], ins = false;
+    for(var i = 0, j = pol.length - 1; i < pol.length; j = i++){
+      var a = pol[i], b = pol[j];
+      if(((a[1] > y) !== (b[1] > y)) && (x < (b[0] - a[0])*(y - a[1])/(b[1] - a[1]) + a[0])) ins = !ins;
+    }
+    return ins;
+  }
+  // trechos de uma polilinha aberta que ficam dentro do polígono
+  function dxfRecortarLinha(pts, pol){
+    var runs = [], atual = null, continua = false;      // continua: o trecho atual chegou inteiro ao vértice anterior
+    for(var i = 1; i < pts.length; i++){
+      var A = pts[i-1], B = pts[i], ts = [0, 1], dx = B[0] - A[0], dy = B[1] - A[1];
+      for(var k = 0, j = pol.length - 1; k < pol.length; j = k++){
+        var C = pol[j], E = pol[k], ex = E[0] - C[0], ey = E[1] - C[1], den = dx*ey - dy*ex;
+        if(Math.abs(den) < 1e-12) continue;
+        var t = ((C[0] - A[0])*ey - (C[1] - A[1])*ex)/den, u = ((C[0] - A[0])*dy - (C[1] - A[1])*dx)/den;
+        if(t > 0 && t < 1 && u >= 0 && u <= 1) ts.push(t);
+      }
+      ts.sort(function(a, b){ return a - b; });
+      for(var m = 1; m < ts.length; m++){
+        var t0 = ts[m-1], t1 = ts[m]; if(t1 - t0 < 1e-9) continue;
+        var tm = (t0 + t1)/2, P0 = [A[0] + dx*t0, A[1] + dy*t0], P1 = [A[0] + dx*t1, A[1] + dy*t1];
+        if(dxfDentro([A[0] + dx*tm, A[1] + dy*tm], pol)){
+          if(atual && continua && t0 < 1e-9) atual.push(P1);
+          else { if(atual) runs.push(atual); atual = [P0, P1]; }
+          continua = t1 > 1 - 1e-9;
+        } else { if(atual) runs.push(atual); atual = null; continua = false; }
+      }
+    }
+    if(atual) runs.push(atual);
+    return runs;
+  }
+  // polígono recortado por outro CONVEXO (Sutherland–Hodgman) — só para preenchimentos dentro de recorte retangular
+  function dxfRecortarArea(sub, clip){
+    var out = sub, sentido = 0;
+    for(var i = 0, j = clip.length - 1; i < clip.length; j = i++) sentido += (clip[i][0] - clip[j][0])*(clip[i][1] + clip[j][1]);
+    var s = sentido > 0 ? 1 : -1;
+    for(var a = 0; a < clip.length && out.length; a++){
+      var C = clip[a], E = clip[(a + 1) % clip.length], inp = out; out = [];
+      var lado = function(p){ return s*((E[0] - C[0])*(p[1] - C[1]) - (E[1] - C[1])*(p[0] - C[0])) <= 0; };
+      for(var k = 0; k < inp.length; k++){
+        var P0 = inp[k], P1 = inp[(k + 1) % inp.length], d0 = lado(P0), d1 = lado(P1);
+        if(d0) out.push(P0);
+        if(d0 !== d1){
+          var dx = P1[0] - P0[0], dy = P1[1] - P0[1], ex = E[0] - C[0], ey = E[1] - C[1], den = dx*ey - dy*ex;
+          if(Math.abs(den) > 1e-12){ var t = ((C[0] - P0[0])*ey - (C[1] - P0[1])*ex)/den; out.push([P0[0] + dx*t, P0[1] + dy*t]); }
+        }
+      }
+    }
+    return out.length >= 3 ? out : null;
+  }
+
+  /* ---- pintor DXF: mesma API do pintorCanvas / pintorPdf ----
+     Coordenadas chegam em mm de papel (y para baixo). Dentro do recorte da janela do mapa vão para o MODELO em UTM
+     (E = T.E(x), N = T.N(y)); fora dele, para a prancha em mm (y para cima). */
+  var DXF_MEDIDOR = null;
+  function pintorDxf(D, folha, T, logos){
+    var k = T.esc/1000, cam = "ENP_FOLHA", pilha = [], modelo = 0, papelForcado = false;
+    if(!DXF_MEDIDOR) DXF_MEDIDOR = document.createElement("canvas").getContext("2d");
+    function noModelo(){ return modelo > 0 && !papelForcado; }
+    function sp(){ return noModelo() ? D.modelo : folha; }
+    function XY(p){ return noModelo() ? [T.E(p[0]), T.N(p[1])] : [p[0], folha.H - p[1]]; }
+    function L(v){ return noModelo() ? v*k : v; }
+    var JANELA = [[MAPA.x, MAPA.y], [MAPA.x + MAPA.w, MAPA.y], [MAPA.x + MAPA.w, MAPA.y + MAPA.h], [MAPA.x, MAPA.y + MAPA.h]];
+    function recortes(){
+      var r = pilha.filter(function(q){ return q.pol && !(q.modelo && papelForcado); });
+      if(papelForcado) r.push({ pol:JANELA });            // na prancha, o recorte é a janela exata do mapa
+      return r;
+    }
+    function dentro(p){ return recortes().every(function(r){ return dxfDentro(p, r.pol); }); }
+    function lay(cor){ return D.camada(cam, cor); }
+    function est(cor, peso, opac, trac){
+      var c = D.cor(cor), e = { aci:c.aci, tc:c.tc };
+      if(peso != null) e.lw = D.lw(peso);
+      if(trac && trac.length) e.lt = D.ltype(trac.map(L));
+      if(opac != null && opac < .999) e.transp = 0x02000000 | Math.max(0, Math.min(255, Math.round(255*opac)));
+      return e;
+    }
+    // traço (aberto ou fechado), recortado pelos polígonos de recorte ativos
+    function traco(pts, fechar, e, l){
+      var rs = recortes();
+      if(!rs.length){
+        if(pts.length === 2 && !fechar) D.linha(sp(), l, e, XY(pts[0]), XY(pts[1]));
+        else D.poli(sp(), l, e, pts.map(XY), fechar);
+        return;
+      }
+      var runs = [fechar ? pts.concat([pts[0]]) : pts];
+      rs.forEach(function(r){ var nv = []; runs.forEach(function(q){ nv = nv.concat(dxfRecortarLinha(q, r.pol)); }); runs = nv; });
+      runs.forEach(function(q){ if(q.length === 2) D.linha(sp(), l, e, XY(q[0]), XY(q[1])); else D.poli(sp(), l, e, q.map(XY), false); });
+    }
+    function area(pts){
+      var a = pts;
+      recortes().forEach(function(r){ if(a) a = dxfRecortarArea(a, r.pol); });
+      return a;
+    }
+    function preench(pts, cor, opac){
+      var a = area(pts); if(!a) return;
+      D.hatch(sp(), lay(cor), est(cor, null, opac), [a.map(XY)], null);
+    }
+    var P = {
+      tipo:"dxf",
+      camada: function(n){ var ant = cam; cam = n || "ENP_FOLHA"; return ant; },
+      soPapel: function(on){ papelForcado = !!on && modelo > 0; },
+      ret: function(x, y, w, h, o){
+        o = o || {}; var pts = [[x, y], [x + w, y], [x + w, y + h], [x, y + h]];
+        if(o.fill) preench(pts, o.fill, o.opacFill != null ? o.opacFill : o.opac);
+        if(o.peso !== 0) traco(pts, true, est(o.cor || COR.linha, o.peso == null ? .2 : o.peso, o.opac, o.tracejado), lay(o.cor || COR.linha));
+      },
+      linha: function(x1, y1, x2, y2, o){
+        o = o || {}; traco([[x1, y1], [x2, y2]], false, est(o.cor || COR.linha, o.peso == null ? .2 : o.peso, o.opac, o.tracejado), lay(o.cor || COR.linha));
+      },
+      poli: function(pts, o){
+        o = o || {}; if(!pts || pts.length < 2) return;
+        if(o.fill && pts.length >= 3) preench(pts, o.fill, o.opacFill != null ? o.opacFill : 1);
+        if(o.peso === 0) return;
+        traco(pts, o.fechar !== false, est(o.cor || COR.linha, o.peso == null ? .2 : o.peso, o.opac, o.tracejado), lay(o.cor || COR.linha));
+      },
+      circ: function(x, y, r, o){
+        o = o || {}; if(!dentro([x, y])) return;
+        var c = XY([x, y]), rr = L(r);
+        if(o.fill) D.hatch(sp(), lay(o.cor), est(o.fill, null, o.opac), null, null, { c:c, r:rr });
+        D.circulo(sp(), lay(o.cor || COR.linha), est(o.cor || COR.linha, o.peso == null ? .2 : o.peso, o.opac, o.tracejado), c, rr);
+      },
+      // hachura de linhas paralelas como HATCH do CAD (substitui as dezenas de linhas recortadas do canvas)
+      hachura: function(pol, ang, espac, o){
+        o = o || {}; var a = area(pol); if(!a) return;
+        var cor = o.cor || COR.linha;
+        D.hatch(sp(), lay(cor), est(cor, o.peso == null ? .2 : o.peso, o.opac), [a.map(XY)], { ang:ang, esp:L(espac) });
+      },
+      texto: function(x, y, txt, o){
+        o = o || {}; txt = String(txt == null ? "" : txt); if(!txt.trim() || !dentro([x, y])) return;
+        var pt = o.tam || 2, h = L(pt*.35278*.716), p = XY([x, y]), cor = o.cor || COR.carimbo;
+        var ha = o.align === "center" ? 1 : (o.align === "right" ? 2 : 0), st = o.mono ? "ENP_MONO" : (o.bold ? "ENP_ARIAL_NEGRITO" : "ENP_ARIAL");
+        if(o.halo) D.textoMascara(sp(), lay(cor), est(cor, null, o.opac), p[0], p[1], h, txt, o.rot || 0, ha, st);
+        else D.texto(sp(), lay(cor), est(cor, null, o.opac), p[0], p[1], h, txt, o.rot || 0, ha, 0, st);
+      },
+      largura: function(txt, o){
+        o = o || {}; var pt = o.tam || 2;
+        DXF_MEDIDOR.font = (o.bold ? "700 " : "") + (pt/72*25.4*10).toFixed(2) + "px Arial,Helvetica,sans-serif";
+        return DXF_MEDIDOR.measureText(String(txt)).width/10;
+      },
+      img: function(el, x, y, w, h){
+        if(modelo > 0) return;                                     // satélite / ortofoto: fora do DXF
+        var u = el && (el.url || el), qual = (logos.i && u === logos.i.url) ? "INFRA" : ((logos.e && u === logos.e.url) ? "ENPROL" : null);
+        if(!qual) return;                                          // assinatura e mapa-chave com satélite: imagens, ficam fora
+        var Lg = DXF_LOGOS[qual], s = h, wv = Lg.w*s;
+        if(wv > w){ s = w/Lg.w; wv = w; }
+        var ant = cam; cam = "ENP_LOGOTIPOS";
+        D.insert(folha, D.camada(cam, "#1F3B6E"), D.bloco(qual), x + (w - wv)/2, folha.H - (y + (h - s)/2 + s), s);
+        cam = ant;
+      },
+      clip: function(x, y, w, h){
+        if(!modelo && Math.abs(x - MAPA.x) < .01 && Math.abs(y - MAPA.y) < .01 && Math.abs(w - MAPA.w) < .01 && Math.abs(h - MAPA.h) < .01){
+          // entrou na janela do mapa: daqui até o clipOff, tudo vai para o modelo. A viewport recorta a vista; o modelo é recortado
+          // na janela + 15 mm de papel de folga (sem isso as linhas do projeto entram inteiras, com dezenas de km)
+          var mg = 15;
+          pilha.push({ modelo:true, pol:[[x - mg, y - mg], [x + w + mg, y - mg], [x + w + mg, y + h + mg], [x - mg, y + h + mg]] }); modelo++;
+          folha.vp = { x:x + w/2, y:folha.H - (y + h/2), w:w, h:h, cx:T.E(x + w/2), cy:T.N(y + h/2), vh:h*k };
+          return;
+        }
+        pilha.push({ pol:[[x, y], [x + w, y], [x + w, y + h], [x, y + h]] });
+      },
+      clipPoli: function(pts){ pilha.push({ pol:pts.map(function(p){ return [p[0], p[1]]; }) }); },
+      clipOff: function(){ var r = pilha.pop(); if(r && r.modelo) modelo--; }
+    };
+    return P;
+  }
+
+  window.MDP_exportarDxf = async function(opts){
+    opts = opts || {};
     var a = analisar(); if(a.erro){ alert(a.erro); return; }
     var load = $("mdp_comp_load"), aviso = function(t){ if(load){ load.textContent = t; load.style.display = "block"; } };
     aviso("montando o DXF…");
     try{
-      await carregarContexto();
-      var pm = planoMapa(), esc = (pm && pm.esc) || OPC.escala || 2000, hT = Math.max(1, 2.2*esc/1000);   // texto de 2,2 mm na escala da planta
-      var dv = divisasDe(), cs = confrontantes(), E = [], camadas = {};
-      var COR = { AREA_DESAPROPRIAR:5, VERTICES:7, ROTULO_VERTICES:7, FAIXA_DOMINIO:4, EIXO_FERROVIA:30, ESTACAS_100M:8, ESTACAS_20M:9, ESTACAS_TEXTO:7, KM_INICIAL_FINAL:1, CONFRONTANTES:2 };
-      function lay(n, c){ n = dxfAscii(n).toUpperCase().replace(/[^A-Z0-9_]/g, "_"); if(!(n in camadas)) camadas[n] = (c != null ? c : (COR[n] != null ? COR[n] : 7)); return n; }
-      function f3(v){ return (Math.round(v*1000)/1000).toFixed(3); }
-      function poli(l, pts, fechada){ if(pts.length < 2) return; E.push("0","POLYLINE","8",l,"66","1","70",fechada ? "1" : "0","10","0","20","0","30","0");
-        pts.forEach(function(q){ E.push("0","VERTEX","8",l,"10",f3(q[0]),"20",f3(q[1]),"30","0"); }); E.push("0","SEQEND","8",l); }
-      function texto(l, x, y, h, t, rot){ if(!t) return; E.push("0","TEXT","8",l,"10",f3(x),"20",f3(y),"30","0","40",h.toFixed(3),"1",dxfAscii(t),"50",(rot || 0).toFixed(2)); }
-      function circ(l, x, y, r){ E.push("0","CIRCLE","8",l,"10",f3(x),"20",f3(y),"30","0","40",r.toFixed(3)); }
-      // janela de interesse: contorno + 800 m (faixa, eixo, estacas e camadas extras fora disso não entram)
-      var xs = G.v.map(function(q){ return q.E; }), ys = G.v.map(function(q){ return q.N; }), mg = 800;
-      var bx0 = Math.min.apply(null, xs) - mg, bx1 = Math.max.apply(null, xs) + mg, by0 = Math.min.apply(null, ys) - mg, by1 = Math.max.apply(null, ys) + mg;
-      function dentroUtm(q){ return q[0] >= bx0 && q[0] <= bx1 && q[1] >= by0 && q[1] <= by1; }
-      var COR_DIV = { sem:1, com:1, cerca:3, divisa:1, area:5, acesso:40, corrego:4, fd:4, fd_ant:8, eixo:30, eixo_ant:8 };
-      // contorno e divisas por segmento
-      poli(lay("AREA_DESAPROPRIAR"), G.v.map(function(q){ return [q.E, q.N]; }), true);
-      G.segs.forEach(function(sg, i){
-        var tp = dv[i] || "area", A = G.v[sg.de], Bv = G.v[sg.para];
-        poli(lay("DIVISA_" + tp, COR_DIV[tp] != null ? COR_DIV[tp] : 7), [[A.E, A.N], [Bv.E, Bv.N]], false);
-        if(cs[i]){ var mx = (A.E + Bv.E)/2, my = (A.N + Bv.N)/2, ang = Math.atan2(Bv.N - A.N, Bv.E - A.E)*180/Math.PI; if(ang > 90) ang -= 180; if(ang < -90) ang += 180; texto(lay("CONFRONTANTES"), mx, my + hT*.4, hT*.8, cs[i], ang); }
-      });
-      G.v.forEach(function(q){ circ(lay("VERTICES"), q.E, q.N, hT*.35); texto(lay("ROTULO_VERTICES"), q.E + hT*.5, q.N + hT*.5, hT, q.nome); });
-      // KM inicial / final
-      var e = eixoIniFim();
-      if(e) [[e.ini, "KM INICIAL"], [e.fim, "KM FINAL"]].forEach(function(r){
-        var i = r[0]; if(i == null || i < 0 || !G.v[i]) return;
-        var t = kmDe(i) || (e.km.v[i] && e.km.v[i].ch != null ? kmTxt(e.km.v[i].ch) : "");
-        circ(lay("KM_INICIAL_FINAL"), G.v[i].E, G.v[i].N, hT*.8); texto(lay("KM_INICIAL_FINAL"), G.v[i].E + hT, G.v[i].N - hT*1.6, hT*1.1, r[1] + " = " + t.replace(/^\s*KM\s*=?\s*/i, ""));
-      });
-      // faixa de domínio e eixo
-      var fx = CTX.fixo;
-      if(fx){
-        (fx.limites || []).forEach(function(l){ if(l.some(dentroUtm)) poli(lay("FAIXA_DOMINIO"), l, false); });
-        (fx.eixos || []).forEach(function(l){ if(l.some(dentroUtm)) poli(lay("EIXO_FERROVIA"), l, false); });
+      aplicarFormato(OPC.formato);
+      var plano = planoFolhas(), sobre = { satelite:false, ortofoto:false };
+      var T0 = enquadrarPg(plano[0]);
+      var op0 = await preparar(T0, 96, aviso, sobre);
+      var D = dxfDoc(), NF = op0.folhas || { off:0, total:plano.length };
+      for(var i = 0; i < plano.length; i++){
+        var pg = plano[i], T = pg.mapa ? enquadrarPg(pg) : T0;
+        if(plano.length > 1) aviso("montando o DXF… prancha " + (i + 1) + "/" + plano.length);
+        var op = (pg.mapa && i) ? await preparar(T, 96, aviso, sobre) : op0;
+        var nfo = NF.off + (pg.n || i + 1), nomeF = "FOLHA " + String(nfo).padStart(2, "0") + " de " + String(NF.total || plano.length).padStart(2, "0");
+        var papel = { "A3":"ISO_full_bleed_A3_(420.00_x_297.00_MM)", "A2":"ISO_full_bleed_A2_(594.00_x_420.00_MM)",
+                      "A1":"ISO_full_bleed_A1_(841.00_x_594.00_MM)", "A0":"ISO_full_bleed_A0_(1189.00_x_841.00_MM)" }[String(FL.nome).toUpperCase()]
+                    || ("ENPROL_" + String(FL.nome).replace(/[^A-Za-z0-9]+/g, "_") + "_(" + FL.W.toFixed(2) + "_x_" + FL.H.toFixed(2) + "_MM)");
+        var folha = D.novaFolha(nomeF, FL.W, FL.H); folha.papel = papel;
+        desenharFolha(pintorDxf(D, folha, T, { i:op.logoI, e:op.logoE }), T, op, pg);
+        D.fecharFolha(folha);
       }
-      // estacas do projeto revisado
-      var g = CTX.proj;
-      if(g){
-        var ce = (g.camadas || []).filter(function(x){ return x.tipo === "estacas"; })[0], de = ce && PROJ.dados[g.pasta + "|" + ce.arquivo];
-        var toU = function(pt){ var u = utm(pt[0], pt[1], G.fuso); return [u.E, u.N]; };
-        if(de) [["a", "ESTACAS_100M"], ["b", "ESTACAS_20M"]].forEach(function(par){
-          (de[par[0]] || []).forEach(function(l){ var u = l.map(toU); if(u.some(dentroUtm)) poli(lay(par[1]), u, false); });
-        });
-        var ct = (g.camadas || []).filter(function(x){ return x.tipo === "texto"; })[0], dt = ct && PROJ.dados[g.pasta + "|" + ct.arquivo];
-        if(dt && dt.t) dt.t.forEach(function(t){
-          var u = toU([t[0], t[1]]); if(!dentroUtm(u)) return;
-          var an = ((t[4] % 360) + 360) % 360; if(an > 90 && an <= 270) an -= 180;
-          texto(lay("ESTACAS_TEXTO"), u[0], u[1], hT*.8, String(t[2]), an);
-        });
-      }
-      // camadas extras importadas (GeoPackage / KML)
-      camadasLer().arquivos.forEach(function(ar){ (ar.camadas || []).forEach(function(c){
-        if(!c.tipo || c.tipo === "ignorar") return;
-        var l = lay("EXTRA_" + c.tipo, COR_DIV[c.tipo] != null ? COR_DIV[c.tipo] : 7);
-        (c.f || []).forEach(function(ft){
-          if(ft.k === "pl") ft.c.forEach(function(an){ an.forEach(function(r){ if(r.some(dentroUtm)) poli(l, r, true); }); });
-          else if(ft.k === "ln") ft.c.forEach(function(r){ if(r.some(dentroUtm)) poli(l, r, false); });
-          else if(ft.k === "pt") ft.c.forEach(function(q){ if(dentroUtm(q)) circ(l, q[0], q[1], hT*.3); });
-        });
-      }); });
-      var H = ["0","SECTION","2","HEADER","9","$ACADVER","1","AC1009","9","$INSBASE","10","0.0","20","0.0","30","0.0","0","ENDSEC",
-               "0","SECTION","2","TABLES","0","TABLE","2","LTYPE","70","1","0","LTYPE","2","CONTINUOUS","70","0","3","Solid line","72","65","73","0","40","0.0","0","ENDTAB",
-               "0","TABLE","2","LAYER","70",String(Object.keys(camadas).length)];
-      Object.keys(camadas).forEach(function(n){ H.push("0","LAYER","2",n,"70","0","62",String(camadas[n]),"6","CONTINUOUS"); });
-      H.push("0","ENDTAB","0","TABLE","2","STYLE","70","1","0","STYLE","2","STANDARD","70","0","40","0.0","41","1.0","50","0.0","71","0","42","0.2","3","txt","4","","0","ENDTAB","0","ENDSEC","0","SECTION","2","ENTITIES");
-      var txt = H.concat(E, ["0","ENDSEC","0","EOF"]).join("\r\n") + "\r\n";
-      var c = doCadastro(), nome = "PLANTA_SITUACAO_INFRA_" + (c.ferrovia || "FTN") + "_CTD-" + (c.ctd || "000") + ".dxf";
+      var txt = D.texto_();
+      var c = doCadastro(), sufPer = ANEIS.length > 1 ? (ST.geral ? "_GERAL" : "_AREA-" + (ST.area + 1)) : "";
+      var nome = "PLANTA_SITUACAO_INFRA_" + (c.ferrovia || "FTN") + "_CTD-" + (c.ctd || "000") + sufPer + ".dxf";
       var blob = new Blob([txt], { type:"application/dxf" });
       if(load) load.style.display = "none";
+      if(opts.retornar) return { blob:blob, nome:nome };
       if(window.FS_salvar) await window.FS_salvar(blob, nome);
       else { var el = document.createElement("a"); el.href = URL.createObjectURL(blob); el.download = nome; document.body.appendChild(el); el.click(); el.remove(); setTimeout(function(){ URL.revokeObjectURL(el.href); }, 4000); }
     }catch(er){ console.warn("planta/DXF:", er); aviso("Não consegui gerar o DXF: " + (er.message || er)); }
@@ -33822,6 +34262,76 @@ window.__ASSIN_DESENHISTA__ = {"andrezza": {"w": 460, "h": 164, "src": "data:ima
     tick();
   }
   if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", function(){ setTimeout(boot, 400); }); else setTimeout(boot, 400);
+})();
+</script>
+
+<script>
+/* ===== PRODUTO no servidor (06/10/2026) ==========================================================
+   Cada PDF gerado (Ficha de Vistoria, Relatório Técnico, DRL, Parecer) é TAMBÉM enviado, em segundo
+   plano, para a pasta PRODUTO do cadastro aberto no servidor:
+     Ficha     -> PRODUTO/Relatório Socioeconômico/1. Ficha de Vistoria e Cadastro Socioeconômico (Anexo B)
+     Relatório -> PRODUTO/Relatório Socioeconômico/2. Relatório Técnico de Caracterização Socioeconômica
+     DRL       -> PRODUTO/Relatório Socioeconômico/3. DRL — Declaração de Respeito de Limites
+     Parecer   -> PRODUTO/Parecer Documental
+   O download/salvar de sempre não muda e uma falha aqui NUNCA o atrapalha. Só envia se há um cadastro
+   aberto ou salvo no servidor (window.__CAD_ATUAL); só o PDF mais recente fica em cada pasta. */
+(function(){
+  var TIPOS = { FB_gerarPDF:"ficha", REL_gerarPDF:"relatorio", DRL_gerarPDF:"drl", PAR_gerarPDF:"parecer" };
+  var API = (typeof window.CAD_SERVIDOR_URL === "string" ? window.CAD_SERVIDOR_URL : "").replace(/\/+$/, "");
+  var _tt = null;
+  function aviso(msg, erro){
+    try{
+      var el = document.getElementById("prodToast");
+      if(!el){
+        el = document.createElement("div"); el.id = "prodToast";
+        el.style.cssText = "position:fixed;left:16px;bottom:16px;z-index:99999;max-width:420px;padding:9px 14px;border-radius:8px;font:13px/1.35 system-ui,Segoe UI,sans-serif;color:#fff;box-shadow:0 4px 14px rgba(0,0,0,.25);transition:opacity .3s;opacity:0;pointer-events:none";
+        document.body.appendChild(el);
+      }
+      el.style.background = erro ? "#b3541e" : "#1f6f4a"; el.textContent = msg; el.style.opacity = "1";
+      clearTimeout(_tt); _tt = setTimeout(function(){ el.style.opacity = "0"; }, erro ? 6000 : 3500);
+    }catch(e){}
+  }
+  function enviar(tipo, blob, nome){
+    try{
+      var at = window.__CAD_ATUAL;
+      if(!at || !at.secao || !at.ctd) return;                       // cadastro ainda não está no servidor: nada a fazer
+      if(!blob || !/\.pdf$/i.test(nome || "")) return;
+      fetch(API + "/api/cadastros/" + encodeURIComponent(at.secao) + "/" + encodeURIComponent(at.ctd) + "/produto/" + tipo, {
+        method:"PUT", headers:{ "Content-Type":"application/pdf", "X-Arquivo":encodeURIComponent(nome) }, body:blob
+      }).then(function(r){
+        return r.json().catch(function(){ return {}; }).then(function(j){
+          if(r.ok) aviso("PDF guardado no servidor: " + (j.pasta || "PRODUTO").replace(/\//g, " › "));
+          else if(r.status === 404) console.warn("PRODUTO: o cadastro ainda não está salvo no servidor — salve e gere o PDF de novo para guardá-lo.");
+          else aviso("Não consegui guardar o PDF no servidor (" + (j.erro || ("HTTP " + r.status)) + "). O arquivo baixado está normal.", true);
+        });
+      }).catch(function(e){ console.warn("PRODUTO: PDF não enviado ao servidor (" + tipo + "):", e); });
+    }catch(e){ console.warn("PRODUTO:", e); }
+  }
+  function criar(orig, tipo){
+    var nova = async function(){
+      var real = window.FS_salvar, capt = null, meu = null;
+      if(typeof real === "function"){
+        meu = function(blob, nome){ if(/\.pdf$/i.test(nome || "")) capt = { blob:blob, nome:nome }; return real.apply(this, arguments); };
+        window.FS_salvar = meu;
+      }
+      var r;
+      try{ r = await orig.apply(this, arguments); }
+      finally{ if(meu && window.FS_salvar === meu) window.FS_salvar = real; }
+      var res = (r && r.blob) ? r : capt;                           // {retornar:true} devolve o blob; senão captura no FS_salvar
+      if(res) enviar(tipo, res.blob, res.nome);
+      return r;
+    };
+    nova.__produto = true;
+    return nova;
+  }
+  Object.keys(TIPOS).forEach(function(nomeFn){
+    var tipo = TIPOS[nomeFn];
+    function embrulhar(fn){ return (typeof fn === "function" && !fn.__produto) ? criar(fn, tipo) : fn; }
+    var atual = embrulhar(window[nomeFn]);
+    try{                                                            // se outro script reatribuir a função depois, continua embrulhada
+      Object.defineProperty(window, nomeFn, { configurable:true, enumerable:true, get:function(){ return atual; }, set:function(v){ atual = embrulhar(v); } });
+    }catch(e){ window[nomeFn] = atual; }
+  });
 })();
 </script>
 </body>
