@@ -16996,7 +16996,7 @@ function AV_gerarDescSituacao(){
   // vértices sobre o eixo (|afastamento| ≤ 1 m) no menor e no maior KM; sem vértice no eixo, os extremos da faixa
   function eixoIniFim(){
     var km = kmAtual(); if(!G || !km) return null;
-    var eix = []; km.v.forEach(function(x, i){ if(x.ch != null && Math.abs(x.off) <= 1) eix.push(i); });
+    var eix = idxNoEixo(km.v);
     if(!eix.length){ return (km.iIni >= 0 || km.iFim >= 0) ? { ini:km.iIni, fim:km.iFim, km:km } : null; }
     var ini = eix.reduce(function(m, i){ return km.v[i].ch < km.v[m].ch ? i : m; }), fim = eix.reduce(function(m, i){ return km.v[i].ch > km.v[m].ch ? i : m; });
     return { ini:ini, fim:fim, km:km };
@@ -17965,6 +17965,21 @@ function AV_gerarDescSituacao(){
     return m;
   }
   // resultado: por vértice {ch, off, dFD, noLim}; e KM inicial/final dos vértices que tocam os limites da faixa
+  /* Vértices "sobre o eixo" (06/10/2026): os que estão a até 1 m do eixo + os vértices onde o perímetro CRUZA o eixo
+     (a aresta troca o lado do eixo; vale o extremo mais próximo, se estiver a até 3 m). Antes só valia o 1 m — na Área 2 do
+     CTD 001 (SPS-04) o eixo entra pelo P59, a 1,08 m, que era descartado: o KM inicial (entrada do eixo, sentido oeste→leste)
+     não era marcado e o P01, por onde o eixo SAI do perímetro, aparecia como "inicial". */
+  function idxNoEixo(v){
+    var s = {}, n = v.length;
+    v.forEach(function(x, i){ if(x.ch != null && Math.abs(x.off) <= 1) s[i] = 1; });
+    for(var i = 0; i < n; i++){
+      var a = v[i], j = (i + 1) % n, b = v[j];
+      if(a.ch == null || b.ch == null || !(a.off * b.off < 0)) continue;
+      var k = Math.abs(a.off) <= Math.abs(b.off) ? i : j;
+      if(Math.abs(v[k].off) <= 3) s[k] = 1;
+    }
+    return Object.keys(s).map(Number);
+  }
   function calcularKm(grupo, fixo, vs){
     var K = estacasUtm(grupo); if(!K || !G) return null;
     var v = (vs || G.v).map(function(p){
@@ -17982,7 +17997,7 @@ function AV_gerarDescSituacao(){
              ext:fim - ini, txt:kmTxt(ini) + " ao " + kmTxt(fim) };
     // KM inicial/final = o que a planta desenha: vértices sobre o próprio eixo (|afastamento| <= 1 m).
     // Os extremos pelos limites da faixa ficam em faixaIni/faixaFim (02/10/2026: o resumo mostrava estes e a planta aqueles).
-    var eix = []; v.forEach(function(x, i){ if(x.ch != null && Math.abs(x.off) <= 1) eix.push(i); });
+    var eix = idxNoEixo(v);
     r.faixaIni = ini; r.faixaFim = fim; r.doEixo = false;
     if(eix.length){
       var a = eix.reduce(function(m, i){ return v[i].ch < v[m].ch ? i : m; }), b = eix.reduce(function(m, i){ return v[i].ch > v[m].ch ? i : m; });
@@ -20519,7 +20534,7 @@ function AV_gerarDescSituacao(){
 
   window.MDP_usarKm = function(modo){
     var km = kmAtual(); if(!km) return;
-    var eixo = (function(){ var v = []; km.v.forEach(function(x){ if(x.ch != null && Math.abs(x.off) <= 1) v.push(x.ch); }); return v.length ? { ini:Math.min.apply(null, v), fim:Math.max.apply(null, v) } : null; })();
+    var eixo = (function(){ var v = idxNoEixo(km.v).map(function(i){ return km.v[i].ch; }); return v.length ? { ini:Math.min.apply(null, v), fim:Math.max.apply(null, v) } : null; })();
     var ini = km.ini, fim = km.fim;
     if(modo === "faixa"){ ini = km.faixaIni; fim = km.faixaFim; }
     setExtra("segmento", "KM=" + kmTxt(ini) + " ao KM=" + kmTxt(fim) + " = " + br(fim - ini, 0) + "m");
@@ -20594,7 +20609,7 @@ function AV_gerarDescSituacao(){
       km = null;
     }
     if(km){
-      var eix = []; km.v.forEach(function(x, i){ if(x.ch != null && Math.abs(x.off) <= 1) eix.push({ ch:x.ch, nome:G.v[i].nome }); });
+      var eix = idxNoEixo(km.v).sort(function(x, y){ return x - y; }).map(function(i){ return { ch:km.v[i].ch, nome:G.v[i].nome }; });
       var extEixo = "";
       if(eix.length){
         var mi = eix.reduce(function(m, x){ return x.ch < m.ch ? x : m; }), ma = eix.reduce(function(m, x){ return x.ch > m.ch ? x : m; });
