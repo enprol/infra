@@ -1254,6 +1254,9 @@ window.REL_baixarConjunto = async function(){
   #av_t11[data-modo="ftn"] table.na-tabela span.sit-na{font-weight:400; color:#4a5a6e;}
   #av_t11[data-modo="ftn"] table.na-tabela span.sit-na.sel{font-weight:800; color:#159a3c;}
   /* conferência VTN/ha (Memória de Cálculo) × valor unitário médio da amostra */
+  .av-modelo-sel{display:flex; align-items:center; gap:10px; margin:0 0 10px; flex-wrap:wrap;}
+  .av-modelo-sel label{font-size:12px; font-weight:700; color:#175a9f;}
+  .av-modelo-sel select{padding:6px 10px; border:1px solid #bcd6f0; border-radius:8px; background:#f1f7fe; font-weight:700; color:#175a9f; font-size:12.5px;}
   .vtn-confere{margin-top:8px; padding:6px 10px; border-radius:8px; font-size:12px; font-weight:700; line-height:1.35;}
   .vtn-confere.ok{background:#eaf7ee; color:#15803d; border:1px solid #b7e2c4;}
   .vtn-confere.dif{background:#fff4e6; color:#b45309; border:1px solid #f0c890;}
@@ -5694,6 +5697,15 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
     </div>
 
     <div class="vsub">i) Memória de Cálculo para Terra Nua</div>
+    <div class="av-modelo-sel av-so-ftn">
+      <label for="av_mem_modelo">Modelo estatístico:</label>
+      <select id="av_mem_modelo" title="Variação da equação: muda a constante do modelo (Moda 3127,488781 · Mediana 3337,43421 · Média 3447,634276 · Regressão e^8,11295759 = Mediana)">
+        <option value="moda" selected>Moda</option>
+        <option value="mediana">Mediana</option>
+        <option value="media">Média</option>
+        <option value="regressao">Equação de regressão</option>
+      </select>
+    </div>
     <table class="memoria">
       <thead><tr><th>Variáveis</th><th>Fragmentos modelo estatístico</th><th>Coef. variável</th><th>Result. individual</th></tr></thead>
       <tbody>
@@ -5737,7 +5749,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
     </table>
     <div class="vtn-box">
       <div class="vtn-formula av-so-obs">R$/ha = +170930,8028 × e^(+0,7420810025 / Área) × e^(-0,7754092498 / N.A.²) × e^(+0,3240766412 × Zona)</div>
-      <div class="vtn-formula av-so-ftn">Valor Unitário R$/ha = 3127,488781 × e^(−0,6346406128 × ln(Área (ha))) × e^(+8,17860439 × Nota agronômica²) × e^(+1,076288644 × Influência Vila)</div>
+      <div class="vtn-formula av-so-ftn" id="av_eq_tela">Valor Unitário R$/ha = 3127,488781 × e^(−0,6346406128 × ln(Área (ha))) × e^(+8,17860439 × Nota agronômica²) × e^(+1,076288644 × Influência Vila)</div>
       <div class="vtn-result">VTN/ha = <strong id="av_vtn">R$ —</strong></div>
       <div class="vtn-confere av-so-ftn" id="av_vtn_confere" hidden></div>
     </div>
@@ -5764,7 +5776,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
             </tr>
             <tr>
               <td class="ia-lbl">Equação</td>
-              <td colspan="3" id="ia_equacao" class="ia-eq"><span class="av-so-obs">Unitário (R$/ha) = +170930,8028 × e^(+0,7420810025 / Área (ha)) × e^(−0,7754092498 / Nota agronômica²) × e^(+0,3240766412 × Zona)</span><span class="av-so-ftn">Unitário (R$/ha) = 3127,488781 × e^(−0,6346406128 × ln(Área (ha))) × e^(+8,17860439 × Nota agronômica²) × e^(+1,076288644 × Influência Vila)</span></td>
+              <td colspan="3" id="ia_equacao" class="ia-eq"><span class="av-so-obs">Unitário (R$/ha) = +170930,8028 × e^(+0,7420810025 / Área (ha)) × e^(−0,7754092498 / Nota agronômica²) × e^(+0,3240766412 × Zona)</span><span class="av-so-ftn" id="ia_eq_ftn">Unitário (R$/ha) = 3127,488781 × e^(−0,6346406128 × ln(Área (ha))) × e^(+8,17860439 × Nota agronômica²) × e^(+1,076288644 × Influência Vila)</span></td>
             </tr>
 
             <tr class="ia-sub"><td colspan="4">Valores Unitário / Hectare (R$)</td></tr>
@@ -11604,6 +11616,23 @@ window.FOTO_rodapeHTML=rodapeHTML;
   const VTN_A = 170930.8028, VTN_KA = 0.7420810025, VTN_KNA = 0.7754092498, VTN_KZ = 0.3240766412;      // modelo antigo (FIOL) — aba Obsoleto
   // 06/10/2026 — modelo da FTN: Valor Unitário R$/ha = C × e^(KA × ln Área) × e^(KNA × N.A.²) × e^(KV × Influência Vila)
   const VTN_C2 = 3127.488781, VTN_KA2 = -0.6346406128, VTN_KNA2 = 8.17860439, VTN_KV2 = 1.076288644;
+  // 07/10/2026 — variações do modelo da FTN (só muda a constante; os expoentes são os mesmos). Média = 3447,634276. Equação de regressão:
+  // ln(Unitário) = +8,11295759 − 0,6346406128·ln(Área) + 8,17860439·N.A.² + 1,076288644·Vila  (e^8,11295759 = 3337,43421, igual à Mediana)
+  const AV_MODELOS = {
+    moda:      { nome:"Moda",                 c:3127.488781,           txt:"3127,488781" },
+    mediana:   { nome:"Mediana",              c:3337.43421,            txt:"3337,43421" },
+    media:     { nome:"Média",                c:3447.634276,          txt:"3447,634276" },
+    regressao: { nome:"Equação de regressão", c:Math.exp(8.11295759),  ln:true }
+  };
+  function modeloAtual(){ const e = document.getElementById("av_mem_modelo"); return AV_MODELOS[e && e.value] || AV_MODELOS.moda; }
+  window.AV_modeloAtual = modeloAtual;
+  // texto da equação do modelo escolhido. o = { area, na, vila, minus, ascii }
+  window.AV_eq = function(pref, o){
+    o = o || {}; const m = modeloAtual(), X = o.ascii ? " x " : " × ", M = o.minus || "−";
+    const A = o.area || "Área (ha)", N = o.na || "Nota agronômica²", V = o.vila || "Influência Vila";
+    if(m.ln) return "ln(" + pref + ") = +8,11295759 " + M + " 0,6346406128" + X + "ln(" + A + ") +8,17860439" + X + N + " +1,076288644" + X + V;
+    return pref + " = " + m.txt + X + "e^(" + M + "0,6346406128" + X + "ln(" + A + "))" + X + "e^(+8,17860439" + X + N + ")" + X + "e^(+1,076288644" + X + V + ")";
+  };
   window.__AV_MODO__ = "ftn";    // "ftn" = aba Avaliação FTN · "obs" = aba Obsoleto › Avaliação (ver AV_setModo)
 
   const imagens = { croqui:null, ccu:null };
@@ -11977,7 +12006,7 @@ window.FOTO_rodapeHTML=rodapeHTML;
       rArea = (areaMem > 0) ? Math.exp(VTN_KA2 * Math.log(areaMem)) : NaN;
       rNA   = Math.exp(VTN_KNA2 * na * na);
       rVila = isFinite(vila) ? Math.exp(VTN_KV2 * vila) : NaN;
-      vtn   = VTN_C2 * rArea * rNA * rVila;       // sem a Influência Vila escolhida o valor fica "R$ —" (não há valor padrão)
+      vtn   = modeloAtual().c * rArea * rNA * rVila;       // sem a Influência Vila escolhida o valor fica "R$ —" (não há valor padrão)
     } else {
       rArea = Math.exp(VTN_KA / areaMem);
       rNA   = Math.exp(-VTN_KNA / (na*na));
@@ -11989,6 +12018,9 @@ window.FOTO_rodapeHTML=rodapeHTML;
     document.getElementById("av_mem_zona_r").textContent = isFinite(rZona)? fmtBR(rZona,6):"—";
     document.getElementById("av_mem_vila_r").textContent = isFinite(rVila)? fmtBR(rVila,6):"— (escolha a Influência Vila)";
     document.getElementById("av_vtn").textContent = money(vtn);
+    { const e1 = document.getElementById("av_eq_tela"), e2 = document.getElementById("ia_eq_ftn");
+      if(e1) e1.textContent = window.AV_eq("Valor Unitário R$/ha");
+      if(e2) e2.textContent = window.AV_eq("Unitário (R$/ha)"); }
 
     // item 14 — cálculo terra nua
     const fdArea = num(document.getElementById("av_fd_area").value);
@@ -12028,12 +12060,12 @@ window.FOTO_rodapeHTML=rodapeHTML;
       const sitAntes = escala; // situação atual (item III)
       const naAntes = na;
       const rNAa = modoFtn ? Math.exp(VTN_KNA2*(naAntes*naAntes)) : Math.exp(-VTN_KNA/(naAntes*naAntes));
-      const vuAntes = modoFtn ? VTN_C2 * rArea * rNAa * rVila : VTN_A * rArea * rNAa * rZona;
+      const vuAntes = modoFtn ? modeloAtual().c * rArea * rNAa * rVila : VTN_A * rArea * rNAa * rZona;
       const depoisSel = document.getElementById("av_depois_sit");
       const sitDepois = depoisSel ? parseFloat(depoisSel.value) : 0.75;
       const naDepois = Math.round(ccu*sitDepois*10000)/10000;
       const rNAd = modoFtn ? Math.exp(VTN_KNA2*(naDepois*naDepois)) : Math.exp(-VTN_KNA/(naDepois*naDepois));
-      const vuDepois = modoFtn ? VTN_C2 * rArea * rNAd * rVila : VTN_A * rArea * rNAd * rZona;
+      const vuDepois = modoFtn ? modeloAtual().c * rArea * rNAd * rVila : VTN_A * rArea * rNAd * rZona;
       const areaRem = remArea;
       const vtnAntes = isFinite(areaRem)? areaRem*vuAntes : NaN;
       const vtnDepois = isFinite(areaRem)? areaRem*vuDepois : NaN;
@@ -12272,7 +12304,7 @@ window.FOTO_rodapeHTML=rodapeHTML;
     // auto-fill + sync
     autoFill(); bindSync();
     // listeners de recálculo em campos que afetam contas
-    ["av_area_aval","av_na_escala","av_mem_zona","av_mem_vila","av_areatotal","av_fd_area","av_rem_area",
+    ["av_area_aval","av_na_escala","av_mem_zona","av_mem_vila","av_mem_modelo","av_areatotal","av_fd_area","av_rem_area",
      "rs_121","rs_122","rs_123","rs_124","rs_12","rs_13","fb_area_ocupada","fb_area_desap"].forEach(id=>{
       const el=document.getElementById(id); if(el) el.addEventListener("input", recalc);
     });
@@ -13272,7 +13304,7 @@ window.FOTO_rodapeHTML=rodapeHTML;
     ctx.y += 22; doc.setTextColor(30,40,55);
 
     // --- IV — Memória de Cálculo para Terra Nua
-    subLbl(doc,ctx,"Memória de Cálculo para Terra Nua");
+    subLbl(doc,ctx,"Memória de Cálculo para Terra Nua — Modelo: "+window.AV_modeloAtual().nome);
     const rows = [
       ["ÁREA DO IMÓVEL (ha)","e^(-0,6346406128 × ln(Área (ha)))", txt("av_mem_area"), E("av_mem_area_r").textContent],
       ["NOTA AGRONÔMICA (N.A.)","e^(+8,17860439 × N.A.²)", txt("av_mem_na"), E("av_mem_na_r").textContent],
@@ -13296,7 +13328,7 @@ window.FOTO_rodapeHTML=rodapeHTML;
     doc.setFillColor(255,244,230); doc.setDrawColor(240,200,145);
     doc.roundedRect(ctx.ML,ctx.y,L,38,4,4,"FD");
     doc.setFont("courier","normal"); doc.setFontSize(7); doc.setTextColor(138,90,26);
-    doc.text(doc.splitTextToSize("R$/ha = 3127,488781 × e^(-0,6346406128 × ln(Área)) × e^(+8,17860439 × N.A.²) × e^(+1,076288644 × Influência Vila)", L-16), ctx.ML+8, ctx.y+12);
+    doc.text(doc.splitTextToSize(window.AV_eq("R$/ha",{area:"Área",na:"N.A.²",minus:"-"}), L-16), ctx.ML+8, ctx.y+12);
     doc.setFont("helvetica","bold"); doc.setFontSize(13); doc.setTextColor(192,112,10);
     doc.text("VTN/ha = "+E("av_vtn").textContent, ctx.ML+8, ctx.y+31);
     ctx.y += 46; doc.setTextColor(30,40,55);
@@ -13370,7 +13402,7 @@ window.FOTO_rodapeHTML=rodapeHTML;
     if(!ftn){ subLbl(doc,ctx,"Variável Zonas Homogêneas"); paragrafo(doc,ctx, val("av_zonas_txt")); }
 
     // memória de cálculo
-    subLbl(doc,ctx,"i) Memória de Cálculo para Terra Nua");
+    subLbl(doc,ctx,"i) Memória de Cálculo para Terra Nua"+(ftn ? " — Modelo: "+window.AV_modeloAtual().nome : ""));
     const rows = ftn ? [
       ["ÁREA DO IMÓVEL (ha)","e^(-0,6346406128 × ln(Área (ha)))", val("av_mem_area"), document.getElementById("av_mem_area_r").textContent],
       ["NOTA AGRONÔMICA (N.A.)","e^(+8,17860439 × N.A.²)", val("av_mem_na"), document.getElementById("av_mem_na_r").textContent],
@@ -13406,7 +13438,7 @@ window.FOTO_rodapeHTML=rodapeHTML;
     doc.setFillColor(255,244,230); doc.setDrawColor(240,200,145);
     doc.roundedRect(ctx.ML,ctx.y,ctx.MR-ctx.ML,38,4,4,"FD");
     doc.setFont("courier","normal"); doc.setFontSize(7); doc.setTextColor(138,90,26);
-    doc.text(doc.splitTextToSize(ftn ? "R$/ha = 3127,488781 × e^(-0,6346406128 × ln(Área)) × e^(+8,17860439 × N.A.²) × e^(+1,076288644 × Influência Vila)" : "R$/ha = +170930,8028 × e^(+0,7420810025 / Área) × e^(-0,7754092498 / N.A.²) × e^(+0,3240766412 × Zona)", ctx.MR-ctx.ML-16), ctx.ML+8, ctx.y+12);
+    doc.text(doc.splitTextToSize(ftn ? window.AV_eq("R$/ha",{area:"Área",na:"N.A.²",minus:"-"}) : "R$/ha = +170930,8028 × e^(+0,7420810025 / Área) × e^(-0,7754092498 / N.A.²) × e^(+0,3240766412 × Zona)", ctx.MR-ctx.ML-16), ctx.ML+8, ctx.y+12);
     doc.setFont("helvetica","bold"); doc.setFontSize(13); doc.setTextColor(192,112,10);
     doc.text("VTN/ha = "+document.getElementById("av_vtn").textContent, ctx.ML+8, ctx.y+31);
     ctx.y+=46; doc.setTextColor(30,40,55);
@@ -14339,7 +14371,7 @@ function AV_gerarDescSituacao(){
       doc.setFont("helvetica","bold"); doc.setFontSize(8); doc.text("Equação", cA+q/2, y+eqBoxH/2+2, {align:"center"});
       doc.setFont("helvetica","normal");
       // usa caracteres compatíveis com a fonte (evita * unicode que causa sobreposição)
-      const eq = ftn ? "Unitario (R$/ha) = 3127,488781 x e^(-0,6346406128 x ln(Area)) x e^(+8,17860439 x N.A.^2) x e^(+1,076288644 x Influencia Vila)"
+      const eq = ftn ? window.AV_eq("Unitario (R$/ha)",{area:"Area",na:"N.A.^2",vila:"Influencia Vila",minus:"-",ascii:true})
                      : "Unitario (R$/ha) = +170930,8028 x e^(+0,7420810025 / Area) x e^(-0,7754092498 / N.A.^2) x e^(+0,3240766412 x Zona)";
       const eqLarg=lw-q-10;
       // reduz a fonte até as linhas caberem na altura do quadro
