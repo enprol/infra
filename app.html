@@ -1253,6 +1253,10 @@ window.REL_baixarConjunto = async function(){
   #av_t11[data-modo="ftn"] table.na-tabela td.sit-na,
   #av_t11[data-modo="ftn"] table.na-tabela span.sit-na{font-weight:400; color:#4a5a6e;}
   #av_t11[data-modo="ftn"] table.na-tabela span.sit-na.sel{font-weight:800; color:#159a3c;}
+  /* conferência VTN/ha (Memória de Cálculo) × valor unitário médio da amostra */
+  .vtn-confere{margin-top:8px; padding:6px 10px; border-radius:8px; font-size:12px; font-weight:700; line-height:1.35;}
+  .vtn-confere.ok{background:#eaf7ee; color:#15803d; border:1px solid #b7e2c4;}
+  .vtn-confere.dif{background:#fff4e6; color:#b45309; border:1px solid #f0c890;}
   /* "Imprimir no PDF" (CCU por gleba) */
   .ccu-imp{display:inline-flex; align-items:center; gap:6px; margin-left:12px; padding:3px 10px; border:1px solid #bcd6f0; border-radius:999px; background:#f1f7fe; color:#175a9f; font-size:11.5px; font-weight:700; text-transform:none; letter-spacing:0; cursor:pointer; user-select:none; vertical-align:middle;}
   .ccu-imp:hover{background:#e3f0fc;}
@@ -5735,6 +5739,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
       <div class="vtn-formula av-so-obs">R$/ha = +170930,8028 × e^(+0,7420810025 / Área) × e^(-0,7754092498 / N.A.²) × e^(+0,3240766412 × Zona)</div>
       <div class="vtn-formula av-so-ftn">Valor Unitário R$/ha = 3127,488781 × e^(−0,6346406128 × ln(Área (ha))) × e^(+8,17860439 × Nota agronômica²) × e^(+1,076288644 × Influência Vila)</div>
       <div class="vtn-result">VTN/ha = <strong id="av_vtn">R$ —</strong></div>
+      <div class="vtn-confere av-so-ftn" id="av_vtn_confere" hidden></div>
     </div>
 
     <div class="import-amostra">
@@ -5800,6 +5805,12 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
             <tr class="av-so-ftn">
               <td class="ia-lbl">Campo de Arbítrio</td>
               <td id="ia_dsp_ca_min">—</td><td id="ia_dsp_ca_med" class="ia-destaque">—</td><td id="ia_dsp_ca_max">—</td>
+            </tr>
+
+            <tr class="ia-sub av-so-ftn"><td colspan="4">Valor de Avaliação da Terra Nua (R$) — Área desapropriada</td></tr>
+            <tr class="av-so-ftn">
+              <td class="ia-lbl">VTN</td>
+              <td id="ia_vtnd_min">—</td><td id="ia_vtnd_med" class="ia-destaque">—</td><td id="ia_vtnd_max">—</td>
             </tr>
           </table>
         </div>
@@ -11957,7 +11968,8 @@ window.FOTO_rodapeHTML=rodapeHTML;
 
     // memória de cálculo
     const areaImovel = num(document.getElementById("av_areatotal").value); // 3.36 área total
-    const areaMem = isFinite(areaImovel)? areaImovel : areaAval;
+    // FTN: a Memória de Cálculo usa a MESMA área marcada como referência (total / ocupada / desapropriação), senão o VTN/ha não bate com o da amostra
+    const areaMem = (window.__AV_MODO__ !== "obs" && isFinite(areaAval) && areaAval > 0) ? areaAval : (isFinite(areaImovel)? areaImovel : areaAval);
     const modoFtn = (window.__AV_MODO__ !== "obs");
     const zona = parseInt(document.getElementById("av_mem_zona").value,10);
     const vilaEl = document.getElementById("av_mem_vila");
@@ -13619,7 +13631,7 @@ window.FOTO_rodapeHTML=rodapeHTML;
       const out = await PDFLib.PDFDocument.create();
       (await out.copyPages(lau, lau.getPageIndices())).forEach(function(pg){ out.addPage(pg); });
       // a tabela "Imóvel avaliando" vem na mesma página da memória de cálculo, se couber (recorte da página dela, sem os logos)
-      const pf = fin.getPage(0), PW = pf.getWidth(), PH = pf.getHeight(), TOPO = 84, ALT = 316;
+      const pf = fin.getPage(0), PW = pf.getWidth(), PH = pf.getHeight(), TOPO = 84, ALT = 346;
       const ultima = out.getPage(out.getPageCount() - 1), yTopo = yFim + 16;
       if(fin.getPageCount() === 1 && yTopo + ALT <= ctx.MB){
         const emb = await out.embedPage(pf, { left:0, bottom:PH - TOPO - ALT, right:PW, top:PH - TOPO });
@@ -13762,7 +13774,8 @@ function AV_gerarDescSituacao(){
 
   // preenche as "Características do imóvel" a partir dos campos já existentes
   window.AV_atualizarImovelAvaliando = function(){
-    const area = el("av_areatotal") ? el("av_areatotal").value : "";
+    let area = el("av_areatotal") ? el("av_areatotal").value : "";
+    if(window.__AV_MODO__ !== "obs" && el("av_area_aval") && el("av_area_aval").value.trim()) area = el("av_area_aval").value.trim();   // FTN: área de referência escolhida
     const na   = el("av_na_result") ? el("av_na_result").value : "";
     const zona = el("av_mem_zona") ? el("av_mem_zona").value : "";
     const vila = el("av_mem_vila") ? el("av_mem_vila").value : "";
@@ -13787,6 +13800,23 @@ function AV_gerarDescSituacao(){
       txt(p[1], (isFinite(area) && isFinite(u)) ? "R$ " + fmt2(u*area) : "—");
     });
     txt("ia_dsp_amp", (el("ia_amplitude") ? el("ia_amplitude").textContent : "") || "—");
+    // linha "Valor de Avaliação da Terra Nua (R$)" repetida ao final, com os dados da área desapropriada
+    [["ia_ic_min","ia_vtnd_min"],["ia_ic_med","ia_vtnd_med"],["ia_ic_max","ia_vtnd_max"]].forEach(p => {
+      const u = num2(el(p[0]) ? el(p[0]).textContent : "");
+      txt(p[1], (isFinite(area) && isFinite(u)) ? "R$ " + fmt2(u*area) : "—");
+    });
+    // conferência: o VTN/ha da Memória de Cálculo tem que bater com o valor unitário médio da amostra (mesma área, N.A. e Influência Vila)
+    const cf = el("av_vtn_confere");
+    if(cf){
+      const vtn = num2(el("av_vtn") ? el("av_vtn").textContent : ""), med = num2(el("ia_ic_med") ? el("ia_ic_med").textContent : "");
+      if(!isFinite(vtn) || !isFinite(med)){ cf.hidden = true; cf.textContent = ""; }
+      else {
+        const dif = Math.abs(vtn - med), ok = dif <= Math.max(0.05, med * 0.0005);
+        cf.hidden = false; cf.className = "vtn-confere av-so-ftn " + (ok ? "ok" : "dif");
+        cf.textContent = ok ? "✓ VTN/ha confere com o valor unitário médio da amostra (R$ " + fmt2(med) + ")."
+          : "⚠ VTN/ha (R$ " + fmt2(vtn) + ") difere do valor unitário médio da amostra (R$ " + fmt2(med) + ") em R$ " + fmt2(dif) + ". Confira a área de referência, a N.A. e a Influência Vila usadas na amostra.";
+      }
+    }
   };
 
   // imagem do Mapa de Situação
@@ -14392,6 +14422,12 @@ function AV_gerarDescSituacao(){
       doc.rect(cA+q,y,q*3,14); doc.setFont("helvetica","normal"); doc.text(String(dados.dsp_amp||"—"), cA+q+(q*3)/2, y+9, {align:"center"});
       y+=14;
       linhaVal("Campo de Arbítrio:", dados.dsp_ca_min||"—", dados.dsp_ca_med||"—", dados.dsp_ca_max||"—", true);
+      // Valor de Avaliação da Terra Nua repetido ao final, com os dados da área desapropriada
+      doc.setFillColor(31,111,192); doc.rect(cA,y,lw,15,"F");
+      doc.setFont("helvetica","bold"); doc.setTextColor(255,255,255); doc.setFontSize(8);
+      doc.text("Valor de Avaliação da Terra Nua (R$) — Área desapropriada", cA+lw/2, y+10, {align:"center"});
+      y+=15;
+      linhaVal("VTN", dados.vtnd_min||"—", dados.vtnd_med||"—", dados.vtnd_max||"—", true);
     }
 
     // Página da AMOSTRA (penúltima) — dados brutos da moda 80%
@@ -14439,7 +14475,8 @@ function AV_gerarDescSituacao(){
         ic_min:g("ia_ic_min"), ic_med:g("ia_ic_med"), ic_max:g("ia_ic_max"),
         amplitude:g("ia_amplitude"),
         ca_min:g("ia_ca_min"), ca_med:g("ia_ca_med"), ca_max:g("ia_ca_max"),
-        vtn_min:g("ia_vtn_min"), vtn_med:g("ia_vtn_med"), vtn_max:g("ia_vtn_max")
+        vtn_min:g("ia_vtn_min"), vtn_med:g("ia_vtn_med"), vtn_max:g("ia_vtn_max"),
+        vtnd_min:g("ia_vtnd_min"), vtnd_med:g("ia_vtnd_med"), vtnd_max:g("ia_vtnd_max")
       });
     }
     return doc.output("arraybuffer");
