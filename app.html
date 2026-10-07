@@ -13258,7 +13258,7 @@ window.FOTO_rodapeHTML=rodapeHTML;
       ctx.y += 8;
     })();
 
-    secBar(doc,ctx,"AVALIAÇÃO DA TERRA NUA");
+    secBar(doc,ctx,"MEMORIAL DE CÁLCULO");
 
     // --- explicação das variáveis (os mesmos textos da tela): a Situação vem antes da Escala de Valor da CCU; Área, N.A. e Influência Vila, depois do título da Memória de Cálculo
     const varTexto = function(rot, id){
@@ -13356,15 +13356,27 @@ window.FOTO_rodapeHTML=rodapeHTML;
 
     // --- N.A.
     ensure(doc,ctx,22);
-    doc.setFont("helvetica","bold"); doc.setFontSize(10.5); doc.setTextColor(23,90,159);
     const es = E("av_na_escala"), esT = es && es.selectedIndex >= 0 ? es.options[es.selectedIndex].textContent.trim() : "";
-    doc.text("N.A. = CCU "+txt("av_na_ccu")+" × escala "+(es ? es.value.replace(".",",") : "")+(esT ? " ("+esT+")" : "")+" = "+txt("av_na_result")+" (3 casas: "+txt("av_na_result3")+")"+(E("av_na_casas") && E("av_na_casas").value === "3" ? "  —  adotada: "+txt("av_na_result3") : ""), ctx.ML, ctx.y+10);
+    // parte fixa em fonte normal; só o resultado (obtido, 3 casas e adotada) em negrito; o tamanho se ajusta para caber na largura da página
+    const naIni = "N.A. = CCU "+txt("av_na_ccu")+" × escala "+(es ? es.value.replace(".",",") : "")+(esT ? " ("+esT+")" : "")+" = ";
+    const naFim = txt("av_na_result")+" (3 casas: "+txt("av_na_result3")+")"+(E("av_na_casas") && E("av_na_casas").value === "3" ? "  —  adotada: "+txt("av_na_result3") : "");
+    let naFs = 10;
+    const naLarg = function(){ doc.setFont("helvetica","normal"); doc.setFontSize(naFs); const a = doc.getTextWidth(naIni); doc.setFont("helvetica","bold"); doc.setFontSize(naFs); return a + doc.getTextWidth(naFim); };
+    while(naFs > 7 && naLarg() > L) naFs -= 0.25;
+    doc.setTextColor(23,90,159); doc.setFont("helvetica","normal"); doc.setFontSize(naFs);
+    doc.text(naIni, ctx.ML, ctx.y+10);
+    const naX = ctx.ML + doc.getTextWidth(naIni);
+    doc.setFont("helvetica","bold"); doc.text(naFim, naX, ctx.y+10);
     ctx.y += 22; doc.setTextColor(30,40,55);
 
     // --- IV — Memória de Cálculo para Terra Nua
     { const y0 = ctx.y; ensure(doc,ctx,110);                 // o título não fica sozinho no fim da página
       if(ctx.y === y0) ctx.y += 12; }                         // uma linha de espaço antes do tópico (se virou a página, ela já começa limpa)
-    subLbl(doc,ctx,"Memória de Cálculo para Terra Nua");
+    ensure(doc,ctx,24);
+    doc.setFont("helvetica","bold"); doc.setFontSize(12); doc.setTextColor(23,90,159);        // título maior que os demais subtítulos
+    doc.text("Memória de Cálculo para Terra Nua", ctx.ML, ctx.y+11);
+    doc.setDrawColor(211,219,228); doc.setLineWidth(0.4); doc.line(ctx.ML, ctx.y+15, ctx.MR, ctx.y+15);
+    ctx.y += 22; doc.setTextColor(30,40,55);
     varTexto("Variável Área do Imóvel (ha)","av_var_area"); varTexto("Variável Nota Agronômica (N.A.)","av_var_na"); varTexto("Variável Influência Vila","av_var_vila");
     const rows = [
       ["ÁREA DO IMÓVEL (ha)","e^(-0,6346406128 × ln(Área (ha)))", txt("av_mem_area"), E("av_mem_area_r").textContent],
