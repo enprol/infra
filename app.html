@@ -5806,12 +5806,6 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
               <td class="ia-lbl">Campo de Arbítrio</td>
               <td id="ia_dsp_ca_min">—</td><td id="ia_dsp_ca_med" class="ia-destaque">—</td><td id="ia_dsp_ca_max">—</td>
             </tr>
-
-            <tr class="ia-sub av-so-ftn"><td colspan="4">Valor de Avaliação da Terra Nua (R$) — Área desapropriada</td></tr>
-            <tr class="av-so-ftn">
-              <td class="ia-lbl">VTN</td>
-              <td id="ia_vtnd_min">—</td><td id="ia_vtnd_med" class="ia-destaque">—</td><td id="ia_vtnd_max">—</td>
-            </tr>
           </table>
         </div>
 
@@ -13631,7 +13625,7 @@ window.FOTO_rodapeHTML=rodapeHTML;
       const out = await PDFLib.PDFDocument.create();
       (await out.copyPages(lau, lau.getPageIndices())).forEach(function(pg){ out.addPage(pg); });
       // a tabela "Imóvel avaliando" vem na mesma página da memória de cálculo, se couber (recorte da página dela, sem os logos)
-      const pf = fin.getPage(0), PW = pf.getWidth(), PH = pf.getHeight(), TOPO = 84, ALT = 346;
+      const pf = fin.getPage(0), PW = pf.getWidth(), PH = pf.getHeight(), TOPO = 84, ALT = 316;
       const ultima = out.getPage(out.getPageCount() - 1), yTopo = yFim + 16;
       if(fin.getPageCount() === 1 && yTopo + ALT <= ctx.MB){
         const emb = await out.embedPage(pf, { left:0, bottom:PH - TOPO - ALT, right:PW, top:PH - TOPO });
@@ -13800,11 +13794,6 @@ function AV_gerarDescSituacao(){
       txt(p[1], (isFinite(area) && isFinite(u)) ? "R$ " + fmt2(u*area) : "—");
     });
     txt("ia_dsp_amp", (el("ia_amplitude") ? el("ia_amplitude").textContent : "") || "—");
-    // linha "Valor de Avaliação da Terra Nua (R$)" repetida ao final, com os dados da área desapropriada
-    [["ia_ic_min","ia_vtnd_min"],["ia_ic_med","ia_vtnd_med"],["ia_ic_max","ia_vtnd_max"]].forEach(p => {
-      const u = num2(el(p[0]) ? el(p[0]).textContent : "");
-      txt(p[1], (isFinite(area) && isFinite(u)) ? "R$ " + fmt2(u*area) : "—");
-    });
     // conferência: o VTN/ha da Memória de Cálculo tem que bater com o valor unitário médio da amostra (mesma área, N.A. e Influência Vila)
     const cf = el("av_vtn_confere");
     if(cf){
@@ -14422,12 +14411,6 @@ function AV_gerarDescSituacao(){
       doc.rect(cA+q,y,q*3,14); doc.setFont("helvetica","normal"); doc.text(String(dados.dsp_amp||"—"), cA+q+(q*3)/2, y+9, {align:"center"});
       y+=14;
       linhaVal("Campo de Arbítrio:", dados.dsp_ca_min||"—", dados.dsp_ca_med||"—", dados.dsp_ca_max||"—", true);
-      // Valor de Avaliação da Terra Nua repetido ao final, com os dados da área desapropriada
-      doc.setFillColor(31,111,192); doc.rect(cA,y,lw,15,"F");
-      doc.setFont("helvetica","bold"); doc.setTextColor(255,255,255); doc.setFontSize(8);
-      doc.text("Valor de Avaliação da Terra Nua (R$) — Área desapropriada", cA+lw/2, y+10, {align:"center"});
-      y+=15;
-      linhaVal("VTN", dados.vtnd_min||"—", dados.vtnd_med||"—", dados.vtnd_max||"—", true);
     }
 
     // Página da AMOSTRA (penúltima) — dados brutos da moda 80%
@@ -14475,8 +14458,7 @@ function AV_gerarDescSituacao(){
         ic_min:g("ia_ic_min"), ic_med:g("ia_ic_med"), ic_max:g("ia_ic_max"),
         amplitude:g("ia_amplitude"),
         ca_min:g("ia_ca_min"), ca_med:g("ia_ca_med"), ca_max:g("ia_ca_max"),
-        vtn_min:g("ia_vtn_min"), vtn_med:g("ia_vtn_med"), vtn_max:g("ia_vtn_max"),
-        vtnd_min:g("ia_vtnd_min"), vtnd_med:g("ia_vtnd_med"), vtnd_max:g("ia_vtnd_max")
+        vtn_min:g("ia_vtn_min"), vtn_med:g("ia_vtn_med"), vtn_max:g("ia_vtn_max")
       });
     }
     return doc.output("arraybuffer");
