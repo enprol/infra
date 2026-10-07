@@ -5715,11 +5715,6 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
         <option value="media">Média</option>
         <option value="regressao">Equação de regressão</option>
       </select>
-      <label for="av_na_casas" style="margin-left:14px;">N.A. adotada no cálculo:</label>
-      <select id="av_na_casas" title="Qual valor da Nota Agronômica entra na equação: o obtido (4 casas) ou o arredondado para 3 casas">
-        <option value="4" selected>Valor obtido (4 casas)</option>
-        <option value="3">Arredondada (3 casas)</option>
-      </select>
     </div>
     <table class="memoria">
       <thead><tr><th>Variáveis</th><th>Fragmentos modelo estatístico</th><th>Coef. variável</th><th>Result. individual</th></tr></thead>
@@ -5739,7 +5734,13 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
         <tr>
           <td>NOTA AGRONÔMICA (N.A.)</td>
           <td><span class="av-so-obs">e^(-0,7754092498 / Nota agronômica²)</span><span class="av-so-ftn">e^(+8,17860439 × Nota agronômica²)</span></td>
-          <td><input type="text" id="av_mem_na" readonly class="bloqueado" placeholder="Preencher este campo"></td>
+          <td>
+            <select id="av_na_casas" class="av-so-ftn" title="Qual valor da Nota Agronômica entra na equação: o obtido (4 casas) ou o arredondado para 3 casas" style="margin-bottom:4px; max-width:100%;">
+              <option value="4" selected>Valor obtido (4 casas)</option>
+              <option value="3">Arredondada (3 casas)</option>
+            </select>
+            <input type="text" id="av_mem_na" readonly class="bloqueado" placeholder="Preencher este campo">
+          </td>
           <td><span id="av_mem_na_r">—</span></td>
         </tr>
         <tr class="av-so-obs">
@@ -12016,7 +12017,12 @@ window.FOTO_rodapeHTML=rodapeHTML;
     const na3 = Math.round(na*1000 + 1e-7)/1000;
     const adota3 = window.__AV_MODO__ !== "obs" && (document.getElementById("av_na_casas") || {}).value === "3";
     const naUso = adota3 ? na3 : na;
-    { const e3 = document.getElementById("av_na_result3"); if(e3) e3.value = isFinite(na3) ? fmtBR(na3,3) : ""; }
+    { const e3 = document.getElementById("av_na_result3"); if(e3) e3.value = isFinite(na3) ? fmtBR(na3,3) : "";
+      const sn = document.getElementById("av_na_casas");
+      if(sn && sn.options.length >= 2){
+        sn.options[0].textContent = "Valor obtido (4 casas)" + (isFinite(na) ? " — " + fmtBR(na,4) : "");
+        sn.options[1].textContent = "Arredondada (3 casas)" + (isFinite(na3) ? " — " + fmtBR(na3,3) : "");
+      } }
 
     // memória de cálculo
     const areaImovel = num(document.getElementById("av_areatotal").value); // 3.36 área total
