@@ -3152,7 +3152,7 @@ body.ativ-pesquisa, body.ativ-util{ overflow:hidden; }
             <th colspan="2"></th>
             <th colspan="4" class="pg-grupo-th" id="pgGrupoEtapas" onclick="PG_toggleGrupo()" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();PG_toggleGrupo();}"><span id="pgGrupoTxt">▾ Andamento por etapa</span></th>
             <th></th>
-            <th colspan="3" class="pg-grupo-th pg-grupo-desp" title="Produtos que cada cadastro possui — marque a caixa; o valor unitário de cada DESP alimenta os Gráficos"><span>Produtos (DESP)</span></th>
+            <th colspan="4" class="pg-grupo-th pg-grupo-desp" id="pgGrupoDesp" onclick="PG_toggleGrupoDesp()" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();PG_toggleGrupoDesp();}"><span id="pgGrupoDespTxt">▾ Produtos (DESP)</span></th>
             <th colspan="6"></th>
           </tr>
           <tr class="pg-cabecalho">
@@ -3168,9 +3168,10 @@ body.ativ-pesquisa, body.ativ-util{ overflow:hidden; }
             <th class="pg-status-th pg-col-st">JURÍDICA</th>
             <th class="pg-col-resumo" aria-hidden="true"></th>
             <th class="pg-status-th">Melhorias</th>
-            <th class="pg-desp-th" title="DESP 1 — R$ 1.802,53 por cadastro">DESP 1</th>
-            <th class="pg-desp-th" title="DESP 2 — R$ 1.072,53 por cadastro">DESP 2</th>
-            <th class="pg-desp-th" title="DESP 3 — R$ 4.045,01 por cadastro">DESP 3</th>
+            <th class="pg-desp-th pg-col-dp" title="DESP 1 — R$ 1.802,53 por cadastro">DESP 1</th>
+            <th class="pg-desp-th pg-col-dp" title="DESP 2 — R$ 1.072,53 por cadastro">DESP 2</th>
+            <th class="pg-desp-th pg-col-dp" title="DESP 3 — R$ 4.045,01 por cadastro">DESP 3</th>
+            <th class="pg-desp-th pg-desp-valor-th" title="Soma dos valores unitários dos DESPs marcados no cadastro">R$&nbsp;DESPs</th>
             <th>Área&nbsp;total (ha)</th>
             <th>Área desapropriada (ha)</th>
             <th>R$&nbsp;Terra nua</th>
@@ -3191,14 +3192,14 @@ body.ativ-pesquisa, body.ativ-util{ overflow:hidden; }
             <th class="pg-col-st"><button type="button" class="pg-filtbtn" id="pgFiltBtnJuridica" onclick="PG_toggleFiltro(event,'juridica')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
             <th class="pg-col-resumo"></th>
             <th><button type="button" class="pg-filtbtn" id="pgFiltBtnMelhorias" onclick="PG_toggleFiltro(event,'melhorias')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
-            <th><button type="button" class="pg-filtbtn" id="pgFiltBtnD1" onclick="PG_toggleFiltro(event,'d1')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
-            <th><button type="button" class="pg-filtbtn" id="pgFiltBtnD2" onclick="PG_toggleFiltro(event,'d2')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
-            <th><button type="button" class="pg-filtbtn" id="pgFiltBtnD3" onclick="PG_toggleFiltro(event,'d3')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
-            <th></th><th></th><th></th><th></th><th></th><th></th>
+            <th class="pg-col-dp"><button type="button" class="pg-filtbtn" id="pgFiltBtnD1" onclick="PG_toggleFiltro(event,'d1')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
+            <th class="pg-col-dp"><button type="button" class="pg-filtbtn" id="pgFiltBtnD2" onclick="PG_toggleFiltro(event,'d2')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
+            <th class="pg-col-dp"><button type="button" class="pg-filtbtn" id="pgFiltBtnD3" onclick="PG_toggleFiltro(event,'d3')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
+            <th></th><th></th><th></th><th></th><th></th><th></th><th></th>
           </tr>
         </thead>
         <tbody id="pgCorpo">
-          <tr><td colspan="21" class="pg-vazio">Carregando…</td></tr>
+          <tr><td colspan="22" class="pg-vazio">Carregando…</td></tr>
         </tbody>
         <tfoot id="pgRodape"></tfoot>
       </table>
@@ -3895,13 +3896,17 @@ body.pgx-conforto .pg-tabela tbody td{ padding-top:11px; padding-bottom:11px; }
 .pg-status-ico.pg-status-falta{ color:#d98a00; font-size:15px; font-weight:800; }
 .pgx-n{ font-size:10px; font-weight:800; margin-left:2px; vertical-align:1px; }
 /* recolher áreas e valores */
-.pg-tabela.pgx-sem-valores tr:not(.pg-grupos) > :nth-child(n+16){ display:none; }
+.pg-tabela.pgx-sem-valores tr:not(.pg-grupos) > :nth-child(n+17){ display:none; }
 .pg-tabela.pgx-sem-valores tr.pg-grupos > th:last-child{ display:none; }
 /* grupo "Produtos (DESP)" (colunas 13 a 15): mesma faixa suave do "Andamento por etapa", sem recolher */
-.pg-tabela thead tr.pg-grupos th.pg-grupo-desp{ cursor:default; background:#fdf3de; border-bottom-color:#e0a21b; color:#8a5a00; }
-.pg-tabela thead tr.pg-grupos th.pg-grupo-desp:hover{ background:#fdf3de; }
+.pg-tabela thead tr.pg-grupos th.pg-grupo-desp{ background:#fdf3de; border-bottom-color:#e0a21b; color:#8a5a00; }
 .pg-tabela tr:not(.pg-grupos) > :nth-child(13):not([colspan]){ border-left:1px solid #f0dcae; }
-.pg-tabela tr:not(.pg-grupos) > :nth-child(15):not([colspan]){ border-right:1px solid #f0dcae; }
+.pg-tabela tr:not(.pg-grupos) > :nth-child(16):not([colspan]){ border-right:1px solid #f0dcae; }
+.pg-tabela.pg-desp-fechado .pg-col-dp{ display:none; }
+.pg-tabela.pg-desp-fechado tr:not(.pg-grupos) > :nth-child(16):not([colspan]){ border-left:1px solid #f0dcae; }
+.pg-tabela thead tr.pg-grupos th.pg-grupo-desp{ cursor:pointer; user-select:none; }
+.pg-tabela thead tr.pg-grupos th.pg-grupo-desp:hover{ background:#fbe9bd; }
+.pg-tabela td.pg-desp-valor{ text-align:right; font-variant-numeric:tabular-nums; font-weight:700; color:#8a5a00; background-color:rgba(253,243,222,.4); }
 .pg-tabela tbody td.pg-desp-td{ text-align:center; background-color:rgba(253,243,222,.4); }
 .pg-tabela thead tr.pg-cabecalho th.pg-desp-th{ text-align:center; background-color:#fef8ea; white-space:nowrap; padding-left:6px; padding-right:6px; }
 .pg-tabela td.pg-desp-td input{ width:16px; height:16px; margin:0; cursor:pointer; accent-color:#1F6FC0; vertical-align:middle; }
@@ -14709,7 +14714,7 @@ function AV_gerarDescSituacao(){
       PG_renderizar();
       if(status) status.textContent = "Atualizado " + new Date().toLocaleTimeString("pt-BR");
     }).catch(function(e){
-      if(corpo) corpo.innerHTML = '<tr><td colspan="21" class="pg-vazio">Não foi possível carregar: ' + esc(e && e.message || e) + '</td></tr>';
+      if(corpo) corpo.innerHTML = '<tr><td colspan="22" class="pg-vazio">Não foi possível carregar: ' + esc(e && e.message || e) + '</td></tr>';
       if(status) status.textContent = "";
     });
   };
@@ -14891,10 +14896,40 @@ function AV_gerarDescSituacao(){
       + op + '</select></td>';
   }
 
+  // valor unitário de cada DESP (R$ por cadastro) — os Gráficos usam o mesmo objeto
+  var PG_DESP_UNIT = window.PG_DESP_UNIT = { d1:1802.53, d2:1072.53, d3:4045.01 };
+  function despValor(it){
+    if(!it.desps) return 0;
+    return Math.round(['d1','d2','d3'].reduce(function(a, k){ return a + (it.desps[k] ? PG_DESP_UNIT[k] : 0); }, 0) * 100) / 100;
+  }
+  // grupo "Produtos (DESP)" retrátil: recolhido, somem as 3 caixas e fica só a coluna R$ DESPs
+  var _pgDespFechado = false;
+  try{ _pgDespFechado = localStorage.getItem('pg_grupo_desp_fechado') === '1'; }catch(e){}
+  function PG_aplicarGrupoDesp(){
+    var tabela = document.querySelector('#painelGeral .pg-tabela');
+    if(!tabela) return;
+    tabela.classList.toggle('pg-desp-fechado', _pgDespFechado);
+    var th = document.getElementById('pgGrupoDesp'), txt = document.getElementById('pgGrupoDespTxt');
+    if(th){
+      th.colSpan = _pgDespFechado ? 1 : 4;
+      th.setAttribute('aria-expanded', String(!_pgDespFechado));
+      var filtrado = _pgDespFechado && ['d1','d2','d3'].some(function(c){ return !!_pgSel[c]; });
+      if(txt) txt.textContent = _pgDespFechado ? ('▸ DESP' + (filtrado ? ' •' : '')) : '▾ Produtos (DESP)';
+      th.title = _pgDespFechado ? 'DESP 1 / 2 / 3 recolhidos' + (filtrado ? ' (há filtro ativo neles)' : '') + ' — clique para expandir'
+        : 'Clique para recolher DESP 1 / 2 / 3 (a coluna R$ DESPs continua)';
+    }
+    requestAnimationFrame(PG_ajustarLayoutTabela);
+  }
+  window.PG_toggleGrupoDesp = function(){
+    _pgDespFechado = !_pgDespFechado;
+    try{ localStorage.setItem('pg_grupo_desp_fechado', _pgDespFechado ? '1' : '0'); }catch(e){}
+    PG_aplicarGrupoDesp();
+  };
+
   // ---- DESP 1 / 2 / 3: caixa de marcação por cadastro (gravada no servidor, como a Medição) ----
   function PG_despCelHTML(it, k){
-    if(!it.desps) return '<td class="pg-desp-td pg-sem" title="Servidor desatualizado — reinstale o servidor para marcar os DESPs">?</td>';
-    return '<td class="pg-desp-td" onclick="event.stopPropagation()">'
+    if(!it.desps) return '<td class="pg-desp-td pg-col-dp pg-sem" title="Servidor desatualizado — reinstale o servidor para marcar os DESPs">?</td>';
+    return '<td class="pg-desp-td pg-col-dp" onclick="event.stopPropagation()">'
       + '<input type="checkbox"' + (it.desps[k] ? ' checked' : '') + ' aria-label="' + k.toUpperCase().replace('D','DESP ') + '"'
       + ' title="' + k.toUpperCase().replace('D','DESP ') + ' — marque se este cadastro possui o produto"'
       + ' onchange="PG_setDesp(this,' + "'" + esc(it.ctd) + "'" + ',' + "'" + esc(it.secao) + "'" + ',' + "'" + k + "'" + ')"></td>';
@@ -14974,13 +15009,13 @@ function AV_gerarDescSituacao(){
     });
 
     _PG_CAMPOS.forEach(PG_atualizarBotaoFiltro);
-    PG_aplicarGrupo();
+    PG_aplicarGrupo(); PG_aplicarGrupoDesp();
     if(window.PG_mapaAtualizar) window.PG_mapaAtualizar();   // Mapa Geral acompanha os filtros
     if(window.PG_grafAtualizar) window.PG_grafAtualizar();   // Gráficos também
 
     if(!itens.length){
       var temFiltro = _PG_CAMPOS.some(function(campo){ return !!_pgSel[campo]; });
-      corpo.innerHTML = '<tr><td colspan="21" class="pg-vazio">Nenhum cadastro encontrado' + (temFiltro ? " para este filtro." : ".") + '</td></tr>';
+      corpo.innerHTML = '<tr><td colspan="22" class="pg-vazio">Nenhum cadastro encontrado' + (temFiltro ? " para este filtro." : ".") + '</td></tr>';
       if(rodape) rodape.innerHTML = "";
       return;
     }
@@ -15001,6 +15036,7 @@ function AV_gerarDescSituacao(){
         + PG_resumoEtapasCelHTML(it)
         + PG_melhoriasCelHTML(it)
         + PG_despCelHTML(it, 'd1') + PG_despCelHTML(it, 'd2') + PG_despCelHTML(it, 'd3')
+        + '<td class="pg-desp-valor">' + (it.desps ? (despValor(it) ? money(despValor(it)) : '—') : '?') + '</td>'
         + PG_haCelHTML(it.area_total)
         + PG_haCelHTML(it.area_desapropriada)
         + '<td class="pg-num">' + money(it.valor_terra_nua) + '</td>'
@@ -15031,7 +15067,8 @@ function AV_gerarDescSituacao(){
         + '<td class="pg-col-st"></td><td class="pg-col-st"></td><td class="pg-col-st"></td><td class="pg-col-st"></td>'
         + '<td class="pg-col-resumo"></td>'
         + '<td></td>'
-        + ['d1','d2','d3'].map(function(k){ var q = itens.filter(function(it){ return it.desps && it.desps[k]; }).length; return '<td class="pg-desp-td" title="Cadastros com ' + k.toUpperCase().replace('D','DESP ') + '"><b>' + q + '</b></td>'; }).join('')
+        + ['d1','d2','d3'].map(function(k){ var q = itens.filter(function(it){ return it.desps && it.desps[k]; }).length; return '<td class="pg-desp-td pg-col-dp" title="Cadastros com ' + k.toUpperCase().replace('D','DESP ') + '"><b>' + q + '</b></td>'; }).join('')
+        + '<td class="pg-desp-valor">' + money(itens.reduce(function(a, it){ return a + despValor(it); }, 0)) + '</td>'
         + '<td class="pg-num">' + haFmt(somaHa("area_total")) + '</td>'
         + '<td class="pg-num">' + haFmt(somaHa("area_desapropriada")) + '</td>'
         + '<td class="pg-num">' + money(soma("valor_terra_nua")) + '</td>'
@@ -15045,7 +15082,7 @@ function AV_gerarDescSituacao(){
 
   /* ===== Painel Geral v2 (ambiente de teste) ===== */
   var _pgxOrd = { col:null, dir:1 };
-  var _PGX_COLS = ['medicao','lote','sei','cad','proprietario','posseiro','campo','social','tecnica','juridica',null,'melhorias','d1','d2','d3','area_total','area_desapropriada','valor_terra_nua','valor_benf_reprodutiva','valor_benf_nao_reprodutiva','valor_total'];
+  var _PGX_COLS = ['medicao','lote','sei','cad','proprietario','posseiro','campo','social','tecnica','juridica',null,'melhorias','d1','d2','d3','valor_desp','area_total','area_desapropriada','valor_terra_nua','valor_benf_reprodutiva','valor_benf_nao_reprodutiva','valor_total'];
   function _pgxValor(it, k){
     switch(k){
       case 'medicao': return PG_MEDICAO_OPCOES.indexOf(it.medicao || PG_MEDICAO_VAZIO);
@@ -15056,6 +15093,7 @@ function AV_gerarDescSituacao(){
       case 'posseiro': return String(it.posseiro || '');
       case 'campo': case 'social': case 'tecnica': case 'juridica': return ({nao_iniciado:0, pendente:1, concluido:2})[_pgRawValor(it, k)] || 0;
       case 'melhorias': return Array.isArray(it.melhorias) ? it.melhorias.length : -1;
+      case 'valor_desp': return it.desps ? despValor(it) : null;
       case 'd1': case 'd2': case 'd3': return it.desps ? (it.desps[k] ? 1 : 0) : null;
       case 'area_total': case 'area_desapropriada': var h = haNum(it[k]); return h == null ? null : h;
       default: return it[k] == null ? null : Number(it[k]);
@@ -15179,12 +15217,12 @@ function AV_gerarDescSituacao(){
     var itens = _pgItensFiltrados(null).sort(window.PGX_cmp);
     var st = function(it, c){ return ({nao_iniciado:'Não iniciado', pendente:'Pendente', concluido:'Concluído'})[_pgRawValor(it, c)] || ''; };
     var num = function(v){ return v == null ? '' : String(v).replace('.', ','); };
-    var linhas = [['Medição','Lote','Nº Processo SEI','Cadastro','Proprietário','Posseiro','Campo','Social','Técnica','Jurídica','Melhorias','DESP 1','DESP 2','DESP 3','Área total (ha)','Área desapropriada (ha)','R$ Terra nua','R$ Benf. reprodutivas','R$ Benf. não reprodutivas','R$ Total']];
+    var linhas = [['Medição','Lote','Nº Processo SEI','Cadastro','Proprietário','Posseiro','Campo','Social','Técnica','Jurídica','Melhorias','DESP 1','DESP 2','DESP 3','R$ DESPs','Área total (ha)','Área desapropriada (ha)','R$ Terra nua','R$ Benf. reprodutivas','R$ Benf. não reprodutivas','R$ Total']];
     itens.forEach(function(it){
       linhas.push([it.medicao || '', loteFmt(it.lote), it.sei || '', ctdFmt(it.ctd), it.proprietario || '', it.posseiro || '',
         st(it,'campo'), st(it,'social'), st(it,'tecnica'), st(it,'juridica'),
         Array.isArray(it.melhorias) ? it.melhorias.length : '',
-        it.desps && it.desps.d1 ? 'Sim' : '', it.desps && it.desps.d2 ? 'Sim' : '', it.desps && it.desps.d3 ? 'Sim' : '', num(haNum(it.area_total)), num(haNum(it.area_desapropriada)),
+        it.desps && it.desps.d1 ? 'Sim' : '', it.desps && it.desps.d2 ? 'Sim' : '', it.desps && it.desps.d3 ? 'Sim' : '', num(it.desps ? despValor(it) : null), num(haNum(it.area_total)), num(haNum(it.area_desapropriada)),
         num(it.valor_terra_nua), num(it.valor_benf_reprodutiva), num(it.valor_benf_nao_reprodutiva), num(it.valor_total)]);
     });
     var csv = '﻿' + linhas.map(function(l){ return l.map(function(c){ return '"' + String(c).replace(/"/g, '""') + '"'; }).join(';'); }).join('\r\n');
@@ -16781,7 +16819,8 @@ function AV_gerarDescSituacao(){
     }).join('') : '<div class="pgg-mini">Sem dados</div>';
 
     // ---- 5b. produtos (DESP 1/2/3): quantidade de cadastros marcados × valor unitário ----
-    var UNIT_DESP = [['d1', 'DESP 1', 1802.53, '#00e5ff'], ['d2', 'DESP 2', 1072.53, '#b28dff'], ['d3', 'DESP 3', 4045.01, '#4ad295']];
+    var U = window.PG_DESP_UNIT || { d1:1802.53, d2:1072.53, d3:4045.01 };
+    var UNIT_DESP = [['d1', 'DESP 1', U.d1, '#00e5ff'], ['d2', 'DESP 2', U.d2, '#b28dff'], ['d3', 'DESP 3', U.d3, '#4ad295']];
     var semDesp = n > 0 && it.every(function(x){ return !x.desps; });
     var qTot = 0, vTot = 0;
     var cardsDesp = UNIT_DESP.map(function(d){
