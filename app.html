@@ -13251,6 +13251,17 @@ window.FOTO_rodapeHTML=rodapeHTML;
       ctx.y = y0 + h + 10; doc.setTextColor(30,40,55);
     })();
 
+    // --- índice simples: o memorial de cálculo e os anexos que acompanham este PDF
+    (function(){
+      const c = anxCasos(), itens = ["Memorial de Cálculo"];
+      if(c.tn || c.br || c.bnr) itens.push("Anexo I — Metodologia");
+      if(c.tn){ itens.push("Anexo II — Relatório Estatístico"); itens.push("Anexo III — Planilha da Amostra e Mapa de Localização dos Dados de Mercado"); }
+      subLbl(doc,ctx,"ÍNDICE");
+      doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(35,45,60);
+      itens.forEach(function(t){ ensure(doc,ctx,14); doc.text("•  " + t, ctx.ML+8, ctx.y+9); ctx.y += 14; });
+      ctx.y += 8;
+    })();
+
     secBar(doc,ctx,"AVALIAÇÃO DA TERRA NUA");
 
     // --- explicação das variáveis (os mesmos textos da tela): a Situação vem antes da Escala de Valor da CCU; Área, N.A. e Influência Vila, depois do título da Memória de Cálculo
@@ -13355,6 +13366,8 @@ window.FOTO_rodapeHTML=rodapeHTML;
     ctx.y += 22; doc.setTextColor(30,40,55);
 
     // --- IV — Memória de Cálculo para Terra Nua
+    { const y0 = ctx.y; ensure(doc,ctx,110);                 // o título não fica sozinho no fim da página
+      if(ctx.y === y0) ctx.y += 12; }                         // uma linha de espaço antes do tópico (se virou a página, ela já começa limpa)
     subLbl(doc,ctx,"Memória de Cálculo para Terra Nua");
     varTexto("Variável Área do Imóvel (ha)","av_var_area"); varTexto("Variável Nota Agronômica (N.A.)","av_var_na"); varTexto("Variável Influência Vila","av_var_vila");
     const rows = [
