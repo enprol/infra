@@ -11966,14 +11966,17 @@ window.FOTO_rodapeHTML=rodapeHTML;
       const peso = (isFinite(areaAval) && areaAval>0) ? area/areaAval : NaN;
       const valClasse = c.val;
       if(isFinite(peso)){
-        const pesoR = Math.round(peso*10000)/10000;
-        const prod = Math.floor(pesoR*valClasse*10000)/10000;
+        // FTN (07/10/2026): igual à planilha do Excel — fração exata da área e produto sem truncar; só se arredonda ao EXIBIR.
+        // O Obsoleto mantém a regra antiga (peso a 4 casas e produto truncado na 4ª casa).
+        const exato = window.__AV_MODO__ !== "obs";
+        const pesoR = exato ? peso : Math.round(peso*10000)/10000;
+        const prod = exato ? pesoR*valClasse : Math.floor(pesoR*valClasse*10000)/10000;
         comps.push({peso:pesoR, val:valClasse, prod:prod, classe:c.n});
         ccu += prod;
         glebasAuto.push({classe:c.n, area:area, peso:pesoR});
       }
     });
-    ccu = Math.round(ccu*10000)/10000;
+    if(window.__AV_MODO__ === "obs") ccu = Math.round(ccu*10000)/10000;   // FTN: o CCU segue exato (a N.A. sai dele); exibido com 4 casas
 
     // reconstruir as glebas (auto) a partir da tabela NA
     if(typeof gerarGlebasAuto==="function") gerarGlebasAuto(glebasAuto, areaAval);
@@ -12214,9 +12217,10 @@ window.FOTO_rodapeHTML=rodapeHTML;
       const inp=tr.querySelector(".na-area");
       const area=num(inp.value); const temArea=isFinite(area)&&area>0;
       if(temArea) somaArea+=area;
-      const peso=(temArea && areaAval>0)? Math.round(area/areaAval*10000)/10000 : 0;
-      const prod=temArea? Math.floor(peso*c.val*10000)/10000 : 0;
-      tr.querySelector(".na-pct").textContent = temArea? fmtBR(peso*100,4) : "0";
+      const exato = window.__AV_MODO__ !== "obs";                                    // FTN: cálculo exato como no Excel (arredonda só ao exibir)
+      const peso=(temArea && areaAval>0)? (exato ? area/areaAval : Math.round(area/areaAval*10000)/10000) : 0;
+      const prod=temArea? (exato ? peso*c.val : Math.floor(peso*c.val*10000)/10000) : 0;
+      tr.querySelector(".na-pct").textContent = temArea? fmtBR(peso*100, exato ? 2 : 4) : "0";
       tr.querySelector(".na-ccu").textContent = temArea? fmtBR(prod,4) : "0";
       tr.querySelector(".area-edit").classList.toggle("na-area-preenchida", temArea);
     });
