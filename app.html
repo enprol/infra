@@ -1249,6 +1249,15 @@ window.REL_baixarConjunto = async function(){
   #panel-avaliacao-ftn table.na-tabela .sit-cell.sel{background:#159a3c; color:#fff; font-weight:700;}
   #panel-avaliacao table.na-tabela .sit-na,
   #panel-avaliacao-ftn table.na-tabela .sit-na{font-weight:700; color:#159a3c;}
+  /* Avaliação FTN: na coluna N.A. só o valor da Situação/Circulação marcada fica verde; os demais, neutros */
+  #av_t11[data-modo="ftn"] table.na-tabela td.sit-na,
+  #av_t11[data-modo="ftn"] table.na-tabela span.sit-na{font-weight:400; color:#4a5a6e;}
+  #av_t11[data-modo="ftn"] table.na-tabela span.sit-na.sel{font-weight:800; color:#159a3c;}
+  /* "Imprimir no PDF" (CCU por gleba) */
+  .ccu-imp{display:inline-flex; align-items:center; gap:6px; margin-left:12px; padding:3px 10px; border:1px solid #bcd6f0; border-radius:999px; background:#f1f7fe; color:#175a9f; font-size:11.5px; font-weight:700; text-transform:none; letter-spacing:0; cursor:pointer; user-select:none; vertical-align:middle;}
+  .ccu-imp:hover{background:#e3f0fc;}
+  .ccu-imp input{margin:0; width:15px; height:15px; accent-color:#1F6FC0; cursor:pointer;}
+  .ccu-imp:has(input:not(:checked)){background:#fff; border-color:#d3dce5; color:#7a8a9c;}
 
   /* auto-glebas e tabela NA editável */
   #panel-avaliacao .hint-auto,
@@ -5600,6 +5609,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
     <!-- Classes / Glebas dinâmicas -->
     <div class="vsub" id="av_vs_cls">Classes de Capacidade de Uso (CCU) por gleba
       <span class="hint-auto">preenchida automaticamente pela Tabela de Nota Agronômica — edite apenas o Fator mais restritivo</span>
+      <label class="ccu-imp av-so-ftn" title="Marque para que este tópico (CCU por gleba) saia no PDF da Avaliação da terra nua"><input type="checkbox" id="av_imp_ccu_gleba" checked> 🖨️ Imprimir no PDF</label>
     </div>
     <div class="antes-depois-sel" id="av_ad_sel">
       <label class="ad-lbl">Cálculo de Nota Agronômica com "Antes e Depois"?</label>
@@ -12319,6 +12329,20 @@ window.FOTO_rodapeHTML=rodapeHTML;
   }
   function footer(doc,ctx){
     const {W,H,ML,MR}=ctx;
+    if(ctx.rodapePadrao){
+      // padrão dos demais relatórios (Parecer, DESP-1, DESP-2): filete azul + endereço de cada escritório à esquerda e telefone/e-mail à direita
+      doc.setDrawColor(31,111,192); doc.setLineWidth(0.6);
+      doc.line(ML,H-58,MR,H-58);
+      doc.setFont("helvetica","normal"); doc.setFontSize(6); doc.setTextColor(90,107,124);
+      let yy=H-58+9;
+      RODAPE.forEach(l=>{
+        const k=l.indexOf("   (+55");
+        doc.text(k>0 ? l.slice(0,k) : l, ML, yy);
+        if(k>0) doc.text(l.slice(k).trim(), MR, yy, {align:"right"});
+        yy+=7.6;
+      });
+      return;
+    }
     doc.setDrawColor(31,111,192); doc.setLineWidth(0.7);
     doc.line(ML,H-58,MR,H-58);
     doc.setFont("helvetica","normal"); doc.setFontSize(5.4); doc.setTextColor(120,128,138);
@@ -13109,6 +13133,7 @@ window.FOTO_rodapeHTML=rodapeHTML;
   function desenharFtnCompacto(doc,ctx){
     const E = id => document.getElementById(id), L = ctx.MR-ctx.ML;
     const txt = id => { const e=E(id); return e ? String(e.value!=null && e.tagName!=="SPAN" && e.tagName!=="DIV" ? e.value : e.textContent).trim() : ""; };
+    ctx.rodapePadrao = true;   // rodapé no padrão dos demais relatórios (endereços à esquerda, telefone/e-mail à direita)
     novaPagina(doc,ctx);
 
     // --- canhoto de identificação do documento (sem capa): documento, processo administrativo, ocupante e localização
@@ -13179,9 +13204,9 @@ window.FOTO_rodapeHTML=rodapeHTML;
         else if(i === 2 && cheia){ doc.setFillColor(255,249,232); doc.rect(x,ctx.y,w,hr,"FD"); }
         else if(i === 0){ doc.setFillColor(240,245,250); doc.rect(x,ctx.y,w,hr,"FD"); }
         else doc.rect(x,ctx.y,w,hr);
-        const forte = (i === 0) || (i === 6 && cel[6]) || (i === 5 && sel);
+        const forte = (i === 0) || (i === 6 && cel[6] && sel) || (i === 5 && sel);
         doc.setFont("helvetica", forte ? "bold" : "normal"); doc.setFontSize(7.5);
-        if(i === 5 && sel) doc.setTextColor(255,255,255); else if(i === 6) doc.setTextColor(21,128,61); else doc.setTextColor(35,45,60);
+        if(i === 5 && sel) doc.setTextColor(255,255,255); else if(i === 6 && sel) doc.setTextColor(21,128,61); else doc.setTextColor(35,45,60);
         doc.text(cel[i], x+w/2, ctx.y+9.2, {align:"center"});
         x += w;
       });
@@ -13193,9 +13218,10 @@ window.FOTO_rodapeHTML=rodapeHTML;
     cw.forEach((w,i)=>{ doc.setFillColor(238,244,250); doc.setDrawColor(200,210,222); doc.rect(x,ctx.y,w,hr,"FD"); doc.setFont("helvetica","bold"); doc.setFontSize(7.5); doc.setTextColor(23,90,159); doc.text(tot[i], x+w/2, ctx.y+9.2, {align:"center"}); x+=w; });
     ctx.y += hr + 8; doc.setTextColor(30,40,55);
 
-    // --- Classes de Capacidade de Uso (CCU) por gleba
-    subLbl(doc,ctx,"Classes de Capacidade de Uso (CCU) por gleba");
-    const gl = document.querySelectorAll("#av_glebas .gleba-linha");
+    // --- Classes de Capacidade de Uso (CCU) por gleba (só sai se "Imprimir no PDF" estiver marcado)
+    const imprimirGlebas = !E("av_imp_ccu_gleba") || E("av_imp_ccu_gleba").checked;
+    if(imprimirGlebas) subLbl(doc,ctx,"Classes de Capacidade de Uso (CCU) por gleba");
+    const gl = imprimirGlebas ? document.querySelectorAll("#av_glebas .gleba-linha") : [];
     gl.forEach((g,idx)=>{
       const q = s => { const e = g.querySelector(s); return e ? (e.value!=null && e.tagName!=="DIV" ? e.value : e.textContent) : ""; };
       const optTxt = s => { const e = g.querySelector(s); return (e && e.selectedIndex >= 0 && e.value !== "") ? e.options[e.selectedIndex].textContent.trim() : ""; };
@@ -13216,7 +13242,7 @@ window.FOTO_rodapeHTML=rodapeHTML;
       lin.forEach((ln,li)=> doc.text(ln, ctx.ML+8, ctx.y+24+li*9));
       ctx.y += alt + 4;
     });
-    if(!gl.length){ paragrafo(doc,ctx,"(Sem glebas: preencha as áreas na Tabela de Nota Agronômica.)"); }
+    if(imprimirGlebas && !gl.length){ paragrafo(doc,ctx,"(Sem glebas: preencha as áreas na Tabela de Nota Agronômica.)"); }
     ctx.y += 2;
 
     // --- Escala de Valor da CCU (título e caixa na mesma página)
