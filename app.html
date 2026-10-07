@@ -5591,6 +5591,8 @@ g) A avaliação foi realizada para desapropriação parcial em 1 (uma) gleba do
 
     </div>
 
+    <span id="av_vars_ancora" hidden></span>
+    <div id="av_vars_wrap">
     <div class="vsub">Variável Área do Imóvel (ha) <span class="auto-tag">texto padrão editável</span></div>
     <textarea id="av_var_area" rows="5">Levando em conta a dimensão do imóvel em questão, a área total da propriedade torna-se uma variável quantitativa, medida em hectares (ha). O valor do imóvel geralmente varia de acordo com seu tamanho; ou seja, quanto maior o imóvel, menor o preço por hectare, e vice-versa. Assim, a variável "área" visa ajustar as dimensões dos dados amostrais pesquisados à área do imóvel em avaliação.</textarea>
 
@@ -5603,6 +5605,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
       <textarea id="av_var_vila" rows="4">Localização dos imóveis em relação aos Povoados/Vilas = Variável quantitativa (Códigos Alocados):
 1 – Fora da área de influência - Imóveis situados a uma distância superior a 1 km do povoado mais próximo.
 2 – Dentro do Raio de 1 km - Imóveis localizados em um intervalo de até 1 km de um povoado.</textarea>
+    </div>
     </div>
 
     <div class="vsub">I — Dimensionamento da Variável CCU</div>
@@ -5662,17 +5665,20 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
     <div class="area-restante" id="av_area_restante">
       <span class="ar-txt">Área restante para fechar 100%: <strong id="av_ar_valor">—</strong></span>
     </div>
-    <div class="vsub">Escala de Valor da CCU</div>
+    <div class="vsub" id="av_vs_escala">Escala de Valor da CCU</div>
     <div class="ccu-formula" id="av_ccu_formula">
       <div class="linha1" id="av_ccu_l1">—</div>
       <div class="linha2" id="av_ccu_l2">—</div>
       <div class="linha3" id="av_ccu_l3">CCU = —</div>
     </div>
 
+    <span id="av_sit_ancora" hidden></span>
+    <div id="av_sit_wrap">
     <div class="vsub">II — Dimensionamento da Variável Situação
       <button type="button" class="mini-add" onclick="AV_gerarDescSituacao()" title="Gera o texto conforme a Situação/Circulação selecionada">↻ Preencher automático</button>
     </div>
     <textarea id="av_situacao_txt" rows="3" readonly class="bloqueado" title="Preenchido automaticamente — bloqueado">Para o imóvel abrangido parcialmente, foi identificado que possui uma viabilidade de circulação boa, devido primeira classe não pavimentada e importância da distância significativa em relação à via pavimentada (BA-938) e com trafegabilidade permanente, com escala adotada de 0,90.</textarea>
+    </div>
 
     <div class="vsub">III — Dimensionamento da Variável Nota Agronômica (N.A.)</div>
     <div class="na-calc">
@@ -5700,7 +5706,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 
     </div>
 
-    <div class="vsub">i) Memória de Cálculo para Terra Nua</div>
+    <div class="vsub" id="av_vs_mem">i) Memória de Cálculo para Terra Nua</div>
     <div class="av-modelo-sel av-so-ftn">
       <label for="av_mem_modelo">Modelo estatístico:</label>
       <select id="av_mem_modelo" title="Variação da equação: muda a constante do modelo (Moda 3127,488781 · Mediana 3337,43421 · Média 3447,634276 · Regressão e^8,11295759 = Mediana)">
@@ -5721,7 +5727,13 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
         <tr>
           <td>ÁREA DO IMÓVEL (ha)</td>
           <td><span class="av-so-obs">e^(+0,7420810025 / Área (ha))</span><span class="av-so-ftn">e^(−0,6346406128 × ln(Área (ha)))</span></td>
-          <td><input type="text" id="av_mem_area" readonly class="bloqueado" placeholder="Preencher este campo"></td>
+          <td>
+            <select id="av_mem_area_fonte" class="av-so-ftn" title="Qual área entra no cálculo: a área de referência (item I) ou a área total do imóvel" style="margin-bottom:4px; max-width:100%;">
+              <option value="ref" selected>Área de referência</option>
+              <option value="total">Área total do imóvel</option>
+            </select>
+            <input type="text" id="av_mem_area" readonly class="bloqueado" placeholder="Preencher este campo">
+          </td>
           <td><span id="av_mem_area_r">—</span></td>
         </tr>
         <tr>
@@ -12006,7 +12018,15 @@ window.FOTO_rodapeHTML=rodapeHTML;
     // memória de cálculo
     const areaImovel = num(document.getElementById("av_areatotal").value); // 3.36 área total
     // FTN: a Memória de Cálculo usa a MESMA área marcada como referência (total / ocupada / desapropriação), senão o VTN/ha não bate com o da amostra
-    const areaMem = (window.__AV_MODO__ !== "obs" && isFinite(areaAval) && areaAval > 0) ? areaAval : (isFinite(areaImovel)? areaImovel : areaAval);
+    const fonteArea = (document.getElementById("av_mem_area_fonte") || {}).value === "total" ? "total" : "ref";
+    const areaMem = window.__AV_MODO__ === "obs" ? (isFinite(areaImovel)? areaImovel : areaAval)
+      : (fonteArea === "total" && isFinite(areaImovel) && areaImovel > 0) ? areaImovel
+      : ((isFinite(areaAval) && areaAval > 0) ? areaAval : (isFinite(areaImovel)? areaImovel : areaAval));
+    { const sf = document.getElementById("av_mem_area_fonte");
+      if(sf && sf.options.length >= 2){
+        sf.options[0].textContent = "Área de referência" + (isFinite(areaAval) ? " — " + fmtBR(areaAval,4) + " ha" : "");
+        sf.options[1].textContent = "Área total do imóvel" + (isFinite(areaImovel) ? " — " + fmtBR(areaImovel,4) + " ha" : "");
+      } }
     const modoFtn = (window.__AV_MODO__ !== "obs");
     const zona = parseInt(document.getElementById("av_mem_zona").value,10);
     const vilaEl = document.getElementById("av_mem_vila");
@@ -12250,6 +12270,11 @@ window.FOTO_rodapeHTML=rodapeHTML;
       if(m === "ftn"){ pai.insertBefore(vsT, ad); pai.insertBefore(vsC, gl); }
       else { pai.insertBefore(vsC, ad); pai.insertBefore(vsT, E("av_na_tabela").closest(".na-tabela-wrap")); }
     }
+    // FTN: as variáveis (Área, N.A., Influência Vila) vêm logo depois do título "Memória de Cálculo para Terra Nua" e a Variável Situação
+    // vem antes de "Escala de Valor da CCU"; no Obsoleto cada bloco volta ao lugar de origem
+    const vw = E("av_vars_wrap"), va = E("av_vars_ancora"), vm = E("av_vs_mem"), sw = E("av_sit_wrap"), sa = E("av_sit_ancora"), ve = E("av_vs_escala");
+    if(vw && va && vm && vm.parentNode){ if(m === "ftn") vm.parentNode.insertBefore(vw, vm.nextSibling); else va.parentNode.insertBefore(vw, va.nextSibling); }
+    if(sw && sa && ve && ve.parentNode){ if(m === "ftn") ve.parentNode.insertBefore(sw, ve); else sa.parentNode.insertBefore(sw, sa.nextSibling); }
     recalc();
   };
   document.addEventListener("DOMContentLoaded", function(){ setTimeout(function(){ try{ window.AV_setModo(window.__AV_MODO__); }catch(e){} }, 0); });
@@ -12318,7 +12343,7 @@ window.FOTO_rodapeHTML=rodapeHTML;
     // auto-fill + sync
     autoFill(); bindSync();
     // listeners de recálculo em campos que afetam contas
-    ["av_area_aval","av_na_escala","av_mem_zona","av_mem_vila","av_mem_modelo","av_na_casas","av_areatotal","av_fd_area","av_rem_area",
+    ["av_area_aval","av_na_escala","av_mem_zona","av_mem_vila","av_mem_modelo","av_na_casas","av_mem_area_fonte","av_areatotal","av_fd_area","av_rem_area",
      "rs_121","rs_122","rs_123","rs_124","rs_12","rs_13","fb_area_ocupada","fb_area_desap"].forEach(id=>{
       const el=document.getElementById(id); if(el) el.addEventListener("input", recalc);
     });
@@ -13218,10 +13243,10 @@ window.FOTO_rodapeHTML=rodapeHTML;
 
     secBar(doc,ctx,"AVALIAÇÃO DA TERRA NUA");
 
-    // --- explicação das variáveis (os mesmos textos da tela)
-    [["Variável Área do Imóvel (ha)","av_var_area"],["Variável Nota Agronômica (N.A.)","av_var_na"],["Variável Influência Vila","av_var_vila"],["Variável Situação","av_situacao_txt"]].forEach(function(v){
-      subLbl(doc,ctx,v[0]); paragrafo(doc,ctx, (txt(v[1]) || "—").replace(/\n/g, v[1]==="av_var_vila" ? "\n\n" : "\n"), 8.5);
-    });
+    // --- explicação das variáveis (os mesmos textos da tela): a Situação vem antes da Escala de Valor da CCU; Área, N.A. e Influência Vila, depois do título da Memória de Cálculo
+    const varTexto = function(rot, id){
+      subLbl(doc,ctx,rot); paragrafo(doc,ctx, (txt(id) || "—").replace(/\n/g, id==="av_var_vila" ? "\n\n" : "\n"), 8.5);
+    };
 
     // --- Tabela de Nota Agronômica (CCU × Situação/Circulação)
     subLbl(doc,ctx,"Tabela de Nota Agronômica (CCU × Situação/Circulação)");
@@ -13297,6 +13322,8 @@ window.FOTO_rodapeHTML=rodapeHTML;
     if(imprimirGlebas && !gl.length){ paragrafo(doc,ctx,"(Sem glebas: preencha as áreas na Tabela de Nota Agronômica.)"); }
     ctx.y += 2;
 
+    varTexto("Variável Situação","av_situacao_txt");
+
     // --- Escala de Valor da CCU (título e caixa na mesma página)
     ensure(doc,ctx,17+46+24);
     subLbl(doc,ctx,"Escala de Valor da CCU");
@@ -13318,7 +13345,8 @@ window.FOTO_rodapeHTML=rodapeHTML;
     ctx.y += 22; doc.setTextColor(30,40,55);
 
     // --- IV — Memória de Cálculo para Terra Nua
-    subLbl(doc,ctx,"Memória de Cálculo para Terra Nua — Modelo: "+window.AV_modeloAtual().nome);
+    subLbl(doc,ctx,"Memória de Cálculo para Terra Nua");
+    varTexto("Variável Área do Imóvel (ha)","av_var_area"); varTexto("Variável Nota Agronômica (N.A.)","av_var_na"); varTexto("Variável Influência Vila","av_var_vila");
     const rows = [
       ["ÁREA DO IMÓVEL (ha)","e^(-0,6346406128 × ln(Área (ha)))", txt("av_mem_area"), E("av_mem_area_r").textContent],
       ["NOTA AGRONÔMICA (N.A.)","e^(+8,17860439 × N.A.²)", txt("av_mem_na"), E("av_mem_na_r").textContent],
@@ -13416,7 +13444,7 @@ window.FOTO_rodapeHTML=rodapeHTML;
     if(!ftn){ subLbl(doc,ctx,"Variável Zonas Homogêneas"); paragrafo(doc,ctx, val("av_zonas_txt")); }
 
     // memória de cálculo
-    subLbl(doc,ctx,"i) Memória de Cálculo para Terra Nua"+(ftn ? " — Modelo: "+window.AV_modeloAtual().nome : ""));
+    subLbl(doc,ctx,"i) Memória de Cálculo para Terra Nua");
     const rows = ftn ? [
       ["ÁREA DO IMÓVEL (ha)","e^(-0,6346406128 × ln(Área (ha)))", val("av_mem_area"), document.getElementById("av_mem_area_r").textContent],
       ["NOTA AGRONÔMICA (N.A.)","e^(+8,17860439 × N.A.²)", val("av_mem_na"), document.getElementById("av_mem_na_r").textContent],
@@ -13889,7 +13917,7 @@ function AV_gerarDescSituacao(){
   // preenche as "Características do imóvel" a partir dos campos já existentes
   window.AV_atualizarImovelAvaliando = function(){
     let area = el("av_areatotal") ? el("av_areatotal").value : "";
-    if(window.__AV_MODO__ !== "obs" && el("av_area_aval") && el("av_area_aval").value.trim()) area = el("av_area_aval").value.trim();   // FTN: área de referência escolhida
+    if(window.__AV_MODO__ !== "obs" && el("av_mem_area") && el("av_mem_area").value.trim()) area = el("av_mem_area").value.trim();   // FTN: área adotada na Memória de Cálculo
     let na   = el("av_na_result") ? el("av_na_result").value : "";
     if(window.__AV_MODO__ !== "obs" && el("av_na_casas") && el("av_na_casas").value === "3" && el("av_na_result3") && el("av_na_result3").value) na = el("av_na_result3").value;   // N.A. adotada (3 casas)
     const zona = el("av_mem_zona") ? el("av_mem_zona").value : "";
