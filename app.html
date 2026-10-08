@@ -5534,7 +5534,8 @@ body.ativ-pesquisa, body.ativ-util{ overflow:hidden; }
     .pgm-camadas label{ display:flex; align-items:center; gap:8px; padding:3px 0; cursor:pointer; color:#e8f1f3; }
     .pgm-camadas .pgm-sw{ flex:0 0 26px; height:0; border-top:3px solid; }
     .pgm-camadas .pgm-sw-fixo{ border-top-color:#00c400; border-top-style:solid; border-top-width:2px; }
-    .pgm-camadas .pgm-sw-cad{ border-top-color:#ffd400; border-top-style:dotted; border-top-width:3px; }
+    .pgm-camadas .pgm-sw-cad{ border-top-color:#00e5ff; }
+    .pgm-camadas .pgm-sw-area{ border-top-color:#ffd400; border-top-style:dotted; border-top-width:3px; }
     .pgm-camadas .pgm-sw-eixo{ height:8px; border:0; background:linear-gradient(#ff8c1a,#ff8c1a) center/100% 2px no-repeat, repeating-linear-gradient(90deg,#ff8c1a 0 1.5px,transparent 1.5px 7px); }
     .pgm-camadas details{ margin-top:6px; color:#9cb7bd; }
     .pgm-camadas details.pgm-incra-box{ margin-top:8px; padding-top:7px; border-top:1px solid #23444d; color:#e8f1f3; }
@@ -17966,7 +17967,9 @@ function AV_gerarDescSituacao(){
   var CAR_ZOOM_MIN = 12;
   var ESTILO_FIXO = { color:'#00c400', weight:1.8, opacity:.95, lineCap:'round', lineJoin:'round', fill:false, interactive:false };
   // perímetro do cadastro: contorno AMARELO PONTILHADO, sem preenchimento (08/10/2026)
-  var ESTILO_CAD  = { color:'#ffd400', weight:3, opacity:1, dashArray:'0.5 7', lineCap:'round', lineJoin:'round', fillColor:'#ffd400', fillOpacity:0 };
+  var ESTILO_CAD  = { color:'#00e5ff', weight:2.6, opacity:1, fillColor:'#00e5ff', fillOpacity:.14 };      // área a desapropriar (KML da Técnica): azul, como sempre
+  // perímetro TOTAL do imóvel (08/10/2026): contorno amarelo pontilhado, sem preenchimento, POR CIMA da área desapropriada
+  var ESTILO_AREA = { color:'#ffd400', weight:3, opacity:1, dashArray:'0.5 7', lineCap:'round', lineJoin:'round', fillColor:'#ffd400', fillOpacity:0 };
   // Rampa hipsométrica — as mesmas 13 cores da apresentação AMBEV (azul-arroxeado → azul → verde →
   // creme → marrom → cinza → branco), distribuídas de 0 a RAMPA_MAX metros (faixa típica da região).
   var RAMPA_MAX = 1200;
@@ -18154,9 +18157,9 @@ function AV_gerarDescSituacao(){
   var chaveCad = function(it){ return it.secao + '/' + it.ctd; };
   // Destaque: o cadastro selecionado (clique no mapa ou na linha da tabela) ganha contorno branco, preenchimento
   // mais forte e um leve brilho; os demais recuam um pouco, sem sumir (o contexto continua legível).
-  var EST_NORMAL = { color:ESTILO_CAD.color, weight:ESTILO_CAD.weight, opacity:1, dashArray:ESTILO_CAD.dashArray, fillColor:'#ffd400', fillOpacity:0 };
-  var EST_DESTAQUE = { color:'#fff6b8', weight:3.6, opacity:1, dashArray:'0.5 6', fillColor:'#ffd400', fillOpacity:.12 };
-  var EST_APAGADO = { color:'#ffd400', weight:2, opacity:.5, dashArray:'0.5 8', fillColor:'#ffd400', fillOpacity:0 };
+  var EST_NORMAL = { color:ESTILO_CAD.color, weight:ESTILO_CAD.weight, opacity:1, fillColor:'#00e5ff', fillOpacity:.14 };
+  var EST_DESTAQUE = { color:'#ffffff', weight:3, opacity:1, fillColor:'#00e5ff', fillOpacity:.32 };
+  var EST_APAGADO = { color:'#00e5ff', weight:1.6, opacity:.55, fillColor:'#00e5ff', fillOpacity:.06 };
   var glowLayers = [], glowRaf = 0;
   function limparGlow(){
     cancelAnimationFrame(glowRaf);
@@ -18170,7 +18173,7 @@ function AV_gerarDescSituacao(){
     regCad[alvo].layers.forEach(function(l){
       if(!l.getLatLngs || l instanceof L.CircleMarker) return;
       [{w:16, o:.10}, {w:9, o:.16}].forEach(function(c){
-        var op = {renderer:rCad, pane:'cadPane', color:'#fff0a0', weight:c.w, opacity:c.o, lineCap:'round', lineJoin:'round', fill:false, interactive:false};
+        var op = {renderer:rCad, pane:'cadPane', color:'#bff6ff', weight:c.w, opacity:c.o, lineCap:'round', lineJoin:'round', fill:false, interactive:false};
         var g = (l instanceof L.Polygon) ? L.polygon(l.getLatLngs(), op) : L.polyline(l.getLatLngs(), op);
         g._gw = c.w; g._go = c.o; grupoCad.addLayer(g); glowLayers.push(g); camadas.push(g);
       });
@@ -18237,9 +18240,15 @@ function AV_gerarDescSituacao(){
       });
       l.addTo(grp);
     };
-    g.poligonos.forEach(function(aneis){ ligar(L.polygon(aneis, Object.assign({renderer:rCad, pane:'cadPane'}, ESTILO_CAD))); });
-    g.linhas.forEach(function(l){ ligar(L.polyline(l, Object.assign({renderer:rCad, pane:'cadPane'}, ESTILO_CAD, {fill:false}))); });
-    g.pontos.forEach(function(pt){ ligar(L.circleMarker(pt, Object.assign({renderer:rCad, pane:'cadPane', radius:5}, ESTILO_CAD, {fillOpacity:.7}))); });
+    var soArea = !!g._soArea, EST0 = soArea ? ESTILO_AREA : ESTILO_CAD;       // cadastro só com a área total: ela é o contorno clicável
+    g.poligonos.forEach(function(aneis){ ligar(L.polygon(aneis, Object.assign({renderer:rCad, pane:'cadPane'}, EST0))); });
+    g.linhas.forEach(function(l){ ligar(L.polyline(l, Object.assign({renderer:rCad, pane:'cadPane'}, EST0, {fill:false}))); });
+    g.pontos.forEach(function(pt){ ligar(L.circleMarker(pt, Object.assign({renderer:rCad, pane:'cadPane', radius:5}, EST0, {fillOpacity:.7}))); });
+    // perímetro total do imóvel: amarelo pontilhado, sem preenchimento, não interfere no clique/destaque do contorno azul
+    if(!soArea && g.area){
+      g.area.poligonos.forEach(function(aneis){ L.polygon(aneis, Object.assign({renderer:rCad, pane:'cadPane', interactive:false}, ESTILO_AREA)).addTo(grp); });
+      g.area.linhas.forEach(function(l){ L.polyline(l, Object.assign({renderer:rCad, pane:'cadPane', interactive:false}, ESTILO_AREA, {fill:false})).addTo(grp); });
+    }
     return grp;
   }
   function sps2(lote){ var d = String(lote == null ? '' : lote).replace(/\D/g,''); return d ? ('0' + d).slice(-2) : ''; }
@@ -18592,10 +18601,17 @@ function AV_gerarDescSituacao(){
         var chave = 'cad|' + it.secao + '|' + it.ctd + '|' + it.atualizado_em;
         if(cache[chave]) return;
         tarefas.push(function(){
-          // contorno = perímetro TOTAL do imóvel (campo "Área total" da Técnica); sem ele (ou servidor antigo), o KML da área a desapropriar
+          // dois contornos: a área a desapropriar (KML da Técnica, azul) e o perímetro TOTAL do imóvel (campo "Área total", amarelo pontilhado)
           var urlK = '/api/kml/' + encodeURIComponent(it.secao) + '/' + encodeURIComponent(it.ctd);
-          return (it.tem_kml_area ? baixarTexto(urlK + '?tipo=area').catch(function(){ return baixarTexto(urlK); }) : baixarTexto(urlK)).then(function(t){ cache[chave] = lerKml(t); })
-            .catch(function(e){ cache[chave] = {erro:String(e && e.message || e), poligonos:[], linhas:[], pontos:[]}; });
+          var pD = baixarTexto(urlK).then(function(t){ return t; }, function(e){ return e; });
+          var pA = it.tem_kml_area ? baixarTexto(urlK + '?tipo=area').then(function(t){ return t; }, function(){ return null; }) : Promise.resolve(null);
+          return Promise.all([pD, pA]).then(function(r){
+            var td = (typeof r[0] === 'string') ? r[0] : null, ta = r[1];
+            if(ta && td && ta === td) ta = null;                       // servidor antigo ignora ?tipo=area e devolve o mesmo KML
+            if(!td && !ta){ cache[chave] = {erro:String(r[0] && r[0].message || r[0] || 'sem KML'), poligonos:[], linhas:[], pontos:[]}; return; }
+            var gd = td ? lerKml(td) : null, ga = ta ? lerKml(ta) : null;
+            if(gd){ gd.area = ga; cache[chave] = gd; } else { ga._soArea = true; cache[chave] = ga; }
+          });
         });
       });
       total = tarefas.length;
@@ -18657,7 +18673,8 @@ function AV_gerarDescSituacao(){
 
   function painelCamadas(usados, semKml, comErro, spsLista, fixosPorSps){
     var h = '<div class="pgm-t">Camadas</div>';
-    h += '<label><input type="checkbox" data-cam="cad"' + (visCad ? ' checked' : '') + '><span class="pgm-sw pgm-sw-cad"></span> Cadastros (' + usados + ' com KML)</label>';
+    h += '<label><input type="checkbox" data-cam="cad"' + (visCad ? ' checked' : '') + '><span class="pgm-sw pgm-sw-cad"></span> Cadastros (' + usados + ' com KML)</label>'
+      + '<label class="pgm-sub-lin"><span class="pgm-sw pgm-sw-area"></span> Perímetro total do imóvel</label>';
     spsLista.forEach(function(q){
       if(fixosPorSps[q]){
         var temEixo = fixoLayers[q] && fixoLayers[q]._temEixo;
