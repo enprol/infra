@@ -8675,6 +8675,28 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
       <textarea id="imv_kml_culturas_dados" style="display:none" aria-hidden="true"></textarea>
       <input type="hidden" id="imv_kml_culturas_nome">
     </div>
+    <div class="vfield grow">
+      <label>Benfeitorias reprodutivas <span class="hint-auto"> pontos/polígonos (.kml) — o NOME de cada elemento é o tipo (milho, palma, manga…)</span></label>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <button class="vbtn vbtn-ghost" type="button" data-imvbtn="benfr" onclick="IMV_pick('benfr')">📍 Escolher KML…</button>
+        <input type="file" data-imvfile="benfr" accept=".kml,application/vnd.google-earth.kml+xml,text/xml,application/xml" style="display:none" onchange="IMV_escolher('benfr',this)">
+        <span class="hint-inline" data-imvst="benfr" style="margin:0;">Nenhum arquivo inserido.</span>
+        <button class="vbtn vbtn-ghost vbtn-sm" type="button" data-imvrem="benfr" style="display:none" onclick="IMV_remover('benfr')">Remover</button>
+      </div>
+      <textarea id="imv_kml_benfr_dados" style="display:none" aria-hidden="true"></textarea>
+      <input type="hidden" id="imv_kml_benfr_nome">
+    </div>
+    <div class="vfield grow">
+      <label>Benfeitorias não reprodutivas <span class="hint-auto"> pontos/polígonos (.kml) — casas, currais, cercas…</span></label>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <button class="vbtn vbtn-ghost" type="button" data-imvbtn="benfnr" onclick="IMV_pick('benfnr')">📍 Escolher KML…</button>
+        <input type="file" data-imvfile="benfnr" accept=".kml,application/vnd.google-earth.kml+xml,text/xml,application/xml" style="display:none" onchange="IMV_escolher('benfnr',this)">
+        <span class="hint-inline" data-imvst="benfnr" style="margin:0;">Nenhum arquivo inserido.</span>
+        <button class="vbtn vbtn-ghost vbtn-sm" type="button" data-imvrem="benfnr" style="display:none" onclick="IMV_remover('benfnr')">Remover</button>
+      </div>
+      <textarea id="imv_kml_benfnr_dados" style="display:none" aria-hidden="true"></textarea>
+      <input type="hidden" id="imv_kml_benfnr_nome">
+    </div>
   </div>
 </div>
 <h2 class="vsec acc" onclick="FV_toggleSec(this)"><span>Quadro de camadas — estilos dos mapas automáticos</span><span class="acc-chevron">▾</span></h2>
@@ -8798,7 +8820,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
    automaticamente pelo cadastro, como o rel_kml). IMV_get(key)/IMV_getAll() servem o gerador. */
 (function(){
   var MAX_MB = 25;
-  var SLOTS = { area:'Área total do imóvel', vias:'Vias de acesso', app:'APP estimada', benf:'Benfeitorias', hidro:'Hidrografia identificada', cercas:'Cercas', culturas:'Áreas de culturas' };
+  var SLOTS = { area:'Área total do imóvel', vias:'Vias de acesso', app:'APP estimada', benf:'Benfeitorias', hidro:'Hidrografia identificada', cercas:'Cercas', culturas:'Áreas de culturas', benfr:'Benfeitorias reprodutivas', benfnr:'Benfeitorias não reprodutivas' };
   function el(id){ return document.getElementById(id); }
   function q(attr,key){ return document.querySelector('['+attr+'="'+key+'"]'); }
   function fmtKB(n){ return n >= 1048576 ? (n/1048576).toFixed(1).replace('.',',') + ' MB' : Math.max(1, Math.round(n/1024)) + ' KB'; }
@@ -21696,7 +21718,8 @@ function AV_gerarDescSituacao(){
     });
   }
   function desenharNomesAreas(P, T){ CAMDXF(P, "ENP_AREA_TEXTO");
-    var tam = TAM.confMapa*.9, tam2 = TAM.dist;
+    var ESC_GERAL_TXT = geralAtivo() ? 2 : 1;   // planta geral: identificação das áreas bem maior
+    var tam = TAM.confMapa*.9*ESC_GERAL_TXT, tam2 = TAM.dist*(ESC_GERAL_TXT > 1 ? 1.8 : 1);
     aneisUtm().forEach(function(a){
       var pol = a.v.map(function(q){ return [T.x(q.E), T.y(q.N)]; });
       var x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
@@ -22265,6 +22288,19 @@ function AV_gerarDescSituacao(){
       });
     }
 
+    // perímetro TOTAL do imóvel (KML "Área total" em Técnica › Arquivos KML) — símbolo "Limite das propriedades sem cerca" (padrão provisório)
+    if(op.perimTotal !== false){
+      var kAT = gv("imv_kml_area_dados");
+      if(kAT){
+        CAMDXF(P, "ENP_PERIMETRO_IMOVEL");
+        aneisDoKml(kAT).forEach(function(a){
+          var po = a.pts.map(function(p){ var u = utm(p[0], p[1], G.fuso); return [T.x(u.E), T.y(u.N)]; });
+          if(po.length < 3 || !po.some(function(q){ return noMapa(q, 30); })) return;
+          var f0 = po[0], l0 = po[po.length - 1]; if(Math.abs(f0[0] - l0[0]) > 1e-6 || Math.abs(f0[1] - l0[1]) > 1e-6) po.push(f0);
+          recortar(po, 5).forEach(function(r){ tracar(P, r, "sem"); });
+        });
+      }
+    }
     // demais poligonais do mesmo cadastro, como contorno de contexto
     if(ANEIS.length > 1 && !geral){
       CAMDXF(P, "ENP_AREAS_CONTEXTO");
@@ -22282,7 +22318,7 @@ function AV_gerarDescSituacao(){
     if(geral){
       if(op.vertices){
         var evg = EST("vertice");
-        aneisUtm().forEach(function(a){ a.v.forEach(function(q){ P.circ(T.x(q.E), T.y(q.N), evg.raio, { cor:evg.cor, peso:evg.peso, fill:evg.fill }); }); });
+        // planta geral: sem o símbolo de ponto nos vértices (08/10/2026)
       }
       desenharNomesAreas(P, T);
     } else {
@@ -22294,10 +22330,10 @@ function AV_gerarDescSituacao(){
       desenharNomesAreas(P, T);        // "ÁREA N + hectares" dentro de cada perímetro (a ativa e as de contexto) — padrão do sistema desde 05/10/2026
       var umSo = G.segs.length && gruposConf(cs).some(function(g){ return g.segs.length >= G.segs.length; });
       if(umSo && op.km) desenharKmEixo(P, T, pol, caixasRot);        // confrontante único: o KM (obrigatório) escolhe o lugar primeiro
-      if(op.confMapa !== false) desenharConfrontantesMapa(P, T, pol, caixasRot, cs);
+      if(op.confMapa !== false && !op.semConf) desenharConfrontantesMapa(P, T, pol, caixasRot, cs);
       if(!umSo && op.km) desenharKmEixo(P, T, pol, caixasRot);
     }
-    if(op.fixo && op.fixoDados) desenharCotasFaixa(P, T, op.fixoDados);
+    if(op.fixo && op.fixoDados && !op.semCotaFaixa) desenharCotasFaixa(P, T, op.fixoDados);
     if(op.cotas !== false){ desenharCotas(P, T); desenharLeaders(P, T); }
     P.clipOff();
 
@@ -22474,7 +22510,7 @@ function AV_gerarDescSituacao(){
   function desenharCarimbo(P, T, c, ex, lim, op, pg){ CAMDXF(P, "ENP_CARIMBO");
     pg = pg || { n:1, total:1 };
     var x = CAR.x, y = CAR.y, w = CAR.w, h = CAR.h;
-    var V = h/62, KL = Math.min(1.6, KC);            // V: fator vertical (A3 = 1)
+    var V = h/62, KL = V;            // V: fator vertical (A3 = 1). 08/10/2026: colunas escalam igual à altura (proporções do carimbo fixas); a coluna do título fica com a largura que sobra
     P.ret(x, y, w, h, { peso:.4 });
     // colunas: OBSERVAÇÃO | LEGENDA | RESPONSÁVEL+DATA | TÍTULO+DADOS (o título fica com a sobra).
     // A legenda ganhou largura à custa da observação; responsável e data viraram um quadro só,
@@ -22686,10 +22722,10 @@ function AV_gerarDescSituacao(){
   /* =======================================================================
      PRÉ-VISUALIZAÇÃO NO PAINEL + JANELA DA PLANTA + PDF A3
      ======================================================================= */
-  var OPC = { satelite:true, ortofoto:false, projeto:true, fixo:true, extras:true, ambiental:true, malha:true, vertices:true, rotulos:true, medidas:true, confMapa:true, cotas:true, escala:0, formato:"a3", folha:0 };
+  var OPC = { satelite:true, ortofoto:false, projeto:true, fixo:true, extras:true, ambiental:true, malha:true, vertices:true, rotulos:true, medidas:true, confMapa:true, cotas:true, perimTotal:true, escala:0, formato:"a3", folha:0 };
   var CACHE_SAT = { chave:"", url:null };
   var BARRA = [["satelite","Satélite","Imagem de satélite (Esri World Imagery)"], ["ortofoto","Ortofoto","Recorte da ortofoto do acervo (servidor) — precisa do GDAL com driver ECW"],
-               ["projeto","Projeto revisado","Camadas do projeto revisado (aterro, corte, ferrovia, rodovia, estacas…)"], ["fixo","Faixa e eixo","Faixa de domínio (verde) e eixo (laranja) do SPS, com as cotas de 40/80 m"],
+               ["projeto","Projeto revisado","Camadas do projeto revisado (aterro, corte, ferrovia, rodovia, estacas…)"], ["perimTotal","Perímetro do imóvel","Contorno total do imóvel (KML Área total), como limite de propriedade sem cerca"], ["fixo","Faixa e eixo","Faixa de domínio (verde) e eixo (laranja) do SPS, com as cotas de 40/80 m"],
                ["extras","Camadas extras","Camadas enviadas em GeoPackage/KML"],
                ["ambiental","APP e reserva legal","Reserva legal e APP do CAR, mais a APP estimada enviada em Imóvel"],
                ["malha","Malha UTM","Malha de coordenadas"], ["medidas","Medidas","Distâncias sobre os lados"],
@@ -22867,7 +22903,7 @@ function AV_gerarDescSituacao(){
     aplicarFormato(OPC.formato);
     var T = enquadrar({ escala:OPC.escala });
     var dpi = o.dpi || 200, s = dpi/25.4, transp = (o.transp == null ? 70 : o.transp);
-    var op = await preparar(T, dpi, o.aviso, { satelite:true, ortofoto:false, figura:true, opacSat:Math.max(0, Math.min(1, 1 - transp/100)) });
+    var op = await preparar(T, dpi, o.aviso, { semCotaFaixa:true, semConf:true, satelite:true, ortofoto:false, figura:true, opacSat:Math.max(0, Math.min(1, 1 - transp/100)) });
     var cv = document.createElement("canvas"); cv.width = Math.round(MAPA.w*s); cv.height = Math.round(MAPA.h*s);
     var ctx = cv.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, cv.width, cv.height);
     ctx.translate(-MAPA.x*s, -MAPA.y*s);     // o resto da folha cai fora do canvas
@@ -22941,7 +22977,7 @@ function AV_gerarDescSituacao(){
     cv.width = Math.round(MAPA.w*s); cv.height = Math.round(MAPA.h*s);
     cv.style.width = larguraCss + "px"; cv.style.height = (larguraCss*MAPA.h/MAPA.w) + "px";
     ctx.setTransform(1,0,0,1,0,0); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, cv.width, cv.height);
-    var op = await preparar(T, dpiMapa, aviso, sobre);
+    var op = await preparar(T, dpiMapa, aviso, Object.assign({ semCotaFaixa:true, semConf:true }, sobre || {}));   // quadro (Compor a planta / JPG): sem a cota de 40 m da faixa e sem o texto de confrontação
     if(cancelado && cancelado()) return null;
     ctx.setTransform(1,0,0,1,0,0); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, cv.width, cv.height);
     ctx.translate(-MAPA.x*s, -MAPA.y*s);
@@ -33829,7 +33865,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
   const figNames={};
   const FIG_META={
     f1:["Figura 1 – Vias e meio de acesso ao imóvel","Google Earth, 2026"],
-    f2:["Figura 2 – Área total do imóvel","QGIS, 2026"],
+    f2:["Figura 2 – Área total do imóvel, com a delimitação SIGEF/CAR","SIGEF/CAR, 2026"],
     f2b:["Figura 2B – Delimitação SIGEF/CAR","SIGEF/CAR, 2026"],
     f3:["Figura 3 – Área a ser desapropriada","QGIS, 2026"],
     f3b:["Figura 3B – Planta de situação da área a ser desapropriada","Autor, 2026"],
@@ -33855,7 +33891,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
      na aba Técnica — o clique funciona nos dois lugares. ========================= */
   const D2PLANTAS_FIDS = ["f1","f2","f2b","f3","f3b","f3b2","f3b3","f3b4","f3b5","f3b6","f3c","f4","f5","f6","f7"];
   // figuras que não aparecem quando vazias (3B das demais áreas) ou quando o imóvel não tem atividade agrícola (3C)
-  function figOculta(fid){ return (/^f3b[2-9]$/.test(fid) && !figs[fid]) || (fid==="f3c" && !!(document.getElementById("imv_culturas_nao")||{}).checked); }
+  function figOculta(fid){ return (/^f3b[2-9]$/.test(fid) && !figs[fid]) || (fid==="f3c" && !!(document.getElementById("imv_culturas_nao")||{}).checked) || (fid==="f2b" && !figs[fid]); }
   function D2PLANTAS_disponiveis(){ return D2PLANTAS_FIDS.filter(function(f){ return !!figs[f]; }); }
   function D2PLANTAS_renderizar(fid){
     if(!figs[fid]) return;
@@ -34604,7 +34640,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
   function figSlotHtml(fid){
     var meta=FIG_META[fid]||[fid,""], label=meta[0], has=!!figs[fid], fname=figNames[fid]||"";
     var comVisualizador = D2PLANTAS_FIDS.indexOf(fid) >= 0;
-    if(/^f3b[2-9]$/.test(fid) && !has) return '<div class="d2-figwrap" id="d2_figwrap_'+fid+'" style="display:none"></div>';
+    if((/^f3b[2-9]$/.test(fid) || fid==="f2b") && !has) return '<div class="d2-figwrap" id="d2_figwrap_'+fid+'" style="display:none"></div>';
     if(fid==="f3c" && figOculta(fid)) return '<div class="d2-figwrap" id="d2_figwrap_f3c"><p class="hint-auto" style="margin:4px 0;">🚫 Marcado em <b>Técnica › Arquivos KML do imóvel › Áreas de culturas</b>: a propriedade não possui atividade ou exploração agrícola — o laudo traz a frase padrão e esta figura não sai.</p></div>';
     var body;
     if(has){
@@ -34903,7 +34939,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
   // regra de camadas por figura (client-side disponível nesta 1ª versão marcado com *)
   var D2MAP_REGRAS = {
     f1:  { cams:['area','rota'], roteiro:true },
-    f2:  { cams:['area','faixa','cercas'] },
+    f2:  { cams:['area','faixa','sigef','car','cercas'] },
     f2b: { cams:['area','faixa','sigef','car','cercas'] },
     f3:  { cams:['area','desap','faixa','cercas','remanescente'] },
     f3c: { cams:['area','desap','culturas','faixa','cercas'] },
@@ -34917,6 +34953,8 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     area:  { nome:'Área total do imóvel',        tipo:'line', cor:'#ff1e1e', peso:4.2, sombra:true },
     desap: { nome:'Área a ser desapropriada',    tipo:'fill', cor:'#ff2a30', op:.5, peso:2, sombra:true },
     remanescente:{ nome:'Área remanescente',     tipo:'hatch',cor:'#8b2fce', op:1 },
+    benfr: { nome:'Benfeitorias reprodutivas',   tipo:'fill', cor:'#43d17a', op:.45, peso:1.6, sombra:true },
+    benfnr:{ nome:'Benfeitorias não reprodutivas',tipo:'fill', cor:'#ff4fa3', op:.45, peso:1.6, sombra:true },
     culturas:{ nome:'Áreas de culturas',         tipo:'fill', cor:'#f2b01e', op:.45, peso:1.8, sombra:true },
     faixa: { nome:'Faixa de domínio',            tipo:'faixa',cor:'#12d84a', peso:3, sombra:true },
     eixo:  { nome:'Eixo ferroviário',            tipo:'line', cor:'#ff8c1a', peso:1.8, sombra:true },
@@ -34941,6 +34979,8 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       if(cam==='vias')   return (window.IMV_get?window.IMV_get('vias').kml:'');
       if(cam==='appest') return (window.IMV_get?window.IMV_get('app').kml:'');
       if(cam==='benf')   return (window.IMV_get?window.IMV_get('benf').kml:'');
+      if(cam==='benfr')  return (window.IMV_get?window.IMV_get('benfr').kml:'');
+      if(cam==='benfnr') return (window.IMV_get?window.IMV_get('benfnr').kml:'');
       if(cam==='hidro')  return (window.IMV_get?window.IMV_get('hidro').kml:'');
       if(cam==='cercas') return (window.IMV_get?window.IMV_get('cercas').kml:'');
       if(cam==='culturas') return (window.IMV_get?window.IMV_get('culturas').kml:'');
@@ -35217,6 +35257,41 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     }
     return d;
   }
+  // quadriláteros entre cada limite da faixa de domínio e sua projeção no eixo = a faixa inteira (os dois lados); pts em unidades do desenho
+  function d2faixaQuads(lims, eixs){
+    var sg=[]; eixs.forEach(function(r){ for(var i=1;i<r.length;i++) sg.push([r[i-1],r[i]]); });
+    if(!sg.length) return [];
+    function proj(p){ var bq=null,bd=1e18; for(var k=0;k<sg.length;k++){ var a=sg[k][0],b=sg[k][1],vx=b[0]-a[0],vy=b[1]-a[1],l2=vx*vx+vy*vy,t=l2?((p[0]-a[0])*vx+(p[1]-a[1])*vy)/l2:0; t=t<0?0:(t>1?1:t); var x=a[0]+t*vx,y=a[1]+t*vy,d=(x-p[0])*(x-p[0])+(y-p[1])*(y-p[1]); if(d<bd){ bd=d; bq=[x,y]; } } return bq?{q:bq,d:Math.sqrt(bd)}:null; }
+    var ds=[], pares=[];
+    lims.forEach(function(r){ var ant=null, antP=null, pts=[];
+      for(var i=0;i<r.length;i++){ if(i){ var a=r[i-1],b=r[i]; if(!(Math.max(a[0],b[0])<-300||Math.min(a[0],b[0])>1200||Math.max(a[1],b[1])<-300||Math.min(a[1],b[1])>1200)){ var n=Math.min(400,Math.ceil(Math.hypot(b[0]-a[0],b[1]-a[1])/15)); for(var k=1;k<n;k++) pts.push([a[0]+(b[0]-a[0])*k/n,a[1]+(b[1]-a[1])*k/n]); } } pts.push(r[i]); }
+      pts.forEach(function(p){ var dentro=p[0]>-300&&p[0]<1200&&p[1]>-300&&p[1]<1200, pp=dentro?proj(p):null; if(pp) ds.push(pp.d); if(ant&&antP&&pp) pares.push([ant,p,pp.q,antP.q,Math.max(pp.d,antP.d)]); ant=p; antP=pp; });
+    });
+    ds.sort(function(a,b){ return a-b; }); var med=ds.length?ds[ds.length>>1]:0, dMax=Math.max(med*2.5,med+30);
+    return pares.filter(function(pr){ return pr[4]<=dMax; }).map(function(pr){ return [pr[0],pr[1],pr[2],pr[3]]; });
+  }
+  // KML com nomes: cada Placemark vira um item {nome, polys, lines, pts} (benfeitorias reprodutivas: o nome é o TIPO)
+  function d2mapKMLnomes(txt){
+    var out={polys:[],lines:[],pts:[],items:[]}; if(!txt) return out;
+    try{
+      var doc=new DOMParser().parseFromString(txt,'application/xml');
+      function C(el){ var c=el&&el.getElementsByTagName('coordinates')[0]; if(!c) return []; return c.textContent.trim().split(/\s+/).map(function(t){ var q=t.split(','); return [parseFloat(q[0]),parseFloat(q[1])]; }).filter(function(q){ return isFinite(q[0])&&isFinite(q[1]); }); }
+      Array.prototype.forEach.call(doc.getElementsByTagName('Placemark'),function(pm){
+        var nm=((pm.getElementsByTagName('name')[0]||{}).textContent||'').trim(), it={nome:nm,polys:[],lines:[],pts:[]};
+        Array.prototype.forEach.call(pm.getElementsByTagName('Polygon'),function(pg){ var r=C(pg.getElementsByTagName('outerBoundaryIs')[0]||pg); if(r.length>2) it.polys.push(r); });
+        Array.prototype.forEach.call(pm.getElementsByTagName('LineString'),function(ls){ var r=C(ls); if(r.length>1) it.lines.push(r); });
+        Array.prototype.forEach.call(pm.getElementsByTagName('Point'),function(pt){ var r=C(pt); if(r.length) it.pts.push(r[0]); });
+        if(it.polys.length||it.lines.length||it.pts.length){ out.items.push(it); out.polys=out.polys.concat(it.polys); out.lines=out.lines.concat(it.lines); out.pts=out.pts.concat(it.pts); }
+      });
+    }catch(e){}
+    return out;
+  }
+  var D2_PAL=['#43d17a','#f2e205','#ff9f1c','#2ec4b6','#e71d36','#9b5de5','#00bbf9','#f15bb5'];
+  // cor de cada tipo (reprodutivas: uma cor por nome, na ordem em que aparecem; não reprodutivas: a cor do estilo)
+  function d2benfCores(g, cam){
+    var m={}, n=0; ((g&&g.items)||[]).forEach(function(it){ var k=it.nome||'Sem nome'; if(m[k]==null){ m[k]=(cam==='benfr')?D2_PAL[n%D2_PAL.length]:D2MAP_EST.benfnr.cor; n++; } });
+    return m;
+  }
   function d2mapSVG(o){
     var mapL=18,mapT=30,mapR=882,mapB=719,mapW=mapR-mapL,mapH=mapB-mapT;   // 29/09/2026: mapa de margem a margem (900×889; altura do quadro 1,3× a de 900×730) — figura 160×158 mm
     var base=o.base, bb=o.bb;
@@ -35265,6 +35340,16 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     (o.camadas||[]).forEach(function(cm){
       var e=D2MAP_EST[cm.cam]||{}, g=cm.geom;
       var sh=e.sombra?' filter="url(#d2sh)"':'';   // sombra projetada (propriedade "Sombra" do estilo da camada)
+      if(cm.cam==='benfr'||cm.cam==='benfnr'){
+        var cor0=d2benfCores(g,cm.cam), rot0=[];
+        (g.items||[]).forEach(function(it){ var cc=cor0[it.nome||'Sem nome']||e.cor;
+          it.polys.forEach(function(r){ s+='<polygon points="'+polyStr(r)+'" fill="'+cc+'" fill-opacity="'+(e.op||.45)+'" stroke="'+cc+'" stroke-width="'+(e.peso||1.6)+'"'+sh+'/>'; var cx=0,cy=0; r.forEach(function(p){ cx+=p[0]; cy+=p[1]; }); var q=PX(cx/r.length,cy/r.length); rot0.push([q[0],q[1],it.nome]); });
+          it.lines.forEach(function(r){ s+='<polyline points="'+polyStr(r)+'" fill="none" stroke="'+cc+'" stroke-width="'+((e.peso||1.6)+1.4)+'" stroke-linecap="round"'+sh+'/>'; var m0=r[r.length>>1], q=PX(m0[0],m0[1]); rot0.push([q[0],q[1],it.nome]); });
+          it.pts.forEach(function(p){ var q=PX(p[0],p[1]); s+='<circle cx="'+q[0].toFixed(1)+'" cy="'+q[1].toFixed(1)+'" r="6" fill="'+cc+'" stroke="#fff" stroke-width="1.8"'+sh+'/>'; rot0.push([q[0],q[1]+16,it.nome]); });
+        });
+        rot0.forEach(function(t){ if(t[2] && t[0]>mapL+20 && t[0]<mapR-20 && t[1]>mapT+14 && t[1]<mapB-10) s+=TH(t[0],t[1],t[2],{size:11,weight:'700',fill:'#ffffff',halo:3}); });
+        return;
+      }
       if(e.tipo==='fill'){
         (g.polys||[]).forEach(function(r){ s+='<polygon points="'+polyStr(r)+'" fill="'+e.cor+'" fill-opacity="'+(e.op||.4)+'" stroke="'+e.cor+'" stroke-width="'+(e.peso||1.6)+'"'+(e.dash?' stroke-dasharray="'+e.dash+'"':'')+sh+'/>'; });
       } else if(e.tipo==='line'){
@@ -35282,7 +35367,15 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
         var patId='d2hatch_'+cm.cam;
         s+='<pattern id="'+patId+'" width="9" height="9" patternTransform="rotate(45)" patternUnits="userSpaceOnUse"><line x1="0" y1="0" x2="0" y2="9" stroke="'+e.cor+'" stroke-width="3.2"/></pattern>';
         var hd=''; (g.outerPolys||[]).concat(g.innerPolys||[]).forEach(function(r){ hd+='M'+polyStr(r).split(' ').join('L')+'Z '; });
-        if(hd) s+='<path d="'+hd+'" fill="url(#'+patId+')" fill-opacity="'+(e.op==null?1:e.op)+'" fill-rule="evenodd" stroke="none"/>';
+        if(hd){
+          // fora a faixa de domínio: tudo entre os dois limites não é remanescente
+          var fxc=(o.camadas||[]).filter(function(c){ return c.cam==='faixa'; })[0], mk='';
+          if(fxc&&fxc.geom&&(fxc.geom.eixos||[]).length&&(fxc.geom.limites||[]).length){
+            var qd=d2faixaQuads(fxc.geom.limites.map(function(r){ return r.map(function(p){ return PX(p[0],p[1]); }); }), fxc.geom.eixos.map(function(r){ return r.map(function(p){ return PX(p[0],p[1]); }); }));
+            if(qd.length){ s+='<mask id="d2nofx" maskUnits="userSpaceOnUse" x="0" y="0" width="900" height="889"><rect x="0" y="0" width="900" height="889" fill="#fff"/>'+qd.map(function(q){ return '<polygon points="'+q.map(function(p){ return p[0].toFixed(1)+','+p[1].toFixed(1); }).join(' ')+'" fill="#000" stroke="#000" stroke-width="1.5"/>'; }).join('')+'</mask>'; mk=' mask="url(#d2nofx)"'; }
+          }
+          s+='<path d="'+hd+'" fill="url(#'+patId+')" fill-opacity="'+(e.op==null?1:e.op)+'" fill-rule="evenodd" stroke="none"'+mk+'/>';
+        }
       } else if(e.tipo==='faixa'){
         (g.limites||[]).forEach(function(r){ s+='<polyline points="'+polyStr(r)+'" fill="none" stroke="'+e.cor+'" stroke-width="'+(e.peso||3)+'"'+(e.dash?' stroke-dasharray="'+e.dash+'"':'')+' stroke-linecap="round"'+sh+'/>'; });
         var ex=D2MAP_EST.eixo||{cor:'#ff8c1a',peso:1.8};
@@ -35567,6 +35660,16 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
   }
   async function d2logo(src){ if(!src) return null; try{ var im=await d2carregarImg(src); var c=document.createElement('canvas'); c.width=im.naturalWidth; c.height=im.naturalHeight; c.getContext('2d').drawImage(im,0,0); return c.toDataURL('image/png'); }catch(e){ return null; } }
 
+  // camadas que o usuário pode marcar em qualquer figura (as de KML ficam desabilitadas enquanto o KML não for inserido em Técnica › Arquivos KML do imóvel)
+  var D2MAP_CAMS=[['area','Área total do imóvel',1],['desap','Área a ser desapropriada',0],['remanescente','Área remanescente (sem a faixa de domínio)',0],['faixa','Faixa de domínio e eixo ferroviário (estacas)',0],
+    ['cercas','Cercas',1],['vias','Vias de acesso',1],['appest','APP estimada',1],['appcar','APP (CAR)',0],['rl','Reserva Legal (CAR)',0],['sigef','Parcelas SIGEF',0],['car','Imóveis do CAR',0],
+    ['hidro','Hidrografia identificada',1],['culturas','Áreas de culturas',1],['benf','Benfeitorias (camada geral)',1],['benfr','Benfeitorias reprodutivas (por tipo)',1],['benfnr','Benfeitorias não reprodutivas',1]];
+  function d2camsHtml(fid, regra){
+    var padrao=(D2MAP_TXT.cams&&D2MAP_TXT.cams[fid])||((regra.cams||[]).concat(['benf'])), h='<div class="d2m-f d2m-full"><label>Camadas do mapa — marque uma ou mais (as da figura já vêm marcadas)</label><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:4px 14px;margin-top:4px;">';
+    D2MAP_CAMS.forEach(function(c){ var tem=true; if(c[2]){ try{ tem=!!d2mapFonteKML(c[0]); }catch(e){ tem=false; } }
+      h+='<label style="display:flex;gap:7px;align-items:center;font-size:12.5px;font-weight:600;'+(tem?'':'opacity:.45;')+'"><input type="checkbox" id="d2map_cam_'+c[0]+'"'+(padrao.indexOf(c[0])>=0&&tem?' checked':'')+(tem?'':' disabled')+'> '+d2esc(c[1])+(tem?'':' <i style="font-weight:400">(sem KML)</i>')+'</label>'; });
+    return h+'</div></div>';
+  }
   window.D2MAP_abrir=async function(fid){
     var regra=D2MAP_REGRAS[fid];
     var meta=FIG_META[fid]||[fid,''];
@@ -35601,6 +35704,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     h+= fld('Base do mapa', sel('d2map_base',[['orto','Ortofoto do acervo + satélite'],['sat','Satélite Esri']],D2MAP_TXT.base||'orto'))
       + fld('Transparência da imagem', sel('d2map_transp',[[0,'0% (opaca)'],[25,'25%'],[50,'50%'],[75,'75%'],[100,'100% (sem imagem)']],D2MAP_TXT.transp==null?25:D2MAP_TXT.transp))
       + fld('Mapa de localização (PE)', sel('d2map_loclado',[['esq','Lado esquerdo'],['dir','Lado direito']],D2MAP_TXT.locLado||'esq'))
+      + (rot ? '' : d2camsHtml(fid, regra))
       +'</div>'
       +'<div id="d2map_status" class="d2m-st" role="status" aria-live="polite"></div>'
       +'<div id="d2map_prev" class="d2m-prev"></div>'
@@ -35617,12 +35721,15 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       D2MAP_TXT.transp=parseInt(v('d2map_transp'),10); if(isNaN(D2MAP_TXT.transp)) D2MAP_TXT.transp=25;
       D2MAP_TXT.locLado=v('d2map_loclado')||'esq';
       st('Lendo camadas do imóvel…');
-      var need={}; (regra.cams||[]).forEach(function(c){ need[c]=true; });
+      var need={};
+      if(rot){ (regra.cams||[]).forEach(function(c){ need[c]=true; }); }
+      else{ D2MAP_CAMS.forEach(function(c){ var cb=document.getElementById('d2map_cam_'+c[0]); if(cb && cb.checked && !cb.disabled) need[c[0]]=true; }); D2MAP_TXT.cams=D2MAP_TXT.cams||{}; D2MAP_TXT.cams[fid]=Object.keys(need); }
       var geom={}, pinos=[], falhou=[];   // cam -> geometria
       // ---- camadas client-side (KML) ----
       ['area','desap','vias','appest','hidro','cercas','culturas'].forEach(function(cam){ if(!need[cam]) return; var g=d2mapKML(d2mapFonteKML(cam)); if(g.polys.length+g.lines.length+g.pts.length) geom[cam]=g; });
-      if(fid==='f3c' && !geom.culturas){ st('Insira o KML de "Áreas de culturas" em Técnica › Arquivos KML do imóvel (ou marque que a propriedade não possui atividade agrícola).'); return; }
-      if(!rot){ var gb=d2mapKML(d2mapFonteKML('benf')); if(gb.pts.length||gb.polys.length) geom.benf=gb; }
+      if(fid==='f3c' && need.culturas && !geom.culturas){ st('Insira o KML de "Áreas de culturas" em Técnica › Arquivos KML do imóvel (ou marque que a propriedade não possui atividade agrícola).'); return; }
+      if(!rot && need.benf){ var gb=d2mapKML(d2mapFonteKML('benf')); if(gb.pts.length||gb.polys.length) geom.benf=gb; }
+      ['benfr','benfnr'].forEach(function(c){ if(!need[c]) return; var gn=d2mapKMLnomes(d2mapFonteKML(c)); if(gn.items.length) geom[c]=gn; });
       // camada derivada: área remanescente = área total do imóvel MENOS a área desapropriada
       if(need.remanescente && geom.area && geom.area.polys.length && geom.desap && geom.desap.polys.length){
         geom.remanescente={ outerPolys:geom.area.polys, innerPolys:geom.desap.polys, polys:[], lines:[], pts:[] };
@@ -35691,11 +35798,12 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       // metros de cerca dentro da área desapropriada
       var metrosCerca=null;
       if(geom.cercas){ var dpz=d2mapKML(d2mapFonteKML('desap')); if(dpz.polys.length) metrosCerca=d2metrosDentro(geom.cercas.lines.concat(geom.cercas.polys), dpz.polys); }
-      var ORDER=['sigef','car','rl','appcar','appest','culturas','drenagem','hidro','faixa','area','remanescente','vias','rota','desap','cercas','benf'];
+      var ORDER=['sigef','car','rl','appcar','appest','culturas','drenagem','hidro','faixa','area','remanescente','vias','rota','desap','cercas','benf','benfr','benfnr'];
       var camadas=[], legend=[];
       ORDER.forEach(function(cam){ if(!geom[cam]) return; var est=D2MAP_EST[cam]||{}; camadas.push({cam:cam,geom:geom[cam]});
         if(cam==='faixa'){ legend.push({nome:est.nome,tipo:'line',cor:est.cor,peso:est.peso,dash:est.dash}); if(geom.faixa.eixos&&geom.faixa.eixos.length){ var ex=D2MAP_EST.eixo; legend.push({nome:ex.nome,tipo:'line',cor:ex.cor,peso:ex.peso,dash:ex.dash,tracos:true}); } }
         else if(cam==='cercas'){ legend.push({nome:est.nome+(metrosCerca!=null?(' — '+d2fmtM(metrosCerca)+' m (área desapr.)'):''),tipo:'line',cor:est.cor,peso:est.peso,dash:est.dash}); }
+        else if(cam==='benfr'){ var cb0=d2benfCores(geom.benfr,'benfr'); Object.keys(cb0).forEach(function(n){ legend.push({nome:'Benf. reprodutiva — '+n,tipo:'fill',cor:cb0[n]}); }); }
         else legend.push({nome:est.nome,tipo:est.tipo,cor:est.cor,peso:est.peso,dash:est.dash});
       });
       if(pinos.length){ var ep=D2MAP_EST.pino; legend.push({nome:ep.nome,tipo:'pino',cor:ep.cor}); }
@@ -37739,8 +37847,10 @@ window.__ASSIN_DESENHISTA__ = {"andrezza": {"w": 460, "h": 164, "src": "data:ima
     { k:"hidro", rot:"Hidrografia", tipo:"linha", dados:"imv_kml_hidro_dados", file:function(){ return document.querySelector('input[data-imvfile="hidro"]'); }, re:/hidro|\brio\b|c[oó]rrego|[aá]gua|nascente|drenagem|ribeir/i },
     { k:"cercas", rot:"Cercas", tipo:"linha", dados:"imv_kml_cercas_dados", file:function(){ return document.querySelector('input[data-imvfile="cercas"]'); }, re:/cerca/i },
     { k:"culturas", rot:"Áreas de culturas", tipo:"poligono", dados:"imv_kml_culturas_dados", file:function(){ return document.querySelector('input[data-imvfile="culturas"]'); }, re:/cultur|lavoura|plantio|plantaç|plantac|agr[ií]col|cultivo|roça|roca/i }
+    ,{ k:"benfnr", rot:"Benfeitorias não reprodutivas", tipo:"misto", dados:"imv_kml_benfnr_dados", file:function(){ return document.querySelector('input[data-imvfile="benfnr"]'); }, re:/n[aã]o[_\s-]*reprodut|n[_\s-]*reprodut|nreprod/i },
+    { k:"benfr", rot:"Benfeitorias reprodutivas", tipo:"misto", dados:"imv_kml_benfr_dados", file:function(){ return document.querySelector('input[data-imvfile="benfr"]'); }, re:/reprodut|pomar|fruteira|lavoura permanente/i }
   ];
-  var ORDEM_NOME = ["culturas", "cercas", "benf", "hidro", "app", "vias", "desap", "area"];
+  var ORDEM_NOME = ["culturas", "benfnr", "benfr", "cercas", "benf", "hidro", "app", "vias", "desap", "area"];
 
   /* ---------- análise de KML ---------- */
   function analisa(txt){
