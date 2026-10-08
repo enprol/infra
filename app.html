@@ -33158,11 +33158,6 @@ window.DRL_gerarPDF=async function(opts){
     if(s.tipo === "campos" || s.tipo === "resp"){
       corpo = '<div class="cf-grid">' + camposDaSecao(f, s.sec).map(campoHTML).join("") + '</div>';
       if(s.benf) corpo += htmlExtrasEListas(f);
-      if(s.tipo === "resp"){
-        var t = f.tecnico || {};
-        corpo += '<div class="dd-assin">' + (f.assinatura ? '<img src="' + f.assinatura + '" alt="Assinatura" style="max-height:84px;max-width:260px">' : "")
-               + '<div class="dd-assin-linha"></div><span>' + esc(t.nome || "—") + '</span>' + (t.documento ? '<small>Documento: ' + esc(t.documento) + '</small>' : "") + '</div>';
-      }
     } else if(s.tipo === "mapa"){
       var R = relEstado(f);
       corpo = '<div class="cm-bar"><button type="button" class="dd-b" data-act="ler">🔎 Ler coordenadas das fotos</button>'
@@ -33271,41 +33266,45 @@ window.DRL_gerarPDF=async function(opts){
       return 0.6;
     }
 
+    // A ficha (seções 1–4) cabe numa folha só: mede-se o conteúdo num PDF de rascunho ("modo seco") e reduz-se a escala K
+    // (fontes e espaços) até caber; só o mapa (5) e as fotos (6) começam página nova.
+    var K = 1, seco = false, paginasSeco = 1;
     function novaPagina(){
+      if(seco){ paginasSeco++; y = 24; return; }
       fazRodape(c); pdf.addPage();
       pdf.setDrawColor(31,111,192); pdf.setLineWidth(0.6); pdf.line(c.mL,18,c.W-c.mR,18);
       y = 24;
     }
     function garantir(h){ if(y + h > botY) novaPagina(); }
     function titulo(txt, size){
-      garantir(12);
-      pdf.setFont("helvetica","bold"); pdf.setFontSize(size||12.5); pdf.setTextColor(10,77,124);
+      garantir(12*K);
+      pdf.setFont("helvetica","bold"); pdf.setFontSize((size||12.5)*K); pdf.setTextColor(10,77,124);
       var ls = pdf.splitTextToSize(txt, c.RW);
-      ls.forEach(function(l){ garantir(7); pdf.text(l, c.mL, y); y += 6.4; });
-      pdf.setTextColor(0,0,0); y += 1.5;
+      ls.forEach(function(l){ garantir(7*K); pdf.text(l, c.mL, y); y += 6.4*K; });
+      pdf.setTextColor(0,0,0); y += 1.5*K;
     }
     function item(lab, v, x0, larg){
       x0 = (x0 === undefined) ? c.mL : x0;
       larg = larg || c.RW;
       var texto = val(v);
-      pdf.setFont("helvetica","bold"); pdf.setFontSize(9.2);
+      pdf.setFont("helvetica","bold"); pdf.setFontSize(9.2*K);
       var lr = pdf.splitTextToSize(String(lab), larg);
-      pdf.setFont("helvetica","normal"); pdf.setFontSize(10.2);
+      pdf.setFont("helvetica","normal"); pdf.setFontSize(10.2*K);
       var lv = pdf.splitTextToSize(texto, larg - 2);
-      var alt = lr.length*4.2 + lv.length*4.9 + 2.2;
+      var alt = lr.length*4.2*K + lv.length*4.9*K + 2.2*K;
       if(x0 === c.mL && larg === c.RW) garantir(alt);
       var yy = y;
-      pdf.setFont("helvetica","bold"); pdf.setFontSize(9.2); pdf.setTextColor(60,80,100);
-      lr.forEach(function(l){ pdf.text(l, x0, yy); yy += 4.2; });
-      pdf.setFont("helvetica","normal"); pdf.setFontSize(10.2); pdf.setTextColor(0,0,0);
-      lv.forEach(function(l){ pdf.text(l, x0 + 2, yy); yy += 4.9; });
+      pdf.setFont("helvetica","bold"); pdf.setFontSize(9.2*K); pdf.setTextColor(60,80,100);
+      lr.forEach(function(l){ pdf.text(l, x0, yy); yy += 4.2*K; });
+      pdf.setFont("helvetica","normal"); pdf.setFontSize(10.2*K); pdf.setTextColor(0,0,0);
+      lv.forEach(function(l){ pdf.text(l, x0 + 2, yy); yy += 4.9*K; });
       return alt;
     }
     function alturaDe(lab, v, larg){
-      pdf.setFont("helvetica","bold"); pdf.setFontSize(9.2);
-      var a = pdf.splitTextToSize(String(lab), larg).length * 4.2;
-      pdf.setFont("helvetica","normal"); pdf.setFontSize(10.2);
-      return a + pdf.splitTextToSize(val(v), larg - 2).length * 4.9 + 2.2;
+      pdf.setFont("helvetica","bold"); pdf.setFontSize(9.2*K);
+      var a = pdf.splitTextToSize(String(lab), larg).length * 4.2*K;
+      pdf.setFont("helvetica","normal"); pdf.setFontSize(10.2*K);
+      return a + pdf.splitTextToSize(val(v), larg - 2).length * 4.9*K + 2.2*K;
     }
     function itens(lista){                                  // campos do mesmo tópico: os curtos saem em 2 colunas
       var GAP = 8, larg = (c.RW - GAP) / 2, fila = [];
@@ -33324,6 +33323,30 @@ window.DRL_gerarPDF=async function(opts){
         else { fila.push(cp); if(fila.length === 2) despejar(); }
       });
       despejar();
+    }
+    // seções 1–4: campos (o item 4 é só nome e CPF/documento do técnico — sem linha de assinatura)
+    function secaoFicha(s){
+      titulo(s.num + " · " + s.head);
+      itens(camposDaSecao(f, s.sec).map(function(cc){ return [cc.l, textoDe(f, cc.k, cc), cc.largo]; }));
+      if(s.benf){
+        var extrasPdf = chavesExtras(f).filter(function(cam){ return temValor(getv(f, cam)); });
+        if(extrasPdf.length){
+          titulo("Demais campos", 11.5);
+          itens(extrasPdf.map(function(cam){ return [rotuloExtra(cam), textoDe(f, cam, null), false]; }));
+        }
+        ["reprodutivas","pastagem","naoReprodutivas","acessorias"].forEach(function(lista){
+          var arr = f[lista] || []; if(!arr.length) return;
+          titulo(TIT_REP[lista], 11.5);
+          arr.forEach(function(it, i){
+            garantir(12*K);
+            pdf.setFont("helvetica","bold"); pdf.setFontSize(10*K); pdf.setTextColor(23,90,192);
+            pdf.text(ROT_REP[lista] + " " + (i+1), c.mL, y); pdf.setTextColor(0,0,0); y += 5.4*K;
+            itens(CAMPOS_REP[lista].map(function(cc){ return [cc[0], it[cc[1]]]; }));
+            y += 2*K;
+          });
+        });
+      }
+      y += 2*K;
     }
     // páginas inteiras (mapa, fotos): cabeçalho completo e título centralizado, como no Relatório Fotográfico aprovado
     function paginaCheia(tit){
@@ -33349,40 +33372,23 @@ window.DRL_gerarPDF=async function(opts){
     y += 5; pdf.text("INFRA I — Levantamento de campo", c.W/2, y, {align:"center"});
     pdf.setTextColor(0,0,0); y += 10;
 
+    // ficha (1–4): escolhe a maior escala K em que ela cabe numa folha; se nem a menor couber, segue com K=0,9 em mais de uma folha
+    var fichaSecs = secoes.filter(function(x){ return x.tipo === "campos" || x.tipo === "resp"; });
+    var yIni = y, pdfReal = pdf, kUsado = 0.9, cand = [1, .95, .9, .85, .8, .75];
+    seco = true;
+    for(var ki=0; ki<cand.length; ki++){
+      K = cand[ki]; pdf = new window.jspdf.jsPDF({unit:"mm", format:"a4"}); paginasSeco = 1; y = yIni;
+      fichaSecs.forEach(secaoFicha);
+      if(paginasSeco === 1){ kUsado = K; break; }
+    }
+    seco = false; pdf = pdfReal; K = kUsado; y = yIni;
+    fichaSecs.forEach(secaoFicha);
+    K = 1;
+
     for(var si=0; si<secoes.length; si++){
       var s = secoes[si], tit = s.num + " · " + s.head;
-      if(s.tipo === "campos"){
-        var cs = camposDaSecao(f, s.sec);
-        titulo(tit);
-        itens(cs.map(function(cc){ return [cc.l, textoDe(f, cc.k, cc), cc.largo]; }));
-        if(s.benf){
-          var extrasPdf = chavesExtras(f).filter(function(cam){ return temValor(getv(f, cam)); });
-          if(extrasPdf.length){
-            titulo("Demais campos", 11.5);
-            itens(extrasPdf.map(function(cam){ return [rotuloExtra(cam), textoDe(f, cam, null), false]; }));
-          }
-          ["reprodutivas","pastagem","naoReprodutivas","acessorias"].forEach(function(lista){
-            var arr = f[lista] || []; if(!arr.length) return;
-            titulo(TIT_REP[lista], 11.5);
-            arr.forEach(function(it, i){
-              garantir(12);
-              pdf.setFont("helvetica","bold"); pdf.setFontSize(10); pdf.setTextColor(23,90,192);
-              pdf.text(ROT_REP[lista] + " " + (i+1), c.mL, y); pdf.setTextColor(0,0,0); y += 5.4;
-              itens(CAMPOS_REP[lista].map(function(cc){ return [cc[0], it[cc[1]]]; }));
-              y += 2;
-            });
-          });
-        }
-      } else if(s.tipo === "resp"){
-        garantir(50);
-        titulo(tit);
-        y += 2;
-        if(f.assinatura){ try{ pdf.addImage(f.assinatura, "PNG", c.mL, y, 62, 22); }catch(e){} y += 24; } else { y += 14; }
-        pdf.setDrawColor(0,0,0); pdf.setLineWidth(0.3); pdf.line(c.mL, y, c.mL+80, y); y += 4.6;
-        pdf.setFont("helvetica","normal"); pdf.setFontSize(10); pdf.setTextColor(0,0,0);
-        pdf.text(((f.tecnico||{}).nome) || "", c.mL, y); y += 4.6;
-        if((f.tecnico||{}).documento){ pdf.setFontSize(9); pdf.setTextColor(90,107,124); pdf.text("Documento: " + f.tecnico.documento, c.mL, y); y += 4; pdf.setTextColor(0,0,0); }
-        y += 4;
+      if(s.tipo === "campos" || s.tipo === "resp"){
+        continue;
       } else if(s.tipo === "mapa"){
         var pts = pontosFotos(f);
         if(!pts.length) continue;
