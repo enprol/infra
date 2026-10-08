@@ -21001,6 +21001,7 @@ function AV_gerarDescSituacao(){
   }
 
   /* ---- quilometragem: projeção perpendicular dos vértices no eixo (estacas do projeto revisado) ---- */
+  var COTA_FAIXA_ATIVA = false;   // 08/10/2026: cota de 40/80 m da faixa de domínio e o texto "FAIXA DE DOMÍNIO" retirados por ora
   function kmTxt(ch){
     var km = Math.floor(ch/1000 + 1e-9), m = ch - km*1000;
     var s = m.toFixed(2).replace(".", ","); if(s.length < 6) s = "0".repeat(6 - s.length) + s;
@@ -21022,6 +21023,47 @@ function AV_gerarDescSituacao(){
       if(!melhor || d < melhor.d) melhor = { d:d, ch:K[i].ch + t*100, off:((E - px)*(-dy) + (N - py)*dx)/Math.sqrt(L2), px:px, py:py };
     }
     return melhor ? { ch:melhor.ch, off:melhor.off, px:melhor.px, py:melhor.py } : null;
+  }
+  /* Eixo REAL (polilinha desenhada) calibrado pelas estacas: cada estaca é projetada na polilinha (comprimento de arco s) e o
+     chainage de qualquer ponto vem da interpolação linear s -> ch entre estacas vizinhas (fora do vão, inclinação ±1). */
+  function eixoCalibrado(K, fixo){
+    if(!K || !fixo || !fixo.eixos || !fixo.eixos.length) return null;
+    var out = [];
+    fixo.eixos.forEach(function(pts){
+      if(!pts || pts.length < 2) return;
+      var cum = [0]; for(var i = 1; i < pts.length; i++) cum.push(cum[i-1] + Math.hypot(pts[i][0] - pts[i-1][0], pts[i][1] - pts[i-1][1]));
+      var E = { pts:pts, cum:cum };
+      var mp = [];
+      K.forEach(function(k){ var r = projEixo(E, k.E, k.N); if(r && r.d < 8 && !r.ponta) mp.push([r.s, k.ch]); });
+      mp.sort(function(a, b){ return a[0] - b[0]; });
+      if(mp.length < 2) return;
+      E.mp = mp; out.push(E);
+    });
+    return out.length ? out : null;
+  }
+  function projEixo(E, px, py){
+    var best = null, pts = E.pts;
+    for(var i = 1; i < pts.length; i++){
+      var ax = pts[i-1][0], ay = pts[i-1][1], dx = pts[i][0] - ax, dy = pts[i][1] - ay, L2 = dx*dx + dy*dy; if(!L2) continue;
+      var t = ((px - ax)*dx + (py - ay)*dy)/L2, tc = Math.max(0, Math.min(1, t));
+      var qx = ax + tc*dx, qy = ay + tc*dy, d = Math.hypot(px - qx, py - qy);
+      if(!best || d < best.d) best = { d:d, s:E.cum[i-1] + tc*Math.sqrt(L2), qx:qx, qy:qy, dx:dx, dy:dy, L:Math.sqrt(L2), ponta:((i === 1 && t < 0) || (i === pts.length - 1 && t > 1)) };
+    }
+    return best;
+  }
+  function chDeArco(mp, s){
+    var n = mp.length, sg;
+    if(s <= mp[0][0]){ sg = (mp[1][1] - mp[0][1]) >= 0 ? 1 : -1; return mp[0][1] + sg*(s - mp[0][0]); }
+    if(s >= mp[n-1][0]){ sg = (mp[n-1][1] - mp[n-2][1]) >= 0 ? 1 : -1; return mp[n-1][1] + sg*(s - mp[n-1][0]); }
+    for(var i = 1; i < n; i++) if(s <= mp[i][0]){ var f = (s - mp[i-1][0])/(mp[i][0] - mp[i-1][0]); return mp[i-1][1] + f*(mp[i][1] - mp[i-1][1]); }
+    return null;
+  }
+  function kmEixoReal(EJ, E, N){
+    var melhor = null;
+    EJ.forEach(function(ej){ var r = projEixo(ej, E, N); if(r && !r.ponta && (!melhor || r.d < melhor.r.d)) melhor = { r:r, ej:ej }; });
+    if(!melhor) return null;
+    var r = melhor.r, ch = chDeArco(melhor.ej.mp, r.s); if(ch == null) return null;
+    return { ch:ch, off:((E - r.qx)*(-r.dy) + (N - r.qy)*r.dx)/r.L, px:r.qx, py:r.qy };
   }
   function distPolilinha(pts, E, N){
     var m = Infinity;
@@ -21050,8 +21092,9 @@ function AV_gerarDescSituacao(){
   }
   function calcularKm(grupo, fixo, vs){
     var K = estacasUtm(grupo); if(!K || !G) return null;
+    var EJ = eixoCalibrado(K, fixo);   // eixo real (polilinha desenhada); sem ele, cai na corda entre estacas
     var v = (vs || G.v).map(function(p){
-      var r = kmEixo(K, p.E, p.N); if(!r) return { ch:null };
+      var r = (EJ && kmEixoReal(EJ, p.E, p.N)) || kmEixo(K, p.E, p.N); if(!r) return { ch:null };
       var dFD = Infinity;
       if(fixo) fixo.limites.forEach(function(l){ var d = distPolilinha(l, p.E, p.N); if(d < dFD) dFD = d; });
       return { ch:r.ch, off:r.off, dFD:dFD, noLim:dFD <= 1.2, px:r.px, py:r.py };
@@ -22333,7 +22376,7 @@ function AV_gerarDescSituacao(){
       if(op.confMapa !== false && !op.semConf) desenharConfrontantesMapa(P, T, pol, caixasRot, cs);
       if(!umSo && op.km) desenharKmEixo(P, T, pol, caixasRot);
     }
-    if(op.fixo && op.fixoDados && !op.semCotaFaixa) desenharCotasFaixa(P, T, op.fixoDados);
+    if(COTA_FAIXA_ATIVA && op.fixo && op.fixoDados && !op.semCotaFaixa) desenharCotasFaixa(P, T, op.fixoDados);
     if(op.cotas !== false){ desenharCotas(P, T); desenharLeaders(P, T); }
     P.clipOff();
 
@@ -22515,7 +22558,8 @@ function AV_gerarDescSituacao(){
     // colunas: OBSERVAÇÃO | LEGENDA | RESPONSÁVEL+DATA | TÍTULO+DADOS (o título fica com a sobra).
     // A legenda ganhou largura à custa da observação; responsável e data viraram um quadro só,
     // porque a data é a da própria assinatura.
-    var c1 = x + 66*KL, c2 = c1 + 84*KL, c3 = c2 + 68*KL;
+    var extraW = Math.max(0, w - 408*V);   // formato largo: o que sobra vira vazio na coluna OBSERVAÇÃO — nenhum campo estica
+    var c1 = x + 66*KL + extraW, c2 = c1 + 84*KL, c3 = c2 + 68*KL;
     [c1, c2, c3].forEach(function(cx){ P.linha(cx, y, cx, y + h, { peso:.25 }); });
     var hcab = 6.6;                                   // altura do cabeçalho, igual em todas as colunas
     function tit(tx, ty, t){ P.texto(tx + 1.8, ty + 4.4, t, { tam:6.9, bold:true }); }
