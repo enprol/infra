@@ -13815,14 +13815,23 @@ window.FOTO_rodapeHTML=rodapeHTML;
       return await out.save();
     });
   };
+  // nome do arquivo salvo: CTD_<código>_memorial_de_calculo_e_anexos.pdf (ex.: CTD_001_..., CTD_006A_..., CTD_002-CP_...)
+  function nomeArqMemorial(){
+    const at = window.__CAD_ATUAL || {};
+    const cod = function(v){ const r = String(v||"").match(/CTD\s*([A-Za-z0-9]+(?:[-.\/][A-Za-z0-9]+)*)/i); return r ? r[1] : ""; };
+    let c = cod(at.ctd) || cod(at.ctdCalc) || val("fb_proc_ctd");
+    c = String(c||"").replace(/^CTD\s*/i,"").replace(/[^A-Za-z0-9-]+/g,"-").replace(/^-+|-+$/g,"");
+    return "CTD_" + (c || "XX") + "_memorial_de_calculo_e_anexos.pdf";
+  }
   window.AVFTN_gerarPDF = async function(){
     const btn=document.querySelector("#panel-avaliacao-ftn .vbtn-primary");
     const orig=btn?btn.innerHTML:""; if(btn){btn.disabled=true; btn.innerHTML="⏳ Gerando documento...";}
     try{
       const bytes = await window.AVFTN_buildBytes();
       const blob = new Blob([bytes],{type:"application/pdf"});
-      if(window.FS_salvar) await window.FS_salvar(blob, "Avaliacao_da_Terra_Nua.pdf");
-      else { const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="Avaliacao_da_Terra_Nua.pdf"; document.body.appendChild(a); a.click(); a.remove(); }
+      const nomeArq = nomeArqMemorial();
+      if(window.FS_salvar) await window.FS_salvar(blob, nomeArq);
+      else { const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=nomeArq; document.body.appendChild(a); a.click(); a.remove(); }
     }catch(err){ console.error(err); alert("Erro ao gerar o PDF: "+err.message); }
     if(btn){btn.disabled=false; btn.innerHTML=orig;}
   };
