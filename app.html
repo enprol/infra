@@ -37420,8 +37420,12 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     if(focoTitulo){ var t=main.querySelector('.dd-tit[data-id="'+focoTitulo+'"]'); if(t){ t.scrollIntoView({block:"center"}); t.focus(); try{ var r=document.createRange(); r.selectNodeContents(t); var s=getSelection(); s.removeAllRanges(); s.addRange(r); }catch(e){} } }
   }
   window.D2DOC_render=D2DOC_render;
-  function D2DOC_visivel(){ var b=document.getElementById("d2doc"); return !!(b && b.style.display!=="none"); }
-  function D2DOC_renderSeVisivel(){ if(D2DOC_visivel()) D2DOC_render(); }
+  // 09/10/2026: "visível" = bloco em modo Conteúdo E painel da DESP-2 aberto. Fechado, só marca pendente e desenha ao abrir a aba
+  // (abrir o CTD 014 redesenhava o relatório inteiro ~2,8 s com a DESP-2 fechada).
+  var _d2docPend = false;
+  function D2DOC_visivel(){ var b=document.getElementById("d2doc"); if(!(b && b.style.display!=="none")) return false; var p=b.closest(".tab-panel"); return !p || p.classList.contains("ativa"); }
+  function D2DOC_renderSeVisivel(){ if(D2DOC_visivel()){ _d2docPend=false; D2DOC_render(); } else _d2docPend=true; }
+  document.addEventListener("click", function(){ if(_d2docPend) setTimeout(function(){ if(_d2docPend && D2DOC_visivel()){ _d2docPend=false; D2DOC_render(); } }, 0); }, true);
   function D2DOC_navAtualizar(){ var n=document.getElementById("d2doc_nav"); if(n) n.innerHTML=docNavHtml(D2_topicosDoc(true)); }
   // figuras chegam por vários caminhos (upload, mapa automático, abrir cadastro) — todos passam por aplicarFig
   var _aplicarFigOrig=aplicarFig;
