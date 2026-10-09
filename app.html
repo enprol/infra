@@ -20807,11 +20807,12 @@ function AV_gerarDescSituacao(){
         o = o || {}; var pt = o.tam || 2;
         ctx.save();
         ctx.fillStyle = o.cor || COR.carimbo;
-        ctx.font = (o.bold ? "700 " : "") + (pt/72*25.4*s).toFixed(2) + "px " + (o.mono ? "ui-monospace,Menlo,Consolas,monospace" : "Arial,Helvetica,sans-serif");
+        ctx.font = (o.ital ? "italic " : "") + (o.bold ? "700 " : "") + (pt/72*25.4*s).toFixed(2) + "px " + (o.mono ? "ui-monospace,Menlo,Consolas,monospace" : (o.fam === "mono" ? "'Courier New',Courier,monospace" : (o.fam === "serif" ? "'Times New Roman',Times,serif" : "Arial,Helvetica,sans-serif")));
         ctx.textAlign = o.align === "center" ? "center" : (o.align === "right" ? "right" : "left");
         ctx.textBaseline = "alphabetic";
         ctx.translate(x*s, y*s);
         if(o.rot) ctx.rotate(-o.rot*Math.PI/180);
+        if(o.escX && o.escX !== 1) ctx.scale(o.escX, 1);
         if(o.halo){ ctx.strokeStyle = "#fff"; ctx.lineWidth = 2.6*(pt/72*25.4*s)/10; ctx.lineJoin = "round"; ctx.strokeText(txt, 0, 0); }
         ctx.fillText(txt, 0, 0);
         ctx.restore();
@@ -20849,18 +20850,19 @@ function AV_gerarDescSituacao(){
       circ: function(x,y,r,o){ estilo(o); pdf.circle(x,y,r,(o&&o.fill)?"FD":"S"); limpar(); },
       texto: function(x,y,txt,o){
         o = o || {}; txt = String(txt);
-        pdf.setFont("helvetica", o.bold ? "bold" : "normal"); pdf.setFontSize(o.tam || 2);
+        pdf.setFont(o.fam === "serif" ? "times" : (o.fam === "mono" ? "courier" : "helvetica"), (o.bold && o.ital) ? "bolditalic" : (o.bold ? "bold" : (o.ital ? "italic" : "normal"))); pdf.setFontSize(o.tam || 2);
         // o alinhamento do jsPDF ignora a rotação: calcula o ponto inicial ao longo da linha de base
-        var rot = o.rot || 0, tw = (o.align === "center" || o.align === "right") ? pdf.getTextWidth(txt) : 0;
+        var ex = o.escX || 1, rot = o.rot || 0, tw = (o.align === "center" || o.align === "right") ? pdf.getTextWidth(txt)*ex : 0;
         var desloc = o.align === "center" ? tw/2 : (o.align === "right" ? tw : 0), r = rot*Math.PI/180;
         var sx = x - Math.cos(r)*desloc, sy = y + Math.sin(r)*desloc, op = rot ? { angle:rot } : {};
+        var tz = function(v){ if(ex !== 1 && pdf.internal && pdf.internal.write) pdf.internal.write(v.toFixed(2) + " Tz"); };   // escala horizontal do texto (o jsPDF 2.5 ignora horizontalScale)
         if(o.halo){
           pdf.setDrawColor(255,255,255); pdf.setLineWidth((o.tam || 2)*.3528*.24);
           if(pdf.setLineJoin) pdf.setLineJoin("round");
-          pdf.text(txt, sx, sy, Object.assign({ renderingMode:"stroke" }, op));
+          tz(ex*100); pdf.text(txt, sx, sy, Object.assign({ renderingMode:"stroke" }, op)); tz(100);
         }
         var c = hex(o.cor || COR.carimbo); pdf.setTextColor(c[0],c[1],c[2]);
-        pdf.text(txt, sx, sy, op);
+        tz(ex*100); pdf.text(txt, sx, sy, op); tz(100);
       },
       largura: function(txt, o){ o = o||{}; pdf.setFont("helvetica", o.bold?"bold":"normal"); pdf.setFontSize(o.tam||2); return pdf.getTextWidth(String(txt)); },
       img: function(el,x,y,w,h,o){
@@ -22566,7 +22568,7 @@ function AV_gerarDescSituacao(){
   function dxfParse(txt){
     var L = txt.split(/\r\n|\r|\n/), P = [];
     for(var i = 0; i + 1 < L.length; i += 2){ var c = parseInt(L[i], 10); if(isNaN(c)) continue; P.push([c, L[i+1].replace(/\s+$/, "")]); }
-    var layers = {}, blocks = {}, ents = [], sec = null, j = 0, ltypes = {}, ltscale = 1;
+    var layers = {}, blocks = {}, ents = [], sec = null, j = 0, ltypes = {}, ltscale = 1, styles = {}, hdr = { DIMASZ:.18, DIMSCALE:1, DIMTXT:.18 };
     function lerEnt(){                                   // P[j] = [0, TIPO]; devolve {t, g:[[c,v]...]} e avança j
       var e = { t:P[j][1], g:[] }; j++;
       while(j < P.length && P[j][0] !== 0){ e.g.push(P[j]); j++; }
@@ -22582,6 +22584,12 @@ function AV_gerarDescSituacao(){
       if(p[0] === 0 && p[1] === "SECTION"){ sec = (P[j+1] || [])[1]; j += 2; continue; }
       if(p[0] === 0 && p[1] === "ENDSEC"){ sec = null; j++; continue; }
       if(p[0] === 0 && p[1] === "EOF") break;
+      if(sec === "HEADER" && p[0] === 9 && /^\$(DIMASZ|DIMSCALE|DIMTXT)$/.test(p[1])){ var hv = P[j+1]; if(hv && hv[0] === 40 && +hv[1] > 0) hdr[p[1].slice(1)] = +hv[1]; j += 2; continue; }
+      if(sec === "TABLES" && p[0] === 0 && p[1] === "STYLE"){                       // estilos de texto: fonte, altura fixa, largura, inclinação
+        var sty = lerEnt(), sn = "", so = { font:"", h:0, wf:1, obl:0 };
+        sty.g.forEach(function(q){ if(q[0] === 2) sn = q[1]; else if(q[0] === 3) so.font = q[1]; else if(q[0] === 40) so.h = +q[1]; else if(q[0] === 41) so.wf = +q[1] || 1; else if(q[0] === 50) so.obl = +q[1]; else if(q[0] === 1000 && !so.font) so.font = q[1]; });
+        if(sn) styles[sn.toUpperCase()] = so; continue;
+      }
       if(sec === "HEADER" && p[0] === 9 && p[1] === "$LTSCALE"){ var lv = P[j+1]; if(lv && lv[0] === 40 && +lv[1] > 0) ltscale = +lv[1]; j += 2; continue; }
       if(sec === "TABLES" && p[0] === 0 && p[1] === "LTYPE"){                     // tipos de linha: comprimentos (49) — + traço, − espaço, 0 ponto
         var lt = lerEnt(), ln = "", el = []; lt.g.forEach(function(q){ if(q[0] === 2) ln = q[1]; else if(q[0] === 49) el.push(+q[1]); });
@@ -22648,6 +22656,7 @@ function AV_gerarDescSituacao(){
     function add0(pr, tf, layer, cor, lw){
       pr.layer = layer; pr.cor = cor; pr.lw = lw;
       if(pr.pts) pr.pts = pr.pts.map(function(q){ return tf(q[0], q[1]); });
+      if(pr.k === "T" && pr.fit) pr.fit = tf(pr.fit[0], pr.fit[1]);
       if(pr.k === "T"){ var q = tf(pr.x, pr.y), q2 = tf(pr.x + Math.cos(pr.rot*Math.PI/180)*pr.h, pr.y + Math.sin(pr.rot*Math.PI/180)*pr.h), q3 = tf(pr.x, pr.y + pr.h);
         pr.x = q[0]; pr.y = q[1]; pr.rot = Math.atan2(q2[1] - q[1], q2[0] - q[0])*180/Math.PI; pr.h = Math.hypot(q3[0] - q[0], q3[1] - q[1]); }
       var b = [1e18, 1e18, -1e18, -1e18], acc = function(x, y){ if(x < b[0]) b[0] = x; if(y < b[1]) b[1] = y; if(x > b[2]) b[2] = x; if(y > b[3]) b[3] = y; };
@@ -22692,17 +22701,24 @@ function AV_gerarDescSituacao(){
         if(t === "3DFACE") add({ k:"L", pts:c4.concat([c4[0]]) }, tf, layer, cor, lw); else add({ k:"F", pts:c4 }, tf, layer, cor, lw); }
       else if(t === "POINT"){ var px = g1(e,10,0), py = g1(e,20,0); add({ k:"L", pts:[[px - .15, py], [px + .15, py]] }, tf, layer, cor, lw); }
       else if(t === "TEXT" || t === "ATTRIB"){ if(t === "ATTRIB" && (g1(e, 70, 0) & 1)) return;
-        var ha = g1(e, 72, 0), va = g1(e, 73, t === "ATTRIB" ? g1(e, 74, 0) : 0), usa2 = (ha || va) && ha !== 3 && ha !== 5;
+        var ha = g1(e, 72, 0), va = g1(e, 73, t === "ATTRIB" ? g1(e, 74, 0) : 0), usa2 = (ha || va) && ha !== 3 && ha !== 5, sty = styles[String(s1(e, 7, "STANDARD")).toUpperCase()] || {};
         var tx = usa2 ? g1(e, 11, g1(e, 10, 0)) : g1(e, 10, 0), ty = usa2 ? g1(e, 21, g1(e, 20, 0)) : g1(e, 20, 0), tv = dxfLimpaTxt(s1(e, 1, ""));
-        if(tv.trim()) add({ k:"T", x:X(tx), y:ty, h:g1(e, 40, 2.5), rot:g1(e, 50, 0), txt:tv, ha:(ha === 4 ? 1 : (ha > 2 ? 0 : ha)), va:(ha === 4 ? 2 : va) }, tf, layer, cor, lw); }
+        var fitP = (ha === 3 || ha === 5) ? [X(g1(e, 11, tx)), g1(e, 21, ty)] : null;
+        if(tv.trim()) add({ k:"T", x:X(tx), y:ty, h:g1(e, 40, 0) || sty.h || 2.5, rot:g1(e, 50, 0), txt:tv, ha:(ha === 4 ? 1 : (ha > 2 ? 0 : ha)), va:(ha === 4 ? 2 : va),
+          font:sty.font || "", wf:g1(e, 41, sty.wf || 1), obl:g1(e, 51, sty.obl || 0), fit:fitP, modo:(ha === 3 ? "aligned" : (ha === 5 ? "fit" : "")) }, tf, layer, cor, lw); }
       else if(t === "MTEXT"){ var mt = "", mx2 = 1, my2 = 0, temDir = false;
         e.g.forEach(function(q){ if(q[0] === 3) mt += q[1]; else if(q[0] === 11){ mx2 = +q[1]; temDir = true; } else if(q[0] === 21) my2 = +q[1]; }); mt += s1(e, 1, "");
-        var att = g1(e, 71, 1), rt = temDir ? Math.atan2(my2, mx2)*180/Math.PI : g1(e, 50, 0), hm = g1(e, 40, 2.5), lin = dxfLimpaTxt(mt).split("\n"), passoL = hm*1.6;
+        var msty = styles[String(s1(e, 7, "STANDARD")).toUpperCase()] || {}, mW = /\\W([0-9.]+)/.exec(mt), mQ = /\\Q(-?[0-9.]+)/.exec(mt), mWf = mW ? (+mW[1] || 1) : (msty.wf || 1), mObl = mQ ? +mQ[1] : (msty.obl || 0);
+        var att = g1(e, 71, 1), rt = temDir ? Math.atan2(my2, mx2)*180/Math.PI : g1(e, 50, 0), hm = g1(e, 40, 0) || msty.h || 2.5, lin = dxfLimpaTxt(mt).split("\n"), passoL = hm*1.6;
         var linha = Math.floor((att - 1)/3), H = hm + (lin.length - 1)*passoL;        // 0 = topo, 1 = meio, 2 = base do bloco de texto
         var off0 = linha === 0 ? -hm : (linha === 1 ? H/2 - hm : H - hm), rr2 = rt*Math.PI/180, ix0 = X(g1(e,10,0)), iy0 = g1(e,20,0);
         lin.forEach(function(ln, k){ if(!ln.trim()) return; var off = off0 - k*passoL;
-          add({ k:"T", x:ix0 - Math.sin(rr2)*off, y:iy0 + Math.cos(rr2)*off, h:hm, rot:rt, txt:ln, ha:(att - 1)%3, va:0 }, tf, layer, cor, lw); }); }
+          add({ k:"T", x:ix0 - Math.sin(rr2)*off, y:iy0 + Math.cos(rr2)*off, h:hm, rot:rt, txt:ln, ha:(att - 1)%3, va:0, font:msty.font || "", wf:mWf, obl:mObl }, tf, layer, cor, lw); }); }
       else if(t === "HATCH"){ dxfHatch(e, tf, layer, cor, lw, op); }
+      else if(t === "LEADER"){                                                       // linhas + seta no 1º vértice
+        var lv = [], c1 = null; e.g.forEach(function(q){ if(q[0] === 10){ c1 = [+q[1], 0]; lv.push(c1); } else if(q[0] === 20 && c1) c1[1] = +q[1]; });
+        if(lv.length > 1){ add({ k:"L", pts:lv }, tf, layer, cor, lw); if(g1(e, 71, 1)) seta(lv[1], lv[0], hdr.DIMASZ*hdr.DIMSCALE, tf, layer, cor, lw); } }
+      else if(t === "MULTILEADER" || t === "MLEADER"){ dxfMLeader(e, tf, layer, cor, lw); }
       else if(t === "INSERT" || t === "DIMENSION"){
         var bnm = s1(e, 2, ""), bk = blocks[bnm]; if(!bk || prof > 8) return;
         var ix = g1(e,10,0), iy = g1(e,20,0), sx = t === "INSERT" ? g1(e,41,1) : 1, sy = t === "INSERT" ? g1(e,42,1) : 1, ro = (t === "INSERT" ? g1(e,50,0) : 0)*Math.PI/180;
@@ -22713,6 +22729,68 @@ function AV_gerarDescSituacao(){
         prof++; bk.ents.forEach(function(be){ ent(be, tf2, cor, lw, layer, op, hd, dash, escLt*escB); }); prof--;
         (e.attrs || []).forEach(function(a){ ent(a, tf, cor, lw, layer, op, hd, dash, escLt); });
       } else if(t !== "VIEWPORT" && t !== "ATTDEF" && t !== "SEQEND") nIgn[t] = (nIgn[t] || 0) + 1;
+    }
+    // seta cheia (ponta em b, vindo de a), comprimento L
+    function seta(a, b, L, tf, layer, cor, lw){
+      var dx = b[0] - a[0], dy = b[1] - a[1], d = Math.hypot(dx, dy); if(!d || !(L > 0)) return; L = Math.min(L, d*.6); var ux = dx/d, uy = dy/d, w = L/6;
+      add0({ k:"F", pts:[[b[0], b[1]], [b[0] - ux*L - uy*w, b[1] - uy*L + ux*w], [b[0] - ux*L + uy*w, b[1] - uy*L - ux*w]] }, tf, layer, cor, lw);
+    }
+    // MULTILEADER: CONTEXT_DATA{ ... LEADER{ ... LEADER_LINE{ 10/20 … } … } texto 304 em 12/22, altura 41, seta 140 }
+    function dxfMLeader(e, tf, layer, cor, lw){
+      var nivel = [], txt = "", tl = null, th = 0, aw = 0, linhas = [], cur = null, conexao = null, emLeader = false, dog = null, dogL = 0, dogs = [];
+      e.g.forEach(function(q){
+        var c = q[0], v = q[1];
+        if(c === 300 && v === "CONTEXT_DATA{"){ nivel.push("C"); return; }
+        if(c === 302 && v === "LEADER{"){ nivel.push("L"); emLeader = true; conexao = null; dog = null; dogL = 0; return; }
+        if(c === 304 && v === "LEADER_LINE{"){ nivel.push("LL"); cur = []; return; }
+        if((c === 305 || c === 303 || c === 301) && v === "}"){ var n = nivel.pop(); if(n === "LL"){ if(cur && cur.length) linhas.push({ pts:cur, con:conexao }); cur = null; } if(n === "L"){ linhas.forEach(function(l){ if(!l.con) l.con = conexao; }); if(conexao && dog && dogL) dogs.push([conexao, [conexao[0] + dog[0]*dogL, conexao[1] + dog[1]*dogL]]); emLeader = false; } return; }
+        var topo = nivel[nivel.length - 1];
+        if(topo === "LL"){ if(c === 10) cur.push([+v, 0]); else if(c === 20 && cur.length) cur[cur.length - 1][1] = +v; return; }
+        if(topo === "L"){ if(c === 10) conexao = [+v, 0]; else if(c === 20 && conexao) conexao[1] = +v; else if(c === 11) dog = [+v, 0]; else if(c === 21 && dog) dog[1] = +v; else if(c === 40) dogL = +v; return; }   // 11/21 = direção e 40 = comprimento do patamar (dogleg)
+        if(topo === "C"){ if(c === 304 && v !== "LEADER_LINE{") txt += v; else if(c === 12) tl = [+v, 0]; else if(c === 22 && tl) tl[1] = +v; else if(c === 41) th = +v; else if(c === 140) aw = +v; }
+      });
+      linhas.forEach(function(l){ var pts = l.pts.slice(); if(l.con) pts.push(l.con); if(pts.length > 1){ add0({ k:"L", pts:pts }, tf, layer, cor, lw); seta(pts[1], pts[0], aw || hdr.DIMASZ*hdr.DIMSCALE, tf, layer, cor, lw); } });
+      dogs.forEach(function(d){ add0({ k:"L", pts:d }, tf, layer, cor, lw); });
+      if(txt && tl){ var lns = dxfLimpaTxt(txt).split("\n"), h = th || hdr.DIMTXT*hdr.DIMSCALE;
+        lns.forEach(function(ln, k){ if(ln.trim()) add0({ k:"T", x:tl[0], y:tl[1] - h - k*h*1.6, h:h, rot:0, txt:ln, ha:0, va:0 }, tf, layer, cor, lw); }); }
+    }
+    // hachura com padrão: cada família (ângulo 53, base 43/44, deslocamento 45/46, traços 49) cortada pela borda (par/ímpar)
+    function hachuraPadrao(g, k0, aneis){
+      var k = k0; while(k < g.length && g[k][0] !== 78) k++; if(k >= g.length) return null; var nl = +g[k][1]; k++;
+      var fam = [];
+      for(var i = 0; i < nl && k < g.length; i++){
+        var f = { ang:0, bx:0, by:0, ox:0, oy:0, d:[] }, nd = 0;
+        while(k < g.length && g[k][0] !== 53) k++; if(k >= g.length) break; f.ang = +g[k][1]; k++;
+        while(k < g.length && [43,44,45,46,79,49].indexOf(g[k][0]) >= 0){ var c = g[k][0], v = +g[k][1]; if(c === 43) f.bx = v; else if(c === 44) f.by = v; else if(c === 45) f.ox = v; else if(c === 46) f.oy = v; else if(c === 79) nd = v; else if(c === 49) f.d.push(v); k++; }
+        fam.push(f);
+      }
+      if(!fam.length) return null;
+      var seg = [], lim = 60000;
+      for(var fi = 0; fi < fam.length; fi++){
+        var f2 = fam[fi], a = f2.ang*Math.PI/180, ux = Math.cos(a), uy = Math.sin(a), nx = -uy, ny = ux, esp = f2.ox*nx + f2.oy*ny, avan = f2.ox*ux + f2.oy*uy;
+        if(Math.abs(esp) < 1e-9) continue;
+        var bn = f2.bx*nx + f2.by*ny, mn = 1e18, mx = -1e18;
+        aneis.forEach(function(r){ r.forEach(function(p){ var v = p[0]*nx + p[1]*ny; if(v < mn) mn = v; if(v > mx) mx = v; }); });
+        var k1 = Math.ceil((Math.min(mn, mx) - bn)/esp), k2 = Math.floor((Math.max(mn, mx) - bn)/esp); if(k1 > k2){ var tq = k1; k1 = k2; k2 = tq; }
+        if(k2 - k1 > 4000) return null;                                            // padrão miúdo demais para o tamanho da área
+        var per = f2.d.reduce(function(s1, v){ return s1 + Math.abs(v); }, 0);
+        for(var kk = k1; kk <= k2; kk++){
+          var px = f2.bx + kk*f2.ox, py = f2.by + kk*f2.oy, ts = [];
+          aneis.forEach(function(r){ for(var m = 0; m < r.length; m++){ var p1 = r[m], p2 = r[(m + 1) % r.length], d1 = (p1[0] - px)*nx + (p1[1] - py)*ny, d2 = (p2[0] - px)*nx + (p2[1] - py)*ny;
+            if((d1 > 0) !== (d2 > 0)){ var tt = d1/(d1 - d2), ix = p1[0] + (p2[0] - p1[0])*tt, iy = p1[1] + (p2[1] - p1[1])*tt; ts.push((ix - px)*ux + (iy - py)*uy); } } });
+          ts.sort(function(x, y){ return x - y; });
+          for(var z = 0; z + 1 < ts.length; z += 2){
+            var ta = ts[z], tb = ts[z + 1];
+            if(!f2.d.length || !(per > 0)){ seg.push([px + ux*ta, py + uy*ta], [px + ux*tb, py + uy*tb]); }
+            else { var t0 = Math.floor(ta/per)*per;
+              for(var t = t0; t < tb && seg.length < lim*2; ){ for(var di = 0; di < f2.d.length && t < tb; di++){ var dv = f2.d[di], L = Math.abs(dv);
+                if(dv >= 0){ var s0 = Math.max(t, ta), s9 = Math.min(t + (dv === 0 ? per*.004 : L), tb); if(s9 > s0) seg.push([px + ux*s0, py + uy*s0], [px + ux*s9, py + uy*s9]); }
+                t += L; } if(!(per > 0)) break; } }
+            if(seg.length > lim*2) return null;
+          }
+        }
+      }
+      return seg;
     }
     function dxfHatch(e, tf, layer, cor, lw, op){
       var solido = g1(e, 70, 0) === 1, g = e.g, k = 0, aneis = [];
@@ -22732,6 +22810,11 @@ function AV_gerarDescSituacao(){
           } }
         if(anel && anel.length > 2) aneis.push(anel);
       }
+      if(!solido && aneis.length){
+        var sg = hachuraPadrao(g, k, aneis);
+        if(sg && sg.length){ add0({ op:op, hd:s1(e, 5, ""), k:"M", pts:sg }, tf, layer, cor, Math.min(lw, .18)); return; }
+        if(sg === null) aneis.forEach(function(a){ add0({ op:(op == null ? 1 : op)*.22, hd:s1(e, 5, ""), k:"F", pts:a }, tf, layer, cor, lw); });   // denso demais: tom claro da cor
+      }
       aneis.forEach(function(a){ add0({ op:op, hd:s1(e, 5, ""), k:solido ? "F" : "L", pts:solido ? a : a.concat([a[0]]) }, tf, layer, cor, lw); });
     }
     ents.forEach(function(e){ ent(e, ident(), null, null, null); });
@@ -22739,6 +22822,24 @@ function AV_gerarDescSituacao(){
     return { prims:prims, bb:prims.length ? bb : null, nEnt:ents.length, ignorados:nIgn, camadas:Object.keys(layers).length };
   }
   // desenha o DXF dentro do quadro (já recortado): só o que cai na janela
+  /* fontes do CAD -> fontes do app (09/10/2026): de traço -> Helvetica, serifadas -> Times, monoespaçadas -> Courier.
+     A largura é corrigida pela largura média de cada fonte SHX (medida no próprio AutoCAD: avanço médio / altura da maiúscula). */
+  var SHX_LARG = { romans:.8844, romand:.8997, romanc:.9422, romant:.9558, simplex:.8844, txt:.9643, monotxt:1, isocp:.6644, isocp2:.6644, isocp3:.6644,
+    isoct:1.1001, isoct2:1.1001, isoct3:1.1001, italic:.966, italicc:.9694, italict:.97, complex:.9371, scripts:.8299, scriptc:.86, gothice:.9014, gothicg:.9, gothici:.9, greeks:.915, greekc:.93 };
+  var DXF_AMOSTRA = "Amostra de TEXTO 0123 Planta", _fmed = {};
+  function dxfFonteFam(font){
+    var f = String(font || "").toLowerCase().replace(/^.*[\\/]/, ""), base = f.replace(/\.(shx|ttf|otf|ttc)$/, "");
+    if(/monotxt|cour|consol|mono|lucida ?console/.test(base)) return "mono";
+    if(/romant|romanc|times|georgia|garamond|book|serif|cambria|italict/.test(base) && !/sans/.test(base)) return "serif";
+    return "sans";
+  }
+  function dxfMedidas(fam){                                    // altura da maiúscula (fração do corpo) e largura média da amostra
+    if(_fmed[fam]) return _fmed[fam];
+    var c = document.createElement("canvas").getContext("2d"), fonte = fam === "mono" ? "'Courier New',Courier,monospace" : (fam === "serif" ? "'Times New Roman',Times,serif" : "Arial,Helvetica,sans-serif");
+    c.font = "100px " + fonte; var mH = c.measureText("H"), cap = (mH.actualBoundingBoxAscent || ({ sans:71.6, serif:66.2, mono:57.1 })[fam])/100;
+    return (_fmed[fam] = { cap:cap, larg:c.measureText(DXF_AMOSTRA).width/100/DXF_AMOSTRA.length/cap, ctx:c, fonte:fonte });
+  }
+  function dxfLarguraTxt(fam, txt){ var m = dxfMedidas(fam); m.ctx.font = "100px " + m.fonte; return m.ctx.measureText(txt).width/100/m.cap; }   // em alturas de maiúscula
   function desenharDxfQuadro(P, T, g){
     if(!g || !g.prims || !g.prims.length) return;
     var E0 = T.E(MAPA.x), E1 = T.E(MAPA.x + MAPA.w), N0 = T.N(MAPA.y + MAPA.h), N1 = T.N(MAPA.y), cam = null;
@@ -22746,12 +22847,22 @@ function AV_gerarDescSituacao(){
       var b = p.bb; if(b[2] < E0 || b[0] > E1 || b[3] < N0 || b[1] > N1) return;
       if(p.layer !== cam){ cam = p.layer; CAMDXF(P, "DXF_" + String(cam).toUpperCase().replace(/[^A-Z0-9_-]+/g, "_").slice(0, 60)); }
       if(p.k === "T"){
-        var tam = p.h*T.mmPorM/0.3528; if(tam < 1.1 || tam > 260) return;
-        var al = p.ha === 1 ? "center" : (p.ha === 2 ? "right" : "left"), rr = p.rot*Math.PI/180, sh = p.va === 2 ? -p.h/2 : (p.va === 3 ? -p.h : 0);   // meio/topo: desce a linha de base
+        var fam = dxfFonteFam(p.font), med = dxfMedidas(fam), base = String(p.font || "romans").toLowerCase().replace(/^.*[\\/]/, "").replace(/\.(shx|ttf|otf|ttc)$/, "");
+        var corr = /\.(ttf|otf|ttc)$/i.test(p.font || "") ? 1 : (SHX_LARG[base] || SHX_LARG.romans)/med.larg;   // SHX: larga como no CAD
+        var h = p.h, escX = (p.wf || 1)*corr, rot = p.rot;
+        if(p.fit && p.modo){                                                          // Fit/Aligned: o texto ocupa exatamente o trecho entre os 2 pontos
+          var dist = Math.hypot(p.fit[0] - p.x, p.fit[1] - p.y), wNat = dxfLarguraTxt(fam, p.txt)*h*escX;
+          if(dist > 0 && wNat > 0){ rot = Math.atan2(p.fit[1] - p.y, p.fit[0] - p.x)*180/Math.PI; if(p.modo === "fit") escX *= dist/wNat; else h *= dist/wNat; }
+        }
+        var tam = h*T.mmPorM/med.cap/0.3528; if(tam < 1.1 || tam > 360) return;     // altura do DXF = altura da maiúscula
+        var al = p.ha === 1 ? "center" : (p.ha === 2 ? "right" : "left"), rr = rot*Math.PI/180, sh = p.va === 2 ? -h/2 : (p.va === 3 ? -h : 0);   // meio/topo: desce a linha de base
         var x = p.x - Math.sin(rr)*sh, y = p.y + Math.cos(rr)*sh;
-        P.texto(T.x(x), T.y(y), p.txt, { tam:tam, rot:p.rot, align:al, cor:p.cor });   // (texto do DXF sem transparência)
+        P.texto(T.x(x), T.y(y), p.txt, { tam:tam, rot:rot, align:al, cor:p.cor, fam:fam, escX:escX, ital:Math.abs(p.obl || 0) > 4 });
         return;
       }
+      if(p.k === "M"){ var opM = p.op == null ? 1 : p.op; for(var si = 0; si + 1 < p.pts.length; si += 2){ var a1 = p.pts[si], a2 = p.pts[si + 1], xa = T.x(a1[0]), ya = T.y(a1[1]), xb = T.x(a2[0]), yb = T.y(a2[1]), lm = Math.hypot(xb - xa, yb - ya);
+        if(lm < .25){ var cxm = (xa + xb)/2, cym = (ya + yb)/2, ddx = lm ? (xb - xa)/lm : 1, ddy = lm ? (yb - ya)/lm : 0; xa = cxm - ddx*.13; ya = cym - ddy*.13; xb = cxm + ddx*.13; yb = cym + ddy*.13; }   // pontos do padrão (DOTS): visíveis no papel
+        P.linha(xa, ya, xb, yb, { cor:p.cor, peso:Math.max(p.lw, .18), opac:opM }); } return; }
       var pts = p.pts.map(function(q){ return [T.x(q[0]), T.y(q[1])]; });
       var op = p.op == null ? 1 : p.op;
       if(p.k === "F") P.poli(pts, { cor:p.cor, peso:0, fill:p.cor, opacFill:op });
@@ -22910,8 +23021,8 @@ function AV_gerarDescSituacao(){
       if(!umSo && op.km) desenharKmEixo(P, T, pol, caixasRot);
     }
     if(COTA_FAIXA_ATIVA && op.fixo && op.fixoDados && !op.semCotaFaixa) desenharCotasFaixa(P, T, op.fixoDados);
-    if(op.cotas !== false){ desenharCotas(P, T); desenharLeaders(P, T); }
     }
+    if(op.cotas !== false){ desenharCotas(P, T); desenharLeaders(P, T); }   // cotas e leaders da Composição valem nos dois modos
     P.clipOff();
 
     // escala gráfica + norte
