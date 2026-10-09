@@ -9282,7 +9282,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 <h1>Planta e Memorial Descritivo</h1>
 <p class="sub">Tudo sai do <b>KML inserido em Técnica › Áreas de Locação</b>: vértices, azimutes, distâncias, coordenadas UTM (SIRGAS 2000), área e perímetro, calculados no plano UTM, como manda o memorial aprovado. O que já existe no cadastro (processo, expropriado, município, matrícula…) entra sozinho; aqui ficam só os dados que ainda não existem em outra aba.</p>
 <div id="mdp_trilha"></div>
-<input type="hidden" id="mdp_extras"><input type="hidden" id="mdp_confront"><input type="hidden" id="mdp_camadas">
+<input type="hidden" id="mdp_extras"><input type="hidden" id="mdp_confront"><input type="hidden" id="mdp_camadas"><textarea id="mdp_dxf_dados" hidden aria-hidden="true"></textarea><input type="hidden" id="mdp_dxf_nome">
 
 <h2 class="vsec">1 · Planta de situação</h2>
 <div class="vcard">
@@ -22533,6 +22533,266 @@ function AV_gerarDescSituacao(){
     try{ return desenharFolhaBase(P, T, op, pg); }
     finally{ Object.assign(TAM, T0); }
   }
+
+  /* =======================================================================
+     QUADRO A PARTIR DE DXF (09/10/2026) — leitor de DXF texto (ASCII, R12…R2018) e desenho pelo pintor da prancha
+     (canvas, PDF e DXF exportado). Coordenadas do DXF = UTM SIRGAS 2000 (as mesmas do KML): o desenho cai no lugar e na escala da prancha.
+     ======================================================================= */
+  var DXFQ = { k:"", g:null }, DXF_MAX_MB = 15;
+  function dxfTexto(){ var e = $("mdp_dxf_dados"); return e ? (e.value || "") : ""; }
+  function quadroDxfAtivo(){ return extras().quadro_fonte === "dxf"; }
+  function dxfGeo(){
+    var t = dxfTexto(); if(!t) return null;
+    var k = t.length + "|" + t.slice(0, 120) + "|" + t.slice(-120); if(DXFQ.k === k) return DXFQ.g;
+    DXFQ.k = k; try{ DXFQ.g = dxfParse(t); }catch(e){ console.warn("DXF:", e); DXFQ.g = { erro:String(e && e.message || e), prims:[] }; }
+    return DXFQ.g;
+  }
+  // paleta ACI (AutoCAD Color Index) aproximada: 1–9 exatas, 10–249 por matiz/claridade, 250–255 cinzas; 7 = preto no papel
+  function aciCor(i){
+    var f = ["#000000","#ff0000","#ffff00","#00ff00","#00ffff","#0000ff","#ff00ff","#000000","#808080","#c0c0c0"];
+    if(i >= 0 && i <= 9) return f[i];
+    if(i >= 250 && i <= 255){ var g = [51,80,105,130,190,255][i - 250]; return "#" + [g,g,g].map(function(v){ return ("0" + v.toString(16)).slice(-2); }).join(""); }
+    if(i < 10 || i > 249) return "#000000";
+    var h = Math.floor((i - 10)/10)*15, v = (i - 10)%10, br = [1,.8,.6,.5,.3][Math.floor(v/2)], sat = (v % 2) ? .5 : 1;
+    var c = function(n){ var k = (n + h/60)%6, x = 1 - sat*Math.max(0, Math.min(k, 4 - k, 1)); return Math.round(x*br*255); };
+    return "#" + [c(5), c(3), c(1)].map(function(q){ return ("0" + q.toString(16)).slice(-2); }).join("");
+  }
+  function dxfLimpaTxt(t){
+    return String(t || "").replace(/\\U\+([0-9A-Fa-f]{4})/g, function(_, h){ return String.fromCharCode(parseInt(h, 16)); })
+      .replace(/%%[cC]/g, "Ø").replace(/%%[dD]/g, "°").replace(/%%[pP]/g, "±").replace(/%%[uUoO]/g, "")
+      .replace(/\\P/g, "\n").replace(/\\~/g, " ").replace(/\\[ACcFfHhQTWp][^;]*;/g, "").replace(/\\[LlOoKk]/g, "")
+      .replace(/\\S([^;]*)[\^#\/]([^;]*);/g, "$1/$2").replace(/[{}]/g, "").replace(/\\\\/g, "\\");
+  }
+  function dxfParse(txt){
+    var L = txt.split(/\r\n|\r|\n/), P = [];
+    for(var i = 0; i + 1 < L.length; i += 2){ var c = parseInt(L[i], 10); if(isNaN(c)) continue; P.push([c, L[i+1].replace(/\s+$/, "")]); }
+    var layers = {}, blocks = {}, ents = [], sec = null, j = 0, ltypes = {}, ltscale = 1;
+    function lerEnt(){                                   // P[j] = [0, TIPO]; devolve {t, g:[[c,v]...]} e avança j
+      var e = { t:P[j][1], g:[] }; j++;
+      while(j < P.length && P[j][0] !== 0){ e.g.push(P[j]); j++; }
+      if(e.t === "POLYLINE"){ e.vs = [];
+        while(j < P.length && P[j][1] === "VERTEX"){ var v = { g:[] }; j++; while(j < P.length && P[j][0] !== 0){ v.g.push(P[j]); j++; } e.vs.push(v); }
+        if(j < P.length && P[j][1] === "SEQEND"){ j++; while(j < P.length && P[j][0] !== 0) j++; } }
+      if(e.t === "INSERT"){ var at = 0; e.g.forEach(function(p){ if(p[0] === 66) at = +p[1]; });
+        if(at){ while(j < P.length && P[j][1] === "ATTRIB"){ var a = lerEnt(); (e.attrs = e.attrs || []).push(a); } if(j < P.length && P[j][1] === "SEQEND"){ j++; while(j < P.length && P[j][0] !== 0) j++; } } }
+      return e;
+    }
+    while(j < P.length){
+      var p = P[j];
+      if(p[0] === 0 && p[1] === "SECTION"){ sec = (P[j+1] || [])[1]; j += 2; continue; }
+      if(p[0] === 0 && p[1] === "ENDSEC"){ sec = null; j++; continue; }
+      if(p[0] === 0 && p[1] === "EOF") break;
+      if(sec === "HEADER" && p[0] === 9 && p[1] === "$LTSCALE"){ var lv = P[j+1]; if(lv && lv[0] === 40 && +lv[1] > 0) ltscale = +lv[1]; j += 2; continue; }
+      if(sec === "TABLES" && p[0] === 0 && p[1] === "LTYPE"){                     // tipos de linha: comprimentos (49) — + traço, − espaço, 0 ponto
+        var lt = lerEnt(), ln = "", el = []; lt.g.forEach(function(q){ if(q[0] === 2) ln = q[1]; else if(q[0] === 49) el.push(+q[1]); });
+        if(ln && el.length) ltypes[ln.toUpperCase()] = el; continue;
+      }
+      if(sec === "TABLES" && p[0] === 0 && p[1] === "LAYER"){
+        var lg = lerEnt(), nm = "", cor = 7, fl = 0, lw = -3, tc = null, lty = "";
+        lg.g.forEach(function(q){ if(q[0] === 2) nm = q[1]; else if(q[0] === 62) cor = +q[1]; else if(q[0] === 70) fl = +q[1]; else if(q[0] === 370) lw = +q[1]; else if(q[0] === 420) tc = +q[1]; else if(q[0] === 6) lty = q[1]; });
+        if(nm) layers[nm] = { cor:Math.abs(cor), off:cor < 0 || !!(fl & 1), lw:lw, tc:tc, lt:lty }; continue;
+      }
+      if(sec === "BLOCKS" && p[0] === 0 && p[1] === "BLOCK"){
+        var bh = lerEnt(), bn = "", bx = 0, by = 0; bh.g.forEach(function(q){ if(q[0] === 2) bn = q[1]; else if(q[0] === 10) bx = +q[1]; else if(q[0] === 20) by = +q[1]; });
+        var lista = [];
+        while(j < P.length && !(P[j][0] === 0 && P[j][1] === "ENDBLK")){ if(P[j][0] === 0) lista.push(lerEnt()); else j++; }
+        if(j < P.length){ j++; while(j < P.length && P[j][0] !== 0) j++; }
+        blocks[bn] = { bx:bx, by:by, ents:lista }; continue;
+      }
+      if(sec === "ENTITIES" && p[0] === 0){ ents.push(lerEnt()); continue; }
+      j++;
+    }
+    var prims = [], nIgn = {}, prof = 0;
+    function g1(e, c, d){ for(var k = 0; k < e.g.length; k++) if(e.g[k][0] === c) return +e.g[k][1]; return d; }
+    function s1(e, c, d){ for(var k = 0; k < e.g.length; k++) if(e.g[k][0] === c) return e.g[k][1]; return d; }
+    function ident(){ return function(x, y){ return [x, y]; }; }
+    // arco de polilinha: bulge = tan(ângulo/4); > 0 anti-horário. Centro = ponto médio + normal à esquerda × (corda/2)/tan(θ/2)
+    function bulgePts(a, b, bu, out){
+      if(!bu){ out.push(b); return; }
+      var th = 4*Math.atan(bu), dx = b[0] - a[0], dy = b[1] - a[1], ch = Math.hypot(dx, dy); if(!ch){ out.push(b); return; }
+      var hh = (ch/2)/Math.tan(th/2), cx = (a[0] + b[0])/2 - dy/ch*hh, cy = (a[1] + b[1])/2 + dx/ch*hh, R = Math.hypot(a[0] - cx, a[1] - cy);
+      var a0 = Math.atan2(a[1] - cy, a[0] - cx), n = Math.max(2, Math.ceil(Math.abs(th)/(Math.PI/36)));
+      for(var k = 1; k < n; k++){ var an = a0 + th*k/n; out.push([cx + R*Math.cos(an), cy + R*Math.sin(an)]); }
+      out.push(b);
+    }
+    // B-spline racional (NURBS) por de Boor: grau p, nós U, pesos w (opcional) — amostrada em ~16 pontos por vão
+    function dxfSpline(P, U, W, p){
+      var n = P.length; if(n < 2 || U.length !== n + p + 1 || p < 1) return null;
+      var w = (W.length === n) ? W : P.map(function(){ return 1; }), out = [], u0 = U[p], u1 = U[n], N = Math.max(16, (n - p)*16);
+      for(var s = 0; s <= N; s++){
+        var u = u0 + (u1 - u0)*s/N, k = p; while(k < n - 1 && u >= U[k + 1]) k++;
+        var d = []; for(var j = 0; j <= p; j++){ var i = k - p + j, ww = w[i]; d.push([P[i][0]*ww, P[i][1]*ww, ww]); }
+        for(var r = 1; r <= p; r++) for(var j2 = p; j2 >= r; j2--){ var i2 = k - p + j2, den = U[i2 + p - r + 1] - U[i2], al = den ? (u - U[i2])/den : 0;
+          d[j2] = [(1 - al)*d[j2 - 1][0] + al*d[j2][0], (1 - al)*d[j2 - 1][1] + al*d[j2][1], (1 - al)*d[j2 - 1][2] + al*d[j2][2]]; }
+        out.push([d[p][0]/d[p][2], d[p][1]/d[p][2]]);
+      }
+      return out;
+    }
+    function dxfCatmull(F){
+      if(!F || F.length < 3) return F; var o = [F[0]];
+      for(var i = 0; i < F.length - 1; i++){ var p0 = F[Math.max(0, i - 1)], p1 = F[i], p2 = F[i + 1], p3 = F[Math.min(F.length - 1, i + 2)];
+        for(var s = 1; s <= 12; s++){ var t1 = s/12, t2 = t1*t1, t3 = t2*t1;
+          o.push([.5*(2*p1[0] + (-p0[0] + p2[0])*t1 + (2*p0[0] - 5*p1[0] + 4*p2[0] - p3[0])*t2 + (-p0[0] + 3*p1[0] - 3*p2[0] + p3[0])*t3),
+                  .5*(2*p1[1] + (-p0[1] + p2[1])*t1 + (2*p0[1] - 5*p1[1] + 4*p2[1] - p3[1])*t2 + (-p0[1] + 3*p1[1] - 3*p2[1] + p3[1])*t3)]); } }
+      return o;
+    }
+    function arcoPts(cx, cy, r, a0, a1){ while(a1 <= a0) a1 += 360; var n = Math.max(2, Math.ceil((a1 - a0)/5)), o = []; for(var k = 0; k <= n; k++){ var an = (a0 + (a1 - a0)*k/n)*Math.PI/180; o.push([cx + r*Math.cos(an), cy + r*Math.sin(an)]); } return o; }
+    function corDe(e, layer, herd){
+      var tc = s1(e, 420, null); if(tc != null){ var v = +tc; return "#" + ("00000" + (v & 0xffffff).toString(16)).slice(-6); }
+      var c = g1(e, 62, 256), ly = layers[layer] || {};
+      if(c === 0) return herd || "#000000";
+      if(c === 256){ if(ly.tc != null) return "#" + ("00000" + (ly.tc & 0xffffff).toString(16)).slice(-6); return aciCor(ly.cor == null ? 7 : ly.cor); }
+      return aciCor(Math.abs(c));
+    }
+    function lwDe(e, layer, herd){ var w = g1(e, 370, -1); if(w === -2) return herd || .18; if(w === -1){ var lw = (layers[layer] || {}).lw; w = (lw == null || lw < 0) ? -3 : lw; } return w >= 0 ? Math.max(.08, w/100) : .18; }
+    function add0(pr, tf, layer, cor, lw){
+      pr.layer = layer; pr.cor = cor; pr.lw = lw;
+      if(pr.pts) pr.pts = pr.pts.map(function(q){ return tf(q[0], q[1]); });
+      if(pr.k === "T"){ var q = tf(pr.x, pr.y), q2 = tf(pr.x + Math.cos(pr.rot*Math.PI/180)*pr.h, pr.y + Math.sin(pr.rot*Math.PI/180)*pr.h), q3 = tf(pr.x, pr.y + pr.h);
+        pr.x = q[0]; pr.y = q[1]; pr.rot = Math.atan2(q2[1] - q[1], q2[0] - q[0])*180/Math.PI; pr.h = Math.hypot(q3[0] - q[0], q3[1] - q[1]); }
+      var b = [1e18, 1e18, -1e18, -1e18], acc = function(x, y){ if(x < b[0]) b[0] = x; if(y < b[1]) b[1] = y; if(x > b[2]) b[2] = x; if(y > b[3]) b[3] = y; };
+      if(pr.pts) pr.pts.forEach(function(q){ acc(q[0], q[1]); }); else if(pr.k === "T"){ acc(pr.x, pr.y); acc(pr.x + pr.h*Math.max(1, String(pr.txt).length*.6), pr.y + pr.h); }
+      if(!(b[2] >= b[0])) return; pr.bb = b; prims.push(pr);
+    }
+    function ent(e, tf, herdCor, herdLw, herdLayer, herdOp, herdHd, herdLt, herdEsc){
+      if(g1(e, 67, 0) === 1 || g1(e, 60, 0) === 1) return;        // espaço de papel / invisível
+      var layer = s1(e, 8, "0"); if(layer === "0" && herdLayer) layer = herdLayer;
+      if((layers[layer] || {}).off) return;
+      var cor = corDe(e, layer, herdCor), lw = lwDe(e, layer, herdLw), t = e.t, mir = g1(e, 230, 1) < 0;
+      var trv = g1(e, 440, null), op = (trv != null && (trv & 0x02000000)) ? (trv & 0xff)/255 : ((trv != null && (trv & 0x01000000)) ? herdOp : (herdOp == null ? 1 : herdOp));   // transparência (440)
+      var hd = herdHd || s1(e, 5, "");
+      // tipo de linha: da entidade, ByLayer (da camada) ou ByBlock (do bloco); escala = $LTSCALE × escala da entidade (48) × escala do bloco
+      var ltn = String(s1(e, 6, "BYLAYER")).toUpperCase(); if(ltn === "BYLAYER") ltn = String((layers[layer] || {}).lt || "CONTINUOUS").toUpperCase();
+      var escLt = (herdEsc || 1)*g1(e, 48, 1), dash = ltn === "BYBLOCK" ? herdLt : (ltypes[ltn] ? ltypes[ltn].map(function(v){ return v*ltscale*escLt; }) : null);
+      var add = function(pr, tf2, ly, c2, w2){ pr.op = op; pr.hd = hd; if(dash && pr.k === "L") pr.dash = dash; return add0(pr, tf2, ly, c2, w2); };
+      var X = function(x){ return mir ? -x : x; };
+      if(t === "LINE") add({ k:"L", pts:[[g1(e,10,0), g1(e,20,0)], [g1(e,11,0), g1(e,21,0)]] }, tf, layer, cor, lw);
+      else if(t === "LWPOLYLINE"){
+        var vs = [], cur = null; e.g.forEach(function(q){ if(q[0] === 10){ cur = [X(+q[1]), 0, 0]; vs.push(cur); } else if(q[0] === 20 && cur) cur[1] = +q[1]; else if(q[0] === 42 && cur) cur[2] = mir ? -(+q[1]) : +q[1]; });
+        var fech = (g1(e, 70, 0) & 1) === 1, o = vs.length ? [[vs[0][0], vs[0][1]]] : [];
+        for(var k = 1; k < vs.length + (fech ? 1 : 0); k++){ var a = vs[k-1], b = vs[k % vs.length]; bulgePts([a[0], a[1]], [b[0], b[1]], a[2], o); }
+        if(o.length > 1) add({ k:"L", pts:o }, tf, layer, cor, lw);
+      } else if(t === "POLYLINE"){
+        var fl = g1(e, 70, 0); if(fl & (16 | 64)) { nIgn["POLYLINE malha"] = (nIgn["POLYLINE malha"] || 0) + 1; return; }
+        var vv = (e.vs || []).filter(function(v){ return !(g1(v, 70, 0) & 16); }).map(function(v){ return [X(g1(v,10,0)), g1(v,20,0), mir ? -g1(v,42,0) : g1(v,42,0)]; }), fe = (fl & 1) === 1, o2 = vv.length ? [[vv[0][0], vv[0][1]]] : [];
+        for(var m = 1; m < vv.length + (fe ? 1 : 0); m++){ var a2 = vv[m-1], b2 = vv[m % vv.length]; bulgePts([a2[0], a2[1]], [b2[0], b2[1]], a2[2], o2); }
+        if(o2.length > 1) add({ k:"L", pts:o2 }, tf, layer, cor, lw);
+      } else if(t === "CIRCLE"){ var r = g1(e, 40, 0); if(r > 0) add({ k:"L", pts:arcoPts(X(g1(e,10,0)), g1(e,20,0), r, 0, 360) }, tf, layer, cor, lw); }
+      else if(t === "ARC"){ var cx = g1(e,10,0), r2 = g1(e,40,0), s0 = g1(e,50,0), s9 = g1(e,51,360);
+        if(mir){ cx = -cx; var tmp = 180 - s9; s9 = 180 - s0; s0 = tmp; } if(r2 > 0) add({ k:"L", pts:arcoPts(cx, g1(e,20,0), r2, s0, s9) }, tf, layer, cor, lw); }
+      else if(t === "ELLIPSE"){ var ex = g1(e,10,0), ey = g1(e,20,0), mx = g1(e,11,1), my = g1(e,21,0), ra = g1(e,40,1), p0 = g1(e,41,0), p1 = g1(e,42,2*Math.PI);
+        while(p1 <= p0) p1 += 2*Math.PI; var n2 = Math.max(8, Math.ceil((p1 - p0)/(Math.PI/36))), o3 = [];
+        for(var q2 = 0; q2 <= n2; q2++){ var u = p0 + (p1 - p0)*q2/n2; o3.push([ex + mx*Math.cos(u) - my*ra*Math.sin(u), ey + my*Math.cos(u) + mx*ra*Math.sin(u)]); }
+        add({ k:"L", pts:o3 }, tf, layer, cor, lw); }
+      else if(t === "SPLINE"){ var ctl = [], fit = [], kn = [], wt = [], c0 = null, f0 = null, deg = g1(e, 71, 3);
+        e.g.forEach(function(q){ if(q[0] === 10){ c0 = [+q[1], 0]; ctl.push(c0); } else if(q[0] === 20 && c0) c0[1] = +q[1]; else if(q[0] === 11){ f0 = [+q[1], 0]; fit.push(f0); } else if(q[0] === 21 && f0) f0[1] = +q[1]; else if(q[0] === 40) kn.push(+q[1]); else if(q[0] === 41) wt.push(+q[1]); });
+        var curva = dxfSpline(ctl, kn, wt, deg) || dxfCatmull(fit.length > 1 ? fit : ctl);
+        if(curva && curva.length > 1) add({ k:"L", pts:curva }, tf, layer, cor, lw); }
+      else if(t === "SOLID" || t === "3DFACE" || t === "TRACE"){ var c4 = [[g1(e,10,0),g1(e,20,0)],[g1(e,11,0),g1(e,21,0)],[g1(e,13,g1(e,12,0)),g1(e,23,g1(e,22,0))],[g1(e,12,0),g1(e,22,0)]];
+        if(t === "3DFACE") add({ k:"L", pts:c4.concat([c4[0]]) }, tf, layer, cor, lw); else add({ k:"F", pts:c4 }, tf, layer, cor, lw); }
+      else if(t === "POINT"){ var px = g1(e,10,0), py = g1(e,20,0); add({ k:"L", pts:[[px - .15, py], [px + .15, py]] }, tf, layer, cor, lw); }
+      else if(t === "TEXT" || t === "ATTRIB"){ if(t === "ATTRIB" && (g1(e, 70, 0) & 1)) return;
+        var ha = g1(e, 72, 0), va = g1(e, 73, t === "ATTRIB" ? g1(e, 74, 0) : 0), usa2 = (ha || va) && ha !== 3 && ha !== 5;
+        var tx = usa2 ? g1(e, 11, g1(e, 10, 0)) : g1(e, 10, 0), ty = usa2 ? g1(e, 21, g1(e, 20, 0)) : g1(e, 20, 0), tv = dxfLimpaTxt(s1(e, 1, ""));
+        if(tv.trim()) add({ k:"T", x:X(tx), y:ty, h:g1(e, 40, 2.5), rot:g1(e, 50, 0), txt:tv, ha:(ha === 4 ? 1 : (ha > 2 ? 0 : ha)), va:(ha === 4 ? 2 : va) }, tf, layer, cor, lw); }
+      else if(t === "MTEXT"){ var mt = "", mx2 = 1, my2 = 0, temDir = false;
+        e.g.forEach(function(q){ if(q[0] === 3) mt += q[1]; else if(q[0] === 11){ mx2 = +q[1]; temDir = true; } else if(q[0] === 21) my2 = +q[1]; }); mt += s1(e, 1, "");
+        var att = g1(e, 71, 1), rt = temDir ? Math.atan2(my2, mx2)*180/Math.PI : g1(e, 50, 0), hm = g1(e, 40, 2.5), lin = dxfLimpaTxt(mt).split("\n"), passoL = hm*1.6;
+        var linha = Math.floor((att - 1)/3), H = hm + (lin.length - 1)*passoL;        // 0 = topo, 1 = meio, 2 = base do bloco de texto
+        var off0 = linha === 0 ? -hm : (linha === 1 ? H/2 - hm : H - hm), rr2 = rt*Math.PI/180, ix0 = X(g1(e,10,0)), iy0 = g1(e,20,0);
+        lin.forEach(function(ln, k){ if(!ln.trim()) return; var off = off0 - k*passoL;
+          add({ k:"T", x:ix0 - Math.sin(rr2)*off, y:iy0 + Math.cos(rr2)*off, h:hm, rot:rt, txt:ln, ha:(att - 1)%3, va:0 }, tf, layer, cor, lw); }); }
+      else if(t === "HATCH"){ dxfHatch(e, tf, layer, cor, lw, op); }
+      else if(t === "INSERT" || t === "DIMENSION"){
+        var bnm = s1(e, 2, ""), bk = blocks[bnm]; if(!bk || prof > 8) return;
+        var ix = g1(e,10,0), iy = g1(e,20,0), sx = t === "INSERT" ? g1(e,41,1) : 1, sy = t === "INSERT" ? g1(e,42,1) : 1, ro = (t === "INSERT" ? g1(e,50,0) : 0)*Math.PI/180;
+        if(mir){ ix = -ix; sx = -sx; }
+        var cs = Math.cos(ro), sn = Math.sin(ro), base = t === "INSERT" ? [bk.bx, bk.by] : [0, 0], ins = t === "INSERT" ? [ix, iy] : [0, 0];
+        var tf2 = function(x, y){ var a = (x - base[0])*sx, b = (y - base[1])*sy; return tf(ins[0] + a*cs - b*sn, ins[1] + a*sn + b*cs); };
+        var escB = Math.sqrt(Math.abs(sx*sy)) || 1;
+        prof++; bk.ents.forEach(function(be){ ent(be, tf2, cor, lw, layer, op, hd, dash, escLt*escB); }); prof--;
+        (e.attrs || []).forEach(function(a){ ent(a, tf, cor, lw, layer, op, hd, dash, escLt); });
+      } else if(t !== "VIEWPORT" && t !== "ATTDEF" && t !== "SEQEND") nIgn[t] = (nIgn[t] || 0) + 1;
+    }
+    function dxfHatch(e, tf, layer, cor, lw, op){
+      var solido = g1(e, 70, 0) === 1, g = e.g, k = 0, aneis = [];
+      while(k < g.length && g[k][0] !== 91) k++; if(k >= g.length) return; var np = +g[k][1]; k++;
+      for(var pth = 0; pth < np && k < g.length; pth++){
+        while(k < g.length && g[k][0] !== 92) k++; if(k >= g.length) break; var fl = +g[k][1]; k++; var anel = [];
+        if(fl & 2){ var hb = 0, nv = 0; while(k < g.length && g[k][0] !== 93){ if(g[k][0] === 72) hb = +g[k][1]; k++; } nv = +g[k][1]; k++;
+          var vs = []; for(var v = 0; v < nv && k < g.length; v++){ var x = 0, y = 0, bb = 0; if(g[k][0] === 10){ x = +g[k][1]; k++; } if(g[k] && g[k][0] === 20){ y = +g[k][1]; k++; } if(hb && g[k] && g[k][0] === 42){ bb = +g[k][1]; k++; } vs.push([x, y, bb]); }
+          if(vs.length){ anel.push([vs[0][0], vs[0][1]]); for(var m = 1; m <= vs.length; m++) bulgePts([vs[m-1][0], vs[m-1][1]], [vs[m % vs.length][0], vs[m % vs.length][1]], vs[m-1][2], anel); } }
+        else { while(k < g.length && g[k][0] !== 93) k++; var ne = +g[k][1]; k++;
+          for(var ed = 0; ed < ne && k < g.length && anel; ed++){
+            while(k < g.length && g[k][0] !== 72) k++; if(k >= g.length) break; var ty = +g[k][1]; k++; var vals = {};
+            while(k < g.length && [10,20,11,21,40,50,51,73].indexOf(g[k][0]) >= 0){ if(vals[g[k][0]] == null) vals[g[k][0]] = +g[k][1]; k++; }
+            if(ty === 1){ if(!anel.length) anel.push([vals[10], vals[20]]); anel.push([vals[11], vals[21]]); }
+            else if(ty === 2){ anel = anel.concat(vals[73] ? arcoPts(vals[10], vals[20], vals[40], vals[50], vals[51]) : arcoPts(vals[10], vals[20], vals[40], -vals[51], -vals[50]).reverse()); }
+            else anel = null;                                  // elipse/spline na borda da hachura: essa borda não é desenhada
+          } }
+        if(anel && anel.length > 2) aneis.push(anel);
+      }
+      aneis.forEach(function(a){ add0({ op:op, hd:s1(e, 5, ""), k:solido ? "F" : "L", pts:solido ? a : a.concat([a[0]]) }, tf, layer, cor, lw); });
+    }
+    ents.forEach(function(e){ ent(e, ident(), null, null, null); });
+    var bb = [1e18, 1e18, -1e18, -1e18]; prims.forEach(function(p){ bb = [Math.min(bb[0], p.bb[0]), Math.min(bb[1], p.bb[1]), Math.max(bb[2], p.bb[2]), Math.max(bb[3], p.bb[3])]; });
+    return { prims:prims, bb:prims.length ? bb : null, nEnt:ents.length, ignorados:nIgn, camadas:Object.keys(layers).length };
+  }
+  // desenha o DXF dentro do quadro (já recortado): só o que cai na janela
+  function desenharDxfQuadro(P, T, g){
+    if(!g || !g.prims || !g.prims.length) return;
+    var E0 = T.E(MAPA.x), E1 = T.E(MAPA.x + MAPA.w), N0 = T.N(MAPA.y + MAPA.h), N1 = T.N(MAPA.y), cam = null;
+    g.prims.forEach(function(p){
+      var b = p.bb; if(b[2] < E0 || b[0] > E1 || b[3] < N0 || b[1] > N1) return;
+      if(p.layer !== cam){ cam = p.layer; CAMDXF(P, "DXF_" + String(cam).toUpperCase().replace(/[^A-Z0-9_-]+/g, "_").slice(0, 60)); }
+      if(p.k === "T"){
+        var tam = p.h*T.mmPorM/0.3528; if(tam < 1.1 || tam > 260) return;
+        var al = p.ha === 1 ? "center" : (p.ha === 2 ? "right" : "left"), rr = p.rot*Math.PI/180, sh = p.va === 2 ? -p.h/2 : (p.va === 3 ? -p.h : 0);   // meio/topo: desce a linha de base
+        var x = p.x - Math.sin(rr)*sh, y = p.y + Math.cos(rr)*sh;
+        P.texto(T.x(x), T.y(y), p.txt, { tam:tam, rot:p.rot, align:al, cor:p.cor });   // (texto do DXF sem transparência)
+        return;
+      }
+      var pts = p.pts.map(function(q){ return [T.x(q[0]), T.y(q[1])]; });
+      var op = p.op == null ? 1 : p.op;
+      if(p.k === "F") P.poli(pts, { cor:p.cor, peso:0, fill:p.cor, opacFill:op });
+      else {
+        var tr = null;
+        if(p.dash && p.dash.length > 1){ var mm = p.dash.map(function(v){ return Math.abs(v)*T.mmPorM; }), tot = mm.reduce(function(a, b){ return a + b; }, 0);
+          if(tot >= .6 && tot < 400){ tr = mm.map(function(v){ return Math.max(.15, v); }); if(p.dash[0] < 0) tr.unshift(.0001); if(tr.length % 2) tr = tr.concat(tr); } }   // muito miúdo ou muito longo na escala: contínua
+        P.poli(pts, { cor:p.cor, peso:p.lw, fechar:false, opac:op, tracejado:tr || undefined });
+      }
+    });
+  }
+  function dxfResumo(){ var g = dxfGeo(); if(!g) return ""; if(g.erro) return "erro: " + g.erro; return g.prims.length + " elementos"; }
+  function dxfEscolher(){
+    var inp = document.createElement("input"); inp.type = "file"; inp.accept = ".dxf,.dwg";
+    inp.onchange = function(){
+      var f = inp.files && inp.files[0]; if(!f) return;
+      if(/\.dwg$/i.test(f.name)){ alert("Arquivo DWG não pode ser lido aqui (formato fechado da Autodesk).\n\nNo AutoCAD/TOPOCAD: Salvar como › tipo \"AutoCAD 2010 DXF (*.dxf)\" (ou anterior) e insira o .dxf."); return; }
+      if(f.size > DXF_MAX_MB*1048576){ alert("DXF grande demais (" + (f.size/1048576).toFixed(1).replace(".", ",") + " MB). Limite: " + DXF_MAX_MB + " MB — apague do desenho o que não vai para a planta (ou purgue) e salve de novo."); return; }
+      var rd = new FileReader();
+      rd.onload = function(){
+        var t = String(rd.result || "");
+        if(/^AutoCAD Binary DXF/.test(t)){ alert("Este DXF está no formato binário. Salve como DXF de texto (ASCII) e insira de novo."); return; }
+        if(t.indexOf("�") >= 0 && !rd._ansi){ rd._ansi = true; rd.readAsText(f, "windows-1252"); return; }   // DXF antigo (ANSI): relê em Windows-1252
+        if(!/(^|\n)\s*0\s*\r?\n\s*SECTION/.test(t.slice(0, 4000))){ alert("O arquivo não parece ser um DXF de texto (não começa com SECTION)."); return; }
+        var g; try{ g = dxfParse(t); }catch(e){ alert("Não consegui ler o DXF: " + (e && e.message || e)); return; }
+        if(!g.prims.length){ alert("O DXF não tem nada desenhável no espaço do modelo (linhas, polilinhas, textos, blocos…)."); return; }
+        var el = $("mdp_dxf_dados"), nm = $("mdp_dxf_nome");
+        el.value = t; el.dispatchEvent(new Event("input", { bubbles:true })); if(nm){ nm.value = f.name; nm.dispatchEvent(new Event("input", { bubbles:true })); }
+        DXFQ.k = ""; setExtra("quadro_fonte", "dxf");
+        try{ if(window.CAD_marcarSujo) window.CAD_marcarSujo(); }catch(e){}
+        var msgs = [];
+        if(G){ var bb = g.bb, ex = limitesPlanta(), dentro = !(bb[2] < ex[0] - 2000 || bb[0] > ex[1] + 2000 || bb[3] < ex[2] - 2000 || bb[1] > ex[3] + 2000);
+          if(!dentro) msgs.push("⚠ O desenho não cai perto do perímetro do KML — ele não parece estar em UTM SIRGAS 2000 (zona " + G.fuso + G.letra + ").\nExtensão do DXF: E " + br(bb[0],0) + " a " + br(bb[2],0) + " · N " + br(bb[1],0) + " a " + br(bb[3],0) + "."); }
+        var ig = Object.keys(g.ignorados); if(ig.length) msgs.push("Elementos não desenhados: " + ig.map(function(k){ return k + " (" + g.ignorados[k] + ")"; }).join(", ") + ".");
+        if(msgs.length) alert("DXF inserido: " + f.name + " — " + g.prims.length + " elementos.\n\n" + msgs.join("\n\n"));
+        sincronizarBarras(); agendarPreview(30);
+      };
+      rd.readAsText(f, "utf-8");
+    };
+    inp.click();
+  }
   function desenharFolhaBase(P, T, op, pg){
     pg = pg || { n:1, total:1, de:0, ate:G.segs.length };
     NUMF = (op && op.folhas) || { off:0, total:pg.total };
@@ -22553,12 +22813,15 @@ function AV_gerarDescSituacao(){
     CAMDXF(P, "ENP_MAPA_MOLDURA");
     P.ret(MAPA.x, MAPA.y, MAPA.w, MAPA.h, { peso:.3 });
     P.clip(MAPA.x, MAPA.y, MAPA.w, MAPA.h);
+    var modoDxf = quadroDxfAtivo();      // 09/10/2026: quadro a partir de um DXF (só satélite/ortofoto, DXF, projeto, extras e malha)
     if((op.satelite || op.ortofoto) && op.rasterSat) P.img({ el:op.rasterSatEl, url:op.rasterSat }, MAPA.x, MAPA.y, MAPA.w, MAPA.h, { opac:(op.opacSat != null ? op.opacSat : EST("raster").opac/100) });
-    if(op.ambiental) desenharAmbientais(P, T, op.ambientais);
+    if(modoDxf){ var gDxf = dxfGeo(); if(gDxf && gDxf.prims && gDxf.prims.length) desenharDxfQuadro(P, T, gDxf);
+      else { CAMDXF(P, "ENP_AVISO"); P.texto(MAPA.x + MAPA.w/2, MAPA.y + MAPA.h/2, gDxf && gDxf.erro ? ("DXF ilegível: " + gDxf.erro) : "Quadro em modo DXF: escolha o arquivo no botão “📐 DXF” da composição", { tam:9, bold:true, align:"center", cor:"#b3141b", halo:true }); } }
+    if(op.ambiental && !modoDxf) desenharAmbientais(P, T, op.ambientais);
     if(op.projeto && op.projGrupo) desenharProjeto(P, T, op.projGrupo, op.limGeo);
-    if(op.fixo && op.fixoDados) desenharFixo(P, T, op.fixoDados);
-    // estaqueamento acompanha o eixo: aparece se "Projeto revisado" OU "Faixa e eixo" estiver ligado
-    if((op.projeto || op.fixo) && CTX.proj) desenharEstacas(P, T, CTX.proj, op.limGeo);
+    if(op.fixo && op.fixoDados && !modoDxf) desenharFixo(P, T, op.fixoDados);
+    // estaqueamento acompanha o eixo: aparece se "Projeto revisado" OU "Faixa e eixo" estiver ligado (com DXF, só com o projeto)
+    if((op.projeto || (op.fixo && !modoDxf)) && CTX.proj) desenharEstacas(P, T, CTX.proj, op.limGeo);
     if(op.extras) desenharExtras(P, T);
 
     // malha de coordenadas
@@ -22586,6 +22849,7 @@ function AV_gerarDescSituacao(){
 
     // área a desapropriar: hachura amarela + contorno azul (legenda aprovada), depois as divisas de cada trecho
     var geral = geralAtivo();
+    if(!modoDxf){                        // com DXF o quadro não leva contorno, vértices, KM, confrontantes nem cotas do KML
     CAMDXF(P, "ENP_AREA_DESAPROPRIAR");
     var pol = G.v.map(function(p){ return [T.x(p.E), T.y(p.N)]; });
     var ep = EST("poligono");
@@ -22647,6 +22911,7 @@ function AV_gerarDescSituacao(){
     }
     if(COTA_FAIXA_ATIVA && op.fixo && op.fixoDados && !op.semCotaFaixa) desenharCotasFaixa(P, T, op.fixoDados);
     if(op.cotas !== false){ desenharCotas(P, T); desenharLeaders(P, T); }
+    }
     P.clipOff();
 
     // escala gráfica + norte
@@ -23047,6 +23312,8 @@ function AV_gerarDescSituacao(){
   function barraHtml(){
     return BARRA.map(function(b){ return '<label class="mdp-chk" title="' + esc(b[2]) + '"><input type="checkbox" data-opc="' + b[0] + '"' + (OPC[b[0]] ? " checked" : "") + '> ' + b[1] + '</label>'; }).join("") +
       '<select class="mdp-sel" data-opc-area title="Perímetro da planta (geral ou cada área)" style="display:none;margin-right:6px;"></select>' +
+      '<select class="mdp-sel" data-opc-quadro title="O que aparece no quadro da planta de situação" aria-label="Fonte do quadro da planta"><option value="auto">Quadro: mapa automático</option><option value="dxf">Quadro: arquivo DXF</option><option value="rm">Remover o DXF inserido</option></select>' +
+      '<button type="button" class="mdp-mini" data-opc-dxf title="Escolher o DXF (UTM SIRGAS 2000) que vai no quadro da planta" style="margin-right:6px;">📐 DXF…</button>' +
       '<select class="mdp-sel" data-opc-fmt title="Formato da prancha">' +
       Object.keys(FORMATOS).map(function(k){ var f = FORMATOS[k];
         return '<option value="' + k + '">' + esc(f.nome) + ' — ' + f.W + '×' + f.H + ' mm</option>'; }).join("") + '</select>' +
@@ -23071,6 +23338,8 @@ function AV_gerarDescSituacao(){
     Array.prototype.forEach.call(document.querySelectorAll("[data-opc]"), function(cb){ cb.checked = !!OPC[cb.getAttribute("data-opc")]; });
     Array.prototype.forEach.call(document.querySelectorAll("[data-opc-esc]"), function(s){ s.value = String(OPC.escala || 0); });
     Array.prototype.forEach.call(document.querySelectorAll("[data-opc-fmt]"), function(s){ s.value = OPC.formato || "a3"; });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-opc-quadro]"), function(s){ s.value = quadroDxfAtivo() ? "dxf" : "auto"; var rm = s.querySelector('option[value="rm"]'); if(rm) rm.hidden = rm.disabled = !dxfTexto(); });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-opc-dxf]"), function(b){ var nm = gv("mdp_dxf_nome"); b.style.display = quadroDxfAtivo() ? "" : "none"; b.textContent = dxfTexto() ? ("📐 " + (nm.length > 26 ? nm.slice(0, 24) + "…" : nm || "DXF") + " · " + dxfResumo()) : "📐 Escolher DXF…"; b.title = dxfTexto() ? ("DXF no quadro: " + nm + " — clique para trocar") : "Escolher o DXF (UTM SIRGAS 2000) que vai no quadro da planta"; });
     Array.prototype.forEach.call(document.querySelectorAll("[data-opc-area]"), function(s){
       var n = ANEIS.length;
       if(n < 2){ s.style.display = "none"; return; }
@@ -23090,9 +23359,16 @@ function AV_gerarDescSituacao(){
       else if(t.hasAttribute("data-opc-area")){ if(t.value === "g") window.MDP_usarGeral(); else window.MDP_usarArea(parseInt(t.value, 10) || 0); }
       else if(t.hasAttribute("data-opc-fmt")){ OPC.formato = t.value; OPC.folha = 0; setExtra("formato", t.value); CACHE_SAT.chave = ""; aplicarFormato(t.value); sincronizarBarras(); agendarPreview(60); }
       else if(t.hasAttribute("data-opc-folha")){ OPC.folha = parseInt(t.value, 10) || 0; agendarPreview(30); }
+      else if(t.hasAttribute("data-opc-quadro")){
+        if(t.value === "rm"){ if(confirm("Remover o DXF do quadro? O quadro volta ao mapa automático.")){ var el = $("mdp_dxf_dados"), nm = $("mdp_dxf_nome"); el.value = ""; el.dispatchEvent(new Event("input", {bubbles:true})); if(nm){ nm.value = ""; nm.dispatchEvent(new Event("input", {bubbles:true})); } DXFQ.k = ""; setExtra("quadro_fonte", "auto"); } }
+        else { setExtra("quadro_fonte", t.value); if(t.value === "dxf" && !dxfTexto()) dxfEscolher(); }
+        try{ if(window.CAD_marcarSujo) window.CAD_marcarSujo(); }catch(e){}
+        sincronizarBarras(); agendarPreview(30);
+      }
     });
     document.addEventListener("click", function(ev){
-      var t = ev.target; if(!t || !t.getAttribute || !t.hasAttribute("data-opc-pan")) return;
+      var t = ev.target; if(t && t.closest && t.closest("[data-opc-dxf]")){ dxfEscolher(); return; }
+      if(!t || !t.getAttribute || !t.hasAttribute("data-opc-pan")) return;
       PAN.x = 0; PAN.y = 0; CACHE_SAT.chave = ""; agendarPreview(30);
     });
   }
@@ -23854,9 +24130,11 @@ function AV_gerarDescSituacao(){
   };
 
   // opts.sobre = {satelite:false, ortofoto:false} gera a versão sem imagem; opts.sufixo vai no nome do arquivo
+  window.MDP_dxf = { parse:function(t){ return dxfParse(t); }, geo:function(){ return dxfGeo(); } };   // testes/diagnóstico
   window.MDP_pdfPlanta = async function(opts){
     opts = opts || {};
     var a = analisar(); if(a.erro){ alert(a.erro); return; }
+    if(quadroDxfAtivo() && !dxfTexto()){ alert("O quadro está em modo DXF, mas nenhum DXF foi inserido.\n\nEscolha o arquivo no botão \u201c📐 DXF\u201d da composição ou volte para \u201cQuadro: mapa automático\u201d."); return; }
     if(!window.jspdf){ alert("Biblioteca de PDF ainda carregando."); return; }
     var load = $("mdp_comp_load"); var aviso = function(t){ if(load){ load.textContent = t; load.style.display = "block"; } };
     aviso("gerando o PDF…");
