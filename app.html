@@ -14369,6 +14369,7 @@ window.FOTO_rodapeHTML=rodapeHTML;
   };
 
   function recalc(){
+    if(window.__CAD_RESTAURANDO){ (window.__CAD_pend = window.__CAD_pend || new Set()).add(recalc); return; }   // abrir cadastro: roda uma vez no fim (09/10/2026)
     // área avaliada de referência repete a Área Total do Imóvel (3.36) e fica bloqueada
     const areaTotalEl = document.getElementById("av_areatotal");
     const areaAvalEl = document.getElementById("av_area_aval");
@@ -26097,6 +26098,11 @@ function AV_gerarDescSituacao(){
 
   function restaurarCampos(campos){
     if(!campos) return;
+    window.__CAD_RESTAURANDO = true;
+    try{ restaurarCampos0(campos); }
+    finally{ window.__CAD_RESTAURANDO = false; var pend = window.__CAD_pend; window.__CAD_pend = null; if(pend) pend.forEach(function(f){ try{ f(); }catch(e){ console.warn("recalculo adiado falhou:", e); } }); }
+  }
+  function restaurarCampos0(campos){
     Object.entries(campos).forEach(([id,val])=>{
       try{
         const el=document.getElementById(id);
