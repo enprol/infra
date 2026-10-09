@@ -9232,11 +9232,10 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 
 <h2 class="vsec">5 · Carimbo da planta</h2>
 <div class="vcard">
-  <p class="mdp-explica" style="margin-bottom:6px;">Campos do carimbo que não vêm do cadastro. <b>Segmento</b> em branco usa o KM calculado no eixo.</p>
-  <div class="vsub">Campos do carimbo</div>
-  <div class="vrow" id="mdp_campos_car"></div>
-  <div class="vsub">Observações (01 a 06)</div>
-  <div class="vrow" id="mdp_obs"></div>
+  <p class="mdp-explica" style="margin-bottom:10px;">O carimbo agora é preenchido <b>dentro da Composição da planta</b> (aba <b>Carimbo</b>), com a prancha ao lado para ver o resultado na hora.</p>
+  <div class="vactions" style="margin-top:0"><button class="vbtn" type="button" onclick="MDP_abrirCarimbo()">🧩 Abrir o carimbo na composição</button></div>
+  <div class="vrow" id="mdp_campos_car" hidden></div>
+  <div class="vrow" id="mdp_obs" hidden></div>
 </div>
 </div>
 </section>
@@ -19560,6 +19559,16 @@ function AV_gerarDescSituacao(){
   /* ---------------- UTM (SIRGAS 2000 / GRS80) ----------------
      Série clássica da projeção Transversa de Mercator — erro milimétrico na faixa do fuso. */
   var A = 6378137.0, F = 1/298.257222101, E2 = 2*F - F*F, K0 = 0.9996;
+  /* Área na ELIPSOIDE (GRS80): projeção cilíndrica equivalente com latitude autálica (arestas retas nessa projeção; para perímetros de
+     poucos km a diferença para as geodésicas é desprezível). pts = [[lon,lat]…] ou [{lon,lat}…]. Auditoria 08/10/2026: a área do plano UTM
+     sai 0,16–0,18 % MAIOR no SPS-07 (≈ 5 m² em 0,29 ha) e ≈ 0,01–0,02 % no SPS-04. */
+  function areaElip(pts){
+    var e = Math.sqrt(E2), rad = Math.PI/180;
+    function q(s){ return (1 - E2)*(s/(1 - E2*s*s) - (1/(2*e))*Math.log((1 - e*s)/(1 + e*s))); }
+    var qp = q(1), Rq = Math.sqrt(A*A*qp/2), P = pts.map(function(p){ var lo = p.lon != null ? p.lon : p[0], la = p.lat != null ? p.lat : p[1]; return [Rq*lo*rad, Rq*q(Math.sin(la*rad))/qp]; }), s = 0;
+    for(var i = 0; i < P.length; i++){ var j = (i + 1)%P.length; s += P[i][0]*P[j][1] - P[j][0]*P[i][1]; }
+    return Math.abs(s/2);
+  }
   function fusoDe(lon){ return Math.floor((lon + 180)/6) + 1; }
   function mcDe(fuso){ return -183 + 6*fuso; }
   function utm(lon, lat, fuso){
@@ -19685,8 +19694,8 @@ function AV_gerarDescSituacao(){
       if(pts.length < 3) return;
       var uv = pts.map(function(p){ var u = utm(p[0], p[1], G.fuso); return { E:u.E, N:u.N }; });
       var s2 = 0, per = 0, n = uv.length;
-      for(var i = 0; i < n; i++){ var j = (i+1)%n; s2 += uv[i].E*uv[j].N - uv[j].E*uv[i].N; per += Math.hypot(uv[j].E-uv[i].E, uv[j].N-uv[i].N); }
-      l.push({ i:idx, nome:a.nome || "", v:uv, area_m2:Math.abs(s2/2), perim:per });
+      for(var i = 0; i < n; i++){ var j = (i+1)%n; s2 += uv[i].E*uv[j].N - uv[j].E*uv[i].N; per += Math.round(Math.hypot(uv[j].E-uv[i].E, uv[j].N-uv[i].N)*100)/100; }   // perímetro = soma das distâncias a 2 casas (fecha com a tabela)
+      l.push({ i:idx, nome:a.nome || "", v:uv, area_m2:areaElip(pts), area_plano_m2:Math.abs(s2/2), perim:per });
     });
     _AC = { k:k, l:l }; return l;
   }
@@ -19852,14 +19861,14 @@ function AV_gerarDescSituacao(){
       var dE = b.E - a.E, dN = b.N - a.N;
       var d = Math.sqrt(dE*dE + dN*dN);
       var az = Math.atan2(dE, dN) * 180/Math.PI; if(az < 0) az += 360;
-      perim += d;
+      perim += Math.round(d*100)/100;   // soma das distâncias a 2 casas (fecha com a tabela)
       segs.push({ i:k, de:k, para:(k+1)%n, az:az, dist:d });
     }
-    var area = Math.abs(s2/2);
+    var areaPlano = Math.abs(s2/2), area = areaElip(uv);   // área ELIPSOIDAL (a do plano UTM fica em area_plano_m2)
     var cx = 0, cy = 0; uv.forEach(function(p){ cx += p.E; cy += p.N; }); cx /= n; cy /= n;
     G = {
       v: uv.map(function(p, k){ return { nome:"P" + String(k+1).padStart(2,"0"), lon:p.lon, lat:p.lat, E:p.E, N:p.N }; }),
-      segs: segs, area_m2: area, area_ha: area/10000, perim: perim,
+      segs: segs, area_m2: area, area_plano_m2: areaPlano, area_ha: area/10000, perim: perim,
       fuso: fuso, mc: mcDe(fuso), letra: FUSO_LETRA(pts[0][1]), sul: pts[0][1] < 0,
       cx: cx, cy: cy, nomeKml: gv("rel_kml_nome"), rotuloAnel: anel.nome || ""
     };
@@ -21034,20 +21043,23 @@ function AV_gerarDescSituacao(){
       var cum = [0]; for(var i = 1; i < pts.length; i++) cum.push(cum[i-1] + Math.hypot(pts[i][0] - pts[i-1][0], pts[i][1] - pts[i-1][1]));
       var E = { pts:pts, cum:cum };
       var mp = [];
-      K.forEach(function(k){ var r = projEixo(E, k.E, k.N); if(r && r.d < 8 && !r.ponta) mp.push([r.s, k.ch]); });
+      var hint = null;
+      K.forEach(function(k){ var r = hint != null ? projEixo(E, k.E, k.N, Math.max(1, hint - 600), hint + 600) : null; if(!r || r.d >= 8) r = projEixo(E, k.E, k.N); if(r && r.d < 8 && !r.ponta){ mp.push([r.s, k.ch]); hint = r.i; } });
       mp.sort(function(a, b){ return a[0] - b[0]; });
       if(mp.length < 2) return;
       E.mp = mp; out.push(E);
     });
     return out.length ? out : null;
   }
-  function projEixo(E, px, py){
-    var best = null, pts = E.pts;
-    for(var i = 1; i < pts.length; i++){
-      var ax = pts[i-1][0], ay = pts[i-1][1], dx = pts[i][0] - ax, dy = pts[i][1] - ay, L2 = dx*dx + dy*dy; if(!L2) continue;
+  function projEixo(E, px, py, i0, i1){
+    var best = null, pts = E.pts, bd = Infinity;
+    for(var i = (i0 || 1); i < (i1 == null ? pts.length : Math.min(i1, pts.length)); i++){
+      var ax = pts[i-1][0], ay = pts[i-1][1], bx = pts[i][0], by = pts[i][1];
+      if(bd < Infinity && (Math.min(ax, bx) - px > bd || px - Math.max(ax, bx) > bd || Math.min(ay, by) - py > bd || py - Math.max(ay, by) > bd)) continue;   // poda pela caixa
+      var dx = bx - ax, dy = by - ay, L2 = dx*dx + dy*dy; if(!L2) continue;
       var t = ((px - ax)*dx + (py - ay)*dy)/L2, tc = Math.max(0, Math.min(1, t));
       var qx = ax + tc*dx, qy = ay + tc*dy, d = Math.hypot(px - qx, py - qy);
-      if(!best || d < best.d) best = { d:d, s:E.cum[i-1] + tc*Math.sqrt(L2), qx:qx, qy:qy, dx:dx, dy:dy, L:Math.sqrt(L2), ponta:((i === 1 && t < 0) || (i === pts.length - 1 && t > 1)) };
+      if(!best || d < best.d){ best = { d:d, i:i, s:E.cum[i-1] + tc*Math.sqrt(L2), qx:qx, qy:qy, dx:dx, dy:dy, L:Math.sqrt(L2), ponta:((i === 1 && t < 0) || (i === pts.length - 1 && t > 1)) }; bd = d; }
     }
     return best;
   }
@@ -21092,7 +21104,9 @@ function AV_gerarDescSituacao(){
   }
   function calcularKm(grupo, fixo, vs){
     var K = estacasUtm(grupo); if(!K || !G) return null;
-    var EJ = eixoCalibrado(K, fixo);   // eixo real (polilinha desenhada); sem ele, cai na corda entre estacas
+    var _ck = K.length + "|" + K[0].ch + "|" + K[K.length-1].ch;
+    var EJ = (fixo && fixo._ejc && fixo._ejc.k === _ck) ? fixo._ejc.v : eixoCalibrado(K, fixo);   // eixo real (polilinha desenhada), calibrado uma vez por 'fixo'; sem ele, cai na corda entre estacas
+    if(fixo && !(fixo._ejc && fixo._ejc.k === _ck)) fixo._ejc = { k:_ck, v:EJ };
     var v = (vs || G.v).map(function(p){
       var r = (EJ && kmEixoReal(EJ, p.E, p.N)) || kmEixo(K, p.E, p.N); if(!r) return { ch:null };
       var dFD = Infinity;
@@ -21377,7 +21391,7 @@ function AV_gerarDescSituacao(){
     }
     var ct = (g.camadas || []).filter(function(x){ return x.tipo === "texto"; })[0], dt = ct && PROJ.dados[g.pasta + "|" + ct.arquivo];
     // de 1:5.000 em diante (escala menor) o número entra só de 200 em 200 m: de 100 em 100 m os textos se atropelam
-    var so200 = true;   // 08/10/2026: sempre de 200 em 200 m (antes, abaixo de 1:5.000, saía de 100 em 100 m e os mapas ficavam diferentes)
+    var so200 = T.esc > 1500;   // 08/10/2026: de 100 em 100 m a partir de 1:1500 (1:1500, 1:1250, 1:1000…); em escalas menores, de 200 em 200 m
     // 05/10/2026: o número da estaca fica a uma distância FIXA do eixo em mm de papel (a do CAD é fixa em metros: 7,4 m →
     // 10 mm em 1:750 e o texto se afastava e caía em cima dos confrontantes). Mínimo: logo depois da ponta do traço de 100 m.
     var kmapa = {}; if(de && de.k) de.k.forEach(function(k){ kmapa[k[2]] = k; });
@@ -22340,7 +22354,7 @@ function AV_gerarDescSituacao(){
           var po = a.pts.map(function(p){ var u = utm(p[0], p[1], G.fuso); return [T.x(u.E), T.y(u.N)]; });
           if(po.length < 3 || !po.some(function(q){ return noMapa(q, 30); })) return;
           var f0 = po[0], l0 = po[po.length - 1]; if(Math.abs(f0[0] - l0[0]) > 1e-6 || Math.abs(f0[1] - l0[1]) > 1e-6) po.push(f0);
-          recortar(po, 5).forEach(function(r){ tracar(P, r, "sem"); });
+          recortar(po, 5).forEach(function(r){ if(r.length > 1) P.poli(r, { cor:EST("sem").cor, peso:EST("sem").peso*.5, fechar:false }); });   // símbolo "sem cerca", linha mais fina
         });
       }
     }
@@ -23200,6 +23214,131 @@ function AV_gerarDescSituacao(){
   }
   window.MDP_fecharComposicao = compFechar;
 
+
+  /* =======================================================================
+     CARIMBO DENTRO DA COMPOSIÇÃO (08/10/2026) — aba "Carimbo" do painel da direita.
+     Blocos na ordem em que aparecem no carimbo impresso; em branco = automático (valor em cinza), digitar = vale no lugar.
+     Ao abrir a aba a prancha passa para "Ver impressão" para o carimbo aparecer ao lado enquanto se preenche.
+     ======================================================================= */
+  function carCss(){
+    return '<style>' +
+      '#mdp_aba_car{font-family:Bahnschrift,"Segoe UI Variable Text","Segoe UI",sans-serif;color:#10283a;}' +
+      '#panel-desp1-planta .mdp-abas{display:flex;gap:2px;margin:-2px -2px 12px;border-bottom:2px solid #10283a;}' +
+      '#panel-desp1-planta .mdp-abas button{flex:1 1 0;border:0;background:#e9eef3;color:#4b6073;font:700 12px Bahnschrift,"Segoe UI",sans-serif;letter-spacing:.06em;text-transform:uppercase;padding:9px 10px;cursor:pointer;border-radius:8px 8px 0 0;transition:background .15s,color .15s;}' +
+      '#panel-desp1-planta .mdp-abas button:hover{background:#dbe5ee;}' +
+      '#panel-desp1-planta .mdp-abas button.on{background:#10283a;color:#fff;}' +
+      '#mdp_aba_car .car-head{position:relative;padding:14px 16px 12px;margin-bottom:12px;border:1px solid #10283a;border-radius:4px;background:#fbfaf5 repeating-linear-gradient(0deg,transparent 0 17px,rgba(16,40,58,.07) 17px 18px),repeating-linear-gradient(90deg,transparent 0 17px,rgba(16,40,58,.07) 17px 18px);}' +
+      '#mdp_aba_car .car-head h3{margin:0 0 2px;font:800 17px Bahnschrift,"Segoe UI",sans-serif;letter-spacing:.07em;text-transform:uppercase;}' +
+      '#mdp_aba_car .car-head p{margin:0;font-size:12px;color:#4b6073;max-width:46ch;line-height:1.45;}' +
+      '#mdp_aba_car .car-chip{position:absolute;top:12px;right:14px;font:700 11px Bahnschrift,sans-serif;letter-spacing:.05em;padding:4px 9px;border:1px solid #10283a;border-radius:99px;background:#fff;}' +
+      '#mdp_aba_car .car-chip b{color:#c8791a;}' +
+      '#mdp_aba_car .car-modelo{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;}' +
+      '#mdp_aba_car .car-modelo button{border:1px solid #9fb0bf;background:#fff;border-radius:99px;padding:6px 12px;font:600 12px Bahnschrift,sans-serif;cursor:pointer;color:#10283a;}' +
+      '#mdp_aba_car .car-modelo button.on{background:#10283a;color:#fff;border-color:#10283a;}' +
+      '#mdp_aba_car .car-bloco{border:1px solid #10283a;border-radius:4px;margin-bottom:10px;background:#fff;overflow:hidden;}' +
+      '#mdp_aba_car .car-bloco>header{display:flex;align-items:center;gap:9px;padding:6px 12px;background:#10283a;color:#fff;font:700 11.5px Bahnschrift,sans-serif;letter-spacing:.1em;text-transform:uppercase;}' +
+      '#mdp_aba_car .car-bloco>header i{font-style:normal;font-family:ui-monospace,Consolas,monospace;color:#f2b24a;font-size:11px;}' +
+      '#mdp_aba_car .car-bloco>header small{margin-left:auto;font:500 11px Bahnschrift,sans-serif;letter-spacing:.02em;text-transform:none;opacity:.75;}' +
+      '#mdp_aba_car .car-grade{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));}' +
+      '#mdp_aba_car .car-cel{position:relative;padding:8px 12px 9px;border-right:1px solid #d6dee6;border-bottom:1px solid #d6dee6;background:#fff;transition:background .15s;}' +
+      '#mdp_aba_car .car-cel.larga{grid-column:1/-1;}' +
+      '#mdp_aba_car .car-cel:focus-within{background:#fff8e8;}' +
+      '#mdp_aba_car .car-cel label{display:flex;align-items:center;gap:6px;font:700 10.5px Bahnschrift,sans-serif;letter-spacing:.07em;text-transform:uppercase;color:#4b6073;margin-bottom:3px;}' +
+      '#mdp_aba_car .car-cel input,#mdp_aba_car .car-cel select{width:100%;box-sizing:border-box;border:0;border-bottom:1.5px solid #b9c7d3;background:transparent;font:600 14px Bahnschrift,"Segoe UI",sans-serif;color:#10283a;padding:3px 24px 3px 0;outline:none;border-radius:0;}' +
+      '#mdp_aba_car .car-cel input::placeholder{color:#8aa0b2;font-weight:500;}' +
+      '#mdp_aba_car .car-cel input:focus,#mdp_aba_car .car-cel select:focus{border-bottom-color:#c8791a;}' +
+      '#mdp_aba_car .car-tag{font:700 9px ui-monospace,Consolas,monospace;letter-spacing:.08em;padding:1px 5px;border-radius:3px;}' +
+      '#mdp_aba_car .car-cel .t-auto{background:#d9f0ec;color:#0b6b60;}' +
+      '#mdp_aba_car .car-cel .t-man{background:#fbe5c4;color:#8a4d05;}' +
+      '#mdp_aba_car .car-cel .t-fixo{background:#e6ebf0;color:#52677a;}' +
+      '#mdp_aba_car .car-cel .t-falta{background:#fbd9d9;color:#a11d1d;}' +
+      '#mdp_aba_car .car-cel .t-auto,#mdp_aba_car .car-cel .t-man,#mdp_aba_car .car-cel .t-falta{display:none;}' +
+      '#mdp_aba_car .car-cel.is-auto .t-auto{display:inline;}' +
+      '#mdp_aba_car .car-cel.is-man .t-man{display:inline;}' +
+      '#mdp_aba_car .car-cel.is-falta .t-falta{display:inline;}' +
+      '#mdp_aba_car .car-rst{position:absolute;right:8px;bottom:8px;width:20px;height:20px;border:0;border-radius:50%;background:#10283a;color:#fff;font-size:12px;line-height:20px;padding:0;cursor:pointer;display:none;}' +
+      '#mdp_aba_car .car-cel.is-man .car-rst{display:block;}' +
+      '#mdp_aba_car .car-cel .car-dica{font-size:10.5px;color:#7a8ea0;margin-top:3px;}' +
+      '#mdp_aba_car .car-lock input{color:#4b6073;}' +
+      '#mdp_aba_car .car-nota{font-size:11.5px;color:#4b6073;padding:8px 12px;background:#f4f6f8;}' +
+      '#mdp_aba_car .car-obs{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));}' +
+      '#mdp_aba_car .car-obs .car-cel input{padding-left:30px;}' +
+      '#mdp_aba_car .car-obs .car-cel b{position:absolute;left:12px;bottom:10px;font:800 11px ui-monospace,Consolas,monospace;color:#c8791a;}' +
+      '</style>';
+  }
+  function carCel(k, rot, auto, dica, o){
+    o = o || {};
+    var v = extras()[k] || "", man = !!v, tem = !!auto;
+    var cls = "car-cel" + (o.larga ? " larga" : "") + (man ? " is-man" : (tem ? " is-auto" : (o.obrig ? " is-falta" : "")));
+    var ph = tem ? auto : (dica || "");
+    return '<div class="' + cls + '" data-k="' + k + '"' + (tem ? ' data-auto="1"' : '') + '><label for="car_' + k + '">' + esc(rot) + ' <span class="car-tag t-auto">AUTO</span><span class="car-tag t-man">MANUAL</span><span class="car-tag t-falta">FALTA</span></label>' +
+      '<input type="text" id="car_' + k + '" value="' + esc(v) + '" placeholder="' + esc(ph) + '" autocomplete="off" oninput="MDP_carEdit(\'' + k + '\',this)">' +
+      '<button type="button" class="car-rst" title="Voltar ao automático" aria-label="Voltar ao automático: ' + esc(rot) + '" onclick="MDP_carReset(\'' + k + '\')">↺</button>' +
+      (o.aviso ? '<div class="car-dica" style="color:#a11d1d">⚠ ' + esc(o.aviso) + '</div>' : (dica && tem ? '<div class="car-dica">' + esc(dica) + '</div>' : '')) + '</div>';
+  }
+  function carFixo(rot, v, tag){
+    return '<div class="car-cel car-lock"><label>' + esc(rot) + ' <span class="car-tag t-fixo" style="display:inline">' + esc(tag || "DO CADASTRO") + '</span></label><input type="text" readonly tabindex="-1" value="' + esc(v || "—") + '"></div>';
+  }
+  function renderCarimboPainel(){
+    var box = $("mdp_aba_car"); if(!box) return;
+    if(!G){ box.innerHTML = carCss() + '<div class="car-head"><h3>Carimbo da planta</h3><p>Insira o KML em Técnica › Áreas de Locação para preencher o carimbo.</p></div>'; return; }
+    var c = doCadastro(), ex = extras(), mod = modeloCarimbo(), au = autoCarimbo(c), nf = contagemFolhas();
+    var mun = (c.municipio || "") + (c.uf ? " – " + c.uf : "");
+    var vd = ex.desenhista || "", nomes = DESENHISTAS.map(function(d){ return d.nome; });
+    var h = carCss();
+    h += '<div class="car-head"><h3>Carimbo da planta</h3><p>Campo em branco sai <b>automático</b> (valor em cinza); o que você digitar vale no lugar — o <b>↺</b> devolve ao automático. A prancha ao lado mostra o resultado.</p><span class="car-chip" id="car_chip"></span></div>';
+    h += '<div class="car-modelo" role="group" aria-label="Modelo do carimbo">' + MODELOS_CAR.map(function(m){ return '<button type="button" class="' + (m[0] === mod ? "on" : "") + '" onclick="MDP_carModelo(\'' + m[0] + '\')">' + esc(m[1]) + '</button>'; }).join("") + '</div>';
+    h += '<section class="car-bloco"><header><i>01</i> Título</header><div class="car-grade">' +
+      carCel("ferrovia_tit", "Ferrovia (3ª linha do título)", "", "FERROVIA TRANSNORDESTINA - EF - 232", { larga:true }) + '</div></section>';
+    h += '<section class="car-bloco"><header><i>02</i> Trecho <small>sai da Ficha e do eixo</small></header><div class="car-grade">' +
+      carCel("trecho", "Trecho", au.trecho, "vem do SPS (lote) da Assistência Social", { larga:true }) +
+      carCel("segmento", "Segmento", au.segmento, "KM calculado no eixo a partir do KML", { obrig:true, aviso:(!ex.segmento && !au.segmento) ? "Sem KM no eixo (SPS sem estacas do projeto revisado): digite o segmento." : "" }) +
+      carFixo("Município / UF", mun) + carFixo("Processo", "CTD-" + (c.ctd || "") + " · SPS-" + (c.lote || ""), "DO CADASTRO") + '</div></section>';
+    h += '<section class="car-bloco"><header><i>03</i> Áreas <small>ha</small></header><div class="car-grade">' +
+      carCel("area_total_prop", "Área total da propriedade (matrícula)", au.area_total_prop, "Técnica › 1.4 Propriedade", { obrig:true, aviso:(!ex.area_total_prop && !au.area_total_prop) ? "Área total não preenchida na Técnica (1.4): o carimbo sai sem ela e sem a remanescente." : "" }) +
+      carCel("area_total_desap", "Área total a desapropriar", au.area_total_desap, "somada do(s) KML da área desapropriada");
+    if(mod === "sps04_006"){
+      h += carCel("area_parcela", "Área total da propriedade (parcela/lote)", "", "ex.: 15,2797 ha") + carCel("area_remanescente", "Área remanescente (parcela/lote)", "", "ex.: 12,8000 ha");
+    } else {
+      h += carCel("area_rem_desap", "Área remanescente a desapropriar", "0,0000 ha", "descreva se houver") + carCel("area_remanescente", "Área remanescente da propriedade", au.area_remanescente, "área total − área a desapropriar");
+    }
+    h += '</div></section>';
+    h += '<section class="car-bloco"><header><i>04</i> Responsáveis e controle</header><div class="car-grade">' +
+      '<div class="car-cel' + (vd ? " is-man" : "") + '" data-k="desenhista"><label for="car_desenhista">Desenhista <span class="car-tag t-man">ASSINA</span></label><select id="car_desenhista" onchange="MDP_carEdit(\'desenhista\',this)"><option value="">— selecione —</option>' +
+        nomes.map(function(n){ return '<option value="' + esc(n) + '"' + (n === vd ? " selected" : "") + '>' + esc(n) + '</option>'; }).join("") +
+        ((vd && nomes.indexOf(vd) < 0) ? '<option value="' + esc(vd) + '" selected>' + esc(vd) + ' (texto antigo)</option>' : "") + '</select></div>' +
+      carCel("aprovacao", "Aprovação", "", "nome de quem aprova") + carCel("rev", "Revisão", "", "0") +
+      carFixo("Data", dataImpressao(), "DA IMPRESSÃO") + carFixo("Folha", folhasTxt(nf), "AUTOMÁTICA") + '</div></section>';
+    h += '<section class="car-bloco"><header><i>05</i> Ambiental</header><div class="car-grade">' +
+      carCel("reserva", "Área da reserva legal (ha)", "", "0,0000") + carCel("app", "Área de APP (ha)", "", "0,0000") + carCel("car_ref", "Referência base do CAR", "", "AGOSTO/2026") + '</div></section>';
+    var obs = ex.obs || [];
+    h += '<section class="car-bloco"><header><i>06</i> Observações <small>as benfeitorias numeradas entram sozinhas</small></header><div class="car-obs">' +
+      [0,1,2,3,4,5].map(function(i){ return '<div class="car-cel"><b>' + String(i+1).padStart(2,"0") + '</b><label for="car_obs' + i + '">Observação ' + (i+1) + '</label><input type="text" id="car_obs' + i + '" value="' + esc(obs[i] || "") + '" placeholder="Ex.: CERCA 7.F.F (2,00mX2,00m)= 94,52m" oninput="MDP_setObs(' + i + ',this.value)"></div>'; }).join("") + '</div></section>';
+    box.innerHTML = h; carChip();
+  }
+  function carChip(){
+    var ch = $("car_chip"), box = $("mdp_aba_car"); if(!ch || !box) return;
+    var m = box.querySelectorAll(".car-cel.is-man").length, a = box.querySelectorAll(".car-cel.is-auto").length, f = box.querySelectorAll(".car-cel.is-falta").length;
+    ch.innerHTML = '<b>' + m + '</b> manuais · ' + a + ' automáticos' + (f ? ' · <span style="color:#a11d1d">' + f + ' faltando</span>' : "");
+  }
+  window.MDP_carEdit = function(k, el){
+    var cel = el.closest(".car-cel"), v = el.value;
+    window.MDP_setEx(k, v);
+    if(cel){ cel.classList.toggle("is-man", !!v); if(v) cel.classList.remove("is-auto", "is-falta"); else if(cel.dataset.auto === "1") cel.classList.add("is-auto"); }
+    carChip();
+  };
+  window.MDP_carReset = function(k){
+    var inp = $("car_" + k); if(inp){ inp.value = ""; }
+    window.MDP_setEx(k, ""); renderCarimboPainel();
+  };
+  function compAba(a){
+    var v = $("mdp_aba_vert"), c = $("mdp_aba_car"); if(!v || !c) return;
+    Array.prototype.forEach.call(document.querySelectorAll("#mdp_abas [data-aba]"), function(b){ var on = b.getAttribute("data-aba") === a; b.classList.toggle("on", on); b.setAttribute("aria-selected", on ? "true" : "false"); });
+    v.hidden = (a === "car"); c.hidden = (a !== "car");
+    if(a === "car"){ renderCarimboPainel(); if(COMP.vista !== "folha") compVista("folha"); }
+    else if(COMP.vista === "folha") compVista("quadro");
+  }
+  window.MDP_abrirCarimbo = async function(){ await window.MDP_abrirComposicao(); compAba("car"); };
   window.MDP_abrirComposicao = async function(){
     var a = analisar();
     if(a.erro){ alert(a.erro); return; }
@@ -23235,12 +23374,16 @@ function AV_gerarDescSituacao(){
             '</div>' +
             '<div class="mdp-comp-arr" id="mdp_comp_arr" title="Arraste para mudar a largura da tabela"></div>' +
             '<div class="mdp-comp-dir" id="mdp_comp_dir">' +
+              '<div class="mdp-abas" id="mdp_abas" role="tablist"><button type="button" role="tab" class="on" data-aba="vert">⬡ Vértices e divisas</button><button type="button" role="tab" data-aba="car">▤ Carimbo</button></div>' +
+              '<div id="mdp_aba_vert">' +
               '<div class="mdp-comp-dir-t">Vértices, confrontantes e tipo de divisa</div>' +
               '<div class="mdp-comp-dir-s">Para cada trecho (vértice → vértice) escolha o <b>confrontante</b> e o <b>tipo de divisa</b>. Campo em branco = <b>mesmo do trecho anterior</b> (em cinza); o <b>↓</b> repete nos seguintes. A lista traz os cadastros do mesmo SPS e as áreas remanescentes. O tipo de divisa define o símbolo desenhado na planta. Esta tabela vai para o memorial, a planta e o <b>DRL</b>. O <b>KM no memorial</b> vem preenchido (em azul) só nos vértices inicial e final sobre o eixo; a coluna <b>KM no eixo</b> é calculada sozinha.</div>' +
+            '</div>' + '<div id="mdp_aba_car" hidden></div>' +
             '</div>' +
           '</div>' +
         '</div>';
       ($("panel-desp1-planta") || document.body).appendChild(ov);
+      ov.querySelector("#mdp_abas").addEventListener("click", function(ev){ var b = ev.target.closest && ev.target.closest("[data-aba]"); if(b) compAba(b.getAttribute("data-aba")); });
 
       ov.addEventListener("click", function(ev){
         if(ev.target === ov || ev.target.classList.contains("mdp-comp-x")) compFechar();
@@ -23293,7 +23436,7 @@ function AV_gerarDescSituacao(){
     var dir = $("mdp_comp_dir"), tab = $("mdp_bloco_tabela");
     if(dir && tab && tab.parentNode !== dir){
       COMP.tabPai = tab.parentNode; COMP.tabProx = tab.nextSibling;
-      dir.appendChild(tab);
+      ($("mdp_aba_vert") || dir).appendChild(tab);
     }
     sincronizarBarras(); renderTabela();
     await compPintar();
@@ -24314,6 +24457,7 @@ function AV_gerarDescSituacao(){
     var lm = $("mdp_campos_lim");
     if(lm) lm.innerHTML = CAMPOS_LIM.map(function(f){ return inputEx(f[0], f[1], f[3]); }).join("");
     if(b) b.innerHTML = camposCarimbo();
+    var pc = $("mdp_aba_car"); if(pc && !pc.hidden) renderCarimboPainel();
     if(o){
       var obs = extras().obs || [];
       o.innerHTML = [0,1,2,3,4,5].map(function(i){
@@ -24559,6 +24703,7 @@ function AV_gerarDescSituacao(){
     var secs = document.querySelectorAll("#panel-desp1-planta .vsec");
     var alvo = { kml:1, km:1, cam:2, mem:3, car:4 }[id];
     if(id === "conf" || id === "div"){ window.MDP_abrirComposicao(); return; }
+    if(id === "car"){ window.MDP_abrirCarimbo(); return; }
     if(secs[alvo]) secs[alvo].scrollIntoView({ behavior:"smooth", block:"start" });
   };
 
