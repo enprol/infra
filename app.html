@@ -12322,11 +12322,36 @@ function andar(o, fn){
   if(!o || typeof o !== "object") return;
   Object.keys(o).forEach(function(k){ var v = o[k]; if(typeof v === "string") fn(o, k, v); else andar(v, fn); });
 }
+function extImg(u){ var m = /^data:image\/([a-z0-9.+-]+);/i.exec(u); var e = m ? m[1].toLowerCase() : "jpg"; if(e === "jpeg") e = "jpg"; return /^(jpg|png|webp|gif)$/.test(e) ? e : "jpg"; }
+function bytesDe(u){ var b = u.slice(u.indexOf(",") + 1), pad = /==$/.test(b) ? 2 : (/=$/.test(b) ? 1 : 0); return Math.floor(b.length * 3 / 4) - pad; }
+/** nome de cada imagem: pasta = processo administrativo; arquivo = marco/Base + tipo da foto */
+function nomesLegiveis(){
+  var mapa = new Map(), usados = new Set();
+  function reg(u, pasta, nome){
+    if(!u || typeof u !== "string" || u.indexOf("data:image/") !== 0 || mapa.has(u)) return;
+    var dir = pasta ? limparNome(pasta).slice(0, 70) : "", base = limparNome(nome).slice(0, 80) || "imagem", ext = extImg(u);
+    var rel = (dir ? dir + "/" : "") + base, cand = rel + "." + ext, i = 1;
+    while(usados.has(cand.toLowerCase())) cand = rel + " (" + (++i) + ")." + ext;
+    usados.add(cand.toLowerCase()); mapa.set(u, cand);
+  }
+  ST.procs.forEach(function(p){
+    var pr = (p.procAdm || "").trim() || ("Processo " + (p.num || "sem número"));
+    reg(p.base.fl, pr, "BASE - foto de localização"); reg(p.base.fd, pr, "BASE - foto de detalhe");
+    p.marcos.forEach(function(m){ var c = (m.cod || "").trim() || "marco sem código"; reg(m.fl, pr, c + " - foto de localização"); reg(m.fd, pr, c + " - foto de detalhe"); });
+    var n1 = 0, n2 = 0;
+    ST.doc.imgs.forEach(function(x){
+      if(x.topico === "p_" + p.id + "_loc") reg(x.src, pr, "Localização dos marcos" + (n1++ ? " (" + n1 + ")" : ""));
+      else if(x.topico === "p_" + p.id + "_sit") reg(x.src, pr, "Situação do georreferenciamento" + (n2++ ? " (" + n2 + ")" : ""));
+    });
+  });
+  ST.doc.imgs.forEach(function(x){ reg(x.src, "_DOCUMENTO", (x.leg || "").trim() || ("imagem " + x.topico)); });
+  reg(ST.fecho.assin, "_DOCUMENTO", "assinatura");
+  return mapa;
+}
 async function externalizar(){
-  var mapa = new Map();
-  andar(ST, function(o, k, v){ if(v.indexOf("data:image/") === 0 && !mapa.has(v)) mapa.set(v, null); });
-  var chaves = Array.from(mapa.keys());
-  for(var i = 0; i < chaves.length; i++) mapa.set(chaves[i], await hashImg(chaves[i]));
+  var mapa = nomesLegiveis(), solta = [];
+  andar(ST, function(o, k, v){ if(v.indexOf("data:image/") === 0 && !mapa.has(v) && solta.indexOf(v) < 0) solta.push(v); });
+  for(var i = 0; i < solta.length; i++){ var h = await hashImg(solta[i]); mapa.set(solta[i], "_DOCUMENTO/imagem-" + h); }   // sem contexto: nome pelo conteúdo
   var json = JSON.stringify(ST, function(k, v){ return (typeof v === "string" && mapa.has(v)) ? "@img:" + mapa.get(v) : v; });
   return { json:json, mapa:mapa };
 }
@@ -12342,8 +12367,9 @@ async function salvarServidor(){
   srvStatus("preparando…", "");
   var ex = await externalizar();
   var r0 = await srvFetch("/api/marcos/" + enc(nome) + "/imgs"); if(!r0.ok) throw new Error("servidor recusou (" + r0.status + ")");
-  var ja = new Set(await r0.json());
-  var faltam = Array.from(ex.mapa.entries()).filter(function(p){ return !ja.has(p[1]); }), feitas = 0;
+  var lst = await r0.json(), ja = new Map();
+  lst.forEach(function(x){ if(typeof x === "string") ja.set(x.toLowerCase(), -1); else ja.set(String(x.arquivo).toLowerCase(), x.bytes); });
+  var faltam = Array.from(ex.mapa.entries()).filter(function(p){ return ja.get(p[1].toLowerCase()) !== bytesDe(p[0]); }), feitas = 0;
   await emFila(faltam, 3, async function(p){
     var r = await srvFetch("/api/marcos/" + enc(nome) + "/img/" + enc(p[1]), { method:"PUT", headers:{ "Content-Type":"application/json" }, body:JSON.stringify({ dataUrl:p[0] }) }, 60000);
     if(!r.ok) throw new Error("imagem " + p[1] + ": " + r.status);
