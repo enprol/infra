@@ -10300,14 +10300,40 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 .mcm-drop-t{display:block;font-weight:700;font-size:14px;color:#175a9f;margin-top:2px;}
 .mcm-drop-h{display:block;font-size:12.5px;color:#6b7b8c;margin-top:3px;}
 
+#panel-util-marcos .mcm-doc{display:flex;flex-wrap:wrap;align-items:center;gap:8px;background:#fff;border:1px solid var(--borda);border-radius:12px;padding:10px 14px;margin:0 0 12px;box-shadow:0 4px 14px rgba(30,50,80,.05);}
+#panel-util-marcos .mcm-doc > label{font-size:12px;font-weight:800;color:var(--label);}
+#panel-util-marcos .mcm-doc #mcm_nome{flex:1 1 320px;border:1px solid var(--borda-forte);border-radius:8px;padding:8px 10px;font:13.5px "Segoe UI",Arial,sans-serif;}
+#panel-util-marcos .mcm-doc #mcm_nome:focus{outline:none;border-color:var(--azul);box-shadow:0 0 0 3px rgba(31,111,192,.14);}
+#panel-util-marcos .mcm-chk{font-weight:600 !important;display:flex;align-items:center;gap:5px;}
+#panel-util-marcos .mcm-srv{flex-basis:100%;font-size:12px;color:#8a98a8;}
+#panel-util-marcos .mcm-srv.ok{color:#127a31;}#panel-util-marcos .mcm-srv.off{color:#a86412;}#panel-util-marcos .mcm-srv.erro{color:#b03a2e;}
+.mcm-modal{position:fixed;inset:0;background:rgba(20,35,55,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;font-family:"Segoe UI",Arial,sans-serif;}
+.mcm-modal-box{background:#fff;border-radius:14px;max-width:720px;width:100%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.35);}
+.mcm-modal-h{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid #e1e8ef;color:#175a9f;}
+.mcm-modal-l{overflow:auto;padding:8px 12px;}
+.mcm-modal-i{display:flex;align-items:center;gap:12px;padding:10px 8px;border-bottom:1px solid #eef2f6;}
+.mcm-modal-i > div{flex:1;min-width:0;}.mcm-modal-i b{display:block;font-size:14px;color:#243447;}.mcm-modal-i small{color:#6b7b8c;font-size:12px;}
+.mcm-modal .vbtn{border:1px solid #b3bfcc;background:#fff;border-radius:9px;padding:7px 14px;font:700 12.5px "Segoe UI",Arial,sans-serif;cursor:pointer;}
+.mcm-modal .vbtn-primary{background:#1F6FC0;border-color:#1F6FC0;color:#fff;}
+.mcm-modal .mcm-dica{font-size:13px;color:#5a6b7c;}
+
 </style>
 <div class="wrap">
   <h1>Implantação e Monografia de Marcos Georreferenciados — FUND-2</h1>
   <p class="sub">Documento no formato do modelo FUND-2 (apresentação, metodologia, caracterização, monografias dos marcos, conclusão e ART), com a capa, o cabeçalho e o rodapé padrão. Todo o texto é editável; os dados dos processos e marcos alimentam as tabelas e os cartões de monografia.</p>
 
+  <div class="mcm-doc">
+    <label for="mcm_nome">Nome do documento</label>
+    <input type="text" id="mcm_nome" placeholder="ex.: FUND-2 - FIOL II - Lote 6F - 1ª entrega (vira o nome da pasta no servidor)" autocomplete="off">
+    <button class="vbtn vbtn-ghost" type="button" id="mcm_btn_srv" onclick="MCM_salvarServidor()" title="Grava o projeto (JSON leve) e as imagens em IMPLANTAÇÃO DE MARCOS\&lt;nome&gt;\">💾 Salvar no servidor</button>
+    <button class="vbtn vbtn-ghost" type="button" id="mcm_btn_abrir_srv" onclick="MCM_abrirServidor()">🗂 Abrir do servidor</button>
+    <label class="mcm-chk"><input type="checkbox" id="mcm_copia" checked> baixar também uma cópia do PDF</label>
+    <span id="mcm_srv" class="mcm-srv"></span>
+  </div>
+
   <div class="vactions mcm-top">
-    <button class="vbtn vbtn-primary" type="button" id="mcm_btn_pdf" onclick="MCM_gerarPDF()">📄 Gerar PDF</button>
-    <button class="vbtn vbtn-ghost" type="button" onclick="MCM_salvarProjeto()" title="Grava um arquivo .json com tudo desta aba (inclusive imagens)">💾 Salvar projeto</button>
+    <button class="vbtn vbtn-primary" type="button" id="mcm_btn_pdf" onclick="MCM_gerarPDF()" title="Pede uma pasta de destino e grava nela uma subpasta com o PDF e o .json de tudo o que foi preenchido">📄 Gerar PDF e salvar pasta</button>
+    <button class="vbtn vbtn-ghost" type="button" onclick="MCM_salvarProjeto()" title="Grava um arquivo .json com tudo desta aba (inclusive imagens)">💾 Salvar só o projeto</button>
     <label class="vbtn vbtn-ghost" title="Abre um projeto salvo antes">📂 Abrir projeto<input type="file" accept=".json,application/json" id="mcm_abrir" style="display:none"></label>
     <label class="vbtn vbtn-ghost" title="Selecione um ou vários arquivos .json gerados na monografia de campo (um por processo). Todos entram neste documento.">📥 Importar monografia de campo<input type="file" accept=".json,application/json" id="mcm_import" multiple style="display:none"></label>
     <button class="vbtn vbtn-ghost" type="button" onclick="MCM_limpar()" title="Zera processos, marcos, tabelas e fotos; mantém os textos">🧹 Limpar dados</button>
@@ -10518,6 +10544,7 @@ function mesclar(s){
   ["capa","pad","fecho","crono","tab1"].forEach(function(k){ if(o[k]) m[k] = Object.assign(m[k], o[k]); });
   if(o.doc) m.doc = Object.assign({ heads:{}, hide:{}, extras:[], imgs:[], txt:{}, man:{} }, o.doc);
   if(Array.isArray(o.procs)) m.procs = o.procs;
+  if(o.nome) m.nome = o.nome;
   ST = m;
   return m;
 }
@@ -10663,7 +10690,7 @@ function imgsHtml(topico){
   return ST.doc.imgs.filter(function(x){ return x.topico === topico; }).map(function(x){
     var id = esc(x.id), falta = !x.src;
     return '<figure class="dd-fig dd-img' + (falta ? ' falta' : '') + (x.meia ? ' meia' : '') + '" data-img="' + id + '">'
-      + (falta ? '<div class="dd-fig-vazio">Imagem ainda não anexada</div>' : '<img src="' + x.src + '" alt="">')
+      + (falta ? '<div class="dd-fig-vazio">Imagem ainda não anexada</div>' : '<img src="' + esc(x.src) + '" alt="">')
       + '<div class="dd-fig-acts">'
       + '<label class="dd-b">' + (falta ? 'Anexar imagem' : 'Trocar imagem') + '<input type="file" accept="image/*" class="dd-imgin" data-img="' + id + '" style="display:none"></label>'
       + ddBtn("imgmeia", x.meia ? "◧ Lado a lado: sim" : "◧ Lado a lado: não", "Põe esta imagem e a seguinte lado a lado, em meia largura", ' data-img="' + id + '"')
@@ -10688,7 +10715,7 @@ function celula(ctx, span, rot, f, o){
 function fotoHtml(ctx, f, rot){
   var src = ctx.obj[f], k = esc(ctx.attrs);
   return '<tr><td colspan="6" class="mc-fotolinha"><span class="mc-l">' + rot + '</span>'
-    + '<div class="mc-foto' + (src ? '' : ' vazio') + '">' + (src ? '<img src="' + src + '" alt="">' : '<span>sem foto</span>') + '</div>'
+    + '<div class="mc-foto' + (src ? '' : ' vazio') + '">' + (src ? '<img src="' + esc(src) + '" alt="">' : '<span>sem foto</span>') + '</div>'
     + '<div class="mc-fotoacts"><label class="dd-b">' + (src ? "Trocar foto" : "Anexar foto") + '<input type="file" accept="image/*" class="mc-fotoin" data-foto="' + f + '" ' + ctx.attrs + ' style="display:none"></label>'
     + (src ? '<button type="button" class="dd-b" data-act="fotorm" data-foto="' + f + '" ' + ctx.attrs + '>Remover</button>' : '') + '</div></td></tr>';
 }
@@ -10754,7 +10781,7 @@ function tab1Html(){
 }
 function fechoHtml(){
   var f = ST.fecho, c = { obj:f, attrs:'data-g="fecho"' };
-  var assin = f.assin ? '<img class="mc-assin" src="' + f.assin + '" alt="assinatura">' : '<div class="mc-assin vazio">assinatura (opcional)</div>';
+  var assin = f.assin ? '<img class="mc-assin" src="' + esc(f.assin) + '" alt="assinatura">' : '<div class="mc-assin vazio">assinatura (opcional)</div>';
   return '<div class="mc-fecho">'
     + '<p class="mc-fecho-l">' + inpHtml(c, "local", { cls:"curto" }) + ', ' + inpHtml(c, "data", { cls:"curto" }) + '.</p>'
     + '<p class="mc-fecho-l">Atenciosamente,</p>'
@@ -11894,6 +11921,36 @@ function construir(J, imgI, imgE, pagAnt, dry, AR){
   return { pdf:pdf, pag:pag };
 }
 
+/* Gerar PDF = salvar o pacote: uma pasta com o PDF e o .json de tudo o que foi preenchido até agora.
+   Para corrigir depois, abra o .json em “Abrir projeto” e continue de onde parou. */
+async function salvarPacote(pdfBlob, pdfNome){
+  var base = pdfNome.replace(/.pdf$/i, "");
+  var d = new Date(), z = function(n){ return ("0" + n).slice(-2); };
+  var pasta = base + "_" + d.getFullYear() + "-" + z(d.getMonth() + 1) + "-" + z(d.getDate()) + "_" + z(d.getHours()) + "h" + z(d.getMinutes());
+  var jsonNome = base + "_projeto.json";
+  var jsonBlob = new Blob([JSON.stringify(ST)], { type:"application/json" });
+  if(window.showDirectoryPicker){
+    try{
+      var dir = await window.showDirectoryPicker({ id:"enprol-marcos", mode:"readwrite" });
+      var sub = await dir.getDirectoryHandle(pasta, { create:true });
+      var arqs = [[pdfNome, pdfBlob], [jsonNome, jsonBlob]];
+      for(var i = 0; i < arqs.length; i++){
+        var fh = await sub.getFileHandle(arqs[i][0], { create:true }), w = await fh.createWritable();
+        await w.write(arqs[i][1]); await w.close();
+      }
+      return pasta;
+    }catch(e){ if(e && e.name === "AbortError") return null; }
+  }
+  // navegador sem acesso a pastas: um .zip com a pasta dentro
+  if(window.ZIP_build && window.FS_salvar){
+    var zip = await window.ZIP_build([{ path: pasta + "/" + pdfNome, blob: pdfBlob }, { path: pasta + "/" + jsonNome, blob: jsonBlob }]);
+    await window.FS_salvar(zip, pasta + ".zip"); return pasta + ".zip";
+  }
+  [[pdfNome, pdfBlob], [jsonNome, jsonBlob]].forEach(function(a){
+    var l = document.createElement("a"); l.href = URL.createObjectURL(a[1]); l.download = a[0]; document.body.appendChild(l); l.click(); setTimeout(function(){ URL.revokeObjectURL(l.href); l.remove(); }, 1500);
+  });
+  return pdfNome;
+}
 window.MCM_gerarPDF = async function(opts){
   opts = opts || {};
   if(!(window.jspdf || window.jsPDF)){ alert("Biblioteca de PDF ainda carregando. Tente novamente."); return; }
@@ -11908,12 +11965,14 @@ window.MCM_gerarPDF = async function(opts){
     var blob = r2.pdf.output("blob");
     var nome = (String(ST.capa.codigo || "FUND-2").split(" ")[0] + "_Monografia_Marcos_" + (ST.capa.sigla || "").replace(/\s+/g, "_") + (ST.capa.lote ? "_Lote_" + ST.capa.lote : "")).replace(/_+$/, "") + ".pdf";
     if(opts.retornar) return { blob:blob, nome:nome };
-    if(window.FS_salvar) await window.FS_salvar(blob, nome);
-    else { var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = nome; document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 1500); }
+    if(window.MCM_flush) window.MCM_flush();
+    var salvo = await pdfNoServidor(blob, nome);
+    if(!salvo) salvo = await salvarPacote(blob, nome);
+    if(salvo){ var st = $("mcm_status"); if(st){ st.textContent = "PDF + projeto salvos em: " + salvo; st.dataset.salvo = ""; st.className = "mcm-status ok"; } }
   } catch(err){
     alert("Não foi possível gerar o PDF: " + (err && err.message || err));
   } finally {
-    if(btn){ btn.disabled = false; btn.textContent = "📄 Gerar PDF"; }
+    if(btn){ btn.disabled = false; btn.textContent = "📄 Gerar PDF e salvar pasta"; }
   }
 };
 
@@ -11925,6 +11984,7 @@ window.MCM_modo = function(m){
   try{ localStorage.setItem("mcm_modo", doc ? "doc" : "form"); }catch(e){}
   var box = $("mcmdoc"), form = $("mcm_form"), painel = $("panel-util-marcos");
   if(!ST) return;
+  if(window.MCM_nomeUI) window.MCM_nomeUI();
   if(doc) render(); else renderForm();
   if(box) box.style.display = doc ? "" : "none";
   if(form) form.style.display = doc ? "none" : "";
@@ -12007,6 +12067,174 @@ function init(){
   window.addEventListener("beforeunload", function(){ if(_tmSalvar) gravarAgora(); });
 }
 if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
+
+/* ===================================================================
+   SERVIDOR — guarda cada documento em
+   <BASE>\INFRA CADASTROS\IMPLANTAÇÃO DE MARCOS\<Documento>\{JSON, IMAGENS, PDF}
+   O JSON fica leve (imagens viram "@img:<hash>"); cada imagem é um arquivo.
+   Sem servidor, tudo continua funcionando com arquivo/pasta local.
+   =================================================================== */
+var _srv = null;
+function srvBase(){ return (typeof window.CAD_SERVIDOR_URL === "string" ? window.CAD_SERVIDOR_URL : "").replace(/\/+$/, ""); }
+function srvFetch(rota, opt, ms){
+  var c = new AbortController(), t = setTimeout(function(){ c.abort(); }, ms || 20000);
+  return fetch(srvBase() + rota, Object.assign({ cache:"no-store", signal:c.signal }, opt || {})).finally(function(){ clearTimeout(t); });
+}
+function enc(s){ return encodeURIComponent(s); }
+function srvStatus(txt, cls){ var el = $("mcm_srv"); if(el){ el.textContent = txt; el.className = "mcm-srv " + (cls || ""); } }
+function srvOk(forcar){
+  if(!forcar && _srv && Date.now() - _srv.t < 30000) return Promise.resolve(_srv.ok);
+  return srvFetch("/api/marcos", {}, 4000).then(function(r){ return r.ok ? r.json() : null; }).then(function(j){ return Array.isArray(j); }, function(){ return false; })
+    .then(function(ok){
+      _srv = { ok:ok, t:Date.now() };
+      var b1 = $("mcm_btn_srv"), b2 = $("mcm_btn_abrir_srv");
+      if(b1) b1.disabled = !ok; if(b2) b2.disabled = !ok;
+      if(!ok) srvStatus("sem servidor — salvando em arquivo/pasta local", "off"); else if(!$("mcm_srv").dataset.salvo) srvStatus("servidor conectado", "ok");
+      return ok;
+    });
+}
+function limparNome(s){ return String(s || "").replace(/[\\/:*?"<>|\u0000-\u001f]/g, "-").replace(/\s+/g, " ").replace(/^[.\s]+|[.\s]+$/g, "").slice(0, 110); }
+function sugestaoNome(){
+  var c = ST.capa; return limparNome([String(c.codigo || "FUND-2").split(" ")[0], c.sigla, c.lote ? "Lote " + c.lote : "", (c.mesano || "").replace("/", "-")].filter(Boolean).join(" - "));
+}
+function pedirNome(){
+  var n = limparNome(ST.nome);
+  if(!n){
+    n = limparNome(prompt("Nome deste documento (vira o nome da pasta no servidor):", sugestaoNome()) || "");
+    if(!n) return "";
+    ST.nome = n; var i = $("mcm_nome"); if(i) i.value = n; salvar();
+  }
+  return n;
+}
+
+/* ---------- imagens: hash do conteúdo (mesmo critério do servidor) ---------- */
+async function hashImg(u){
+  var m = /^data:image\/([a-z0-9.+-]+);base64,(.*)$/i.exec(u); if(!m) return "";
+  var bin = atob(m[2]), a = new Uint8Array(bin.length);
+  for(var i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i);
+  var h = new Uint8Array(await crypto.subtle.digest("SHA-256", a)), hex = "";
+  for(var k = 0; k < 10; k++) hex += (h[k] < 16 ? "0" : "") + h[k].toString(16);
+  var ext = m[1].toLowerCase(); if(ext === "jpeg") ext = "jpg"; if(!/^(jpg|png|webp|gif)$/.test(ext)) ext = "jpg";
+  return hex + "." + ext;
+}
+function andar(o, fn){
+  if(!o || typeof o !== "object") return;
+  Object.keys(o).forEach(function(k){ var v = o[k]; if(typeof v === "string") fn(o, k, v); else andar(v, fn); });
+}
+async function externalizar(){
+  var mapa = new Map();
+  andar(ST, function(o, k, v){ if(v.indexOf("data:image/") === 0 && !mapa.has(v)) mapa.set(v, null); });
+  var chaves = Array.from(mapa.keys());
+  for(var i = 0; i < chaves.length; i++) mapa.set(chaves[i], await hashImg(chaves[i]));
+  var json = JSON.stringify(ST, function(k, v){ return (typeof v === "string" && mapa.has(v)) ? "@img:" + mapa.get(v) : v; });
+  return { json:json, mapa:mapa };
+}
+async function emFila(itens, n, fn){
+  var pos = 0;
+  await Promise.all(new Array(n).fill(0).map(async function(){ while(pos < itens.length){ var i = pos++; await fn(itens[i], i); } }));
+}
+
+/* ---------- salvar ---------- */
+async function salvarServidor(){
+  var nome = pedirNome(); if(!nome) return null;
+  if(window.MCM_flush) window.MCM_flush();
+  srvStatus("preparando…", "");
+  var ex = await externalizar();
+  var r0 = await srvFetch("/api/marcos/" + enc(nome) + "/imgs"); if(!r0.ok) throw new Error("servidor recusou (" + r0.status + ")");
+  var ja = new Set(await r0.json());
+  var faltam = Array.from(ex.mapa.entries()).filter(function(p){ return !ja.has(p[1]); }), feitas = 0;
+  await emFila(faltam, 3, async function(p){
+    var r = await srvFetch("/api/marcos/" + enc(nome) + "/img/" + enc(p[1]), { method:"PUT", headers:{ "Content-Type":"application/json" }, body:JSON.stringify({ dataUrl:p[0] }) }, 60000);
+    if(!r.ok) throw new Error("imagem " + p[1] + ": " + r.status);
+    srvStatus("enviando imagens… " + (++feitas) + "/" + faltam.length, "");
+  });
+  var r = await srvFetch("/api/marcos/" + enc(nome), { method:"PUT", headers:{ "Content-Type":"application/json" }, body:ex.json }, 60000);
+  if(!r.ok){ var j = {}; try{ j = await r.json(); }catch(e){} throw new Error(j.erro || ("servidor recusou (" + r.status + ")")); }
+  var el = $("mcm_srv"); if(el) el.dataset.salvo = "1";
+  srvStatus("salvo no servidor · " + new Date().toLocaleTimeString("pt-BR") + " · " + ex.mapa.size + " imagem(ns)", "ok");
+  return nome;
+}
+window.MCM_salvarServidor = async function(){
+  var b = $("mcm_btn_srv"); if(b) b.disabled = true;
+  try{
+    if(!(await srvOk(true))){ alert("Não há conexão com o servidor de cadastros. Use “Salvar só o projeto” para guardar em arquivo."); return; }
+    var n = await salvarServidor();
+    if(n) alert("Documento salvo no servidor:\nIMPLANTAÇÃO DE MARCOS\\" + n + "\\ (JSON + IMAGENS)");
+  }catch(e){ srvStatus("falha ao salvar: " + (e && e.message || e), "erro"); alert("Não consegui salvar no servidor: " + (e && e.message || e)); }
+  finally{ if(b) b.disabled = false; }
+};
+async function salvarPdfServidor(blob){
+  var nome = ST.nome, d = new Date(), z = function(n){ return ("0" + n).slice(-2); };
+  var arq = nome + " - " + d.getFullYear() + "-" + z(d.getMonth() + 1) + "-" + z(d.getDate()) + "_" + z(d.getHours()) + "h" + z(d.getMinutes()) + ".pdf";
+  var r = await srvFetch("/api/marcos/" + enc(nome) + "/pdf", { method:"PUT", headers:{ "X-Arquivo":enc(arq), "Content-Type":"application/pdf" }, body:blob }, 120000);
+  var j = {}; try{ j = await r.json(); }catch(e){}
+  if(!r.ok) throw new Error(j.erro || ("servidor recusou o PDF (" + r.status + ")"));
+  return j.arquivo || arq;
+}
+/** usado pelo Gerar PDF: devolve texto do destino, ou null se não deu para usar o servidor */
+async function pdfNoServidor(blob, nomeArq){
+  if(!(await srvOk(true))) return null;
+  try{
+    var nome = await salvarServidor(); if(!nome) return null;
+    var arq = await salvarPdfServidor(blob);
+    var copia = $("mcm_copia");
+    if(copia && copia.checked && window.FS_salvar) await window.FS_salvar(blob, nomeArq);
+    return "IMPLANTAÇÃO DE MARCOS\\" + nome + "\\PDF\\" + arq;
+  }catch(e){
+    alert("Não consegui salvar no servidor: " + (e && e.message || e) + "\n\nVou salvar o pacote (PDF + projeto) em arquivo.");
+    return null;
+  }
+}
+
+/* ---------- abrir ---------- */
+function blobParaUrl(b){ return new Promise(function(ok, no){ var fr = new FileReader(); fr.onload = function(){ ok(fr.result); }; fr.onerror = no; fr.readAsDataURL(b); }); }
+async function abrirDoServidor(nome){
+  srvStatus("abrindo…", "");
+  var r = await srvFetch("/api/marcos/" + enc(nome), {}, 60000); if(!r.ok) throw new Error("não encontrei o documento (" + r.status + ")");
+  var o = await r.json(), refs = new Set();
+  andar(o, function(ob, k, v){ if(v.indexOf("@img:") === 0) refs.add(v.slice(5)); });
+  var lista = Array.from(refs), dados = {}, feitas = 0;
+  await emFila(lista, 4, async function(ref){
+    var ri = await srvFetch("/api/marcos/" + enc(nome) + "/img/" + enc(ref), {}, 60000);
+    dados[ref] = ri.ok ? await blobParaUrl(await ri.blob()) : "";
+    srvStatus("baixando imagens… " + (++feitas) + "/" + lista.length, "");
+  });
+  andar(o, function(ob, k, v){ if(v.indexOf("@img:") === 0) ob[k] = dados[v.slice(5)] || ""; });
+  mesclar(o); ST.nome = nome;
+  await gravarAgora();
+  var el = $("mcm_srv"); if(el) el.dataset.salvo = "1";
+  window.MCM_modo(modoAtual());
+  srvStatus("aberto do servidor: " + nome, "ok");
+}
+function fecharModal(){ var m = $("mcm_modal"); if(m) m.remove(); }
+window.MCM_abrirServidor = async function(){
+  if(!(await srvOk(true))){ alert("Não há conexão com o servidor de cadastros."); return; }
+  var r = await srvFetch("/api/marcos"), lista = r.ok ? await r.json() : [];
+  fecharModal();
+  var m = document.createElement("div"); m.id = "mcm_modal"; m.className = "mcm-modal";
+  var h = '<div class="mcm-modal-box"><div class="mcm-modal-h"><b>Documentos de Implantação de Marcos no servidor</b><button type="button" class="vbtn vbtn-ghost" data-x="fechar">✕</button></div>';
+  h += lista.length ? '<div class="mcm-modal-l">' + lista.map(function(d){
+    return '<div class="mcm-modal-i"><div><b>' + esc(d.nome) + '</b><small>' + esc(d.titulo || "") + ' · atualizado ' + esc(d.atualizado_em ? new Date(d.atualizado_em).toLocaleString("pt-BR") : "—") + ' · ' + d.pdfs.length + ' PDF(s)</small></div><button type="button" class="vbtn vbtn-primary" data-nome="' + esc(d.nome) + '">Abrir</button></div>';
+  }).join("") + '</div>' : '<p class="mcm-dica" style="padding:14px">Nenhum documento salvo ainda. Dê um nome ao documento e use “Salvar no servidor”.</p>';
+  m.innerHTML = h + '</div>';
+  document.body.appendChild(m);
+  m.addEventListener("click", async function(e){
+    if(e.target === m || (e.target.dataset && e.target.dataset.x === "fechar")){ fecharModal(); return; }
+    var b = e.target.closest && e.target.closest("button[data-nome]"); if(!b) return;
+    if(!confirm("Abrir “" + b.dataset.nome + "”? O que está nesta aba será substituído.")) return;
+    fecharModal();
+    try{ await abrirDoServidor(b.dataset.nome); }catch(err){ srvStatus("falha ao abrir", "erro"); alert("Não consegui abrir: " + (err && err.message || err)); }
+  });
+};
+
+function initServidor(){
+  var n = $("mcm_nome");
+  if(n) n.addEventListener("input", function(){ if(!ST) return; ST.nome = limparNome(n.value); salvar(); });
+  var c = $("mcm_copia");
+  if(c){ try{ c.checked = localStorage.getItem("mcm_copia") !== "0"; }catch(e){} c.addEventListener("change", function(){ try{ localStorage.setItem("mcm_copia", c.checked ? "1" : "0"); }catch(e){} }); }
+}
+window.MCM_nomeUI = function(){ var i = $("mcm_nome"); if(i && ST) i.value = ST.nome || ""; srvOk(false); };
+if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", initServidor); else initServidor();
 
 })();
 </script>
