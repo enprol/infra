@@ -10548,12 +10548,33 @@ function mesclar(s){
   if(o.doc) m.doc = Object.assign({ heads:{}, hide:{}, extras:[], imgs:[], txt:{}, man:{} }, o.doc);
   if(Array.isArray(o.procs)) m.procs = o.procs;
   if(o.nome) m.nome = o.nome;
+  ST = m;
+  if(m.procs.some(ehProcModelo)){
+    tirarProcModelo();
+    if(m.doc.man && m.doc.man.s313 && /174-7F \(Km: 545\+726,07/.test(m.doc.txt.s313 || "")){ delete m.doc.man.s313; delete m.doc.txt.s313; }
+    if(!m.procs.length) novoProcesso();
+  }
   // projetos salvos antes de preencher a assinatura: troca os textos-modelo pelos dados atuais
   var fe = m.fecho, pl = { nome:["", "NOME DO RESPONSÁVEL TÉCNICO"], cargo:["", "CREDENCIADO/INCRA ENGENHEIRO AGRÔNOMO"], crea:["", "CREA 000000/BA"] };
   Object.keys(pl).forEach(function(k){ if(pl[k].indexOf(fe[k] || "") >= 0) fe[k] = EXEMPLO.fecho[k]; });
   m.anexos = Array.isArray(o.anexos) ? o.anexos.filter(function(a){ return a && typeof a.src === "string" && a.src.indexOf("data:application/pdf") === 0; }) : [];
   ST = m;
   return m;
+}
+
+/* processo do modelo antigo (FIOL II, abril/2023) ou em branco: some quando chega o JSON de campo */
+var NUMS_MODELO = ["174-7F", "175-7F", "177", "178-7F e 179-7F"];
+function ehProcModelo(p){
+  if(!p) return false;
+  if(p.modelo === true) return true;
+  return NUMS_MODELO.indexOf(p.num) >= 0 && p.marcos && p.marcos.length > 0 && p.marcos.every(function(m){ return /^GNVZ-M-0\d{3}$/.test(m.cod || ""); });
+}
+function ehProcVazio(p){ return !!p && !String(p.num || "").trim() && !(p.marcos || []).some(function(m){ return String(m.cod || "").trim(); }); }
+function tirarProcModelo(){
+  var sai = ST.procs.filter(function(p){ return ehProcModelo(p) || ehProcVazio(p); });
+  sai.forEach(function(p){ excluirProcessoSilencioso(p.id); });
+  ST.procs = ST.procs.filter(function(p){ return sai.indexOf(p) < 0; });
+  return sai.length;
 }
 
 /* ---------- persistência: IndexedDB (autosave) + arquivo .json ---------- */
@@ -10633,6 +10654,8 @@ function tab1Leg(){
    MODO CONTEÚDO — o documento inteiro, na ordem e na numeração do PDF,
    editável no próprio lugar (mesma ideia do Relatório DESP-2 e do Parecer)
    =================================================================== */
+function pl(n, um, varios){ return n === 1 ? um : varios; }
+function extensoF(n){ return n === 1 ? "uma" : (n === 2 ? "duas" : extenso(n)); }
 function listaNums(){ return ST.procs.map(function(p){ return p.num; }).filter(Boolean); }
 function eFrase(a){ return a.length > 1 ? a.slice(0, -1).join(", ") + " e " + a[a.length - 1] : (a[0] || "___"); }
 var AUTO = {
@@ -10640,18 +10663,18 @@ var AUTO = {
     var n = ST.procs.length, nums = listaNums(), lote = ST.capa.lote ? " do lote " + ST.capa.lote : "";
     return "Como explanado no item 2 deste documento, foi feito uma triagem, levantando todas as propriedades abrangidas pela " + (ST.capa.sigla || "___") +
       " que possui Certificação de georreferenciamento junto ao sistema SIGEF/SNCI/INCRA, após confrontando as datas da execução do georreferenciamento com a “data de consentimento” da desapropriação, em seguida obteve os resultados. No mês (" +
-      String(ST.pad.data || "___").toLowerCase() + ") foi executado a implantação de marcos em " + n + " (" + extenso(n) + ") processos abrangidos" + lote + " (" + eFrase(nums) + "), segue a descrição das áreas na tabela abaixo:";
+      String(ST.pad.data || "___").toLowerCase() + ") foi executado a implantação de marcos em " + n + " (" + extenso(n) + ") " + pl(n, "processo abrangido", "processos abrangidos") + lote + " (" + eFrase(nums) + "), segue a descrição das áreas na tabela abaixo:";
   },
   concl: function(){
     var n = ST.procs.length, nums = listaNums(), m = ST.procs.reduce(function(a, p){ return a + p.marcos.length; }, 0);
     var bases = []; ST.procs.forEach(function(p){ var i = (p.base && p.base.ident || "").trim(); if(i && bases.indexOf(i) < 0) bases.push(i); });
-    return "De acordo com o explanado neste relatório foram implantados marcos (GERC-6) em " + n + " (" + extenso(n) + ") processos (" + eFrase(nums) + "), serviços executados nesta ordem com sucesso, resultando na implantação de " + m + " (" + extenso(m) +
-      ") marcos, para o marco de referência (base) foi utilizado marco de Referência de Nível (RN) do próprio projeto, sendo utilizado apenas o " + (bases.length ? eFrase(bases) : "___") + " para execução dos serviços nos respectivos processos, sendo justificada esta implantação na Tabela 01 do item 3.1.2 acima.\n" +
+    return "De acordo com o explanado neste relatório foram implantados marcos (GERC-6) em " + n + " (" + extenso(n) + ") " + pl(n, "processo", "processos") + " (" + eFrase(nums) + "), serviços executados " + pl(n, "", "nesta ordem ") + "com sucesso, resultando na implantação de " + m + " (" + extenso(m) +
+      ") " + pl(m, "marco", "marcos") + ", para o marco de referência (base) foi utilizado marco de Referência de Nível (RN) do próprio projeto, sendo utilizado apenas o " + (bases.length ? eFrase(bases) : "___") + " para execução dos serviços nos respectivos processos, sendo justificada esta implantação na Tabela 01 do item 3.1.2 acima.\n" +
       "As atividades pertinentes a execução do produto está em andamento constate, estando a equipe técnica empenhada, para que de forma minuciosa seja analisadas as áreas abrangidas pelo projeto " + (ST.capa.sigla || "___") + " em relação ao banco de dados do SIGEF e SNCI do INCRA, e dando prosseguimento na regularização fundiária das propriedades aptas para execução deste produto.";
   },
   s313: function(){
     var ps = ST.procs, n = ps.length;
-    var cab = "Segundo a tabela anterior, foram executadas a implantação de marcos em " + n + " (" + extenso(n) + ") processos administrativos, em " + n + " (" + extenso(n) + ") propriedades rurais abrangidas, segue abaixo os dados de cada processo e sequência exata da implantação dos marcos:";
+    var cab = "Segundo a tabela anterior, foram executadas a implantação de marcos em " + n + " (" + extenso(n) + ") " + pl(n, "processo administrativo", "processos administrativos") + ", em " + n + " (" + extensoF(n) + ") " + pl(n, "propriedade rural abrangida", "propriedades rurais abrangidas") + ", segue abaixo " + pl(n, "os dados do processo e a sequência", "os dados de cada processo e sequência exata") + " da implantação dos marcos:";
     var itens = ps.map(function(p, i){
       return "• " + (p.num || "___") + " (Km: " + (p.kmIni || "___") + " a Km " + (p.kmFim || "___") + ") - Proprietário: " + (p.prop || "___") +
         "; Propriedade: " + (p.propriedade || "___") + "; Município: " + (p.municipio || "___") + "; Matrícula do imóvel: " + (p.matricula || "___") + (i === n - 1 ? "." : ";");
@@ -11427,22 +11450,38 @@ function equipDe(txt){
   var m = /Marca:\s*([^;]+);\s*Modelo:\s*([^;]+);\s*N[úu]mero de S[ée]rie:\s*([^.;]*)/i.exec(String(txt || ""));
   return m ? { marca:m[1].trim(), modelo:m[2].trim(), serie:m[3].trim() } : null;
 }
-function procDoJson(j){
-  var num = String(j.titulo || "").replace(/^\s*processos?\s*/i, "").trim();
-  var km = /km:?\s*(.+?)\s+a\s+(.+)$/i.exec(String(j.km || "")) || [];
+/* o técnico às vezes deixa os textos-modelo do gerador de campo (PROCESSO 000-7F, km 000+000, “FAZENDA”, “FERNANDO XXXX”):
+   o número do processo vem do nome do arquivo ou do processo administrativo dos marcos, e o resto é limpo aqui */
+function ehPlaceholder(v){ var t = String(v == null ? "" : v).trim(); return !t || /(^|[^\d])0{2,}([^\d]|$)/.test(t) || /^FAZENDA$/i.test(t); }
+function numDoProcesso(j, arquivo){
+  var t = String(j.titulo || "").replace(/^\s*processos?\s*/i, "").trim();
+  if(t && !ehPlaceholder(t)) return t;
+  var m = /PROCESSO\s*(\d+(?:[-–]\w+)?)/i.exec(String(arquivo || ""));
+  if(m) return m[1];
+  var adm = (j.marcos && j.marcos[0] && j.marcos[0].processoAdm) || (j.base && j.base.processo) || "";
+  m = /(\d{2,}(?:[-–]\w+)?)\s*$/.exec(String(adm).trim());
+  return m ? m[1] : t;
+}
+function procDoJson(j, arquivo){
+  var num = numDoProcesso(j, arquivo);
+  var m0 = (j.marcos && j.marcos[0]) || {};
+  var admOk = !ehPlaceholder(j.processoAdm) ? j.processoAdm : (m0.processoAdm || (num ? "FIOL 2 - " + num : ""));
+  var propOk = !ehPlaceholder(j.propriedade) ? j.propriedade : (m0.propriedade || "");
+  var kmTxt = /km:?\s*0+\+0+(,0+)?\s+a\s+0+\+0+(,0+)?/i.test(String(j.km || "")) ? "" : j.km;
+  var km = /km:?\s*(.+?)\s+a\s+(.+)$/i.exec(String(kmTxt || "")) || [];
   var b = j.base || {};
   var fotos = [];
   function F(u, set){ fotos.push(comprimirFoto(u).then(set)); }
-  var p = { id: uid("p"), num:num, kmIni:(km[1] || "").trim(), kmFim:(km[2] || "").trim(), prop:"", propriedade:j.propriedade || "", municipio:j.baseLocalidade || "",
-    matricula:"", procAdm:j.processoAdm || "", tramite:"", sei:"", consData:"", consFonte:"", georrefData:"", obs:j.observacao || OBS_PADRAO };
-  p.base = { ident:b.identificacao || "", data:b.data || "", local:b.localidade || "", propriedade:b.propriedade || "", proprietario:b.proprietario || "", processo:b.processo || "",
+  var p = { id: uid("p"), num:num, kmIni:(km[1] || "").trim(), kmFim:(km[2] || "").trim(), prop:"", propriedade:propOk || "", municipio:b.localidade || m0.localidade || j.baseLocalidade || "",
+    matricula:"", procAdm:admOk || "", tramite:"", sei:"", consData:"", consFonte:"", georrefData:"", obs:j.observacao || OBS_PADRAO };
+  p.base = { ident:b.identificacao || "", data:b.data || "", local:b.localidade || "", propriedade:propOk || b.propriedade || "", proprietario:b.proprietario || "", processo:admOk || b.processo || "",
     datum:b.sgr || b.datum || "SIRGAS 2000", proj:b.projecao || "UTM", fuso:b.fuso || "", mc:b.mc || "", h:semM(b.altH), E:semM(b.e), N:semM(b.n),
     dphi:semM(b.dphi), dlam:semM(b.dlam), dh:semM(b.dh), rastreio:b.rastreio || "", espera:b.espera || "", fl:"", fd:"" };
   F(b.fotoLoc, function(s){ p.base.fl = s; }); F(b.fotoDet, function(s){ p.base.fd = s; });
   p.marcos = (j.marcos || []).map(function(m){
     var q = equipDe(m.equip) || {};
-    var o = { id: uid("m"), cod:m.codigo || "", data:m.data || "", local:m.localidade || "", resp:m.rt || "", cred:m.credenciado || "", propriedade:m.propriedade || "", proprietario:m.proprietario || "",
-      processo:m.processoAdm || "", datum:m.sgr || "SIRGAS 2000", lat:m.lat || "", lon:m.lon || "", alt:semM(m.altElip), N:semM(m.n), E:semM(m.e), mc:m.mc || "",
+    var o = { id: uid("m"), cod:m.codigo || "", data:m.data || "", local:m.localidade || "", resp:(/X{3,}/i.test(m.rt || "") || /^\s*FER[A-Z]*\s*$/i.test(m.rt || "") || !String(m.rt || "").trim()) ? (ST.pad.resp || "") : m.rt, cred:m.credenciado || "", propriedade:m.propriedade || "", proprietario:m.proprietario || "",
+      processo:admOk || m.processoAdm || "", datum:m.sgr || "SIRGAS 2000", lat:m.lat || "", lon:m.lon || "", alt:semM(m.altElip), N:semM(m.n), E:semM(m.e), mc:m.mc || "",
       dphi:semM(m.dphi), dlam:semM(m.dlam), dh:semM(m.dh), marca:q.marca || "", modelo:q.modelo || "", serie:q.serie || "", fl:"", fd:"" };
     F(m.fotoLoc, function(s){ o.fl = s; }); F(m.fotoDet, function(s){ o.fd = s; });
     return o;
@@ -11460,13 +11499,14 @@ function importarMonografias(files){
     var itens = [], ruins = [];
     lidos.forEach(function(r){
       if(r.erro || !r.j || !Array.isArray(r.j.processos)){ ruins.push(r.nome); return; }
-      r.j.processos.forEach(function(j){ itens.push(procDoJson(j)); });
+      r.j.processos.forEach(function(j){ itens.push(procDoJson(j, r.nome)); });
     });
     if(!itens.length){ alert("Nenhum processo encontrado nos arquivos." + (ruins.length ? "\nArquivos não reconhecidos: " + ruins.join(", ") : "")); return; }
     return Promise.all(itens.map(function(it){
       return Promise.all(it.fotos.concat([comprimirFoto(it.loc, 1600).then(function(s){ it.locS = s; }), comprimirFoto(it.sit, 1600).then(function(s){ it.sitS = s; })]));
     })).then(function(){
       var novos = 0, subst = 0;
+      tirarProcModelo();            // o exemplo e o processo em branco dão lugar ao que veio do campo
       itens.forEach(function(it){
         var p = it.p, ex = null;
         ST.procs.forEach(function(q){ if(q.num && q.num === p.num) ex = q; });
@@ -11476,8 +11516,6 @@ function importarMonografias(files){
           ["prop", "matricula", "tramite", "sei", "consData", "consFonte", "georrefData"].forEach(function(k){ p[k] = ex[k]; });
           p.id = ex.id; ST.procs[ST.procs.indexOf(ex)] = p; subst++;
         } else {
-          var unico = ST.procs.length === 1 && !ST.procs[0].num && !ST.procs[0].marcos.some(function(m){ return m.cod; });
-          if(unico){ excluirProcessoSilencioso(ST.procs[0].id); ST.procs = []; }
           ST.procs.push(p); novos++;
         }
         // limpa imagens/textos antigos deste id e semeia de novo
@@ -11493,6 +11531,8 @@ function importarMonografias(files){
         }
         if(loc && it.locS) loc.leg = "";
       });
+      if(ST.doc.man && ST.doc.man.s313 && /174-7F \(Km: 545\+726,07/.test(ST.doc.txt.s313 || "")){ delete ST.doc.man.s313; delete ST.doc.txt.s313; }
+      if(!ST.procs.length) novoProcesso();
       atualizarAuto(); salvar(true); window.MCM_modo(modoAtual());
       alert("Importação concluída: " + novos + " processo(s) novo(s), " + subst + " substituído(s)." + (ruins.length ? "\nNão reconhecidos: " + ruins.join(", ") : "") +
         "\n\nConfira no Formulário: proprietário, matrícula, SEI, trâmite e datas do consentimento não vêm do arquivo de campo.");
