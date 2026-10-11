@@ -10317,6 +10317,11 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 .mcm-modal .vbtn-primary{background:#1F6FC0;border-color:#1F6FC0;color:#fff;}
 .mcm-modal .mcm-dica{font-size:13px;color:#5a6b7c;}
 
+#panel-util-marcos .mc-anexos{margin-top:12px;border:1px solid #d3dbe4;border-radius:10px;padding:12px 14px;background:#fbfcfe;font-family:"Segoe UI",Arial,sans-serif;}
+#panel-util-marcos .mc-anx-t{font-weight:800;font-size:13px;color:#175a9f;margin-bottom:6px;}
+#panel-util-marcos .mc-anx{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid #eef2f6;font-size:13.5px;}
+#panel-util-marcos .mc-anx-b{display:flex;gap:4px;}
+
 </style>
 <div class="wrap">
   <h1>Implantação e Monografia de Marcos Georreferenciados — FUND-2</h1>
@@ -10520,7 +10525,8 @@ function estadoModelo(){
     crono: { titulo: "CRONOGRAMA DE SERVIÇOS PARA EXECUÇÃO DOS PRODUTOS GERC-6 (IMPLANTAÇÃO DE MARCOS GEORREFERENCIADOS) E GERC-7 (CERTIFICAÇÃO DE GEORREFERENCIAMENTO DE IMÓVEL RURAL) POR PROCESSOS - FERROVIA OESTE LESTE - FIOL II",
              fonte: "Fonte: ENPROL Engenharia Ltda.", meses: clone(EXEMPLO.crono.meses), linhas: clone(EXEMPLO.crono.linhas) },
     tab1: { leg: "Tabela 01. Processos aptos para execução de GERC-6 em abril/2023", fonte: "Fonte: ENPROL Engenharia Ltda", rows: clone(EXEMPLO.tab1.rows) },
-    procs: clone(EXEMPLO.procs)
+    procs: clone(EXEMPLO.procs),
+    anexos: []
   };
   ST = s;
   var d = s.doc;
@@ -10547,6 +10553,7 @@ function mesclar(s){
   if(o.doc) m.doc = Object.assign({ heads:{}, hide:{}, extras:[], imgs:[], txt:{}, man:{} }, o.doc);
   if(Array.isArray(o.procs)) m.procs = o.procs;
   if(o.nome) m.nome = o.nome;
+  m.anexos = Array.isArray(o.anexos) ? o.anexos.filter(function(a){ return a && typeof a.src === "string" && a.src.indexOf("data:application/pdf") === 0; }) : [];
   ST = m;
   return m;
 }
@@ -10808,6 +10815,15 @@ function fechoHtml(){
     + '<p class="ctr">' + inpHtml(c, "crea", { cls:"ctr" }) + '</p>'
     + '<div class="mc-rodtxt"><button type="button" class="dd-b" data-auto="fecho_rod" title="Volta ao texto gerado a partir do contrato e do processo SEI">↻ Texto automático</button>' + caixaTxt("fecho_rod", "") + '</div></div>';
 }
+function anexosHtml(){
+  var A = ST.anexos || [];
+  var h = '<div class="mc-anexos"><div class="mc-anx-t">Anexos ao final do documento (PDF)</div>';
+  h += A.length ? A.map(function(a, i){
+    return '<div class="mc-anx"><span>📎 ' + esc(a.nome) + '</span><span class="mc-anx-b">' + ddBtn("anx-up", "↑", "Subir", ' data-i="' + i + '"') + ddBtn("anx-down", "↓", "Descer", ' data-i="' + i + '"') + ddBtn("anx-rm", "Remover", "Tira este anexo", ' data-i="' + i + '"') + '</span></div>';
+  }).join("") : '<p class="dd-nota">Nenhum anexo. Opcional: a RRT/ART em PDF entra depois da última página do documento.</p>';
+  h += '<div class="mc-tabacts">' + ddBtn("anx-lib", "📚 Escolher da biblioteca do servidor", "RRT/ART guardadas no servidor") + '<label class="dd-b">📎 PDF do computador<input type="file" accept="application/pdf,.pdf" class="mc-anxin" style="display:none"></label></div></div>';
+  return h;
+}
 function procResumo(p){
   return '<p class="dd-nota">Proprietário: <b>' + esc(p.prop || "—") + '</b> · Propriedade: <b>' + esc(p.propriedade || "—") + '</b> · Município: <b>' + esc(p.municipio || "—") + '</b> · ' + p.marcos.length + ' marco(s) — os dados do processo ficam no <a href="#" data-act="irform" data-pid="' + p.id + '">Formulário</a>.</p>';
 }
@@ -10840,7 +10856,7 @@ function secHtml(tp){
   else if(k === "proc") corpo = procResumo(procDe(tp.pid));
   else if(k === "loc") corpo = '<p class="mc-procn">Processo ' + esc(procDe(tp.pid).num) + '</p>';
   else if(k === "concl") corpo = caixaTxt(id) + fechoHtml();
-  else if(k === "art") corpo = '<p class="dd-nota">Anexe aqui as páginas da ART (imagem). Cada imagem ocupa uma página no PDF. Para ART em PDF, use <b>Compilar Documento</b> ou <b>Unir PDF</b> depois de gerar este documento.</p>';
+  else if(k === "art") corpo = '<p class="dd-nota">Anexe aqui as páginas da ART (imagem). Cada imagem ocupa uma página no PDF. Para a RRT/ART em PDF, use os anexos abaixo: entram automaticamente ao final do PDF.</p>' + anexosHtml();
   else if(tp.txt) corpo = caixaTxt(id);
 
   var head = tp.semTitulo ? "" :
@@ -11126,6 +11142,13 @@ function ligar(){
     } else if(inp.classList.contains("mc-fotoin") && inp.files && inp.files[0]){
       var a = alvoDe(inp);
       if(a) lerImg(inp.files[0], 1400, .8).then(function(src){ a.obj[inp.getAttribute("data-foto")] = src; salvar(true); render(); }, avisoFormato);
+    } else if(inp.classList.contains("mc-anxin") && inp.files && inp.files[0]){
+      var fa = inp.files[0];
+      if(fa.size > 25 * 1024 * 1024){ alert("PDF grande demais para anexar (limite 25 MB)."); return; }
+      blobParaUrl(fa).then(function(u){
+        if(u.indexOf("data:application/pdf") !== 0){ alert("Escolha um arquivo PDF."); return; }
+        (ST.anexos = ST.anexos || []).push({ id: uid("a"), nome: fa.name, src: u }); salvar(true); render();
+      }, function(){ alert("Não consegui ler o arquivo."); });
     } else if(inp.classList.contains("mc-assinin") && inp.files && inp.files[0]){
       lerImg(inp.files[0], 700, .9).then(function(src){ ST.fecho.assin = src; salvar(true); render(); }, avisoFormato);
     }
@@ -11156,6 +11179,9 @@ function ligar(){
       salvar(true); render(); return;
     }
     if(act === "fotorm"){ var al = alvoDe(b); if(al){ al.obj[b.getAttribute("data-foto")] = ""; salvar(true); render(); } return; }
+    if(act === "anx-lib"){ if(window.MCM_bibliotecaAnexos) window.MCM_bibliotecaAnexos(); return; }
+    if(act === "anx-rm"){ ST.anexos.splice(+b.getAttribute("data-i"), 1); salvar(true); render(); return; }
+    if(act === "anx-up" || act === "anx-down"){ var ia = +b.getAttribute("data-i"); if(moverEm(ST.anexos, ia, act === "anx-up" ? -1 : 1)){ salvar(true); render(); } return; }
     if(act === "assinrm"){ ST.fecho.assin = ""; salvar(true); render(); return; }
     if(act === "addmarco" && p){ p.marcos.push(marcoNovo(p, { processo: p.procAdm || "" })); salvar(true); render(); return; }
     if(act === "procup" || act === "procdown"){ if(moverEm(ST.procs, ST.procs.indexOf(p), act === "procup" ? -1 : 1)){ salvar(true); render(); } return; }
@@ -11967,6 +11993,24 @@ async function salvarPacote(pdfBlob, pdfNome){
   });
   return pdfNome;
 }
+/* anexos (RRT/ART em PDF): páginas copiadas para o fim do PDF com a pdf-lib */
+async function anexarPdfs(blob){
+  var A = (ST.anexos || []).filter(function(a){ return a && a.src; });
+  if(!A.length) return blob;
+  if(!window.PDFLib){ alert("A biblioteca de PDF (pdf-lib) ainda não carregou — os anexos NÃO foram incluídos. Tente gerar de novo."); return blob; }
+  var doc = await window.PDFLib.PDFDocument.load(await blob.arrayBuffer()), falhas = [];
+  for(var i = 0; i < A.length; i++){
+    try{
+      var bin = atob(A[i].src.split(",")[1] || ""), by = new Uint8Array(bin.length);
+      for(var k = 0; k < bin.length; k++) by[k] = bin.charCodeAt(k);
+      var src = await window.PDFLib.PDFDocument.load(by, { ignoreEncryption:true });
+      var pgs = await doc.copyPages(src, src.getPageIndices());
+      pgs.forEach(function(pg){ doc.addPage(pg); });
+    }catch(e){ falhas.push(A[i].nome); }
+  }
+  if(falhas.length) alert("Não consegui incluir: " + falhas.join(", "));
+  return new Blob([await doc.save()], { type:"application/pdf" });
+}
 window.MCM_gerarPDF = async function(opts){
   opts = opts || {};
   if(!(window.jspdf || window.jsPDF)){ alert("Biblioteca de PDF ainda carregando. Tente novamente."); return; }
@@ -11978,7 +12022,7 @@ window.MCM_gerarPDF = async function(opts){
     var imgI = await carregarLogo(window.__LOGO_INFRA__), imgE = await carregarLogo(window.__LOGO_ENPROL__);
     var r1 = construir(J, imgI, imgE, null, true, AR);
     var r2 = construir(J, imgI, imgE, r1.pag, false, AR);
-    var blob = r2.pdf.output("blob");
+    var blob = await anexarPdfs(r2.pdf.output("blob"));
     var nome = (String(ST.capa.codigo || "FUND-2").split(" ")[0] + "_Monografia_Marcos_" + (ST.capa.sigla || "").replace(/\s+/g, "_") + (ST.capa.lote ? "_Lote_" + ST.capa.lote : "")).replace(/_+$/, "") + ".pdf";
     if(opts.retornar) return { blob:blob, nome:nome };
     if(window.MCM_flush) window.MCM_flush();
@@ -12251,6 +12295,38 @@ function initServidor(){
 }
 window.MCM_nomeUI = function(){ var i = $("mcm_nome"); if(i && ST) i.value = ST.nome || ""; srvOk(false); };
 if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", initServidor); else initServidor();
+
+/* ---------- biblioteca de anexos (RRT/ART em PDF guardadas no servidor) ---------- */
+window.MCM_bibliotecaAnexos = async function(){
+  if(!(await srvOk(true))){ alert("Não há conexão com o servidor de cadastros. Use “PDF do computador”."); return; }
+  var r = await srvFetch("/api/marcos-anexos"), lista = r.ok ? await r.json() : [];
+  fecharModal();
+  var m = document.createElement("div"); m.id = "mcm_modal"; m.className = "mcm-modal";
+  var h = '<div class="mcm-modal-box"><div class="mcm-modal-h"><b>Biblioteca de anexos (PDF)</b><button type="button" class="vbtn vbtn-ghost" data-x="fechar">✕</button></div>';
+  h += lista.length ? '<div class="mcm-modal-l">' + lista.map(function(a){
+    return '<div class="mcm-modal-i"><div><b>' + esc(a.arquivo) + '</b><small>' + Math.round(a.bytes / 1024) + ' KB</small></div><button type="button" class="vbtn vbtn-primary" data-arq="' + esc(a.arquivo) + '">Usar</button></div>';
+  }).join("") + '</div>' : '<p class="mcm-dica" style="padding:14px">A biblioteca está vazia.</p>';
+  h += '<div style="padding:12px 18px;border-top:1px solid #e1e8ef"><label class="vbtn vbtn-ghost" style="display:inline-block">＋ Adicionar PDF à biblioteca<input type="file" accept="application/pdf,.pdf" data-up="1" style="display:none"></label></div></div>';
+  m.innerHTML = h; document.body.appendChild(m);
+  m.addEventListener("click", async function(e){
+    if(e.target === m || (e.target.dataset && e.target.dataset.x === "fechar")){ fecharModal(); return; }
+    var b = e.target.closest && e.target.closest("button[data-arq]"); if(!b) return;
+    try{
+      var rr = await srvFetch("/api/marcos-anexos/" + enc(b.dataset.arq), {}, 60000); if(!rr.ok) throw new Error("não encontrei o anexo");
+      var u = await blobParaUrl(await rr.blob());
+      (ST.anexos = ST.anexos || []).push({ id: uid("a"), nome: b.dataset.arq, src: u.replace(/^data:[^;]*;/, "data:application/pdf;") });
+      salvar(true); fecharModal(); render();
+    }catch(err){ alert("Não consegui usar o anexo: " + (err && err.message || err)); }
+  });
+  m.addEventListener("change", async function(e){
+    var i = e.target; if(!(i.dataset && i.dataset.up && i.files && i.files[0])) return;
+    try{
+      var rr = await srvFetch("/api/marcos-anexos/" + enc(i.files[0].name), { method:"PUT", headers:{ "Content-Type":"application/pdf" }, body:i.files[0] }, 60000);
+      if(!rr.ok){ var j = {}; try{ j = await rr.json(); }catch(x){} throw new Error(j.erro || rr.status); }
+      window.MCM_bibliotecaAnexos();
+    }catch(err){ alert("Não consegui adicionar: " + (err && err.message || err)); }
+  });
+};
 
 })();
 </script>
