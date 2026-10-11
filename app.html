@@ -10512,6 +10512,7 @@ function semeiaProc(p){
   if(d.txt["p_"+id+"_sit"] === undefined) d.txt["p_"+id+"_sit"] = p.obs || OBS_PADRAO;
 }
 function estadoModelo(){
+  limparVsrc();
   var s = {
     v: VERSAO,
     capa: clone(EXEMPLO.capa), pad: clone(EXEMPLO.pad), fecho: clone(EXEMPLO.fecho),
@@ -10539,6 +10540,7 @@ function estadoModelo(){
   return s;
 }
 function mesclar(s){
+  limparVsrc();
   // completa um estado salvo (versão antiga/incompleta) com o que faltar
   var m = estadoModelo(), o = s || {};
   ["capa","pad","fecho","crono","tab1"].forEach(function(k){ if(o[k]) m[k] = Object.assign(m[k], o[k]); });
@@ -10581,7 +10583,7 @@ function gravarAgora(){
 function salvar(imediato){
   var el = $("mcm_status"); if(el){ el.textContent = "salvando…"; el.className = "mcm-status"; }
   if(imediato) return gravarAgora();
-  clearTimeout(_tmSalvar); _tmSalvar = setTimeout(gravarAgora, 600);
+  clearTimeout(_tmSalvar); _tmSalvar = setTimeout(gravarAgora, 1500);
 }
 
 /* ---------- caminho de um campo ligado (data-f + contexto) ---------- */
@@ -10677,6 +10679,20 @@ function extraDe(id){ var s = ST.doc; for(var i=0;i<s.extras.length;i++) if(s.ex
 function baseDeTopico(id){ var l = listaTopicos(); for(var i=0;i<l.length;i++) if(l[i].id === id && !l[i].extra) return l[i]; return null; }
 function imgDe(id){ var s = ST.doc; for(var i=0;i<s.imgs.length;i++) if(s.imgs[i].id === id) return s.imgs[i]; return null; }
 
+/* imagens na tela: blob URL em vez de dataURL dentro do HTML (o innerHTML do documento passava de 20 MB) */
+var _vurl = new Map();
+function vsrc(u){
+  if(!u || u.indexOf("data:image/") !== 0) return u || "";
+  var v = _vurl.get(u); if(v) return v;
+  try{
+    var m = /^data:([^;]+);base64,(.*)$/.exec(u), b = atob(m[2]), a = new Uint8Array(b.length);
+    for(var i = 0; i < b.length; i++) a[i] = b.charCodeAt(i);
+    v = URL.createObjectURL(new Blob([a], { type:m[1] }));
+  }catch(e){ v = u; }
+  _vurl.set(u, v); return v;
+}
+function limparVsrc(){ _vurl.forEach(function(v){ try{ URL.revokeObjectURL(v); }catch(e){} }); _vurl.clear(); }
+
 /* ---------- peças de HTML ---------- */
 function ddBtn(act, txt, title, extra){ return '<button type="button" class="dd-b" data-act="' + act + '"' + (title ? ' title="' + esc(title) + '"' : '') + (extra || '') + '>' + txt + '</button>'; }
 function navHtml(lista){
@@ -10690,7 +10706,7 @@ function imgsHtml(topico){
   return ST.doc.imgs.filter(function(x){ return x.topico === topico; }).map(function(x){
     var id = esc(x.id), falta = !x.src;
     return '<figure class="dd-fig dd-img' + (falta ? ' falta' : '') + (x.meia ? ' meia' : '') + '" data-img="' + id + '">'
-      + (falta ? '<div class="dd-fig-vazio">Imagem ainda não anexada</div>' : '<img src="' + esc(x.src) + '" alt="">')
+      + (falta ? '<div class="dd-fig-vazio">Imagem ainda não anexada</div>' : '<img src="' + esc(vsrc(x.src)) + '" alt="" loading="lazy" decoding="async">')
       + '<div class="dd-fig-acts">'
       + '<label class="dd-b">' + (falta ? 'Anexar imagem' : 'Trocar imagem') + '<input type="file" accept="image/*" class="dd-imgin" data-img="' + id + '" style="display:none"></label>'
       + ddBtn("imgmeia", x.meia ? "◧ Lado a lado: sim" : "◧ Lado a lado: não", "Põe esta imagem e a seguinte lado a lado, em meia largura", ' data-img="' + id + '"')
@@ -10715,7 +10731,7 @@ function celula(ctx, span, rot, f, o){
 function fotoHtml(ctx, f, rot){
   var src = ctx.obj[f], k = esc(ctx.attrs);
   return '<tr><td colspan="6" class="mc-fotolinha"><span class="mc-l">' + rot + '</span>'
-    + '<div class="mc-foto' + (src ? '' : ' vazio') + '">' + (src ? '<img src="' + esc(src) + '" alt="">' : '<span>sem foto</span>') + '</div>'
+    + '<div class="mc-foto' + (src ? '' : ' vazio') + '">' + (src ? '<img src="' + esc(vsrc(src)) + '" alt="" loading="lazy" decoding="async">' : '<span>sem foto</span>') + '</div>'
     + '<div class="mc-fotoacts"><label class="dd-b">' + (src ? "Trocar foto" : "Anexar foto") + '<input type="file" accept="image/*" class="mc-fotoin" data-foto="' + f + '" ' + ctx.attrs + ' style="display:none"></label>'
     + (src ? '<button type="button" class="dd-b" data-act="fotorm" data-foto="' + f + '" ' + ctx.attrs + '>Remover</button>' : '') + '</div></td></tr>';
 }
@@ -10781,7 +10797,7 @@ function tab1Html(){
 }
 function fechoHtml(){
   var f = ST.fecho, c = { obj:f, attrs:'data-g="fecho"' };
-  var assin = f.assin ? '<img class="mc-assin" src="' + esc(f.assin) + '" alt="assinatura">' : '<div class="mc-assin vazio">assinatura (opcional)</div>';
+  var assin = f.assin ? '<img class="mc-assin" src="' + esc(vsrc(f.assin)) + '" alt="assinatura">' : '<div class="mc-assin vazio">assinatura (opcional)</div>';
   return '<div class="mc-fecho">'
     + '<p class="mc-fecho-l">' + inpHtml(c, "local", { cls:"curto" }) + ', ' + inpHtml(c, "data", { cls:"curto" }) + '.</p>'
     + '<p class="mc-fecho-l">Atenciosamente,</p>'
