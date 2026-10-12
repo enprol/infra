@@ -11925,7 +11925,7 @@ function construir(J, imgI, imgE, pagAnt, dry, AR, ANX){
     headEndY = -99;
   }
   function tabelaTab1(){
-    var t = ST.tab1, cols = [6, 9, 10, 28, 31, 14, 16, 17, 17, 12], fs = 6.8, x = [mL];
+    var t = ST.tab1, cols = [6, 17, 10, 26, 31, 14, 14, 15, 16, 11], fs = 6.8, x = [mL];
     var LEG = tab1Leg();
     cols.forEach(function(w, i){ x.push(x[i] + w); });
     if(LEG){ ensure(8 + 14 + KEEP); pdf.setFont(FONT, "bold"); pdf.setFontSize(9.5); pdf.setTextColor(0, 0, 0); pdf.text(LEG, mL + cw / 2, yc + 3, { align:"center" }); yc += 6.5; }
@@ -12086,6 +12086,20 @@ function construir(J, imgI, imgE, pagAnt, dry, AR, ANX){
   }
 
   /* ---------- corpo ---------- */
+  /* anexos em PDF (RRT/ART) já convertidos em imagem comprimida: cada página do anexo vai dentro do quadro, com cabeçalho e rodapé.
+     semNova = a 1ª página do anexo aproveita a página atual (logo abaixo do título do tópico ART) */
+  var anxFeito = false;
+  function desenharAnexos(semNova){
+    anxFeito = true;
+    var primeira = !!semNova;
+    (ANX || []).forEach(function(a){ a.paginas.forEach(function(src){
+      if(!primeira){ rod(); nova(); }
+      primeira = false;
+      var ar = ratio(src), mw = cw, mh = botY - yc - 2, iw = mw, ih = iw * ar;
+      if(ih > mh){ ih = mh; iw = ih / ar; }
+      foto(src, mL + (cw - iw) / 2, yc, iw, ih); yc += ih;
+    }); });
+  }
   function desenharTopico(tp){
     var k = tp.kind || "";
     if(tp.pagina) novaPaginaForcada();
@@ -12113,6 +12127,7 @@ function construir(J, imgI, imgE, pagAnt, dry, AR, ANX){
         if(ih > mh){ ih = mh; iw = ih / ar; }
         foto(x.src, mL + (cw - iw) / 2, yc, iw, ih); yc += ih + 3;
       });
+      desenharAnexos(!L.length);
       return;
     }
     else if(tp.txt && k !== "proc"){ parRica(textoDe(tp.id)); }
@@ -12126,13 +12141,7 @@ function construir(J, imgI, imgE, pagAnt, dry, AR, ANX){
   indice(lista);
   pdf.addPage(); cab(); yc = topY;
   lista.forEach(function(tp){ if(tp.oculto) return; desenharTopico(tp); });
-  // anexos em PDF (RRT/ART) já convertidos em imagem comprimida: cada página do anexo vai dentro do quadro, com cabeçalho e rodapé
-  (ANX || []).forEach(function(a){ a.paginas.forEach(function(src){
-    rod(); nova();
-    var ar = ratio(src), mw = cw, mh = botY - yc - 2, iw = mw, ih = iw * ar;
-    if(ih > mh){ ih = mh; iw = ih / ar; }
-    foto(src, mL + (cw - iw) / 2, yc, iw, ih); yc += ih;
-  }); });
+  if(!anxFeito) desenharAnexos(false);       // tópico ART oculto: anexos no fim do documento
   rod();
   return { pdf:pdf, pag:pag };
 }
@@ -12188,7 +12197,7 @@ async function rasterizarAnexos(AR){
         var pg = await doc.getPage(n), v0 = pg.getViewport({ scale:1 }), sc = Math.min(2, 1240 / v0.width), vp = pg.getViewport({ scale:sc });
         var cv = document.createElement("canvas"); cv.width = Math.round(vp.width); cv.height = Math.round(vp.height);
         var cx = cv.getContext("2d"); cx.fillStyle = "#fff"; cx.fillRect(0, 0, cv.width, cv.height);
-        await pg.render({ canvasContext:cx, viewport:vp }).promise;
+        await pg.render({ canvasContext:cx, viewport:vp, intent:"print" }).promise;   // "print": sem requestAnimationFrame (não trava se a aba perder o foco)
         var src = cv.toDataURL("image/jpeg", .7); AR[src] = cv.height / cv.width; pgs.push(src);
       }
       out.push({ id:A[i].id, nome:A[i].nome, paginas:pgs });
@@ -12843,6 +12852,12 @@ function kmDaArea(aneisU, estU){
 /* ---------- satélite Esri (mesmo método da Planta: afim WebMercator -> pixel) ---------- */
 var ESRI_SAT = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/";
 function mercPx(lon, lat, z){ var n = 256*Math.pow(2, z), la = lat*Math.PI/180; return [(lon + 180)/360*n, (1 - Math.log(Math.tan(la) + 1/Math.cos(la))/Math.PI)/2*n]; }
+/* tile do satélite com até 3 tentativas (um tile que falha deixaria um quadrado em branco no mapa) */
+function imgCorsTent(url){
+  var n = 0;
+  function tenta(){ return imgCors(url).catch(function(e){ if(++n >= 3) throw e; return new Promise(function(ok){ setTimeout(ok, 350*n); }).then(tenta); }); }
+  return tenta();
+}
 function imgCors(url){ return new Promise(function(ok, no){ var im = new Image(); im.crossOrigin = "anonymous"; im.onload = function(){ ok(im); }; im.onerror = function(){ no(new Error("tile")); }; im.src = url; }); }
 async function rasterEsri(T, zona, pxW, pxH, z){
   var cv = document.createElement("canvas"); cv.width = pxW; cv.height = pxH;
@@ -12870,7 +12885,7 @@ async function rasterEsri(T, zona, pxW, pxH, z){
   }
   for(var i = 0; i < lista.length; i += 6){
     await Promise.all(lista.slice(i, i + 6).map(async function(t){
-      try{ var im = await imgCors(ESRI_SAT + z + "/" + t[1] + "/" + t[0]); if(semDados(im)) vazios++; ctx.drawImage(im, t[0]*256, t[1]*256, 256, 256); }catch(err){ erros++; }
+      try{ var im = await imgCorsTent(ESRI_SAT + z + "/" + t[1] + "/" + t[0]); if(semDados(im)) vazios++; ctx.drawImage(im, t[0]*256, t[1]*256, 256, 256); }catch(err){ erros++; }
     }));
   }
   ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -13183,10 +13198,15 @@ document.addEventListener("input", function(ev){
   var t = ev.target; if(!t || !t.dataset || !/^(kmIni|kmFim)$/.test(t.dataset.f || "") || !t.dataset.pid) return;
   var p = procDe(t.dataset.pid); if(p) p.kmAuto = false;
 }, true);
-window.MCM_kmlRm = function(pid, tipo){
+window.MCM_kmlRm = async function(pid, tipo){
   var p = procDe(pid); if(!p) return;
   if(CAM_COMUNS[tipo]){ if(ST.kmlc) delete ST.kmlc[tipo]; } else if(p.kml) delete p.kml[tipo];
   salvar(true); rerender();
+  // o mapa acompanha: refaz sem o KML tirado (camada comum: todos os processos)
+  var lista = CAM_COMUNS[tipo] ? ST.procs.filter(function(q){ return !ehProcVazio(q); }) : [p];
+  for(var i = 0; i < lista.length; i++) await gerarEMostrar(lista[i].id, { silencioso:true, semRender:true });
+  salvar(true); rerender();
+  kmlStatus(pid, "KML retirado; mapa(s) refeito(s)");
 };
 /* põe o mapa no espaço da figura; a imagem que já estava ali (do campo ou manual) fica guardada e volta com "↩ Imagem anterior" */
 function porMapa(top, url, ordem, leg, fonte, manual){
