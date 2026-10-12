@@ -10526,6 +10526,7 @@ function mesclar(s){
   if(o.doc) m.doc = Object.assign({ heads:{}, hide:{}, extras:[], imgs:[], txt:{}, man:{} }, o.doc);
   if(Array.isArray(o.procs)) m.procs = o.procs;
   if(o.nome) m.nome = o.nome;
+  if(o.nomeSrv) m.nomeSrv = o.nomeSrv;      // nome que a pasta tem no servidor (para renomear em vez de duplicar)
   ST = m;
   if(m.procs.some(ehProcModelo)){
     tirarProcModelo();
@@ -12437,6 +12438,14 @@ async function emFila(itens, n, fn){
 async function salvarServidor(){
   var nome = pedirNome(); if(!nome) return null;
   if(window.MCM_flush) window.MCM_flush();
+  // trocou o nome do documento: é o MESMO documento — renomeia a pasta no servidor (não cria outro)
+  if(ST.nomeSrv && ST.nomeSrv !== nome){
+    srvStatus("renomeando a pasta…", "");
+    var rr = await srvFetch("/api/marcos/" + enc(ST.nomeSrv) + "/renomear", { method:"POST", headers:{ "Content-Type":"application/json" }, body:JSON.stringify({ novo:nome }) }, 30000);
+    if(rr.ok) ST.nomeSrv = nome;
+    else if(rr.status === 404) ST.nomeSrv = "";      // a pasta antiga não existe mais: grava como documento novo
+    else { var jr = {}; try{ jr = await rr.json(); }catch(e){} throw new Error(jr.erro || ("não consegui renomear a pasta (" + rr.status + ")")); }
+  }
   srvStatus("preparando…", "");
   var ex = await externalizar();
   var r0 = await srvFetch("/api/marcos/" + enc(nome) + "/imgs"); if(!r0.ok) throw new Error("servidor recusou (" + r0.status + ")");
@@ -12450,6 +12459,7 @@ async function salvarServidor(){
   });
   var r = await srvFetch("/api/marcos/" + enc(nome), { method:"PUT", headers:{ "Content-Type":"application/json" }, body:ex.json }, 60000);
   if(!r.ok){ var j = {}; try{ j = await r.json(); }catch(e){} throw new Error(j.erro || ("servidor recusou (" + r.status + ")")); }
+  ST.nomeSrv = nome;
   var el = $("mcm_srv"); if(el) el.dataset.salvo = "1";
   srvStatus("salvo no servidor · " + new Date().toLocaleTimeString("pt-BR") + " · " + ex.mapa.size + " imagem(ns)", "ok");
   return nome;
@@ -12500,7 +12510,7 @@ async function abrirDoServidor(nome){
     srvStatus("baixando imagens… " + (++feitas) + "/" + lista.length, "");
   });
   andar(o, function(ob, k, v){ if(v.indexOf("@img:") === 0) ob[k] = dados[v.slice(5)] || ""; });
-  mesclar(o); ST.nome = nome;
+  mesclar(o); ST.nome = nome; ST.nomeSrv = nome;
   await gravarAgora();
   var el = $("mcm_srv"); if(el) el.dataset.salvo = "1";
   window.MCM_modo(modoAtual());
