@@ -10337,6 +10337,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 #panel-util-marcos .mc-kml-km{display:inline-flex;gap:8px;align-items:center;}
 #panel-util-marcos .mc-kml-km label{display:inline-flex;align-items:center;gap:4px;font-weight:700;color:#5a6b7c;font-size:12px;}
 #panel-util-marcos .mc-kml-km .mc-i{width:110px;border:1px solid #b3bfcc;border-radius:7px;background:#fff;padding:4px 6px;}
+#panel-util-marcos .mc-assinlinha{width:72%;max-width:420px;margin:2px auto 4px;border-top:1.5px solid #111;}
 #panel-util-marcos .mc-kml-st{font-size:12px;color:#127a31;}
 #panel-util-marcos .mc-mapa-tag{display:inline-block;font:600 10.5px "Segoe UI",Arial,sans-serif;color:#127a31;background:#e2f5e8;border-radius:20px;padding:3px 8px;margin-left:4px;}
 
@@ -10918,6 +10919,7 @@ function fechoHtml(){
     + '<p class="mc-fecho-l">Atenciosamente,</p>'
     + '<div class="mc-assinwrap">' + assin
     + '<div class="mc-fotoacts"><label class="dd-b">' + (f.assin ? "Trocar assinatura" : "Anexar assinatura") + '<input type="file" accept="image/*" class="mc-assinin" style="display:none"></label>' + (f.assin ? ddBtn("assinrm", "Remover") : "") + '</div></div>'
+    + '<div class="mc-assinlinha"></div>'
     + '<p class="ctr">' + inpHtml(c, "nome", { cls:"ctr neg" }) + '</p>'
     + '<p class="ctr">' + inpHtml(c, "cargo", { cls:"ctr" }) + '</p>'
     + '<p class="ctr">' + inpHtml(c, "crea", { cls:"ctr" }) + '</p>'
@@ -11620,7 +11622,7 @@ function medirImagens(){
 function carregarLogo(s){ return new Promise(function(r){ if(!s){ r(null); return; } var im = new Image(); im.onload = function(){ r(im); }; im.onerror = function(){ r(null); }; im.src = s; }); }
 function procsCapa(){ return (ST.capa.processos || "").trim() || ST.procs.map(function(p){ return p.num; }).filter(Boolean).join(", "); }
 
-function construir(J, imgI, imgE, pagAnt, dry, AR){
+function construir(J, imgI, imgE, pagAnt, dry, AR, ANX){
   var pdf = new J({ orientation:"portrait", unit:"mm", format:"a4" });
   var FONT = "helvetica";
   try{ var CF = window.__CARLITO__; if(CF){
@@ -12028,6 +12030,8 @@ function construir(J, imgI, imgE, pagAnt, dry, AR){
     pdf.text("Atenciosamente,", mL, yc); yc += 4;
     if(f.assin){ var iw = hA / ar; if(iw > 70){ iw = 70; } foto(f.assin, mL + (cw - iw) / 2, yc, iw, iw * ar); }
     yc += hA + 2;
+    pdf.setDrawColor(0, 0, 0); pdf.setLineWidth(0.3); pdf.line(mL + cw / 2 - 36, yc - 1, mL + cw / 2 + 36, yc - 1);   // linha de assinatura
+    yc += 2.5;
     pdf.setFont(FONT, "bold"); pdf.text(String(f.nome || ""), mL + cw / 2, yc, { align:"center" }); yc += 5;
     pdf.setFont(FONT, "normal"); if(f.cargo){ pdf.text(String(f.cargo), mL + cw / 2, yc, { align:"center" }); yc += 5; }
     if(f.crea){ pdf.text(String(f.crea), mL + cw / 2, yc, { align:"center" }); yc += 5; }
@@ -12106,6 +12110,13 @@ function construir(J, imgI, imgE, pagAnt, dry, AR){
   indice(lista);
   pdf.addPage(); cab(); yc = topY;
   lista.forEach(function(tp){ if(tp.oculto) return; desenharTopico(tp); });
+  // anexos em PDF (RRT/ART) já convertidos em imagem comprimida: cada página do anexo vai dentro do quadro, com cabeçalho e rodapé
+  (ANX || []).forEach(function(a){ a.paginas.forEach(function(src){
+    rod(); nova();
+    var ar = ratio(src), mw = cw, mh = botY - yc - 2, iw = mw, ih = iw * ar;
+    if(ih > mh){ ih = mh; iw = ih / ar; }
+    foto(src, mL + (cw - iw) / 2, yc, iw, ih); yc += ih;
+  }); });
   rod();
   return { pdf:pdf, pag:pag };
 }
@@ -12140,9 +12151,38 @@ async function salvarPacote(pdfBlob, pdfNome){
   });
   return pdfNome;
 }
-/* anexos (RRT/ART em PDF): páginas copiadas para o fim do PDF com a pdf-lib */
-async function anexarPdfs(blob){
-  var A = (ST.anexos || []).filter(function(a){ return a && a.src; });
+/* anexos (RRT/ART em PDF) -> páginas em imagem JPEG comprimida (pdf.js), para entrarem dentro do quadro do documento */
+function carregarPdfJs(){
+  if(window.pdfjsLib) return Promise.resolve();
+  return new Promise(function(ok, no){
+    var s = document.createElement("script"); s.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+    s.onload = ok; s.onerror = function(){ no(new Error("pdf.js")); }; document.head.appendChild(s);
+  });
+}
+async function rasterizarAnexos(AR){
+  var A = (ST.anexos || []).filter(function(a){ return a && a.src; }), out = [];
+  if(!A.length) return out;
+  try{ await carregarPdfJs(); window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"; }catch(e){ return out; }   // sem internet: cai no modo antigo (páginas anexadas depois)
+  for(var i = 0; i < A.length; i++){
+    try{
+      var bin = atob(A[i].src.split(",")[1] || ""), by = new Uint8Array(bin.length);
+      for(var k = 0; k < bin.length; k++) by[k] = bin.charCodeAt(k);
+      var doc = await window.pdfjsLib.getDocument({ data:by }).promise, pgs = [];
+      for(var n = 1; n <= doc.numPages; n++){
+        var pg = await doc.getPage(n), v0 = pg.getViewport({ scale:1 }), sc = Math.min(2, 1240 / v0.width), vp = pg.getViewport({ scale:sc });
+        var cv = document.createElement("canvas"); cv.width = Math.round(vp.width); cv.height = Math.round(vp.height);
+        var cx = cv.getContext("2d"); cx.fillStyle = "#fff"; cx.fillRect(0, 0, cv.width, cv.height);
+        await pg.render({ canvasContext:cx, viewport:vp }).promise;
+        var src = cv.toDataURL("image/jpeg", .7); AR[src] = cv.height / cv.width; pgs.push(src);
+      }
+      out.push({ id:A[i].id, nome:A[i].nome, paginas:pgs });
+    }catch(e){ /* este anexo volta ao modo antigo */ }
+  }
+  return out;
+}
+/* anexos que não puderam virar imagem: páginas copiadas para o fim do PDF com a pdf-lib */
+async function anexarPdfs(blob, jaInseridos){
+  var A = (ST.anexos || []).filter(function(a){ return a && a.src && !(jaInseridos && jaInseridos.indexOf(a.id) >= 0); });
   if(!A.length) return blob;
   if(!window.PDFLib){ alert("A biblioteca de PDF (pdf-lib) ainda não carregou — os anexos NÃO foram incluídos. Tente gerar de novo."); return blob; }
   var doc = await window.PDFLib.PDFDocument.load(await blob.arrayBuffer()), falhas = [];
@@ -12167,9 +12207,10 @@ window.MCM_gerarPDF = async function(opts){
     atualizarAuto();
     var AR = await medirImagens();
     var imgI = await carregarLogo(window.__LOGO_INFRA__), imgE = await carregarLogo(window.__LOGO_ENPROL__);
-    var r1 = construir(J, imgI, imgE, null, true, AR);
-    var r2 = construir(J, imgI, imgE, r1.pag, false, AR);
-    var blob = await anexarPdfs(r2.pdf.output("blob"));
+    var ANX = await rasterizarAnexos(AR);
+    var r1 = construir(J, imgI, imgE, null, true, AR, ANX);
+    var r2 = construir(J, imgI, imgE, r1.pag, false, AR, ANX);
+    var blob = await anexarPdfs(r2.pdf.output("blob"), ANX.map(function(a){ return a.id; }));
     var nome = (String(ST.capa.codigo || "FUND-2").split(" ")[0] + "_Monografia_Marcos_" + (ST.capa.sigla || "").replace(/\s+/g, "_") + (ST.capa.lote ? "_Lote_" + ST.capa.lote : "")).replace(/_+$/, "") + ".pdf";
     if(opts.retornar) return { blob:blob, nome:nome };
     if(window.MCM_flush) window.MCM_flush();
