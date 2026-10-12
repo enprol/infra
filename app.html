@@ -10345,6 +10345,13 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 #panel-util-marcos .mcm-sgrow .mc-i{width:100%;box-sizing:border-box;border:1px solid #b3bfcc;border-radius:7px;background:#fff;padding:6px 8px;font-size:12.5px;}
 @media(max-width:760px){#panel-util-marcos .mcm-sgrow{grid-template-columns:1fr;}}
 
+#panel-util-marcos .mc-kml-t small{font-weight:600;color:#6b7c8e;}
+#panel-util-marcos .mc-kml-g{flex-basis:100%;display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;}
+#panel-util-marcos .mc-kml-gt{font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#6b7c8e;min-width:150px;}
+#panel-util-marcos .mc-cam{flex-basis:100%;display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;padding:8px 10px;border:1px dashed #c3ccd6;border-radius:8px;background:#fff;}
+#panel-util-marcos .mc-cam-i{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:#243447;cursor:pointer;}
+#panel-util-marcos .mc-cam-i input[type=checkbox]{accent-color:#1F6FC0;}
+
 </style>
 <div class="wrap">
   <h1>Implantação e Monografia de Marcos Georreferenciados — FUND-2</h1>
@@ -10538,6 +10545,8 @@ function mesclar(s){
   Object.keys(pl).forEach(function(k){ if(pl[k].indexOf(fe[k] || "") >= 0) fe[k] = EXEMPLO.fecho[k]; });
   m.anexos = Array.isArray(o.anexos) ? o.anexos.filter(function(a){ return a && typeof a.src === "string" && a.src.indexOf("data:application/pdf") === 0; }) : [];
   ST = m;
+  if(o.kmlc) m.kmlc = o.kmlc;
+  migrarKml(m);            // KMLs de versões anteriores (área / destaque) -> camadas novas
   return m;
 }
 
@@ -10810,7 +10819,7 @@ function imgsHtml(topico){
       + ddBtn("imgup", "↑", "Mover a imagem para cima", ' data-img="' + id + '"') + ddBtn("imgdown", "↓", "Mover a imagem para baixo", ' data-img="' + id + '"')
       + ddBtn("imgrm", "🗑 Remover", "Tira esta imagem do documento", ' data-img="' + id + '"')
       + (x.bak ? '<button type="button" class="dd-b" onclick="MCM_imgAnterior(\'' + id + '\')" title="Desfaz o mapa automático e volta a imagem que estava aqui">↩ Imagem anterior</button>' : '')
-      + (x.auto === "mapa" ? '<span class="mc-mapa-tag">' + (x.mapaManual ? "imagem de mapa inserida · " + x.ordemMapa + "º mapa" : "mapa automático " + (x.ordemMapa === 1 ? "· com satélite" : "· sem satélite")) + '</span>' : '')
+      + (x.auto === "mapa" ? '<span class="mc-mapa-tag">' + (x.mapaManual ? "imagem de mapa inserida" : "mapa automático · camadas no bloco abaixo") + '</span>' : '')
       + '</div>'
       + '<figcaption><span class="dd-cap" contenteditable="true" spellcheck="true" data-imgcap="leg" data-img="' + id + '" data-ph="Legenda — ex.: Imagem 04 – Situação do georreferenciamento">' + esc(x.leg) + '</span>'
       + '<span class="dd-fonte">Fonte: <span class="dd-cap" contenteditable="true" data-imgcap="fonte" data-img="' + id + '" data-ph="xxxx, aaaa">' + esc(x.fonte) + '</span></span></figcaption></figure>';
@@ -12648,7 +12657,13 @@ function corKml(v){
 function parseKml(txt){
   var doc = new DOMParser().parseFromString(String(txt || ""), "text/xml");
   if(doc.getElementsByTagName("parsererror").length) throw new Error("o arquivo não é um KML válido");
-  var out = { polys:[], lines:[], pts:[], polyS:[], lineS:[], estilos:[] };
+  var out = { polys:[], lines:[], pts:[], polyS:[], lineS:[], polyN:[], polyF:[], lineF:[], estilos:[] };
+  function pastaDe(pm){
+    for(var e = pm.parentNode; e && e.nodeName !== "Document" && e.nodeType === 1; e = e.parentNode){
+      if(e.nodeName === "Folder"){ var n = e.getElementsByTagName("name")[0]; return n && n.parentNode === e ? n.textContent.trim() : ""; }
+    }
+    return "";
+  }
   function coords(el){
     return String(el && el.textContent || "").trim().split(/\s+/).map(function(t){ var a = t.split(",").map(Number); return [a[0], a[1]]; })
       .filter(function(p){ return isFinite(p[0]) && isFinite(p[1]); });
@@ -12674,29 +12689,52 @@ function parseKml(txt){
   var pms = doc.getElementsByTagName("Placemark");
   for(var i = 0; i < pms.length; i++){
     var pm = pms[i], nomeEl = pm.getElementsByTagName("name")[0], nome = nomeEl ? nomeEl.textContent.trim() : "";
-    var stIn = filho(pm, "Style"), st = resolve(txtDe(pm, "styleUrl"));
+    var pasta = pastaDe(pm), stIn = filho(pm, "Style"), st = resolve(txtDe(pm, "styleUrl"));
     if(stIn){ var o2 = lerEstilo(stIn); st = Object.assign({}, st || {}, o2); }
     var si = indice(st);
     Array.prototype.forEach.call(pm.getElementsByTagName("Polygon"), function(pg){
       var ob = pg.getElementsByTagName("outerBoundaryIs")[0] || pg, cc = ob.getElementsByTagName("coordinates")[0];
-      var r = coords(cc); if(r.length >= 3){ out.polys.push(r); out.polyS.push(si); }
+      var r = coords(cc); if(r.length >= 3){ out.polys.push(r); out.polyS.push(si); out.polyN.push(nome); out.polyF.push(pasta); }
     });
-    Array.prototype.forEach.call(pm.getElementsByTagName("LineString"), function(ls){ var r = coords(ls.getElementsByTagName("coordinates")[0]); if(r.length >= 2){ out.lines.push(r); out.lineS.push(si); } });
-    Array.prototype.forEach.call(pm.getElementsByTagName("Point"), function(pt){ var r = coords(pt.getElementsByTagName("coordinates")[0]); if(r.length) out.pts.push({ lon:r[0][0], lat:r[0][1], nome:nome, s:si }); });
+    Array.prototype.forEach.call(pm.getElementsByTagName("LineString"), function(ls){ var r = coords(ls.getElementsByTagName("coordinates")[0]); if(r.length >= 2){ out.lines.push(r); out.lineS.push(si); out.lineF.push(pasta); } });
+    Array.prototype.forEach.call(pm.getElementsByTagName("Point"), function(pt){ var r = coords(pt.getElementsByTagName("coordinates")[0]); if(r.length) out.pts.push({ lon:r[0][0], lat:r[0][1], nome:nome, s:si, f:pasta }); });
   }
   if(!out.polys.length && !out.lines.length && !out.pts.length) throw new Error("não encontrei polígono, linha nem ponto no KML");
   return out;
 }
 
 // geometria compacta (7 casas) e, se houver uma caixa [lonMin, latMin, lonMax, latMax], só o que encosta nela (os estilos vão junto)
+/* separa o que o arquivo traz misturado. tp/tl/tq = testes para polígonos (i), linhas (i) e pontos (q); se nada passa, devolve tudo */
+function recortaPor(g, tp, tl, tq){
+  var o = { polys:[], lines:[], pts:[], polyS:[], lineS:[], polyN:[], polyF:[], lineF:[], estilos:g.estilos || [] };
+  g.polys.forEach(function(r, i){ if(tp(i)){ o.polys.push(r); o.polyS.push(g.polyS[i]); o.polyN.push(g.polyN[i]); o.polyF.push(g.polyF[i]); } });
+  g.lines.forEach(function(r, i){ if(tl(i)){ o.lines.push(r); o.lineS.push(g.lineS[i]); o.lineF.push(g.lineF[i]); } });
+  g.pts.forEach(function(q){ if(tq(q)) o.pts.push(q); });
+  return (o.polys.length || o.lines.length || o.pts.length) ? o : g;
+}
+var RE_PASTA = { faixa:/faixa|dom[ií]nio|limite/i, eixo:/eixo|estaca|txt|\bkm\b|tra[cç]ado/i };
+var RE_DESAP = /desap|faixa|dom[ií]nio/i;
+/* tipo: faixa | eixo (por pasta) · imovel | dominio (por nome do polígono). Sem pistas no arquivo, fica tudo */
+function separarPorTipo(g, tipo){
+  var R = RE_PASTA[tipo];
+  if(R){
+    var tem = g.polyF.some(function(f){ return R.test(f); }) || g.lineF.some(function(f){ return R.test(f); }) || g.pts.some(function(q){ return R.test(q.f || ""); });
+    return tem ? recortaPor(g, function(i){ return R.test(g.polyF[i]); }, function(i){ return R.test(g.lineF[i]); }, function(q){ return R.test(q.f || ""); }) : g;
+  }
+  var nomeado = g.polyN.some(function(n){ return RE_DESAP.test(n); }), restante = g.polyN.some(function(n){ return !RE_DESAP.test(n); });
+  if(!g.polys.length) return g;
+  if(tipo === "dominio" && nomeado) return recortaPor(g, function(i){ return RE_DESAP.test(g.polyN[i]); }, function(){ return false; }, function(){ return false; });
+  if(tipo === "imovel" && nomeado && restante) return recortaPor(g, function(i){ return !RE_DESAP.test(g.polyN[i]); }, function(){ return false; }, function(){ return false; });
+  return g;
+}
 function geoCompacta(g, caixa){
   var r7 = function(q){ return [Math.round(q[0]*1e7)/1e7, Math.round(q[1]*1e7)/1e7]; };
   var dentro = function(q){ return !caixa || (q[0] >= caixa[0] && q[0] <= caixa[2] && q[1] >= caixa[1] && q[1] <= caixa[3]); };
   var toca = function(r){ if(!caixa) return true; var a = Infinity, b = Infinity, c = -Infinity, d = -Infinity; r.forEach(function(q){ a = Math.min(a, q[0]); b = Math.min(b, q[1]); c = Math.max(c, q[0]); d = Math.max(d, q[1]); }); return !(c < caixa[0] || a > caixa[2] || d < caixa[1] || b > caixa[3]); };
-  var o = { polys:[], lines:[], pts:[], polyS:[], lineS:[], estilos:g.estilos || [] };
-  g.polys.forEach(function(r, i){ if(toca(r)){ o.polys.push(r.map(r7)); o.polyS.push(g.polyS ? g.polyS[i] : -1); } });
-  g.lines.forEach(function(r, i){ if(toca(r)){ o.lines.push(r.map(r7)); o.lineS.push(g.lineS ? g.lineS[i] : -1); } });
-  g.pts.forEach(function(q){ if(dentro([q.lon, q.lat])){ var c = r7([q.lon, q.lat]); o.pts.push({ lon:c[0], lat:c[1], nome:q.nome, s:q.s == null ? -1 : q.s }); } });
+  var o = { polys:[], lines:[], pts:[], polyS:[], lineS:[], polyN:[], polyF:[], lineF:[], estilos:g.estilos || [] };
+  g.polys.forEach(function(r, i){ if(toca(r)){ o.polys.push(r.map(r7)); o.polyS.push(g.polyS ? g.polyS[i] : -1); o.polyN.push(g.polyN ? g.polyN[i] : ""); o.polyF.push(g.polyF ? g.polyF[i] : ""); } });
+  g.lines.forEach(function(r, i){ if(toca(r)){ o.lines.push(r.map(r7)); o.lineS.push(g.lineS ? g.lineS[i] : -1); o.lineF.push(g.lineF ? g.lineF[i] : ""); } });
+  g.pts.forEach(function(q){ if(dentro([q.lon, q.lat])){ var c = r7([q.lon, q.lat]); o.pts.push({ lon:c[0], lat:c[1], nome:q.nome, s:q.s == null ? -1 : q.s, f:q.f || "" }); } });
   return o;
 }
 // "-45 (Fuso: 23 S)" / "- 45°" / "23S" -> fuso UTM (23)
@@ -12721,15 +12759,47 @@ function marcosValidos(p){
   return { ok:todos, fora:fora };
 }
 function caixaDoProcesso(p){
-  var lo = [], la = [], a = geoDe(p.kml && p.kml.area);
-  if(a) a.polys.concat(a.lines).forEach(function(r){ r.forEach(function(q){ lo.push(q[0]); la.push(q[1]); }); });
+  var lo = [], la = [];
+  [geoDe(p.kml && p.kml.imovel), geoDe(p.kml && p.kml.dominio)].forEach(function(a){ if(a) a.polys.concat(a.lines).forEach(function(r){ r.forEach(function(q){ lo.push(q[0]); la.push(q[1]); }); }); });
   marcosValidos(p).ok.forEach(function(m){
     var z = fusoDoMC(m.mc || ST.pad.mc);
     var ll = utmInv(m.E, m.N, z, true); lo.push(ll[0]); la.push(ll[1]);
   });
   if(!lo.length) return null;
-  var f = .015;
-  return [Math.min.apply(null, lo) - f, Math.min.apply(null, la) - f, Math.max.apply(null, lo) + f, Math.max.apply(null, la) + f];
+  return [Math.min.apply(null, lo), Math.min.apply(null, la), Math.max.apply(null, lo), Math.max.apply(null, la)];
+}
+/* recorte das camadas comuns: tudo o que está em volta de TODOS os processos do relatório (~3 km de folga) */
+function caixaComum(){
+  var b = null, f = .03;
+  ST.procs.forEach(function(p){ var c = caixaDoProcesso(p); if(!c) return; b = b ? [Math.min(b[0], c[0]), Math.min(b[1], c[1]), Math.max(b[2], c[2]), Math.max(b[3], c[3])] : c.slice(); });
+  return b ? [b[0] - f, b[1] - f, b[2] + f, b[3] + f] : null;
+}
+function foraDaCaixa(p, cx){ var b = cx && caixaDoProcesso(p); return !!b && (b[0] < cx[0] - .002 || b[1] < cx[1] - .002 || b[2] > cx[2] + .002 || b[3] > cx[3] + .002); }
+/* projetos antigos: o KML "área" vira "área dentro da faixa de domínio"; o "destaque" (por processo) vira camadas comuns faixa/eixo */
+function migrarKml(s){
+  if(!s || !Array.isArray(s.procs)) return;
+  s.kmlc = s.kmlc || {};
+  function corLaranja(st){ return st && /^#(ff|f[0-9a-f])[89a-c][0-9a-f]00$/i.test(st.l || ""); }
+  function junta(tipo, nome, g, quer){
+    var d = s.kmlc[tipo] = s.kmlc[tipo] || { nome:nome, geo:{ polys:[], lines:[], pts:[], polyS:[], lineS:[], polyN:[], polyF:[], lineF:[], estilos:[] }, caixa:null }, G = d.geo, vistos = G.__v || (G.__v = {});
+    function est(i){ var o = (g.estilos || [])[i]; if(!o) return -1; var k = JSON.stringify(o), j = G.estilos.findIndex(function(x){ return JSON.stringify(x) === k; }); if(j < 0){ G.estilos.push(o); j = G.estilos.length - 1; } return j; }
+    function novo(k){ if(vistos[k]) return false; vistos[k] = 1; return true; }
+    g.polys.forEach(function(r, i){ var st = (g.estilos || [])[g.polyS && g.polyS[i]]; if(quer(st, "l") && novo("p" + JSON.stringify(r[0]) + r.length)){ G.polys.push(r); G.polyS.push(est(g.polyS[i])); G.polyN.push(""); G.polyF.push(""); } });
+    g.lines.forEach(function(r, i){ var st = (g.estilos || [])[g.lineS && g.lineS[i]]; if(quer(st, "l") && novo("l" + JSON.stringify(r[0]) + r.length)){ G.lines.push(r); G.lineS.push(est(g.lineS[i])); G.lineF.push(""); } });
+    if(tipo === "eixo") g.pts.forEach(function(q){ if(novo("t" + q.lon + "," + q.lat + q.nome)){ G.pts.push({ lon:q.lon, lat:q.lat, nome:q.nome, s:est(q.s), f:"" }); } });
+  }
+  s.procs.forEach(function(p){
+    var k = p.kml; if(!k) return;
+    if(k.area && !k.dominio) k.dominio = k.area;
+    delete k.area;
+    if(k.dest && k.dest.geo){
+      var g = k.dest.geo, nm = (k.dest.nome || "KML antigo") + " (migrado)";
+      junta("faixa", nm, g, function(st){ return !corLaranja(st); });
+      junta("eixo", nm, g, function(st){ return corLaranja(st); });
+    }
+    delete k.dest;
+  });
+  ["faixa", "eixo"].forEach(function(tp){ if(s.kmlc[tp] && s.kmlc[tp].geo){ delete s.kmlc[tp].geo.__v; var G = s.kmlc[tp].geo; if(!G.polys.length && !G.lines.length && !G.pts.length) delete s.kmlc[tp]; } });
 }
 /* estacas: pontos do KML cujo nome é um KM ("784+500", "000+000,00") */
 var RE_ESTACA = /^\s*(\d{1,4})\s*\+\s*(\d{1,3}(?:[.,]\d+)?)\s*$/;
@@ -12832,41 +12902,46 @@ function svgParaImagem(svg, W, H, escala){
 }
 
 /** monta o mapa do processo; devolve dataURL ou lança erro com mensagem amigável */
-async function gerarMapaProcesso(p, aoAndar, comSat){
-  if(comSat === undefined) comSat = true;
-  var TC = comSat ? { f:"#ffffff", h:"#16202b", km:"#ffd7d7", base:"#cfe3ff" } : { f:"#16202b", h:"#ffffff", km:"#b3141b", base:"#1565c0" };
-  var K = p.kml || {}, area = geoDe(K.area), dest = geoDe(K.dest);
+var CAM_PADRAO = { sat:true, grade:true, imovel:true, dominio:true, faixa:true, eixo:true, estacas:true, base:true };
+function camadasDe(p){
+  var c = Object.assign({}, CAM_PADRAO, (p.mapa && p.mapa.camadas) || {}), tr = p.mapa && p.mapa.satT;
+  c.satT = (tr == null || tr === "" || !isFinite(+tr)) ? 75 : Math.max(0, Math.min(100, +tr));
+  return c;
+}
+async function gerarMapaProcesso(p, aoAndar){
+  var C = camadasDe(p), comSat = !!C.sat, satOp = 1 - C.satT/100;
+  var TC = (comSat && satOp >= .6) ? { f:"#ffffff", h:"#16202b", km:"#ffd7d7", base:"#cfe3ff" } : { f:"#16202b", h:"#ffffff", km:"#b3141b", base:"#1565c0" };
+  var K = p.kml || {}, KC = ST.kmlc || {}, gImo = geoDe(K.imovel), gDom = geoDe(K.dominio), gFai = geoDe(KC.faixa), gEix = geoDe(KC.eixo);
   var mv = marcosValidos(p), marcos = mv.ok;
   var avisos = mv.fora.map(function(m){ return "marco " + (m.cod || "?") + " ignorado: E = " + fmtBR(m.E, 3) + " / N = " + fmtBR(m.N, 3) + " destoa dos demais (confira a digitação)"; });
+  ["faixa", "eixo"].forEach(function(tp){ if(KC[tp] && foraDaCaixa(p, KC[tp].caixa)) avisos.push("o KML da " + (tp === "faixa" ? "faixa de domínio" : "eixo") + " foi recortado antes deste processo entrar; insira-o de novo para cobrir a área"); });
   var base = { E:numBR(p.base.E), N:numBR(p.base.N), nome:(p.base.ident || "BASE") };
   // fuso: do KML (longitude) ou do texto do MC dos marcos ("-45" -> 23)
-  var lon0 = null; [area, dest].forEach(function(g){ if(lon0 != null || !g) return; var q = (g.polys[0] || g.lines[0] || [])[0] || (g.pts[0] && [g.pts[0].lon]); if(q) lon0 = q[0]; });
+  var lon0 = null; [gDom, gImo, gFai, gEix].forEach(function(g){ if(lon0 != null || !g) return; var q = (g.polys[0] || g.lines[0] || [])[0] || (g.pts[0] && [g.pts[0].lon]); if(q) lon0 = q[0]; });
   var zona = lon0 != null ? Math.floor((lon0 + 180)/6) + 1 : fusoDoMC((p.marcos[0] || {}).mc || ST.pad.mc);
   function U(q){ var u = utmFwd(q[0], q[1], zona); return [u.E, u.N]; }
-  var aneis = area ? area.polys.map(function(r){ return r.map(U); }) : [];
-  var linhasArea = area ? area.lines.map(function(r){ return r.map(U); }) : [];
-  // pontos do KML da área: só contam como vértice se caem num vértice do polígono ou têm nome de vértice (ex.: "AVIO-M-100");
-  // o ponto com o nome do proprietário (rótulo do SIGEF) fica de fora
-  var ptsArea = area ? area.pts.map(function(q){ var u = utmFwd(q.lon, q.lat, zona); return { E:u.E, N:u.N, nome:q.nome }; }).filter(function(q){
-    return /-\s*[MPV]\s*-\s*\d/i.test(q.nome || "") || aneis.some(function(r){ return r.some(function(v){ return Math.hypot(v[0] - q.E, v[1] - q.N) < 1; }); });
-  }) : [];
-  // destaque: cada feição com o estilo do próprio KML (sem estilo: vermelho, como antes)
-  var dEst = (dest && dest.estilos) || [];
-  function estD(i){ return (i != null && i >= 0 && dEst[i]) || {}; }
-  var dPolys = dest ? dest.polys.map(function(r, i){ return { r:r.map(U), st:estD(dest.polyS && dest.polyS[i]) }; }) : [];
-  var dLines = dest ? dest.lines.map(function(r, i){ return { r:r.map(U), st:estD(dest.lineS && dest.lineS[i]) }; }) : [];
-  // estacas do eixo (pontos com nome de KM) viram rótulos do eixo; os demais pontos com nome, só o texto
+  function estOf(g, i){ return (g && g.estilos && i != null && i >= 0 && g.estilos[i]) || {}; }
+  var aneis = gDom ? gDom.polys.map(function(r){ return r.map(U); }) : [];                 // área dentro da faixa de domínio
+  var linhasArea = gDom ? gDom.lines.map(function(r){ return r.map(U); }) : [];
+  var aneisImo = gImo ? gImo.polys.map(function(r){ return r.map(U); }) : [];               // área do imóvel
+  var fPolys = gFai ? gFai.polys.map(function(r, i){ return { r:r.map(U), st:estOf(gFai, gFai.polyS && gFai.polyS[i]) }; }) : [];
+  var fLines = gFai ? gFai.lines.map(function(r, i){ return { r:r.map(U), st:estOf(gFai, gFai.lineS && gFai.lineS[i]) }; }) : [];
+  var ePolys = gEix ? gEix.polys.map(function(r, i){ return { r:r.map(U), st:estOf(gEix, gEix.polyS && gEix.polyS[i]) }; }) : [];
+  var eLines = gEix ? gEix.lines.map(function(r, i){ return { r:r.map(U), st:estOf(gEix, gEix.lineS && gEix.lineS[i]) }; }) : [];
+  // pontos do eixo: nome de KM = estaca (rótulo girado); os demais com nome, só o texto
   var estacas = [], dPts = [];
-  (dest ? dest.pts : []).forEach(function(q){ var u = utmFwd(q.lon, q.lat, zona), c = kmNum(q.nome), st = estD(q.s); if(c != null) estacas.push({ E:u.E, N:u.N, c:c, st:st }); else dPts.push({ E:u.E, N:u.N, nome:q.nome, st:st }); });
-  var kmA = kmDaArea(aneis, estacas);
+  [[gEix, true], [gFai, false]].forEach(function(gg){
+    if(!gg[0]) return;
+    gg[0].pts.forEach(function(q){ var u = utmFwd(q.lon, q.lat, zona), c = kmNum(q.nome), st = estOf(gg[0], q.s); if(c != null && gg[1]) estacas.push({ E:u.E, N:u.N, c:c, st:st }); else if(q.nome) dPts.push({ E:u.E, N:u.N, nome:q.nome, st:st, eixo:gg[1] }); });
+  });
+  var kmA = kmDaArea(aneis.length ? aneis : aneisImo, estacas);
   if(kmA && (p.kmAuto || (!p.kmIni && !p.kmFim))){ p.kmIni = kmTxt(kmA.ini.c); p.kmFim = kmTxt(kmA.fim.c); p.kmAuto = true; }
-  // enquadramento: área + marcos (+ pontos do KML da área); sem isso, o destaque
+  // enquadramento: área do imóvel + área na faixa + marcos; sem isso, faixa/eixo
   var foco = [];
-  aneis.concat(linhasArea).forEach(function(r){ foco = foco.concat(r); });
-  ptsArea.forEach(function(q){ foco.push([q.E, q.N]); });
+  aneis.concat(linhasArea, aneisImo).forEach(function(r){ foco = foco.concat(r); });
   marcos.forEach(function(m){ foco.push([m.E, m.N]); });
-  if(!foco.length){ dPolys.concat(dLines).forEach(function(d){ foco = foco.concat(d.r); }); dPts.forEach(function(q){ foco.push([q.E, q.N]); }); }
-  if(!foco.length) throw new Error("nada para desenhar: insira o KML da área ou preencha as coordenadas (N/E) dos marcos");
+  if(!foco.length){ fPolys.concat(fLines, ePolys, eLines).forEach(function(d){ foco = foco.concat(d.r); }); }
+  if(!foco.length) throw new Error("nada para desenhar: insira o KML da área (imóvel ou dentro da faixa) ou preencha as coordenadas (N/E) dos marcos");
   var e0 = Infinity, e1 = -Infinity, n0 = Infinity, n1 = -Infinity;
   foco.forEach(function(q){ e0 = Math.min(e0, q[0]); e1 = Math.max(e1, q[0]); n0 = Math.min(n0, q[1]); n1 = Math.max(n1, q[1]); });
   var M = MAPA_FIG, larg = Math.max(e1 - e0, 40), alt = Math.max(n1 - n0, 40), pad = .2;
@@ -12875,9 +12950,10 @@ async function gerarMapaProcesso(p, aoAndar, comSat){
   e0 = ce - larg/2; e1 = ce + larg/2; n0 = cn - alt/2; n1 = cn + alt/2;
   var k = M.w/(e1 - e0);
   var X = function(E){ return M.x + (E - e0)*k; }, Y = function(N){ return M.y + (n1 - N)*k; };
+  function naJanela(r){ var a = Infinity, b = Infinity, c = -Infinity, d = -Infinity; for(var i = 0; i < r.length; i++){ var q = r[i]; if(q[0] < a) a = q[0]; if(q[0] > c) c = q[0]; if(q[1] < b) b = q[1]; if(q[1] > d) d = q[1]; } return !(c < e0 || a > e1 || d < n0 || b > n1); }
   var pts = function(r){ return r.map(function(q){ return X(q[0]).toFixed(1) + "," + Y(q[1]).toFixed(1); }).join(" "); };
 
-  // satélite (50 %)
+  // satélite (translucidez configurável, padrão 75 %)
   if(comSat && aoAndar) aoAndar("baixando satélite…");
   var esc = 2, pxW = M.w*esc, pxH = M.h*esc;
   var latC = utmInv(ce, cn, zona, true)[1], mpp = (e1 - e0)/pxW;
@@ -12890,7 +12966,7 @@ async function gerarMapaProcesso(p, aoAndar, comSat){
     + '<clipPath id="cm"><rect x="' + M.x + '" y="' + M.y + '" width="' + M.w + '" height="' + M.h + '"/></clipPath></defs>'
     + '<rect width="900" height="__H__" fill="#ffffff"/><g clip-path="url(#cm)">'
     + '<rect x="' + M.x + '" y="' + M.y + '" width="' + M.w + '" height="' + M.h + '" fill="#ffffff"/>';
-  if(sat) s += '<image x="' + M.x + '" y="' + M.y + '" width="' + M.w + '" height="' + M.h + '" preserveAspectRatio="none" opacity=".5" href="' + sat + '" xlink:href="' + sat + '"/>';
+  if(sat) s += '<image x="' + M.x + '" y="' + M.y + '" width="' + M.w + '" height="' + M.h + '" preserveAspectRatio="none" opacity="' + satOp.toFixed(2) + '" href="' + sat + '" xlink:href="' + sat + '"/>';
 
   // malha de coordenadas UTM (traços cinza, números por dentro com halo)
   var passo = [10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000].find(function(m){ return m*k >= 110; }) || 2000, gl = "", gt = "";
@@ -12902,53 +12978,59 @@ async function gerarMapaProcesso(p, aoAndar, comSat){
     var gy = Y(Nn); gl += '<line x1="' + M.x + '" y1="' + gy.toFixed(1) + '" x2="' + (M.x + M.w) + '" y2="' + gy.toFixed(1) + '"/>';
     if(gy > M.y + 110 && gy < M.y + M.h - 30){ gt += txtHalo(M.x + 12, gy, fmtBR(Nn, 0), { size:9, weight:600, fill:"#1d2b3a", rot:-90 }); gt += txtHalo(M.x + M.w - 6, gy, fmtBR(Nn, 0), { size:9, weight:600, fill:"#1d2b3a", rot:-90 }); }
   }
-  s += '<g stroke="#9aa7b5" stroke-width=".9" stroke-dasharray="6,6" opacity=".9">' + gl + '</g>';
+  if(C.grade) s += '<g stroke="#9aa7b5" stroke-width=".9" stroke-dasharray="6,6" opacity=".9">' + gl + '</g>';
 
-  // KML de destaque (segundo plano), com as cores e espessuras do material original
-  function traco(st){ return (st.l || "#ff1e1e"); }
+  // camadas, de trás para a frente: área do imóvel → faixa de domínio → eixo → estacas → área dentro da faixa
+  function traco(st, pad){ return st.l || pad; }
   function largura(st){ return Math.max(1, (st.w || 2)*1.15).toFixed(2); }
-  dPolys.forEach(function(d){
-    var st = d.st, semEstilo = !st.l && !st.f;
-    var enche = semEstilo || (st.pf !== false && st.f && st.fo > 0), contorno = st.po !== false && st.lo !== 0;
-    var fill = semEstilo ? ' fill="#ff1e1e" fill-opacity=".12"' : enche ? ' fill="' + st.f + '" fill-opacity="' + st.fo.toFixed(2) + '"' : ' fill="none"';
-    s += '<polygon points="' + pts(d.r) + '"' + fill
-      + (contorno ? ' stroke="' + traco(st) + '" stroke-opacity="' + (st.lo == null ? 1 : st.lo).toFixed(2) + '" stroke-width="' + largura(st) + '"' : ' stroke="none"') + ' stroke-linejoin="round"/>';
-  });
-  dLines.forEach(function(d){
-    var st = d.st; if(st.lo === 0) return;
-    s += '<polyline points="' + pts(d.r) + '" fill="none" stroke="' + traco(st) + '" stroke-opacity="' + (st.lo == null ? 1 : st.lo).toFixed(2) + '" stroke-width="' + largura(st) + '" stroke-linejoin="round" stroke-linecap="round"/>';
-  });
-  // pontos com nome: só o texto, na cor do rótulo do KML (o ícone/ponto não entra)
-  function corTxt(st){ return st.t && st.to > 0 ? st.t : (st.l || "#ff1e1e"); }
-  dPts.forEach(function(q){
-    if(!q.nome || q.st.to === 0 || q.st.ts === 0) return;
-    var qx = X(q.E), qy = Y(q.N); if(qx < M.x || qx > M.x + M.w || qy < M.y || qy > M.y + M.h) return;
-    s += txtHalo(qx, qy + 3, q.nome, { size:9.5, weight:700, fill:corTxt(q.st), halo:"#16202b", hw:2.6 });
-  });
+  function desenha(polys, lines, pad){
+    polys.forEach(function(d){
+      if(!naJanela(d.r)) return;
+      var st = d.st, semEstilo = !st.l && !st.f, enche = semEstilo || (st.pf !== false && st.f && st.fo > 0), contorno = st.po !== false && st.lo !== 0;
+      var fill = semEstilo ? ' fill="' + pad + '" fill-opacity=".12"' : enche ? ' fill="' + st.f + '" fill-opacity="' + st.fo.toFixed(2) + '"' : ' fill="none"';
+      s += '<polygon points="' + pts(d.r) + '"' + fill + (contorno ? ' stroke="' + traco(st, pad) + '" stroke-opacity="' + (st.lo == null ? 1 : st.lo).toFixed(2) + '" stroke-width="' + largura(st) + '"' : ' stroke="none"') + ' stroke-linejoin="round"/>';
+    });
+    lines.forEach(function(d){
+      var st = d.st; if(st.lo === 0 || !naJanela(d.r)) return;
+      s += '<polyline points="' + pts(d.r) + '" fill="none" stroke="' + traco(st, pad) + '" stroke-opacity="' + (st.lo == null ? 1 : st.lo).toFixed(2) + '" stroke-width="' + largura(st) + '" stroke-linejoin="round" stroke-linecap="round"/>';
+    });
+  }
+  function corTxt(st, pad){ return st.t && st.to > 0 ? st.t : (st.l || pad); }
+  var halaTxt = (comSat && satOp >= .6) ? "#16202b" : "#ffffff";
+  if(C.imovel) aneisImo.forEach(function(r){ if(!naJanela(r)) return; s += '<polygon points="' + pts(r) + '" fill="#ffffff" fill-opacity=".10" stroke="#ffffff" stroke-opacity=".85" stroke-width="5.4" stroke-linejoin="round"/><polygon points="' + pts(r) + '" fill="none" stroke="#111111" stroke-width="2.4" stroke-dasharray="10,5" stroke-linejoin="round"/>'; });
+  if(C.faixa) desenha(fPolys, fLines, "#00c853");
+  if(C.eixo){
+    desenha(ePolys, eLines, "#ff9100");
+    dPts.forEach(function(q){
+      if(!q.eixo || !q.nome || q.st.to === 0 || q.st.ts === 0) return;
+      var qx = X(q.E), qy = Y(q.N); if(qx < M.x || qx > M.x + M.w || qy < M.y || qy > M.y + M.h) return;
+      s += txtHalo(qx, qy + 3, q.nome, { size:9.5, weight:700, fill:corTxt(q.st, "#ff9100"), halo:halaTxt, hw:2.6 });
+    });
+  }
   // estacas: na escala do mapa (100, 200, 500… m — nunca coladas), só o texto, na cor do KML, girado como o eixo
-  if(estacas.length){
+  if(C.estacas && estacas.length){
     var ord = estacas.slice().sort(function(a, b){ return a.c - b.c; }), passoE = [100, 200, 500, 1000, 2000].find(function(v){ return v*k >= 75; }) || 2000;
     ord.forEach(function(q, i){
       if(Math.round(q.c) % passoE) return;
       var qx = X(q.E), qy = Y(q.N); if(qx < M.x + 20 || qx > M.x + M.w - 20 || qy < M.y + 20 || qy > M.y + M.h - 20) return;
-      if(kmA && [kmA.ini, kmA.fim].some(function(z){ return Math.hypot(X(z.E) - qx, Y(z.N) - qy) < 34; })) return;
       if(marcos.some(function(m){ return Math.hypot(X(m.E) - qx, Y(m.N) - qy) < 34; })) return;
       var a = ord[Math.max(0, i - 1)], b = ord[Math.min(ord.length - 1, i + 1)], ang = Math.atan2(-(b.N - a.N), b.E - a.E)*180/Math.PI;
       if(ang > 90) ang -= 180; if(ang < -90) ang += 180;
-      s += txtHalo(qx, qy + 3, kmTxt(q.c).replace(/,00$/, ""), { size:9.5, weight:700, fill:corTxt(q.st), halo:"#16202b", hw:2.6, rot:ang });
+      s += txtHalo(qx, qy + 3, kmTxt(q.c).replace(/,00$/, ""), { size:9.5, weight:700, fill:corTxt(q.st, "#ff9100"), halo:halaTxt, hw:2.6, rot:ang });
     });
   }
-
-  // área do processo: hachura amarela + contorno azul (legenda aprovada da Planta)
-  aneis.forEach(function(r){ s += '<polygon points="' + pts(r) + '" fill="url(#hach)" stroke="#1a2fd0" stroke-width="3.2" stroke-linejoin="round"/>'; });
-  linhasArea.forEach(function(r){ s += '<polyline points="' + pts(r) + '" fill="none" stroke="#1a2fd0" stroke-width="3.2" stroke-linejoin="round"/>'; });
+  // área dentro da faixa de domínio: hachura amarela + contorno azul (legenda aprovada da Planta)
+  if(C.dominio){
+    aneis.forEach(function(r){ if(naJanela(r)) s += '<polygon points="' + pts(r) + '" fill="url(#hach)" stroke="#1a2fd0" stroke-width="3.2" stroke-linejoin="round"/>'; });
+    linhasArea.forEach(function(r){ if(naJanela(r)) s += '<polyline points="' + pts(r) + '" fill="none" stroke="#1a2fd0" stroke-width="3.2" stroke-linejoin="round"/>'; });
+  }
 
   // vértices do polígono não são marcados: só os marcos implantados em campo (vértice M) aparecem.
   // (os vértices do polígono servem apenas para achar o KM inicial/final quando não há estacas)
   var vert = [];
   aneis.forEach(function(r){ r.forEach(function(q, i){ if(i === r.length - 1 && q[0] === r[0][0] && q[1] === r[0][1]) return; vert.push({ E:q[0], N:q[1] }); }); });
   var rotulos = marcos.map(function(m){ return { E:m.E, N:m.N, txt:m.cod || "M", tipo:"M" }; });
-  var baseNoMapa = isFinite(base.E) && isFinite(base.N) && base.E >= e0 && base.E <= e1 && base.N >= n0 && base.N <= n1;
+  var baseNoMapa = C.base && isFinite(base.E) && isFinite(base.N) && base.E >= e0 && base.E <= e1 && base.N >= n0 && base.N <= n1;
   // centro da área (para afastar os rótulos para fora)
   var cx0 = 0, cy0 = 0, nc = 0; foco.forEach(function(q){ cx0 += X(q[0]); cy0 += Y(q[1]); nc++; }); cx0 /= nc; cy0 /= nc;
   var caixas = [];
@@ -12969,7 +13051,7 @@ async function gerarMapaProcesso(p, aoAndar, comSat){
   // (as chamadas de KM inicial/final no mapa foram retiradas a pedido; o KM segue nos campos e na legenda da figura)
   rotulos.forEach(function(r){ rotular(X(r.E), Y(r.N), r.txt, TC.f); });
   if(baseNoMapa) rotular(X(base.E), Y(base.N), "BASE", TC.base);
-  s += gt + '</g>';
+  s += (C.grade ? gt : "") + '</g>';
   s += '<rect x="' + M.x + '" y="' + M.y + '" width="' + M.w + '" height="' + M.h + '" fill="none" stroke="#22303d" stroke-width="1.2"/>';
 
   // Norte (canto superior esquerdo, dentro do mapa) — o mesmo símbolo dos mapas aprovados
@@ -12998,9 +13080,13 @@ async function gerarMapaProcesso(p, aoAndar, comSat){
   function kv(x, y, rot, val){ return '<text x="' + x + '" y="' + y + '" font-family="Arial" font-size="9.5" font-weight="700" fill="#4a5a6a" letter-spacing=".6">' + sx(rot) + '</text><text x="' + x + '" y="' + (y + 17) + '" font-family="Arial" font-size="12" font-weight="700" fill="#16202b">' + sx(String(val || "—").slice(0, 52)) + '</text>'; }
   s += kv(M.x, cy + 24, "PROPRIEDADE", p.propriedade);
   s += kv(M.x, cy + 66, "MUNICÍPIO", p.municipio);
-  // legenda: só a área do processo e o vértice M
+  // legenda: só o que está ligado no mapa
+  function corLinha(lista, pad){ var d = lista.filter(function(x){ return x.st && x.st.l; })[0]; return d ? d.st.l : pad; }
   var itens = [];
-  if(aneis.length || linhasArea.length) itens.push({ t:"hatch", nome:"Área do processo" });
+  if(C.imovel && aneisImo.length) itens.push({ t:"imovel", nome:"Área do imóvel" });
+  if(C.dominio && (aneis.length || linhasArea.length)) itens.push({ t:"hatch", nome:"Área dentro da faixa de domínio" });
+  if(C.faixa && (fPolys.length || fLines.length)) itens.push({ t:"linha", cor:corLinha(fLines.concat(fPolys), "#00c853"), nome:"Faixa de domínio" });
+  if(C.eixo && (eLines.length || ePolys.length)) itens.push({ t:"linha", cor:corLinha(eLines.concat(ePolys), "#ff9100"), nome:"Eixo" + (C.estacas && estacas.length ? " e estacas (KM)" : "") });
   if(rotulos.length) itens.push({ t:"m", nome:"Vértice M (marco implantado)" });
   var lx = 470, lw = M.x + M.w - lx, rows = itens.length, lh = Math.max(78, 30 + rows*20);
   s += '<rect x="' + lx + '" y="' + (cy + 8) + '" width="' + lw + '" height="' + lh + '" fill="#f7f9fb" stroke="#c3ccd4" stroke-width=".8"/>'
@@ -13008,11 +13094,13 @@ async function gerarMapaProcesso(p, aoAndar, comSat){
   itens.forEach(function(it, i){
     var sw = lx + 12, row = cy + 46 + i*20;
     if(it.t === "hatch") s += '<rect x="' + sw + '" y="' + (row - 10) + '" width="24" height="13" fill="url(#hach)" stroke="#1a2fd0" stroke-width="2"/>';
+    else if(it.t === "imovel") s += '<rect x="' + sw + '" y="' + (row - 10) + '" width="24" height="13" fill="none" stroke="#111111" stroke-width="2" stroke-dasharray="5,3"/>';
+    else if(it.t === "linha") s += '<line x1="' + sw + '" y1="' + (row - 4) + '" x2="' + (sw + 24) + '" y2="' + (row - 4) + '" stroke="' + it.cor + '" stroke-width="2.6"/>';
     else s += '<circle cx="' + (sw + 12) + '" cy="' + (row - 4) + '" r="5.2" fill="#e60000" stroke="#16202b" stroke-width="1.4"/>';
     s += '<text x="' + (sw + 32) + '" y="' + row + '" font-family="Arial" font-size="10.5" font-weight="600" fill="#16202b">' + sx(it.nome) + '</text>';
   });
   var hTot = Math.max(cy + 8 + lh + 26, cy + 120);
-  s += '<text x="' + M.x + '" y="' + (hTot - 10) + '" font-family="monospace" font-size="9" fill="#8a97a3">SIRGAS 2000 · UTM ' + zona + 'S · Universal Transversa de Mercator' + (comSat ? ' · base: Esri World Imagery (50 %)' + (sat ? "" : " — satélite indisponível") : "") + '</text>';
+  s += '<text x="' + M.x + '" y="' + (hTot - 10) + '" font-family="monospace" font-size="9" fill="#8a97a3">SIRGAS 2000 · UTM ' + zona + 'S · Universal Transversa de Mercator' + (comSat ? ' · base: Esri World Imagery (translucidez ' + Math.round(C.satT) + ' %)' + (sat ? "" : " — satélite indisponível") : "") + '</text>';
   s += '</svg>';
   s = s.split("__H__").join(String(hTot));
   if(aoAndar) aoAndar("montando a figura…");
@@ -13020,51 +13108,74 @@ async function gerarMapaProcesso(p, aoAndar, comSat){
 }
 
 /* ---------- ações (Conteúdo e Formulário) ---------- */
+var CAM_ROTULOS = [["sat", "Satélite"], ["grade", "Malha de coordenadas"], ["imovel", "Área do imóvel"], ["dominio", "Área dentro da faixa de domínio"], ["faixa", "Faixa de domínio"], ["eixo", "Eixo"], ["estacas", "Estacas (KM)"], ["base", "Base"]];
 function kmlBlocoHtml(p){
-  var K = p.kml || {}, a = 'data-pid="' + p.id + '"';
-  function item(tipo, rot, dica){
-    var f = K[tipo];
+  var K = p.kml || {}, KC = ST.kmlc || {}, a = 'data-pid="' + p.id + '"', C = camadasDe(p);
+  function item(tipo, rot, dica, comum){
+    var f = (comum ? KC : K)[tipo];
     return '<span class="mc-kml-it"><label class="dd-b" title="' + esc(dica) + '">' + rot + '<input type="file" accept=".kml,.kmz,application/vnd.google-earth.kml+xml" data-tipo="' + tipo + '" ' + a + ' onchange="MCM_kml(this)" style="display:none"></label>'
       + (f && f.nome ? '<span class="mc-kml-nome">📄 ' + esc(f.nome) + ' <button type="button" class="dd-b" onclick="MCM_kmlRm(\'' + p.id + '\',\'' + tipo + '\')" title="Tirar este KML">✕</button></span>' : '<span class="mc-kml-nome vazio">nenhum</span>') + '</span>';
   }
-  return '<div class="mc-kml" id="mckml_' + p.id + '"><div class="mc-kml-t">Mapa de localização dos marcos</div>'
-    + item("area", "📐 KML da área (polígono)", "Polígono da área do processo (hachura amarela, contorno azul); os vértices marcados são só os marcos de campo")
-    + item("dest", "🖍 KML de destaque (2º plano)", "Desenho de fundo, atrás da área, com as cores e espessuras do próprio KML; textos sem o ponto")
+  var cams = CAM_ROTULOS.map(function(c){
+    return '<label class="mc-cam-i"><input type="checkbox" data-cam="' + c[0] + '" ' + a + (C[c[0]] ? " checked" : "") + ' onchange="MCM_mapaCam(this)"> ' + c[1] + '</label>';
+  }).join("");
+  return '<div class="mc-kml" id="mckml_' + p.id + '"><div class="mc-kml-t">Mapa de localização dos marcos <small>(um mapa por processo, camadas ligáveis)</small></div>'
+    + '<div class="mc-kml-g"><span class="mc-kml-gt">Deste processo</span>'
+    + item("imovel", "📐 KML da área do imóvel", "Polígono do imóvel inteiro (linha preta tracejada)")
+    + item("dominio", "📐 KML da área dentro da faixa de domínio", "Polígono da parte do imóvel dentro da faixa de domínio (hachura amarela, contorno azul). Se o arquivo traz as duas áreas misturadas, o app separa pelo nome (“ÁREA A DESAP…” = faixa de domínio)")
+    + '</div><div class="mc-kml-g"><span class="mc-kml-gt">Comuns a todo o relatório</span>'
+    + item("faixa", "🛣 KML da faixa de domínio", "Limites da faixa de domínio, com as cores do próprio KML. Vale para todos os processos", true)
+    + item("eixo", "🧭 KML do eixo", "Eixo e estacas (KM), com as cores do próprio KML. Vale para todos os processos", true)
+    + '</div><div class="mc-cam"><span class="mc-kml-gt">Camadas</span>' + cams
+    + '<label class="mc-cam-i">Translucidez do satélite <input type="number" min="0" max="100" step="5" class="mc-i" data-satt="1" ' + a + ' value="' + C.satT + '" onchange="MCM_mapaCam(this)" style="width:64px"> %</label></div>'
     + '<span class="mc-kml-km"><label>KM inicial <input class="mc-i" type="text" data-f="kmIni" ' + a + ' value="' + esc(p.kmIni || "") + '" placeholder="000+000,00"></label>'
     + '<label>KM final <input class="mc-i" type="text" data-f="kmFim" ' + a + ' value="' + esc(p.kmFim || "") + '" placeholder="000+000,00"></label></span>'
-    + '<button type="button" class="dd-b" onclick="MCM_mapaGerar(\'' + p.id + '\')" title="Gera os dois mapas da Localização dos marcos: o 1º com satélite Esri a 50 %, o 2º sem satélite">🗺 Gerar / atualizar mapas</button>'
-    + '<span class="mc-kml-it">Ou use uma imagem de mapa pronta: '
-    + [[1, "🖼 no lugar do 1º mapa", "Insere uma imagem de mapa (JPG/PNG) no lugar do mapa com satélite"], [2, "🖼 no lugar do 2º mapa", "Insere uma imagem de mapa (JPG/PNG) no lugar do mapa sem satélite"]].map(function(o){
-        return '<label class="dd-b" title="' + esc(o[2]) + '">' + o[1] + '<input type="file" accept="image/*" data-ordem="' + o[0] + '" ' + a + ' onchange="MCM_mapaImg(this)" style="display:none"></label>';
-      }).join(" ") + '</span>'
+    + '<button type="button" class="dd-b" onclick="MCM_mapaGerar(\'' + p.id + '\')" title="Gera o mapa deste processo com as camadas ligadas">🗺 Gerar / atualizar mapa</button>'
+    + '<label class="dd-b" title="Insere uma imagem de mapa pronta (JPG/PNG) no lugar do mapa automático">🖼 Usar imagem de mapa pronta<input type="file" accept="image/*" ' + a + ' onchange="MCM_mapaImg(this)" style="display:none"></label>'
     + '<span class="mc-kml-st" id="mckmlst_' + p.id + '"></span></div>';
+}
+function legendaMapa(p, comSat){
+  var n = p.num || "", trecho = (p.kmIni || p.kmFim) ? " (KM " + (p.kmIni || "___") + " a KM " + (p.kmFim || "___") + ")" : "";
+  return "Localização dos marcos do processo " + n + trecho + (comSat ? " – sobre imagem de satélite" : "");
 }
 /* imagem de mapa pronta no lugar do mapa automático (a imagem anterior fica guardada para "↩ Imagem anterior") */
 window.MCM_mapaImg = function(inp){
-  var p = procDe(inp.dataset.pid), f = inp.files && inp.files[0], ordem = +inp.dataset.ordem; inp.value = "";
+  var p = procDe(inp.dataset.pid), f = inp.files && inp.files[0]; inp.value = "";
   if(!p || !f) return;
   lerImg(f, 2400, .9).then(function(src){
-    var n = p.num || "", trecho = (p.kmIni || p.kmFim) ? " (KM " + (p.kmIni || "___") + " a KM " + (p.kmFim || "___") + ")" : "";
-    porMapa("p_" + p.id + (ordem === 1 ? "_loc" : "_sit"), src, ordem, "Localização dos marcos do processo " + n + trecho, "ENPROL Engenharia", true);
+    porMapa("p_" + p.id + "_loc", src, 1, legendaMapa(p, false), "ENPROL Engenharia", true);
     salvar(true); rerender();
-    kmlStatus(p.id, "imagem de mapa inserida no lugar do " + ordem + "º mapa");
+    kmlStatus(p.id, "imagem de mapa inserida no lugar do mapa automático");
   }, avisoFormato);
 };
 function kmlStatus(pid, txt, erro){ var el = $("mckmlst_" + pid); if(el){ el.textContent = txt; el.style.color = erro ? "#b03a2e" : ""; } }
 function rerender(){ if(visivel()) render(); else renderForm(); }
+var CAM_COMUNS = { faixa:1, eixo:1 };
 window.MCM_kml = async function(inp){
   var p = procDe(inp.dataset.pid), f = inp.files && inp.files[0], tipo = inp.dataset.tipo; inp.value = "";
   if(!p || !f) return;
   try{
     kmlStatus(p.id, "lendo " + f.name + "…");
-    var g = parseKml(await lerKmlArquivo(f));
-    p.kml = p.kml || {};
-    // o destaque costuma ser grande (faixa inteira, loteamento): guarda só o que fica em volta do processo
-    var cx = tipo === "dest" ? caixaDoProcesso(p) : null, geo = geoCompacta(g, cx);
-    if(tipo === "dest" && !geo.polys.length && !geo.lines.length && !geo.pts.length) throw new Error("nada deste KML fica perto da área/marcos do processo");
-    p.kml[tipo] = { nome:f.name, geo:geo, recortado:!!cx };
-    salvar(true); rerender();
-    await window.MCM_mapaGerar(p.id);
+    var g = separarPorTipo(parseKml(await lerKmlArquivo(f)), tipo);
+    if(CAM_COMUNS[tipo]){
+      // camada comum ao relatório: guarda só o que fica em volta de todos os processos
+      var cx = caixaComum(), geo = geoCompacta(g, cx);
+      if(!geo.polys.length && !geo.lines.length && !geo.pts.length) throw new Error("nada deste KML fica perto dos processos do relatório");
+      ST.kmlc = ST.kmlc || {}; ST.kmlc[tipo] = { nome:f.name, geo:geo, caixa:cx };
+      salvar(true); rerender();
+      var lista = ST.procs.filter(function(q){ return !ehProcVazio(q); }), ok = 0;
+      for(var i = 0; i < lista.length; i++){
+        kmlStatus(p.id, "atualizando o mapa do processo " + (lista[i].num || "?") + " (" + (i + 1) + "/" + lista.length + ")…");
+        if(await gerarEMostrar(lista[i].id, { silencioso:true, semRender:true })) ok++;
+      }
+      salvar(true); rerender();
+      kmlStatus(p.id, "KML " + (tipo === "faixa" ? "da faixa de domínio" : "do eixo") + " aplicado a todo o relatório · " + ok + " mapa(s) atualizado(s)");
+    } else {
+      p.kml = p.kml || {};
+      p.kml[tipo] = { nome:f.name, geo:geoCompacta(g, null) };
+      salvar(true); rerender();
+      await window.MCM_mapaGerar(p.id);
+    }
   }catch(e){ alert("Não consegui ler o KML: " + (e && e.message || e)); }
 };
 // KM digitado à mão manda: deixa de ser recalculado pelas estacas
@@ -13073,8 +13184,9 @@ document.addEventListener("input", function(ev){
   var p = procDe(t.dataset.pid); if(p) p.kmAuto = false;
 }, true);
 window.MCM_kmlRm = function(pid, tipo){
-  var p = procDe(pid); if(!p || !p.kml) return;
-  delete p.kml[tipo]; salvar(true); rerender();
+  var p = procDe(pid); if(!p) return;
+  if(CAM_COMUNS[tipo]){ if(ST.kmlc) delete ST.kmlc[tipo]; } else if(p.kml) delete p.kml[tipo];
+  salvar(true); rerender();
 };
 /* põe o mapa no espaço da figura; a imagem que já estava ali (do campo ou manual) fica guardada e volta com "↩ Imagem anterior" */
 function porMapa(top, url, ordem, leg, fonte, manual){
@@ -13093,21 +13205,46 @@ window.MCM_imgAnterior = function(id){
   else { delete x.auto; delete x.ordemMapa; delete x.mapaManual; }
   salvar(true); rerender();
 };
-window.MCM_mapaGerar = async function(pid){
-  var p = procDe(pid); if(!p) return;
-  var temImg = ST.doc.imgs.some(function(x){ return (x.topico === "p_" + p.id + "_loc" || x.topico === "p_" + p.id + "_sit") && x.src && (x.auto !== "mapa" || x.mapaManual); });
-  if(temImg && !confirm("As duas imagens da Localização dos marcos deste processo vão receber os mapas (a 1ª com satélite, a 2ª sem).\nAs imagens que estão lá ficam guardadas e voltam com “↩ Imagem anterior”. Continuar?")) return;
+/* o mapa agora é um só (no espaço "_loc"); o 2º mapa antigo (sem satélite) sai e a imagem de campo que ele cobria volta */
+function tirarSegundoMapa(p){
+  var d = ST.doc, top = "p_" + p.id + "_sit";
+  d.imgs = d.imgs.filter(function(x){
+    if(x.topico !== top || x.auto !== "mapa") return true;
+    if(x.bak && x.bak.src && x.bak.auto !== "mapa"){ x.src = x.bak.src; x.leg = x.bak.leg; x.fonte = x.bak.fonte; delete x.bak; delete x.auto; delete x.ordemMapa; delete x.mapaManual; return true; }
+    return false;
+  });
+}
+/* gera o mapa do processo; devolve true se atualizou. opt.silencioso = sem perguntar (alternar camada / KML comum) */
+async function gerarEMostrar(pid, opt){
+  opt = opt || {};
+  var p = procDe(pid); if(!p) return false;
+  var loc = ST.doc.imgs.filter(function(x){ return x.topico === "p_" + p.id + "_loc"; })[0];
+  var manual = !!(loc && loc.src && loc.auto === "mapa" && loc.mapaManual), deCampo = !!(loc && loc.src && loc.auto !== "mapa");
+  if(opt.silencioso && manual){ kmlStatus(pid, "o mapa deste processo é uma imagem inserida; use “Gerar / atualizar mapa” para trocar pelo automático"); return false; }
+  if(!opt.silencioso && (manual || deCampo) && !confirm("A imagem da Localização dos marcos deste processo vai receber o mapa automático.\nA imagem que está lá fica guardada e volta com “↩ Imagem anterior”. Continuar?")) return false;
   kmlStatus(pid, "gerando…");
   try{
-    var r1 = await gerarMapaProcesso(p, function(t){ kmlStatus(pid, "com satélite: " + t); }, true);
-    var r2 = await gerarMapaProcesso(p, function(t){ kmlStatus(pid, "sem satélite: " + t); }, false);
-    var n = p.num || "", trecho = (p.kmIni || p.kmFim) ? " (KM " + (p.kmIni || "___") + " a KM " + (p.kmFim || "___") + ")" : "";
-    porMapa("p_" + p.id + "_loc", r1.url, 1, "Localização dos marcos do processo " + n + trecho + " – sobre imagem de satélite", "ENPROL Engenharia (base: Esri World Imagery)");
-    porMapa("p_" + p.id + "_sit", r2.url, 2, "Localização dos marcos do processo " + n + trecho, "ENPROL Engenharia");
-    salvar(true); rerender();
-    var av = r1.avisos.length ? " ⚠ " + r1.avisos.join("; ") : "";
-    kmlStatus(pid, (r1.sat ? "mapas atualizados (com e sem satélite)" : "mapas atualizados — o satélite não carregou (verifique a internet)") + av, !r1.sat || !!av);
-  }catch(e){ kmlStatus(pid, e && e.message || String(e), true); }
+    var r = await gerarMapaProcesso(p, function(t){ kmlStatus(pid, t); });
+    var C = camadasDe(p);
+    porMapa("p_" + p.id + "_loc", r.url, 1, legendaMapa(p, C.sat), C.sat ? "ENPROL Engenharia (base: Esri World Imagery)" : "ENPROL Engenharia");
+    tirarSegundoMapa(p);
+    if(!opt.semRender){ salvar(true); rerender(); }
+    var av = r.avisos.length ? " ⚠ " + r.avisos.join("; ") : "";
+    kmlStatus(pid, ((C.sat && !r.sat) ? "mapa atualizado — o satélite não carregou (verifique a internet)" : "mapa atualizado") + av, (C.sat && !r.sat) || !!av);
+    return true;
+  }catch(e){ kmlStatus(pid, e && e.message || String(e), true); return false; }
+}
+window.MCM_mapaGerar = function(pid){ return gerarEMostrar(pid, {}); };
+/* ligar/desligar camada e translucidez: refaz o mapa do processo (com pequena espera para vários cliques seguidos) */
+var _tmCam = {};
+window.MCM_mapaCam = function(inp){
+  var p = procDe(inp.dataset.pid); if(!p) return;
+  p.mapa = p.mapa || {}; p.mapa.camadas = p.mapa.camadas || {};
+  if(inp.dataset.satt){ var v = parseFloat(inp.value); p.mapa.satT = isFinite(v) ? Math.max(0, Math.min(100, v)) : 75; }
+  else p.mapa.camadas[inp.dataset.cam] = !!inp.checked;
+  salvar();
+  clearTimeout(_tmCam[p.id]);
+  _tmCam[p.id] = setTimeout(function(){ gerarEMostrar(p.id, { silencioso:true }); }, 600);
 };
 
 })();
