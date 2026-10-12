@@ -12639,13 +12639,23 @@ function fusoDoMC(txt){
 }
 function geoDe(k){ return k ? (k.geo || (k.txt ? parseKml(k.txt) : null)) : null; }
 // caixa (lon/lat) em volta do processo: área + marcos, com folga de ~1,5 km
+/* marcos com coordenada utilizável; descarta os que destoam dos demais (> 20 km da mediana: dígito a mais/a menos na digitação) */
+function marcosValidos(p){
+  var todos = p.marcos.map(function(m){ return { E:numBR(m.E), N:numBR(m.N), cod:(m.cod || "").trim(), mc:m.mc }; }).filter(function(m){ return isFinite(m.E) && isFinite(m.N) && m.E > 100000 && m.N > 1000000; });
+  var fora = [];
+  if(todos.length >= 3){
+    var med = function(a){ a = a.slice().sort(function(x, y){ return x - y; }); return a[Math.floor(a.length/2)]; }, mE = med(todos.map(function(m){ return m.E; })), mN = med(todos.map(function(m){ return m.N; }));
+    var ok = todos.filter(function(m){ var bad = Math.abs(m.E - mE) > 20000 || Math.abs(m.N - mN) > 20000; if(bad) fora.push(m); return !bad; });
+    todos = ok;
+  }
+  return { ok:todos, fora:fora };
+}
 function caixaDoProcesso(p){
   var lo = [], la = [], a = geoDe(p.kml && p.kml.area);
   if(a) a.polys.concat(a.lines).forEach(function(r){ r.forEach(function(q){ lo.push(q[0]); la.push(q[1]); }); });
-  p.marcos.forEach(function(m){
-    var E = numBR(m.E), N = numBR(m.N); if(!(E > 100000 && N > 1000000)) return;
+  marcosValidos(p).ok.forEach(function(m){
     var z = fusoDoMC(m.mc || ST.pad.mc);
-    var ll = utmInv(E, N, z, true); lo.push(ll[0]); la.push(ll[1]);
+    var ll = utmInv(m.E, m.N, z, true); lo.push(ll[0]); la.push(ll[1]);
   });
   if(!lo.length) return null;
   var f = .015;
@@ -12756,7 +12766,8 @@ async function gerarMapaProcesso(p, aoAndar, comSat){
   if(comSat === undefined) comSat = true;
   var TC = comSat ? { f:"#ffffff", h:"#16202b", km:"#ffd7d7", base:"#cfe3ff" } : { f:"#16202b", h:"#ffffff", km:"#b3141b", base:"#1565c0" };
   var K = p.kml || {}, area = geoDe(K.area), dest = geoDe(K.dest);
-  var marcos = p.marcos.map(function(m){ return { E:numBR(m.E), N:numBR(m.N), cod:(m.cod || "").trim() }; }).filter(function(m){ return isFinite(m.E) && isFinite(m.N) && m.E > 100000 && m.N > 1000000; });
+  var mv = marcosValidos(p), marcos = mv.ok;
+  var avisos = mv.fora.map(function(m){ return "marco " + (m.cod || "?") + " ignorado: E = " + fmtBR(m.E, 3) + " / N = " + fmtBR(m.N, 3) + " destoa dos demais (confira a digitação)"; });
   var base = { E:numBR(p.base.E), N:numBR(p.base.N), nome:(p.base.ident || "BASE") };
   // fuso: do KML (longitude) ou do texto do MC dos marcos ("-45" -> 23)
   var lon0 = null; [area, dest].forEach(function(g){ if(lon0 != null || !g) return; var q = (g.polys[0] || g.lines[0] || [])[0] || (g.pts[0] && [g.pts[0].lon]); if(q) lon0 = q[0]; });
@@ -12935,7 +12946,7 @@ async function gerarMapaProcesso(p, aoAndar, comSat){
   s += '</svg>';
   s = s.split("__H__").join(String(hTot));
   if(aoAndar) aoAndar("montando a figura…");
-  return { url: await svgParaImagem(s, 900, hTot, 2), sat: !!sat };
+  return { url: await svgParaImagem(s, 900, hTot, 2), sat: !!sat, avisos:avisos };
 }
 
 /* ---------- ações (Conteúdo e Formulário) ---------- */
@@ -13024,7 +13035,8 @@ window.MCM_mapaGerar = async function(pid){
     porMapa("p_" + p.id + "_loc", r1.url, 1, "Localização dos marcos do processo " + n + trecho + " – sobre imagem de satélite", "ENPROL Engenharia (base: Esri World Imagery)");
     porMapa("p_" + p.id + "_sit", r2.url, 2, "Localização dos marcos do processo " + n + trecho, "ENPROL Engenharia");
     salvar(true); rerender();
-    kmlStatus(pid, r1.sat ? "mapas atualizados (com e sem satélite)" : "mapas atualizados — o satélite não carregou (verifique a internet)", !r1.sat);
+    var av = r1.avisos.length ? " ⚠ " + r1.avisos.join("; ") : "";
+    kmlStatus(pid, (r1.sat ? "mapas atualizados (com e sem satélite)" : "mapas atualizados — o satélite não carregou (verifique a internet)") + av, !r1.sat || !!av);
   }catch(e){ kmlStatus(pid, e && e.message || String(e), true); }
 };
 
