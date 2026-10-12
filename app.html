@@ -5865,7 +5865,68 @@ body.ativ-pesquisa{ overflow:hidden; }
       <button type="button" class="pgm-x" onclick="PG_grafFechar()" title="Fechar os gráficos" aria-label="Fechar os gráficos"><svg class="pgi" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
       <div class="pgm-resumo" id="pggResumo">Abrindo…</div>
     </div>
-    <div class="pgg-corpo" id="pggCorpo">
+    <div class="pgz-abas" role="tablist" aria-label="Visão dos gráficos">
+      <button type="button" role="tab" class="pgz-aba" id="pggAbaGer" data-aba="ger" aria-controls="pggGer" aria-selected="true">Gerencial<small>medições e valores</small></button>
+      <button type="button" role="tab" class="pgz-aba" id="pggAbaOp" data-aba="op" aria-controls="pggCorpo" aria-selected="false" tabindex="-1">Operacional<small>andamento dos cadastros</small></button>
+    </div>
+
+    <!-- ===================== GERENCIAL (diretoria) ===================== -->
+    <div class="pgg-corpo pgz-ger" id="pggGer" role="tabpanel" aria-labelledby="pggAbaGer">
+      <div class="pgg-aviso">Nenhum cadastro nos filtros atuais — ajuste os filtros da tabela.</div>
+
+      <div class="pgz-barra">
+        <div class="pgz-jan" role="group" aria-label="Janela de 6 meses">
+          <button type="button" class="pgz-nav" id="pgzJanAnt" aria-label="Recuar um mês"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
+          <div class="pgz-jan-t"><small>Janela de 6 meses</small><b id="pgzJanRot">—</b></div>
+          <button type="button" class="pgz-nav" id="pgzJanProx" aria-label="Avançar um mês"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
+          <button type="button" class="pgz-hoje" id="pgzJanHoje" title="Voltar à janela do mês atual">Mês atual</button>
+        </div>
+        <div class="pgz-seg" role="group" aria-label="Unidade dos gráficos">
+          <button type="button" data-modo="rs" aria-pressed="true">R$</button>
+          <button type="button" data-modo="qtd" aria-pressed="false">Quantidade</button>
+        </div>
+      </div>
+
+      <div class="pgz-kpis" id="pgzKpis"></div>
+
+      <section class="pgg-card pgg-full pgz-card" style="--i:1">
+        <div class="pgz-cab">
+          <div><div class="pgg-tit"><i></i>Medições mensais por produto</div><div class="pgg-sub" id="pgzBarSub"></div></div>
+          <div class="pgz-leg" id="pgzLegDesp"></div>
+        </div>
+        <div class="pgz-graf" id="pgzBarras"></div>
+      </section>
+
+      <section class="pgg-card pgz-card" style="--i:2">
+        <div class="pgg-tit"><i></i>Composição por produto · janela</div>
+        <div class="pgz-pizza" id="pgzMix"></div>
+      </section>
+
+      <section class="pgg-card pgz-card" style="--i:3">
+        <div class="pgg-tit"><i></i>Situação da carteira</div>
+        <div class="pgz-pizza" id="pgzCarteira"></div>
+      </section>
+
+      <section class="pgg-card pgz-card" style="--i:4">
+        <div class="pgg-tit"><i></i>Medido acumulado (curva)</div>
+        <div class="pgg-sub" id="pgzCurvaSub"></div>
+        <div class="pgz-graf" id="pgzCurva"></div>
+      </section>
+
+      <section class="pgg-card pgz-card" style="--i:5">
+        <div class="pgg-tit"><i></i>Entregas por lote (SPS) · janela</div>
+        <div id="pgzLotes"></div>
+      </section>
+
+      <section class="pgg-card pgg-full pgz-card" style="--i:6">
+        <div class="pgg-tit"><i></i>Quadro de medições</div>
+        <div class="pgz-tab-wrap" id="pgzTabela"></div>
+        <div class="pgz-nota" id="pgzNota"></div>
+      </section>
+    </div>
+
+    <!-- ===================== OPERACIONAL (sem valores financeiros) ===================== -->
+    <div class="pgg-corpo pgz-op" id="pggCorpo" role="tabpanel" aria-labelledby="pggAbaOp" hidden>
       <div class="pgg-aviso">Nenhum cadastro nos filtros atuais — ajuste os filtros da tabela.</div>
 
       <section class="pgg-card pgg-hero pgg-half" style="--c:#00e5ff;--i:0">
@@ -5879,29 +5940,35 @@ body.ativ-pesquisa{ overflow:hidden; }
       </section>
 
       <section class="pgg-card pgg-half" style="--c:#4ad295;--i:1">
-        <div class="pgg-tit"><i></i>Valor geral de desapropriação</div>
-        <div class="pgg-big pgg-money" id="pggValor">R$ 0,00</div>
-        <div class="pgg-sub" id="pggValorSub"></div>
-        <div class="pgg-bar" style="height:14px"><i id="pggSegTn" style="--c:#4ad295"></i><i id="pggSegBr" style="--c:#ffd24a"></i><i id="pggSegBn" style="--c:#ff8a5c"></i></div>
-        <div class="pgg-val-leg">
-          <div class="pgg-val-l" style="--c:#4ad295"><i></i><span>Terra nua</span><b id="pggVTn">R$ 0,00</b><em id="pggPTn">—</em></div>
-          <div class="pgg-val-l" style="--c:#ffd24a"><i></i><span>Benf. reprodutivas</span><b id="pggVBr">R$ 0,00</b><em id="pggPBr">—</em></div>
-          <div class="pgg-val-l" style="--c:#ff8a5c"><i></i><span>Benf. não reprodutivas</span><b id="pggVBn">R$ 0,00</b><em id="pggPBn">—</em></div>
-        </div>
-        <div class="pgg-maior" id="pggMaior"></div>
+        <div class="pgg-tit"><i></i>Área desapropriada</div>
+        <div class="pgg-big" id="pggArea">0</div>
+        <div class="pgg-sub" id="pggAreaSub"></div>
+        <div class="pgg-bar"><i id="pggBarArea" style="--c:#4ad295"></i></div>
+        <div class="pgg-sub" id="pggAreaNota"></div>
       </section>
 
       <section class="pgg-card pgg-full" style="--c:#ffd24a;--i:2">
         <div class="pgg-etp-topo">
           <div>
-            <div class="pgg-tit"><i></i>Produtos (DESP) — quantidade e valor</div>
+            <div class="pgg-tit"><i></i>Produtos (DESP) — entregues</div>
             <div class="pgg-sub" id="pggDespGeral"></div>
           </div>
         </div>
         <div class="pgg-desps" id="pggDesps"></div>
       </section>
 
-      <section class="pgg-card" style="--c:#ffb020;--i:2">
+      <section class="pgg-card pgg-full pgg-etapas-card" style="--c:#37d67a;--i:3">
+        <div class="pgg-etp-topo">
+          <div>
+            <div class="pgg-tit"><i></i>Andamento por etapa</div>
+            <div class="pgg-sub" id="pggEtapaGeral"></div>
+          </div>
+          <div class="pgg-leg-etp"><span style="--c:#37d67a"><i></i>Completo</span><span style="--c:#ff6b57"><i></i>Com pendência</span><span style="--c:#4b6169"><i></i>Não iniciado</span></div>
+        </div>
+        <div id="pggEtapas" class="pgg-etapas"></div>
+      </section>
+
+      <section class="pgg-card" style="--c:#ffb020;--i:4">
         <div class="pgg-tit"><i></i>Precisam de melhorias</div>
         <div class="pgg-big" id="pggNMelh">0</div>
         <div class="pgg-sub" id="pggMelhDe">de 0 cadastro(s)</div>
@@ -5910,7 +5977,7 @@ body.ativ-pesquisa{ overflow:hidden; }
         <div id="pggMelhTop"></div>
       </section>
 
-      <section class="pgg-card" style="--c:#b28dff;--i:3">
+      <section class="pgg-card" style="--c:#b28dff;--i:5">
         <div class="pgg-tit"><i></i>Com posseiro</div>
         <div class="pgg-hero" style="gap:14px">
           <div class="pgg-ring" style="--c:#b28dff;width:84px;height:84px;flex-basis:84px"><svg viewBox="0 0 100 100" aria-hidden="true"><circle class="trk" cx="50" cy="50" r="42"/><circle class="val" id="pggRingPoss" cx="50" cy="50" r="42" transform="rotate(-90 50 50)" stroke-dasharray="263.9" stroke-dashoffset="263.9"/></svg><div class="pgg-ring-c" id="pggPossPct" style="font-size:16px">—</div></div>
@@ -5931,19 +5998,8 @@ body.ativ-pesquisa{ overflow:hidden; }
         <div id="pggPossLista"></div>
       </section>
 
-      <section class="pgg-card pgg-full pgg-etapas-card" style="--c:#37d67a;--i:4">
-        <div class="pgg-etp-topo">
-          <div>
-            <div class="pgg-tit"><i></i>Andamento por etapa</div>
-            <div class="pgg-sub" id="pggEtapaGeral"></div>
-          </div>
-          <div class="pgg-leg-etp"><span style="--c:#37d67a"><i></i>Completo</span><span style="--c:#ff6b57"><i></i>Com pendência</span><span style="--c:#4b6169"><i></i>Não iniciado</span></div>
-        </div>
-        <div id="pggEtapas" class="pgg-etapas"></div>
-      </section>
-
-      <section class="pgg-card pgg-full" style="--c:#00e5ff;--i:5">
-        <div class="pgg-tit"><i></i>Valor por lote (SPS)</div>
+      <section class="pgg-card pgg-full" style="--c:#00e5ff;--i:6">
+        <div class="pgg-tit"><i></i>Cadastros por lote (SPS)</div>
         <div id="pggLotes"></div>
       </section>
     </div>
@@ -23316,18 +23372,36 @@ function AV_gerarDescSituacao(){
 })();
 </script>
 <script>
-/* ===== Gráficos do Painel Geral: painel lateral (mesmo encaixe do Mapa Geral) ===== */
+/* ===== Gráficos do Painel Geral: painel lateral (mesmo encaixe do Mapa Geral) =====
+   Duas abas (12/10/2026):
+     · GERENCIAL — para a diretoria: medições em R$ numa janela de 6 meses, produtos (DESP 1/2/3) por mês
+       em barras empilhadas, composição, curva acumulada, média de entregas e indicadores.
+       Fonte: coluna Medição (mês) × colunas DESP 1/2/3 × valor unitário (PG_DESP_UNIT).
+     · OPERACIONAL — andamento dos cadastros, sem nenhum valor financeiro.
+   Os dois acompanham os filtros da tabela. */
 (function(){
   var $ = function(id){ return document.getElementById(id); };
   var escH = function(t){ return String(t == null ? '' : t).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); };
-  var aberto = false, timer = null;
+  var aberto = false, timer = null, animar = false;
   var reduzido = false;
   try{ reduzido = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){}
+  var aba = 'ger', modo = 'rs', janFim = null;   // janFim: chave do último mês da janela (null = automático)
+  try{ if(localStorage.getItem('pgg.aba') === 'op') aba = 'op'; if(localStorage.getItem('pgg.modo') === 'qtd') modo = 'qtd'; }catch(e){}
 
   var fmtN = function(n){ return Math.round(n).toLocaleString('pt-BR'); };
+  var fmt1 = function(n){ return Number(n).toLocaleString('pt-BR', {minimumFractionDigits:1, maximumFractionDigits:1}); };
   var fmtR = function(n){ return 'R$ ' + Number(n).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}); };
+  // R$ curto para eixos e rótulos de barra: R$ 950 · R$ 12,4 mil · R$ 1,25 mi
+  var fmtRc = function(n){
+    var a = Math.abs(n);
+    if(a >= 1e6) return 'R$ ' + (n / 1e6).toLocaleString('pt-BR', {maximumFractionDigits:2}) + ' mi';
+    if(a >= 1e3) return 'R$ ' + (n / 1e3).toLocaleString('pt-BR', {maximumFractionDigits:a >= 1e5 ? 0 : 1}) + ' mil';
+    return 'R$ ' + Math.round(n).toLocaleString('pt-BR');
+  };
   var pct = function(p){ return (isFinite(p) ? Math.round(p * 100) : 0) + '%'; };
   var num = function(v){ var n = Number(v); return isFinite(n) ? n : 0; };
+  var numBR = function(v){ if(typeof v === 'number') return isFinite(v) ? v : 0; var n = Number(String(v == null ? '' : v).replace(/\./g, '').replace(',', '.')); return isFinite(n) ? n : 0; };
+  var fmtHa = function(n){ return Number(n).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' ha'; };
   var sps2 = function(l){ var d = String(l == null ? '' : l).replace(/\D/g, ''); return d ? ('0' + d).slice(-2) : ''; };
   var ctdCurto = function(v){ var m = String(v || '').match(/CTD\s*([A-Za-z0-9]+(?:[-.\/][A-Za-z0-9]+)*)/i); return m ? m[1] : String(v || '—'); };
 
@@ -23352,16 +23426,320 @@ function AV_gerarDescSituacao(){
   }
   function larg(el, p){ if(el) el.style.width = (Math.max(0, Math.min(1, p)) * 100).toFixed(2) + '%'; }
 
-  function render(){
-    if(!aberto) return;
-    var todos = (window.PG_getItensTodos ? window.PG_getItensTodos() : []) || [];
-    var it = (window.PG_getItensFiltrados ? window.PG_getItensFiltrados() : []) || [];
-    var n = it.length, N = todos.length;
-    var corpo = $('pggCorpo');
-    corpo.classList.toggle('pgg-vazio', !n);
-    $('pggResumo').textContent = !N ? 'Carregando os cadastros…'
-      : (n === N ? N + ' cadastro(s) · sem filtros ativos' : n + ' de ' + N + ' cadastro(s) · acompanha os filtros da tabela');
+  /* ---------------- meses (mesma convenção da coluna Medição: "Set/26") ---------------- */
+  var MES_N = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  var MES_L = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+  var K_INI = 2026 * 12 + 6, K_FIM = 2027 * 12 + 11;          // Jul/26 → Dez/27 (opções da coluna Medição)
+  var KHOJE = (function(){ var d = new Date(); return d.getFullYear() * 12 + d.getMonth(); })();
+  function chaveMes(s){
+    var m = /^\s*([A-Za-zÀ-ú]{3})\/(\d{2})\s*$/.exec(String(s || ''));
+    if(!m) return null;
+    var i = MES_N.indexOf(m[1].charAt(0).toUpperCase() + m[1].slice(1).toLowerCase());
+    return i < 0 ? null : (2000 + Number(m[2])) * 12 + i;
+  }
+  var rotMes = function(k){ return MES_N[k % 12] + '/' + String(Math.floor(k / 12)).slice(-2); };
+  var rotMesLongo = function(k){ return MES_L[k % 12] + ' de ' + Math.floor(k / 12); };
 
+  /* ---------------- produtos ---------------- */
+  var DESPS = [
+    {k:'d1', rot:'DESP 1', cor:'var(--gl-navy,#1B3A5C)'},
+    {k:'d2', rot:'DESP 2', cor:'var(--gl-navy-3,#5A7899)'},
+    {k:'d3', rot:'DESP 3', cor:'var(--gl-navy-4,#A7B8CB)'}
+  ];
+  var unit = function(){ return window.PG_DESP_UNIT || { d1:1802.53, d2:1072.53, d3:4045.01 }; };
+  var r2 = function(v){ return Math.round(v * 100) / 100; };
+
+  // tudo o que a aba Gerencial precisa, a partir dos cadastros filtrados
+  function calcular(it){
+    var U = unit(), porMes = {}, pronto = {q:0, v:0, cad:0}, semDesp = 0, medSemDesp = 0, kMin = K_INI, kMax = K_FIM;
+    var tot = {q:0, v:0, cad:0};
+    it.forEach(function(x){
+      var ds = DESPS.filter(function(d){ return x.desps && x.desps[d.k]; });
+      var k = chaveMes(x.medicao);
+      if(!ds.length){ semDesp++; if(k != null) medSemDesp++; return; }
+      var v = 0; ds.forEach(function(d){ v += U[d.k]; });
+      if(k == null){ pronto.q += ds.length; pronto.v += v; pronto.cad++; return; }
+      kMin = Math.min(kMin, k); kMax = Math.max(kMax, k);
+      var o = porMes[k] || (porMes[k] = {d1:0, d2:0, d3:0, q:0, v:0, cad:0, lotes:{}});
+      var L = sps2(x.lote) || '—', ol = o.lotes[L] || (o.lotes[L] = {d1:0, d2:0, d3:0});
+      ds.forEach(function(d){ o[d.k]++; ol[d.k]++; });
+      o.q += ds.length; o.cad++;
+      tot.q += ds.length; tot.cad++;
+    });
+    // valor do mês = quantidade × unitário (arredondado por produto, como na aba Operacional antiga)
+    Object.keys(porMes).forEach(function(k){
+      var o = porMes[k]; o.v = 0;
+      DESPS.forEach(function(d){ o['v' + d.k] = r2(o[d.k] * U[d.k]); o.v += o['v' + d.k]; });
+      o.v = r2(o.v); tot.v += o.v;
+    });
+    return { porMes:porMes, pronto:pronto, semDesp:semDesp, medSemDesp:medSemDesp, tot:tot, kMin:kMin, kMax:kMax, U:U, n:it.length };
+  }
+  var vazioMes = {d1:0, d2:0, d3:0, q:0, v:0, cad:0, vd1:0, vd2:0, vd3:0, lotes:{}};
+  var mes = function(D, k){ return D.porMes[k] || vazioMes; };
+  var valorDe = function(o, d){ return modo === 'rs' ? o['v' + d.k] : o[d.k]; };
+  var totalDe = function(o){ return modo === 'rs' ? o.v : o.q; };
+  var fmtModo = function(v){ return modo === 'rs' ? fmtRc(v) : fmtN(v); };
+
+  // janela padrão: os 6 meses que terminam no mês atual (nunca antes de Jul/26)
+  function janelaPadrao(D){ return Math.min(D.kMax, Math.max(KHOJE, D.kMin + 5)); }
+  function janela(D){
+    var fim = janFim == null ? janelaPadrao(D) : janFim;
+    fim = Math.max(D.kMin + 5, Math.min(D.kMax, fim));
+    var ks = []; for(var k = fim - 5; k <= fim; k++) ks.push(k);
+    return ks;
+  }
+
+  /* ---------------- escala "redonda" para o eixo ---------------- */
+  function escala(max, passos){
+    if(!(max > 0)) return {max:1, ticks:[0, 1]};
+    var bruto = max / passos, p10 = Math.pow(10, Math.floor(Math.log10(bruto))), r = bruto / p10;
+    var passo = (r <= 1 ? 1 : r <= 2 ? 2 : r <= 2.5 ? 2.5 : r <= 5 ? 5 : 10) * p10;
+    var topo = Math.ceil(max / passo) * passo, t = [];
+    for(var v = 0; v <= topo + passo / 2; v += passo) t.push(v);
+    return {max:topo, ticks:t};
+  }
+
+  /* ---------------- dica flutuante (mouse e teclado) ---------------- */
+  var dica = null;
+  function mostrarDica(host, alvo, html){
+    if(!dica){ dica = document.createElement('div'); dica.className = 'pgz-dica'; dica.setAttribute('role', 'tooltip'); }
+    if(dica.parentNode !== host) host.appendChild(dica);
+    dica.innerHTML = html; dica.hidden = false;
+    var hb = host.getBoundingClientRect(), ab = alvo.getBoundingClientRect();
+    var x = ab.left - hb.left + ab.width / 2, w = dica.offsetWidth;
+    x = Math.max(w / 2 + 4, Math.min(hb.width - w / 2 - 4, x));
+    dica.style.left = x + 'px';
+    dica.style.top = Math.max(0, ab.top - hb.top - dica.offsetHeight - 8) + 'px';
+  }
+  function esconderDica(){ if(dica) dica.hidden = true; }
+  function ligarDicas(host, conteudo){
+    Array.prototype.forEach.call(host.querySelectorAll('[data-dica]'), function(el){
+      var abre = function(){ mostrarDica(host, el, conteudo(el.getAttribute('data-dica'))); el.classList.add('pgz-on'); };
+      var fecha = function(){ esconderDica(); el.classList.remove('pgz-on'); };
+      el.addEventListener('mouseenter', abre); el.addEventListener('focus', abre);
+      el.addEventListener('mouseleave', fecha); el.addEventListener('blur', fecha);
+    });
+  }
+
+  /* ---------------- GERENCIAL: indicadores ---------------- */
+  function kpi(rot, valor, sub, extra){
+    return '<div class="pgz-kpi"><div class="pgz-kpi-r">' + rot + '</div><div class="pgz-kpi-v">' + valor + '</div>'
+      + (sub ? '<div class="pgz-kpi-s">' + sub + '</div>' : '') + (extra || '') + '</div>';
+  }
+  function renderKpis(D, ks){
+    var jan = {q:0, v:0, cad:0}, decorridos = ks.filter(function(k){ return k <= KHOJE; });
+    ks.forEach(function(k){ var o = mes(D, k); jan.q += o.q; jan.v += o.v; jan.cad += o.cad; });
+    var baseMedia = decorridos.length || ks.length, somaDec = {q:0, v:0, cad:0};
+    (decorridos.length ? decorridos : ks).forEach(function(k){ var o = mes(D, k); somaDec.q += o.q; somaDec.v += o.v; somaDec.cad += o.cad; });
+
+    // mês de referência: o atual, se estiver na janela; senão o último mês decorrido da janela (ou o último)
+    var kRef = ks.indexOf(KHOJE) >= 0 ? KHOJE : (decorridos.length ? decorridos[decorridos.length - 1] : ks[ks.length - 1]);
+    var oRef = mes(D, kRef), oAnt = mes(D, kRef - 1), delta = '';
+    var emAndamento = kRef === KHOJE;
+    if(emAndamento && !(oRef.v > 0)) delta = 'mês em andamento · ' + rotMes(kRef - 1) + ': ' + fmtRc(oAnt.v);
+    else if(oAnt.v > 0){
+      var dv = (oRef.v - oAnt.v) / oAnt.v;
+      delta = '<span class="pgz-delta ' + (dv >= 0 ? 'pgz-up' : 'pgz-dn') + '">' + (dv >= 0 ? '▲ ' : '▼ ') + Math.abs(Math.round(dv * 100)) + '%</span> vs. ' + rotMes(kRef - 1);
+    } else if(oRef.v > 0) delta = '<span class="pgz-delta pgz-up">novo</span> ' + rotMes(kRef - 1) + ' sem medição';
+    else delta = 'sem medição em ' + rotMes(kRef - 1) + ' e ' + rotMes(kRef);
+
+    // escopo potencial: todos os cadastros filtrados com os 3 produtos
+    var U = D.U, potencial = D.n * (U.d1 + U.d2 + U.d3), exec = potencial ? D.tot.v / potencial : 0;
+    var barra = function(p){ return '<div class="pgz-kpi-b"><i style="width:' + (Math.max(0, Math.min(1, p)) * 100).toFixed(1) + '%"></i></div>'; };
+
+    $('pgzKpis').innerHTML =
+        kpi('Medido na janela', fmtR(jan.v), fmtN(jan.q) + ' produto(s) · ' + fmtN(jan.cad) + ' cadastro(s)' + (jan.cad ? ' · ' + fmtRc(jan.v / jan.cad) + ' por cadastro' : ''))
+      + kpi('Média mensal de entregas', fmt1(somaDec.q / baseMedia) + ' <small>produtos/mês</small>',
+            fmtR(somaDec.v / baseMedia) + '/mês · ' + fmt1(somaDec.cad / baseMedia) + ' cadastros/mês'
+            + '<br>' + (decorridos.length ? 'em ' + decorridos.length + ' mês(es) já decorrido(s) da janela' : 'janela toda no futuro'))
+      + kpi((kRef === KHOJE ? 'Mês atual (parcial) · ' : 'Último mês · ') + rotMes(kRef), fmtR(oRef.v), fmtN(oRef.q) + ' produto(s) · ' + delta)
+      + kpi('Medido acumulado', fmtR(D.tot.v), pct(exec) + ' do escopo potencial (' + fmtN(D.n) + ' cad. × 3 DESPs = ' + fmtRc(potencial) + ')', barra(exec))
+      + kpi('Pronto para medir', fmtR(D.pronto.v), D.pronto.cad ? fmtN(D.pronto.q) + ' produto(s) em ' + fmtN(D.pronto.cad) + ' cadastro(s) sem mês de medição' : 'nenhum produto entregue aguardando medição');
+    if(D.pronto.cad) $('pgzKpis').lastElementChild.classList.add('pgz-kpi-alerta');
+  }
+
+  /* ---------------- GERENCIAL: barras empilhadas por mês ---------------- */
+  function renderBarras(D, ks){
+    var host = $('pgzBarras'), W = Math.max(220, host.clientWidth || 600), H = W < 480 ? 230 : 270;
+    var pl = W < 480 ? 54 : 70, pr = 14, pt = 26, pb = 40, cw = W - pl - pr, ch = H - pt - pb;
+    var tots = ks.map(function(k){ return totalDe(mes(D, k)); });
+    var decorridos = ks.filter(function(k){ return k <= KHOJE; });
+    var media = (decorridos.length ? decorridos : ks).reduce(function(s, k){ return s + totalDe(mes(D, k)); }, 0) / (decorridos.length || ks.length);
+    var esc = escala(Math.max.apply(null, tots.concat([media, 0])) * 1.08, 4);
+    var y = function(v){ return pt + ch - (v / esc.max) * ch; };
+    var slot = cw / ks.length, bw = Math.min(64, slot * 0.56);
+    var s = '<svg class="pgz-svg' + (animar ? ' pgz-anim' : '') + '" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Barras empilhadas: medição mensal por produto na janela de ' + rotMes(ks[0]) + ' a ' + rotMes(ks[5]) + '">';
+    esc.ticks.forEach(function(t){
+      s += '<line class="pgz-grade" x1="' + pl + '" x2="' + (W - pr) + '" y1="' + y(t).toFixed(1) + '" y2="' + y(t).toFixed(1) + '"/>'
+        + '<text class="pgz-eixo" x="' + (pl - 8) + '" y="' + (y(t) + 4).toFixed(1) + '" text-anchor="end">' + escH(fmtModo(t)) + '</text>';
+    });
+    ks.forEach(function(k, i){
+      var o = mes(D, k), cx = pl + slot * i + slot / 2, x0 = cx - bw / 2, base = pt + ch, futuro = k > KHOJE, atual = k === KHOJE;
+      if(atual) s += '<rect class="pgz-atual" x="' + (pl + slot * i + 2).toFixed(1) + '" y="' + (pt - 18) + '" width="' + (slot - 4).toFixed(1) + '" height="' + (ch + 18) + '" rx="6"/>';
+      s += '<g class="pgz-col" style="--d:' + (i * 40) + 'ms">';
+      var acc = 0;
+      DESPS.forEach(function(d){
+        var v = valorDe(o, d); if(!(v > 0)) return;
+        var y1 = y(acc + v), y0 = y(acc), h = Math.max(1, y0 - y1);
+        s += '<rect x="' + x0.toFixed(1) + '" y="' + y1.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + h.toFixed(1) + '" style="fill:' + d.cor + '"/>';
+        acc += v;
+      });
+      if(!(acc > 0) && futuro) s += '<rect class="pgz-vazio" x="' + x0.toFixed(1) + '" y="' + (base - 3) + '" width="' + bw.toFixed(1) + '" height="3" rx="1.5"/>';
+      if(acc > 0) s += '<text class="pgz-tot" x="' + cx.toFixed(1) + '" y="' + (y(acc) - 7).toFixed(1) + '" text-anchor="middle">' + escH(fmtModo(acc)) + '</text>';
+      s += '<text class="pgz-mes' + (atual ? ' pgz-mes-atual' : '') + (futuro ? ' pgz-mes-fut' : '') + '" x="' + cx.toFixed(1) + '" y="' + (base + 17) + '" text-anchor="middle">' + rotMes(k) + '</text>';
+      if(atual) s += '<text class="pgz-mes-tag" x="' + cx.toFixed(1) + '" y="' + (base + 31) + '" text-anchor="middle">atual</text>';
+      else if(futuro) s += '<text class="pgz-mes-tag" x="' + cx.toFixed(1) + '" y="' + (base + 31) + '" text-anchor="middle">a vir</text>';
+      // área de toque (dica)
+      s += '<rect class="pgz-hit" data-dica="' + k + '" tabindex="0" x="' + (pl + slot * i).toFixed(1) + '" y="' + pt + '" width="' + slot.toFixed(1) + '" height="' + ch + '" aria-label="' + escH(rotMesLongo(k) + ': ' + fmtR(o.v) + ', ' + o.q + ' produto(s)') + '"/></g>';
+    });
+    s += '<line class="pgz-base" x1="' + pl + '" x2="' + (W - pr) + '" y1="' + (pt + ch) + '" y2="' + (pt + ch) + '"/>';
+    if(media > 0){
+      var ym = y(media).toFixed(1), txt = 'média ' + fmtModo(media) + (modo === 'qtd' ? ' produtos' : '') + '/mês';
+      s += '<line class="pgz-media" x1="' + pl + '" x2="' + (W - pr) + '" y1="' + ym + '" y2="' + ym + '"/>'
+        + '<rect class="pgz-media-bg" x="' + (W - pr - txt.length * 6.3 - 10) + '" y="' + (ym - 17) + '" width="' + (txt.length * 6.3 + 10) + '" height="15" rx="4"/>'
+        + '<text class="pgz-media-t" x="' + (W - pr - 5) + '" y="' + (ym - 6) + '" text-anchor="end">' + escH(txt) + '</text>';
+    }
+    s += '</svg>';
+    host.innerHTML = s;
+    ligarDicas(host, function(kk){
+      var k = Number(kk), o = mes(D, k);
+      return '<b>' + rotMesLongo(k) + '</b>' + DESPS.map(function(d){
+          return '<div class="pgz-dl"><i style="background:' + d.cor + '"></i>' + d.rot + '<span>' + o[d.k] + ' × ' + fmtR(D.U[d.k]) + '</span><b>' + fmtR(o['v' + d.k]) + '</b></div>';
+        }).join('') + '<div class="pgz-dl pgz-dl-t">Total<span>' + o.q + ' produto(s) · ' + o.cad + ' cad.</span><b>' + fmtR(o.v) + '</b></div>';
+    });
+    var jan = ks.reduce(function(s2, k){ return s2 + totalDe(mes(D, k)); }, 0);
+    $('pgzBarSub').textContent = rotMesLongo(ks[0]) + ' a ' + rotMesLongo(ks[5]) + ' · ' + (modo === 'rs' ? fmtR(jan) + ' medidos' : fmtN(jan) + ' produtos medidos') + ' · linha tracejada = média dos meses decorridos';
+    $('pgzLegDesp').innerHTML = DESPS.map(function(d){ return '<span><i style="background:' + d.cor + '"></i>' + d.rot + ' <em>' + fmtRc(D.U[d.k]) + '/un.</em></span>'; }).join('');
+  }
+
+  /* ---------------- GERENCIAL: rosca genérica ---------------- */
+  function rosca(host, fatias, centro, centroSub, aria){
+    var tot = fatias.reduce(function(s, f){ return s + f.v; }, 0), R = 54, C = 2 * Math.PI * R, acc = 0;
+    var s = '<svg class="pgz-rosca' + (animar ? ' pgz-anim' : '') + '" viewBox="0 0 140 140" role="img" aria-label="' + escH(aria) + '"><circle class="pgz-trk" cx="70" cy="70" r="' + R + '"/>';
+    if(tot > 0) fatias.forEach(function(f, i){
+      if(!(f.v > 0)) return;
+      var len = f.v / tot * C, gap = fatias.filter(function(g){ return g.v > 0; }).length > 1 ? 2 : 0;
+      s += '<circle class="pgz-fatia" data-dica="' + i + '" tabindex="0" aria-label="' + escH(f.rot + ': ' + f.txt) + '" cx="70" cy="70" r="' + R + '" transform="rotate(-90 70 70)" style="stroke:' + f.cor + ';--d:' + (i * 60) + 'ms"'
+        + ' stroke-dasharray="' + Math.max(0.5, len - gap).toFixed(2) + ' ' + C.toFixed(2) + '" stroke-dashoffset="' + (-acc).toFixed(2) + '"/>';
+      acc += len;
+    });
+    s += '<text class="pgz-rc" x="70" y="70" text-anchor="middle">' + escH(centro) + '</text><text class="pgz-rcs" x="70" y="87" text-anchor="middle">' + escH(centroSub) + '</text></svg>';
+    var leg = '<div class="pgz-rleg">' + fatias.map(function(f){
+      return '<div class="pgz-rl"><i style="background:' + f.cor + '"></i><span>' + escH(f.rot) + '</span><b>' + escH(f.txt) + '</b><em>' + (tot ? pct(f.v / tot) : '—') + '</em></div>';
+    }).join('') + '</div>';
+    host.innerHTML = s + leg;
+    ligarDicas(host, function(i){ var f = fatias[Number(i)]; return '<b>' + escH(f.rot) + '</b><div class="pgz-dl">' + escH(f.txt) + '<span></span><b>' + (tot ? pct(f.v / tot) : '—') + '</b></div>'; });
+  }
+  function renderMix(D, ks){
+    var soma = {}; DESPS.forEach(function(d){ soma[d.k] = {q:0, v:0}; });
+    ks.forEach(function(k){ var o = mes(D, k); DESPS.forEach(function(d){ soma[d.k].q += o[d.k]; soma[d.k].v += o['v' + d.k]; }); });
+    var tq = 0, tv = 0; DESPS.forEach(function(d){ tq += soma[d.k].q; tv += soma[d.k].v; });
+    rosca($('pgzMix'), DESPS.map(function(d){
+      return { rot:d.rot, cor:d.cor, v: modo === 'rs' ? soma[d.k].v : soma[d.k].q, txt: modo === 'rs' ? fmtR(soma[d.k].v) + ' · ' + soma[d.k].q + ' un.' : soma[d.k].q + ' un. · ' + fmtRc(soma[d.k].v) };
+    }), modo === 'rs' ? fmtRc(tv) : fmtN(tq), modo === 'rs' ? 'na janela' : 'produtos', 'Composição por produto na janela');
+  }
+  function renderCarteira(D){
+    var med = D.tot.cad, pr = D.pronto.cad, prod = D.semDesp, n = D.n;
+    rosca($('pgzCarteira'), [
+      { rot:'Medidos', cor:'var(--gl-navy,#1B3A5C)', v:med, txt:fmtN(med) + ' cad. · ' + fmtRc(D.tot.v) },
+      { rot:'Prontos, sem medição', cor:'var(--gl-warn,#A66A12)', v:pr, txt:fmtN(pr) + ' cad. · ' + fmtRc(D.pronto.v) },
+      { rot:'Em produção (sem DESP)', cor:'#CBD2DB', v:prod, txt:fmtN(prod) + ' cad.' }
+    ], n ? pct(med / n) : '—', 'medidos', 'Situação da carteira de cadastros');
+  }
+
+  /* ---------------- GERENCIAL: curva acumulada ---------------- */
+  function renderCurva(D, ks){
+    var host = $('pgzCurva'), W = Math.max(240, host.clientWidth || 320), H = 190, pl = 12, pr = 12, pt = 24, pb = 30, cw = W - pl - pr, ch = H - pt - pb;
+    // acumulado desde o início do contrato até cada mês da janela
+    var antes = 0; Object.keys(D.porMes).forEach(function(k){ if(Number(k) < ks[0]) antes += D.porMes[k].v; });
+    var acc = antes, pts = ks.map(function(k){ acc += mes(D, k).v; return {k:k, v:acc}; });
+    var esc = escala(Math.max(D.tot.v, acc) * 1.05, 3);
+    var x = function(i){ return pl + (cw / (ks.length - 1)) * i; }, y = function(v){ return pt + ch - (v / esc.max) * ch; };
+    var dec = pts.filter(function(p){ return p.k <= KHOJE; }), fut = pts.filter(function(p){ return p.k >= (dec.length ? dec[dec.length - 1].k : -1); });
+    var linha = function(arr){ return arr.map(function(p){ var i = ks.indexOf(p.k); return (x(i)).toFixed(1) + ',' + y(p.v).toFixed(1); }).join(' '); };
+    var s = '<svg class="pgz-svg' + (animar ? ' pgz-anim' : '') + '" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Curva do valor medido acumulado">';
+    esc.ticks.forEach(function(t){ s += '<line class="pgz-grade" x1="' + pl + '" x2="' + (W - pr) + '" y1="' + y(t).toFixed(1) + '" y2="' + y(t).toFixed(1) + '"/>'; });
+    if(dec.length > 1){
+      var area = linha(dec) + ' ' + x(ks.indexOf(dec[dec.length - 1].k)).toFixed(1) + ',' + (pt + ch) + ' ' + x(0).toFixed(1) + ',' + (pt + ch);
+      s += '<polygon class="pgz-area" points="' + area + '"/><polyline class="pgz-linha" points="' + linha(dec) + '"/>';
+    }
+    if(fut.length > 1) s += '<polyline class="pgz-linha pgz-linha-fut" points="' + linha(fut) + '"/>';
+    pts.forEach(function(p, i){
+      var futuro = p.k > KHOJE;
+      s += '<circle class="pgz-pt' + (futuro ? ' pgz-pt-fut' : '') + '" cx="' + x(i).toFixed(1) + '" cy="' + y(p.v).toFixed(1) + '" r="' + (p.k === KHOJE ? 5 : 3.5) + '"/>'
+        + '<text class="pgz-mes' + (futuro ? ' pgz-mes-fut' : '') + (p.k === KHOJE ? ' pgz-mes-atual' : '') + '" x="' + x(i).toFixed(1) + '" y="' + (H - 10) + '" text-anchor="' + (i === 0 ? 'start' : i === ks.length - 1 ? 'end' : 'middle') + '">' + rotMes(p.k) + '</text>'
+        + '<rect class="pgz-hit" data-dica="' + i + '" tabindex="0" x="' + (x(i) - cw / 12).toFixed(1) + '" y="' + pt + '" width="' + (cw / 6).toFixed(1) + '" height="' + ch + '" aria-label="' + escH(rotMesLongo(p.k) + ': acumulado ' + fmtR(p.v)) + '"/>';
+    });
+    var ult = dec.length ? dec[dec.length - 1] : pts[0], iu = ks.indexOf(ult.k);
+    s += '<text class="pgz-tot" x="' + x(iu).toFixed(1) + '" y="' + (y(ult.v) - 10).toFixed(1) + '" text-anchor="' + (iu === 0 ? 'start' : iu === ks.length - 1 ? 'end' : 'middle') + '">' + escH(fmtRc(ult.v)) + '</text></svg>';
+    host.innerHTML = s;
+    ligarDicas(host, function(i){ var p = pts[Number(i)], o = mes(D, p.k); return '<b>' + rotMesLongo(p.k) + '</b><div class="pgz-dl">No mês<span></span><b>' + fmtR(o.v) + '</b></div><div class="pgz-dl pgz-dl-t">Acumulado<span></span><b>' + fmtR(p.v) + '</b></div>'; });
+    $('pgzCurvaSub').textContent = 'Desde ' + rotMes(D.kMin) + ': ' + fmtR(D.tot.v) + ' medidos ao todo' + (antes ? ' · ' + fmtRc(antes) + ' antes desta janela' : '');
+  }
+
+  /* ---------------- GERENCIAL: entregas por lote ---------------- */
+  function renderLotes(D, ks){
+    var L = {};
+    ks.forEach(function(k){ var o = mes(D, k); Object.keys(o.lotes).forEach(function(l){ var a = L[l] || (L[l] = {d1:0, d2:0, d3:0}); DESPS.forEach(function(d){ a[d.k] += o.lotes[l][d.k]; }); }); });
+    var val = function(a, d){ return modo === 'rs' ? r2(a[d.k] * D.U[d.k]) : a[d.k]; };
+    var tot = function(a){ return DESPS.reduce(function(s, d){ return s + val(a, d); }, 0); };
+    var ls = Object.keys(L).sort(), max = ls.reduce(function(m, l){ return Math.max(m, tot(L[l])); }, 0);
+    $('pgzLotes').innerHTML = ls.length ? ls.map(function(l){
+      var a = L[l], t = tot(a), q = a.d1 + a.d2 + a.d3;
+      return '<div class="pgz-lote"><div class="pgz-lote-h"><b>SPS ' + escH(l) + '</b><span>' + q + ' produto(s)</span><em>' + escH(modo === 'rs' ? fmtR(t) : fmtN(t) + ' un.') + '</em></div>'
+        + '<div class="pgz-lote-b" style="width:' + (max ? Math.max(2, t / max * 100) : 0).toFixed(1) + '%">' + DESPS.map(function(d){
+            var v = val(a, d); return v > 0 ? '<i style="flex:' + v + ' 1 0;background:' + d.cor + '" title="' + d.rot + ': ' + a[d.k] + ' un. · ' + fmtR(r2(a[d.k] * D.U[d.k])) + '"></i>' : '';
+          }).join('') + '</div></div>';
+    }).join('') : '<div class="pgz-semdado">Nenhuma medição nesta janela.</div>';
+  }
+
+  /* ---------------- GERENCIAL: quadro de medições ---------------- */
+  function renderTabela(D, ks){
+    var acc = 0; Object.keys(D.porMes).forEach(function(k){ if(Number(k) < ks[0]) acc += D.porMes[k].v; });
+    var jan = {d1:0, d2:0, d3:0, q:0, cad:0, v:0}, dec = ks.filter(function(k){ return k <= KHOJE; }), nb = dec.length || ks.length;
+    var med = {d1:0, d2:0, d3:0, q:0, cad:0, v:0};
+    ks.forEach(function(k){
+      var o = mes(D, k);
+      ['d1', 'd2', 'd3', 'q', 'cad', 'v'].forEach(function(c){ jan[c] += o[c]; if(k <= KHOJE || !dec.length) med[c] += o[c]; });
+    });
+    var linhas = ks.map(function(k){
+      var o = mes(D, k); acc += o.v;
+      var cls = k === KHOJE ? ' class="pgz-tr-atual"' : (k > KHOJE ? ' class="pgz-tr-fut"' : '');
+      return '<tr' + cls + '><th scope="row">' + rotMes(k) + (k === KHOJE ? ' <small>atual</small>' : '') + '</th>'
+        + '<td>' + (o.d1 || '–') + '</td><td>' + (o.d2 || '–') + '</td><td>' + (o.d3 || '–') + '</td>'
+        + '<td><b>' + (o.q || '–') + '</b></td><td>' + (o.cad || '–') + '</td>'
+        + '<td class="pgz-td-r"><b>' + (o.v ? fmtR(o.v) : '–') + '</b></td><td class="pgz-td-p">' + (o.v && jan.v ? pct(o.v / jan.v) : '–') + '</td>'
+        + '<td class="pgz-td-r">' + fmtR(acc) + '</td></tr>';
+    });
+    var f1 = function(v){ return fmt1(v / nb); };
+    $('pgzTabela').innerHTML = '<table class="pgz-tab"><thead><tr><th scope="col">Mês</th>' + DESPS.map(function(d){ return '<th scope="col">' + d.rot + '</th>'; }).join('')
+      + '<th scope="col">Produtos</th><th scope="col">Cadastros</th><th scope="col" class="pgz-td-r">Valor medido</th><th scope="col">% janela</th><th scope="col" class="pgz-td-r">Acumulado</th></tr></thead><tbody>'
+      + linhas.join('') + '</tbody><tfoot>'
+      + '<tr><th scope="row">Total da janela</th><td>' + jan.d1 + '</td><td>' + jan.d2 + '</td><td>' + jan.d3 + '</td><td><b>' + jan.q + '</b></td><td>' + jan.cad + '</td><td class="pgz-td-r"><b>' + fmtR(jan.v) + '</b></td><td class="pgz-td-p">' + (jan.v ? '100%' : '–') + '</td><td></td></tr>'
+      + '<tr class="pgz-tr-media"><th scope="row">Média mensal <small>' + nb + ' mês(es)</small></th><td>' + f1(med.d1) + '</td><td>' + f1(med.d2) + '</td><td>' + f1(med.d3) + '</td><td><b>' + f1(med.q) + '</b></td><td>' + f1(med.cad) + '</td><td class="pgz-td-r"><b>' + fmtR(med.v / nb) + '</b></td><td></td><td></td></tr>'
+      + '</tfoot></table>';
+    var U = D.U, avisos = [];
+    if(D.pronto.cad) avisos.push(D.pronto.cad + ' cadastro(s) com DESP entregue e sem mês de medição (' + fmtR(D.pronto.v) + ').');
+    if(D.medSemDesp) avisos.push(D.medSemDesp + ' cadastro(s) com mês de medição mas sem nenhum DESP marcado — não entram nos valores.');
+    var foraJan = Object.keys(D.porMes).map(Number).filter(function(k){ return k > ks[5]; });
+    if(foraJan.length) avisos.push('Há medição lançada depois desta janela (' + foraJan.map(rotMes).join(', ') + ') — avance a janela para ver.');
+    $('pgzNota').innerHTML = 'Valor = produtos marcados nas colunas DESP 1/2/3 × valor unitário (DESP 1 ' + escH(fmtR(U.d1)) + ' · DESP 2 ' + escH(fmtR(U.d2)) + ' · DESP 3 ' + escH(fmtR(U.d3)) + '); mês = coluna Medição. Acompanha os filtros da tabela.'
+      + (avisos.length ? '<ul>' + avisos.map(function(a){ return '<li>' + escH(a) + '</li>'; }).join('') + '</ul>' : '');
+  }
+
+  function renderGer(it){
+    var D = calcular(it), ks = janela(D);
+    $('pgzJanRot').textContent = rotMes(ks[0]) + ' – ' + rotMes(ks[5]);
+    $('pgzJanAnt').disabled = ks[0] <= D.kMin;
+    $('pgzJanProx').disabled = ks[5] >= D.kMax;
+    $('pgzJanHoje').hidden = janFim == null || janFim === janelaPadrao(D);
+    Array.prototype.forEach.call(document.querySelectorAll('#pggGer .pgz-seg button'), function(b){ b.setAttribute('aria-pressed', String(b.getAttribute('data-modo') === modo)); });
+    renderKpis(D, ks); renderBarras(D, ks); renderMix(D, ks); renderCarteira(D); renderCurva(D, ks); renderLotes(D, ks); renderTabela(D, ks);
+    renderGer._D = D;
+  }
+
+  /* ---------------- OPERACIONAL (sem valores financeiros) ---------------- */
+  function renderOp(it, n, N){
     // ---- 1. cadastros selecionados ----
     contar($('pggNSel'), n, fmtN);
     anel('pggRingSel', N ? n / N : 0);
@@ -23374,7 +23752,38 @@ function AV_gerarDescSituacao(){
       + (listaLotes.length ? '<span class="pgg-chip">SPS ' + listaLotes.join(' · ') + '</span>' : '')
       + (it.some(function(x){ return x.tem_kml !== undefined; }) ? '<span class="pgg-chip">' + it.filter(function(x){ return x.tem_kml; }).length + ' com KML</span>' : '');
 
-    // ---- 2. melhorias ----
+    // ---- 2. área desapropriada ----
+    var aDes = 0, aTot = 0, comArea = 0, maiorA = null;
+    it.forEach(function(x){
+      var d = numBR(x.area_desapropriada), t = numBR(x.area_total);
+      aDes += d; aTot += t; if(d > 0){ comArea++; if(!maiorA || d > maiorA.d) maiorA = {d:d, x:x}; }
+    });
+    contar($('pggArea'), aDes, fmtHa);
+    $('pggAreaSub').textContent = comArea ? 'em ' + fmtN(comArea) + ' cadastro(s) · média ' + fmtHa(aDes / comArea) + ' por cadastro' : 'nenhuma área desapropriada lançada';
+    larg($('pggBarArea'), aTot ? aDes / aTot : 0);
+    $('pggAreaNota').innerHTML = (aTot ? pct(aDes / aTot) + ' de ' + escH(fmtHa(aTot)) + ' dos imóveis' : '')
+      + (maiorA ? (aTot ? ' · ' : '') + 'maior: <b>CTD ' + escH(ctdCurto(maiorA.x.ctd)) + '</b> (' + escH(fmtHa(maiorA.d)) + ')' : '');
+
+    // ---- 3. produtos entregues (quantidade, sem R$) ----
+    var semDesp = n > 0 && it.every(function(x){ return !x.desps; });
+    var qTot = 0, mTot = 0;
+    var cards = DESPS.map(function(d, i){
+      var com = it.filter(function(x){ return x.desps && x.desps[d.k]; }), q = com.length, m = com.filter(function(x){ return chaveMes(x.medicao) != null; }).length;
+      qTot += q; mTot += m;
+      return '<div class="pgg-desp" style="--c:' + ['#00e5ff', '#b28dff', '#4ad295'][i] + '"><div class="pgg-desp-n">' + d.rot + '</div>'
+        + '<div class="pgg-desp-q">' + fmtN(q) + '<small>de ' + fmtN(n) + ' cadastro(s)</small></div>'
+        + '<div class="pgg-bar"><i data-w="' + (n ? q / n : 0).toFixed(4) + '" style="--c:#00e5ff"></i></div>'
+        + '<div class="pgg-desp-u">' + pct(n ? q / n : 0) + ' entregue · ' + fmtN(m) + ' já medido(s)</div></div>';
+    });
+    cards.push('<div class="pgg-desp pgg-desp-tot"><div class="pgg-desp-n">Total de produtos</div>'
+      + '<div class="pgg-desp-q">' + fmtN(qTot) + '<small>de ' + fmtN(n * 3) + ' possíveis</small></div>'
+      + '<div class="pgg-bar"><i data-w="' + (n ? qTot / (n * 3) : 0).toFixed(4) + '" style="--c:#ffb020"></i></div>'
+      + '<div class="pgg-desp-u">' + pct(n ? qTot / (n * 3) : 0) + ' do escopo · ' + fmtN(qTot - mTot) + ' aguardando medição</div></div>');
+    $('pggDesps').innerHTML = cards.join('');
+    $('pggDespGeral').textContent = semDesp ? 'Servidor desatualizado — reinstale o servidor para ver estes números.'
+      : 'Cadastros marcados na tabela (colunas DESP 1/2/3) · acompanha os filtros';
+
+    // ---- 4. melhorias ----
     var semMelh = n > 0 && it.every(function(x){ return x.melhorias === undefined; });
     var comMelh = it.filter(function(x){ return Array.isArray(x.melhorias) && x.melhorias.length; });
     contar($('pggNMelh'), comMelh.length, fmtN);
@@ -23391,7 +23800,7 @@ function AV_gerarDescSituacao(){
             + '<span class="pgg-lin-b"><i data-w="' + (freq[m] / maxF).toFixed(4) + '" style="--c:#ffb020"></i></span></div>';
         }).join('') : '';
 
-    // ---- 3. posseiros ----
+    // ---- 5. posseiros + documentação comprobatória (Ficha de Vistoria 1.3.2) ----
     var semPoss = n > 0 && it.every(function(x){ return x.posseiro === undefined; });
     var comPoss = it.filter(function(x){ return x.posseiro; });
     contar($('pggNPoss'), comPoss.length, fmtN);
@@ -23403,8 +23812,6 @@ function AV_gerarDescSituacao(){
           return '<div class="pgg-lin pgg-lin-nome" title="' + escH(x.posseiro) + '"><b>' + escH(ctdCurto(x.ctd)) + '</b><span class="pgg-lin-t">' + escH(x.posseiro) + '</span></div>';
         }).join('') + (comPoss.length > 6 ? '<div class="pgg-mais">+ ' + (comPoss.length - 6) + ' outro(s)</div>' : '')
       : '<div class="pgg-mini">' + (semPoss ? '' : 'Nenhum posseiro nos cadastros filtrados') + '</div>';
-
-    // ---- 3b. documentação comprobatória (Ficha de Vistoria 1.3.2), entre os posseiros ----
     var semDoc = comPoss.length > 0 && comPoss.every(function(x){ return x.doc_comprobatoria === undefined; });
     var dSim = comPoss.filter(function(x){ return x.doc_comprobatoria === 'sim'; }).length;
     var dNao = comPoss.filter(function(x){ return x.doc_comprobatoria === 'nao'; }).length;
@@ -23416,58 +23823,6 @@ function AV_gerarDescSituacao(){
     $('pggPDocNao').textContent = comPoss.length && !semDoc ? pct(dNao / comPoss.length) + ' dos posseiros' : '—';
     $('pggDocNota').textContent = !comPoss.length ? '' : (semDoc ? 'Servidor desatualizado — reinstale o servidor para ver estes números.'
       : (dSem ? dSem + ' posseiro(s) ainda sem resposta na Ficha de Vistoria (1.3.2).' : ''));
-
-    // ---- 4. valor de desapropriação ----
-    var tn = 0, br = 0, bn = 0, maior = null, comValor = 0;
-    it.forEach(function(x){
-      var a = num(x.valor_terra_nua), b = num(x.valor_benf_reprodutiva), c = num(x.valor_benf_nao_reprodutiva), t = a + b + c;
-      tn += a; br += b; bn += c;
-      if(t > 0){ comValor++; if(!maior || t > maior.t) maior = {t:t, x:x}; }
-    });
-    var tot = tn + br + bn;
-    contar($('pggValor'), tot, fmtR);
-    $('pggValorSub').textContent = comValor ? 'em ' + fmtN(comValor) + ' cadastro(s) com valor · média ' + fmtR(tot / comValor) : 'nenhum valor lançado nos cadastros filtrados';
-    larg($('pggSegTn'), tot ? tn / tot : 0); larg($('pggSegBr'), tot ? br / tot : 0); larg($('pggSegBn'), tot ? bn / tot : 0);
-    [['Tn', tn], ['Br', br], ['Bn', bn]].forEach(function(p){
-      contar($('pggV' + p[0]), p[1], fmtR);
-      $('pggP' + p[0]).textContent = tot ? pct(p[1] / tot) : '—';
-    });
-    $('pggMaior').innerHTML = maior
-      ? 'Maior valor: <b>CTD ' + escH(ctdCurto(maior.x.ctd)) + '</b> — ' + escH(fmtR(maior.t)) : '';
-
-    // ---- 5. por lote ----
-    var porLote = {};
-    it.forEach(function(x){
-      var q = sps2(x.lote) || '—', o = porLote[q] || (porLote[q] = {n:0, v:0});
-      o.n++; o.v += num(x.valor_terra_nua) + num(x.valor_benf_reprodutiva) + num(x.valor_benf_nao_reprodutiva);
-    });
-    var qs = Object.keys(porLote).sort(), maxV = qs.reduce(function(m, q){ return Math.max(m, porLote[q].v); }, 0);
-    $('pggLotes').innerHTML = qs.length ? qs.map(function(q){
-      var o = porLote[q];
-      return '<div class="pgg-lin pgg-lin2"><span class="pgg-lin-t"><b>SPS ' + q + '</b> · ' + o.n + ' cad.</span><span class="pgg-lin-v">' + escH(fmtR(o.v)) + '</span>'
-        + '<span class="pgg-lin-b"><i data-w="' + (maxV ? o.v / maxV : 0).toFixed(4) + '" style="--c:#00e5ff"></i></span></div>';
-    }).join('') : '<div class="pgg-mini">Sem dados</div>';
-
-    // ---- 5b. produtos (DESP 1/2/3): quantidade de cadastros marcados × valor unitário ----
-    var U = window.PG_DESP_UNIT || { d1:1802.53, d2:1072.53, d3:4045.01 };
-    var UNIT_DESP = [['d1', 'DESP 1', U.d1, '#00e5ff'], ['d2', 'DESP 2', U.d2, '#b28dff'], ['d3', 'DESP 3', U.d3, '#4ad295']];
-    var semDesp = n > 0 && it.every(function(x){ return !x.desps; });
-    var qTot = 0, vTot = 0;
-    var cardsDesp = UNIT_DESP.map(function(d){
-      var q = it.filter(function(x){ return x.desps && x.desps[d[0]]; }).length, v = Math.round(q * d[2] * 100) / 100;
-      qTot += q; vTot += v;
-      return '<div class="pgg-desp" style="--c:' + d[3] + '"><div class="pgg-desp-n">' + d[1] + '</div>'
-        + '<div class="pgg-desp-q">' + fmtN(q) + '<small>cadastro(s)</small></div>'
-        + '<div class="pgg-desp-v">' + escH(fmtR(v)) + '</div>'
-        + '<div class="pgg-desp-u">unitário ' + escH(fmtR(d[2])) + ' · ' + pct(n ? q / n : 0) + ' dos cadastros</div></div>';
-    });
-    cardsDesp.push('<div class="pgg-desp pgg-desp-tot"><div class="pgg-desp-n">Total dos DESPs</div>'
-      + '<div class="pgg-desp-q">' + fmtN(qTot) + '<small>produto(s)</small></div>'
-      + '<div class="pgg-desp-v">' + escH(fmtR(vTot)) + '</div>'
-      + '<div class="pgg-desp-u">soma de DESP 1 + 2 + 3</div></div>');
-    $('pggDesps').innerHTML = cardsDesp.join('');
-    $('pggDespGeral').textContent = semDesp ? 'Servidor desatualizado — reinstale o servidor para ver estes números.'
-      : 'Cadastros marcados na tabela (colunas DESP 1/2/3) × valor unitário · acompanha os filtros';
 
     // ---- 6. andamento por etapa ----
     var etapas = [['campo', 'Campo'], ['social', 'Social'], ['tecnica', 'Técnica'], ['juridica', 'Jurídica']], okTot = 0;
@@ -23487,11 +23842,85 @@ function AV_gerarDescSituacao(){
     }).join('');
     $('pggEtapaGeral').textContent = n ? 'Progresso geral: ' + pct(okTot / (n * 4)) + ' das etapas concluídas · ' + okTot + ' de ' + (n * 4) : '';
 
+    // ---- 7. por lote: cadastros, área e etapas concluídas (sem R$) ----
+    var porLote = {};
+    it.forEach(function(x){
+      var q = sps2(x.lote) || '—', o = porLote[q] || (porLote[q] = {n:0, a:0, ok:0, p:0});
+      o.n++; o.a += numBR(x.area_desapropriada);
+      etapas.forEach(function(e){ var s = x.completude && x.completude[e[0]]; if(s && s.ok) o.ok++; });
+      DESPS.forEach(function(d){ if(x.desps && x.desps[d.k]) o.p++; });
+    });
+    var qs = Object.keys(porLote).sort(), maxN = qs.reduce(function(m, q){ return Math.max(m, porLote[q].n); }, 0);
+    $('pggLotes').innerHTML = qs.length ? qs.map(function(q){
+      var o = porLote[q];
+      return '<div class="pgg-lin pgg-lin2"><span class="pgg-lin-t"><b>SPS ' + q + '</b> · ' + escH(fmtHa(o.a)) + ' · ' + pct(o.ok / (o.n * 4)) + ' das etapas · ' + o.p + ' produto(s)</span><span class="pgg-lin-v">' + o.n + ' cad.</span>'
+        + '<span class="pgg-lin-b"><i data-w="' + (maxN ? o.n / maxN : 0).toFixed(4) + '" style="--c:#00e5ff"></i></span></div>';
+    }).join('') : '<div class="pgg-mini">Sem dados</div>';
+
     // barras recriadas crescem a partir de 0 (o que já existia só transiciona)
     requestAnimationFrame(function(){
-      Array.prototype.forEach.call(corpo.querySelectorAll('i[data-w]'), function(b){ b.style.width = (Number(b.getAttribute('data-w')) * 100).toFixed(2) + '%'; });
+      Array.prototype.forEach.call($('pggCorpo').querySelectorAll('i[data-w]'), function(b){ b.style.width = (Number(b.getAttribute('data-w')) * 100).toFixed(2) + '%'; });
     });
   }
+
+  function render(){
+    if(!aberto) return;
+    var todos = (window.PG_getItensTodos ? window.PG_getItensTodos() : []) || [];
+    var it = (window.PG_getItensFiltrados ? window.PG_getItensFiltrados() : []) || [];
+    var n = it.length, N = todos.length;
+    $('pggResumo').textContent = !N ? 'Carregando os cadastros…'
+      : (n === N ? N + ' cadastro(s) · sem filtros ativos' : n + ' de ' + N + ' cadastro(s) · acompanha os filtros da tabela');
+    ['pggGer', 'pggCorpo'].forEach(function(id){ $(id).classList.toggle('pgg-vazio', !n); });
+    if(aba === 'ger') renderGer(it); else renderOp(it, n, N);
+    animar = false;
+  }
+
+  /* ---------------- abas, janela, unidade ---------------- */
+  function trocarAba(nova, foco){
+    aba = nova === 'op' ? 'op' : 'ger';
+    try{ localStorage.setItem('pgg.aba', aba); }catch(e){}
+    [['pggAbaGer', 'pggGer', 'ger'], ['pggAbaOp', 'pggCorpo', 'op']].forEach(function(a){
+      var on = a[2] === aba, b = $(a[0]);
+      b.setAttribute('aria-selected', String(on)); b.tabIndex = on ? 0 : -1; $(a[1]).hidden = !on;
+      if(on && foco) b.focus();
+    });
+    esconderDica();
+    var corpo = $(aba === 'ger' ? 'pggGer' : 'pggCorpo');
+    corpo.classList.remove('pgg-anim'); void corpo.offsetWidth; corpo.classList.add('pgg-anim');
+    animar = true; render();
+  }
+  function ligar(){
+    var abas = [$('pggAbaGer'), $('pggAbaOp')];
+    abas.forEach(function(b, i){
+      b.addEventListener('click', function(){ trocarAba(b.getAttribute('data-aba')); });
+      b.addEventListener('keydown', function(e){
+        if(e.key === 'ArrowRight' || e.key === 'ArrowLeft' || e.key === 'Home' || e.key === 'End'){
+          e.preventDefault(); trocarAba(abas[(e.key === 'Home' ? 0 : e.key === 'End' ? 1 : 1 - i)].getAttribute('data-aba'), true);
+        }
+      });
+    });
+    var mover = function(dm){ var D = renderGer._D; if(!D) return; var ks = janela(D); janFim = ks[5] + dm; animar = true; render(); };
+    $('pgzJanAnt').addEventListener('click', function(){ mover(-1); });
+    $('pgzJanProx').addEventListener('click', function(){ mover(1); });
+    $('pgzJanHoje').addEventListener('click', function(){ janFim = null; animar = true; render(); });
+    Array.prototype.forEach.call(document.querySelectorAll('#pggGer .pgz-seg button'), function(b){
+      b.addEventListener('click', function(){
+        modo = b.getAttribute('data-modo') === 'qtd' ? 'qtd' : 'rs';
+        try{ localStorage.setItem('pgg.modo', modo); }catch(e){}
+        animar = true; render();
+      });
+    });
+    // gráficos em SVG medem a largura do painel: refaz quando ela muda (tela cheia, janela, celular)
+    if(window.ResizeObserver){
+      var larg0 = 0;
+      new ResizeObserver(function(ents){
+        var w = Math.round(ents[0].contentRect.width);
+        if(w === larg0) return; larg0 = w;
+        if(aberto && aba === 'ger') window.PG_grafAtualizar();
+      }).observe($('pggGer'));
+    }
+  }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ligar); else ligar();
 
   window.PG_grafAtualizar = function(){
     if(!aberto) return;
@@ -23507,12 +23936,12 @@ function AV_gerarDescSituacao(){
     aberto = true; painel.hidden = false; pg.classList.add('pgm-aberto', 'pgg-aberto', 'pgm-modo-mapa');
     painel.classList.remove('pgg-anim'); void painel.offsetWidth; painel.classList.add('pgg-anim');
     if(btn){ btn.setAttribute('aria-expanded', 'true'); btn.classList.add('pg-btn-primaria'); }
-    render();
+    trocarAba(aba);
     setTimeout(function(){ window.dispatchEvent(new Event('resize')); }, 30);
   }
   window.PG_grafFechar = function(){
     var pg = $('painelGeral'), painel = $('pgGrafPainel'), btn = $('pgBtnGraf');
-    aberto = false;
+    aberto = false; esconderDica();
     if(painel) painel.hidden = true;
     if(pg) pg.classList.remove('pgg-aberto');
     if(pg && !(window.PG_mapaAberto && window.PG_mapaAberto())) pg.classList.remove('pgm-aberto', 'pgm-modo-mapa');
@@ -44019,6 +44448,189 @@ body:not(.logado), body.ativ-pendente{ overflow:hidden !important; }
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ligar); else ligar();
 })();
 </script>
+<style id="pgg-abas">
+/* =====================================================================
+   Gráficos do Painel Geral em duas abas (12/10/2026):
+   Gerencial (diretoria, medições em R$) × Operacional (sem financeiro).
+   Usa os tokens --gl-* do glass-painel; os fallbacks valem sem ele.
+   ===================================================================== */
+#pgGrafPainel .pgg-corpo[hidden]{ display:none !important; }
+
+/* ---------- abas ---------- */
+#pgGrafPainel .pgz-abas{
+  flex:0 0 auto; display:flex; gap:4px; padding:8px 14px 0; border-bottom:1px solid rgba(15,34,54,.08);
+}
+#pgGrafPainel .pgz-aba{
+  position:relative; display:flex; flex-direction:column; align-items:flex-start; gap:1px; padding:7px 14px 9px; margin:0;
+  border:0; background:transparent; cursor:pointer; border-radius:8px 8px 0 0;
+  font:600 13px/1.2 var(--gl-disp,"Segoe UI",sans-serif); color:var(--gl-mut,#55616F);
+  transition:color var(--gl-t,180ms) var(--gl-ease,ease), background-color var(--gl-t,180ms) var(--gl-ease,ease);
+}
+#pgGrafPainel .pgz-aba small{ font:500 11px/1.2 var(--gl-font,"Segoe UI",sans-serif); color:var(--gl-sub,#7A8594); }
+#pgGrafPainel .pgz-aba:hover{ color:var(--gl-ink,#0F2236); background:rgba(15,34,54,.04); }
+#pgGrafPainel .pgz-aba[aria-selected="true"]{ color:var(--gl-ink,#0F2236); }
+#pgGrafPainel .pgz-aba::after{
+  content:""; position:absolute; left:10px; right:10px; bottom:-1px; height:2px; border-radius:2px;
+  background:var(--gl-navy,#1B3A5C); transform:scaleX(0); transition:transform 200ms var(--gl-ease,ease);
+}
+#pgGrafPainel .pgz-aba[aria-selected="true"]::after{ transform:scaleX(1); }
+
+/* ---------- barra da janela / unidade ---------- */
+#pgGrafPainel .pgz-barra{ grid-column:1 / -1; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px; }
+#pgGrafPainel .pgz-jan{ display:flex; align-items:center; gap:6px; }
+#pgGrafPainel .pgz-jan-t{ display:flex; flex-direction:column; min-width:132px; text-align:center; }
+#pgGrafPainel .pgz-jan-t small{ font:600 10px/1.2 var(--gl-font,sans-serif); letter-spacing:.07em; text-transform:uppercase; color:var(--gl-sub,#7A8594); }
+#pgGrafPainel .pgz-jan-t b{ font:600 15px/1.3 var(--gl-disp,sans-serif); color:var(--gl-ink,#0F2236); font-variant-numeric:tabular-nums; }
+#pgGrafPainel .pgz-nav, #pgGrafPainel .pgz-hoje, #pgGrafPainel .pgz-seg button{
+  height:30px; border:1px solid var(--gl-line,#DCE1E8); background:var(--gl-surf,#fff); color:var(--gl-txt,#1E2935);
+  border-radius:var(--gl-r-s,8px); font:600 12px/1 var(--gl-font,sans-serif); cursor:pointer; box-shadow:var(--gl-sh-1,none);
+  transition:background-color var(--gl-t,180ms) var(--gl-ease,ease), border-color var(--gl-t,180ms) var(--gl-ease,ease), color var(--gl-t,180ms);
+}
+#pgGrafPainel .pgz-nav{ width:30px; padding:0; display:inline-flex; align-items:center; justify-content:center; }
+#pgGrafPainel .pgz-nav svg{ width:16px; height:16px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+#pgGrafPainel .pgz-nav:disabled{ opacity:.4; cursor:default; }
+#pgGrafPainel .pgz-hoje{ padding:0 10px; margin-left:4px; }
+#pgGrafPainel .pgz-hoje[hidden]{ display:none; }
+#pgGrafPainel .pgz-nav:not(:disabled):hover, #pgGrafPainel .pgz-hoje:hover, #pgGrafPainel .pgz-seg button:hover{ border-color:#C6CDD7; background:var(--gl-surf-2,#F7F8FA); color:var(--gl-ink,#0F2236); }
+#pgGrafPainel .pgz-seg{ display:inline-flex; }
+#pgGrafPainel .pgz-seg button{ padding:0 12px; box-shadow:none; }
+#pgGrafPainel .pgz-seg button:first-child{ border-radius:var(--gl-r-s,8px) 0 0 var(--gl-r-s,8px); }
+#pgGrafPainel .pgz-seg button:last-child{ border-radius:0 var(--gl-r-s,8px) var(--gl-r-s,8px) 0; margin-left:-1px; }
+#pgGrafPainel .pgz-seg button[aria-pressed="true"]{ background:var(--gl-navy,#1B3A5C); border-color:var(--gl-navy,#1B3A5C); color:#fff; position:relative; }
+
+/* ---------- indicadores ---------- */
+#pgGrafPainel .pgz-kpis{ grid-column:1 / -1; display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; }
+#pgGrafPainel .pgz-kpi{
+  background:var(--gl-surf,#fff); border:1px solid var(--gl-line,#DCE1E8); border-radius:var(--gl-r-l,14px); box-shadow:var(--gl-sh-1,none);
+  padding:13px 15px; min-width:0; animation:glRise 220ms var(--gl-ease,ease) both;
+}
+#pgGrafPainel .pgz-kpi-r{ font:600 10.5px/1.25 var(--gl-font,sans-serif); letter-spacing:.07em; text-transform:uppercase; color:var(--gl-mut,#55616F); }
+#pgGrafPainel .pgz-kpi-v{ font:600 clamp(19px,2.1vw,24px)/1.15 var(--gl-disp,sans-serif); color:var(--gl-ink,#0F2236); margin-top:6px; font-variant-numeric:tabular-nums; letter-spacing:-.01em; overflow-wrap:anywhere; }
+#pgGrafPainel .pgz-kpi-v small{ font:500 12px/1 var(--gl-font,sans-serif); color:var(--gl-mut,#55616F); letter-spacing:0; }
+#pgGrafPainel .pgz-kpi-s{ font-size:11.5px; line-height:1.4; color:var(--gl-mut,#55616F); margin-top:5px; font-variant-numeric:tabular-nums; }
+#pgGrafPainel .pgz-kpi-b{ height:6px; border-radius:4px; background:var(--gl-trk,#EBEEF2); overflow:hidden; margin-top:9px; }
+#pgGrafPainel .pgz-kpi-b i{ display:block; height:100%; background:var(--gl-navy,#1B3A5C); border-radius:4px; transition:width 320ms var(--gl-ease,ease); }
+#pgGrafPainel .pgz-kpi-alerta{ border-color:#E6D3B3; background:linear-gradient(180deg,#FFFBF4,var(--gl-surf,#fff)); }
+#pgGrafPainel .pgz-kpi-alerta .pgz-kpi-r{ color:var(--gl-warn,#A66A12); }
+#pgGrafPainel .pgz-delta{ font-weight:700; }
+#pgGrafPainel .pgz-up{ color:var(--gl-ok,#2B7A57); }
+#pgGrafPainel .pgz-dn{ color:var(--gl-err,#AE3F38); }
+#pgGrafPainel .pgz-kpis > .pgz-kpi:nth-child(2){ animation-delay:30ms; }
+#pgGrafPainel .pgz-kpis > .pgz-kpi:nth-child(3){ animation-delay:60ms; }
+#pgGrafPainel .pgz-kpis > .pgz-kpi:nth-child(4){ animation-delay:90ms; }
+#pgGrafPainel .pgz-kpis > .pgz-kpi:nth-child(5){ animation-delay:120ms; }
+
+/* ---------- cartões com gráfico ---------- */
+#pgGrafPainel .pgz-card{ min-width:0; --c:var(--gl-navy,#1B3A5C); }
+#pgGrafPainel .pgz-cab{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px 16px; flex-wrap:wrap; margin-bottom:8px; }
+#pgGrafPainel .pgz-cab .pgg-tit{ margin-bottom:2px; }
+#pgGrafPainel .pgz-leg{ display:flex; flex-wrap:wrap; gap:6px 14px; font-size:12px; color:var(--gl-txt,#1E2935); }
+#pgGrafPainel .pgz-leg span{ display:inline-flex; align-items:center; gap:6px; white-space:nowrap; }
+#pgGrafPainel .pgz-leg i{ width:10px; height:10px; border-radius:3px; }
+#pgGrafPainel .pgz-leg em{ font-style:normal; color:var(--gl-mut,#55616F); font-size:11px; }
+#pgGrafPainel .pgz-graf{ position:relative; width:100%; min-height:120px; }
+#pgGrafPainel .pgz-svg{ display:block; max-width:100%; overflow:visible; font-family:var(--gl-font,"Segoe UI",sans-serif); }
+#pgGrafPainel .pgz-grade{ stroke:var(--gl-line-2,#ECEFF3); stroke-width:1; }
+#pgGrafPainel .pgz-base{ stroke:#C6CDD7; stroke-width:1; }
+#pgGrafPainel .pgz-eixo{ font-size:10.5px; fill:var(--gl-sub,#7A8594); font-variant-numeric:tabular-nums; }
+#pgGrafPainel .pgz-mes{ font-size:11.5px; font-weight:600; fill:var(--gl-txt,#1E2935); }
+#pgGrafPainel .pgz-mes-fut{ fill:var(--gl-sub,#7A8594); font-weight:500; }
+#pgGrafPainel .pgz-mes-atual{ fill:var(--gl-ink,#0F2236); font-weight:700; }
+#pgGrafPainel .pgz-mes-tag{ font-size:9.5px; letter-spacing:.06em; text-transform:uppercase; fill:var(--gl-sub,#7A8594); }
+#pgGrafPainel .pgz-atual{ fill:var(--gl-sel,#E7EDF4); opacity:.55; }
+#pgGrafPainel .pgz-tot{ font-size:11.5px; font-weight:700; fill:var(--gl-ink,#0F2236); font-variant-numeric:tabular-nums; }
+#pgGrafPainel .pgz-vazio{ fill:var(--gl-trk,#EBEEF2); }
+#pgGrafPainel .pgz-media{ stroke:var(--gl-graf,#323A45); stroke-width:1.25; stroke-dasharray:5 4; }
+#pgGrafPainel .pgz-media-bg{ fill:var(--gl-surf,#fff); opacity:.92; }
+#pgGrafPainel .pgz-media-t{ font-size:10.5px; font-weight:700; fill:var(--gl-graf,#323A45); font-variant-numeric:tabular-nums; }
+#pgGrafPainel .pgz-hit{ fill:transparent; cursor:default; outline:none; }
+#pgGrafPainel .pgz-hit:focus-visible{ fill:rgba(27,58,92,.06); stroke:var(--gl-navy,#1B3A5C); stroke-width:1.5; }
+#pgGrafPainel .pgz-col rect{ transition:opacity 150ms; }
+#pgGrafPainel .pgz-svg:has(.pgz-on) .pgz-col:not(:has(.pgz-on)) rect:not(.pgz-hit){ opacity:.4; }
+/* curva */
+#pgGrafPainel .pgz-area{ fill:var(--gl-navy,#1B3A5C); opacity:.08; }
+#pgGrafPainel .pgz-linha{ fill:none; stroke:var(--gl-navy,#1B3A5C); stroke-width:2.25; stroke-linejoin:round; stroke-linecap:round; }
+#pgGrafPainel .pgz-linha-fut{ stroke:var(--gl-navy-4,#A7B8CB); stroke-dasharray:4 4; stroke-width:1.75; }
+#pgGrafPainel .pgz-pt{ fill:var(--gl-surf,#fff); stroke:var(--gl-navy,#1B3A5C); stroke-width:2; }
+#pgGrafPainel .pgz-pt-fut{ stroke:var(--gl-navy-4,#A7B8CB); }
+
+/* entrada: barras crescem da base, linha se desenha, rosca gira */
+#pgGrafPainel .pgz-anim .pgz-col rect:not(.pgz-hit){ transform-box:fill-box; transform-origin:50% 100%; animation:pgzSobe 420ms var(--gl-ease,ease) both; animation-delay:var(--d,0ms); }
+#pgGrafPainel .pgz-anim .pgz-linha:not(.pgz-linha-fut){ stroke-dasharray:1200; stroke-dashoffset:1200; animation:pgzTraco 700ms var(--gl-ease,ease) forwards; }
+#pgGrafPainel .pgz-anim .pgz-area{ animation:glFade 500ms 200ms both; }
+#pgGrafPainel .pgz-rosca.pgz-anim .pgz-fatia{ animation:glFade 360ms var(--gl-ease,ease) both; animation-delay:var(--d,0ms); }
+@keyframes pgzSobe{ from{ transform:scaleY(0); } to{ transform:scaleY(1); } }
+@keyframes pgzTraco{ to{ stroke-dashoffset:0; } }
+@keyframes glFade{ from{ opacity:0; } to{ opacity:1; } }
+
+/* ---------- roscas ---------- */
+#pgGrafPainel .pgz-pizza{ display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+#pgGrafPainel .pgz-rosca{ width:150px; height:150px; flex:0 0 150px; overflow:visible; }
+#pgGrafPainel .pgz-trk{ fill:none; stroke:var(--gl-trk,#EBEEF2); stroke-width:18; }
+#pgGrafPainel .pgz-fatia{ fill:none; stroke-width:18; cursor:default; outline:none; transition:stroke-width 150ms var(--gl-ease,ease); }
+#pgGrafPainel .pgz-fatia.pgz-on, #pgGrafPainel .pgz-fatia:focus-visible{ stroke-width:23; }
+#pgGrafPainel .pgz-rc{ font:600 17px/1 var(--gl-disp,sans-serif); fill:var(--gl-ink,#0F2236); font-variant-numeric:tabular-nums; }
+#pgGrafPainel .pgz-rcs{ font-size:10px; letter-spacing:.06em; text-transform:uppercase; fill:var(--gl-sub,#7A8594); }
+#pgGrafPainel .pgz-rleg{ flex:1 1 170px; min-width:0; display:grid; gap:9px; }
+#pgGrafPainel .pgz-rl{ display:grid; grid-template-columns:10px minmax(0,1fr) 40px; grid-template-areas:"i t p" ". v v"; gap:1px 8px; align-items:center; font-size:12px; color:var(--gl-txt,#1E2935); }
+#pgGrafPainel .pgz-rl i{ grid-area:i; width:10px; height:10px; border-radius:3px; }
+#pgGrafPainel .pgz-rl span{ grid-area:t; font-weight:600; color:var(--gl-ink,#0F2236); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#pgGrafPainel .pgz-rl b{ grid-area:v; font-weight:500; color:var(--gl-mut,#55616F); font-size:11.5px; font-variant-numeric:tabular-nums; }
+#pgGrafPainel .pgz-rl em{ grid-area:p; font-style:normal; font-weight:700; color:var(--gl-ink,#0F2236); text-align:right; font-variant-numeric:tabular-nums; }
+
+/* ---------- dica ---------- */
+#pgGrafPainel .pgz-dica{
+  position:absolute; z-index:5; transform:translateX(-50%); pointer-events:none; min-width:190px; max-width:290px;
+  background:rgba(19,39,61,.96); color:#E6EDF5; border-radius:10px; padding:9px 11px; font-size:11.5px; line-height:1.35;
+  box-shadow:var(--gl-sh-3,0 12px 30px rgba(0,0,0,.25)); animation:glFade 120ms both;
+}
+#pgGrafPainel .pgz-dica[hidden]{ display:none; }
+#pgGrafPainel .pgz-dica > b{ display:block; color:#fff; font-size:12px; margin-bottom:5px; text-transform:capitalize; }
+#pgGrafPainel .pgz-dl{ display:grid; grid-template-columns:auto 1fr auto; gap:8px; align-items:center; margin-top:3px; font-variant-numeric:tabular-nums; }
+#pgGrafPainel .pgz-dl i{ display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:6px; }
+#pgGrafPainel .pgz-dl span{ color:#AFC3D9; text-align:right; }
+#pgGrafPainel .pgz-dl b{ color:#fff; }
+#pgGrafPainel .pgz-dl-t{ border-top:1px solid rgba(255,255,255,.14); padding-top:4px; margin-top:5px; }
+
+/* ---------- entregas por lote ---------- */
+#pgGrafPainel .pgz-lote{ margin-bottom:12px; }
+#pgGrafPainel .pgz-lote:last-child{ margin-bottom:0; }
+#pgGrafPainel .pgz-lote-h{ display:grid; grid-template-columns:auto 1fr auto; gap:8px; align-items:baseline; font-size:12px; color:var(--gl-mut,#55616F); }
+#pgGrafPainel .pgz-lote-h b{ color:var(--gl-ink,#0F2236); }
+#pgGrafPainel .pgz-lote-h em{ font-style:normal; font-weight:700; color:var(--gl-ink,#0F2236); font-variant-numeric:tabular-nums; }
+#pgGrafPainel .pgz-lote-b{ display:flex; height:12px; border-radius:4px; overflow:hidden; margin-top:5px; transition:width 320ms var(--gl-ease,ease); }
+#pgGrafPainel .pgz-lote-b i{ display:block; height:100%; }
+#pgGrafPainel .pgz-lote-b i + i{ box-shadow:-2px 0 0 var(--gl-surf,#fff); }
+#pgGrafPainel .pgz-semdado{ font-size:12.5px; color:var(--gl-mut,#55616F); padding:18px 0; text-align:center; }
+
+/* ---------- quadro de medições ---------- */
+#pgGrafPainel .pgz-tab-wrap{ overflow-x:auto; margin:0 -4px; }
+#pgGrafPainel .pgz-tab{ width:100%; border-collapse:collapse; font-size:12.5px; font-variant-numeric:tabular-nums; color:var(--gl-txt,#1E2935); min-width:560px; }
+#pgGrafPainel .pgz-tab th, #pgGrafPainel .pgz-tab td{ padding:7px 8px; text-align:center; border-bottom:1px solid var(--gl-line-2,#ECEFF3); white-space:nowrap; }
+#pgGrafPainel .pgz-tab thead th{ font:600 10.5px/1.2 var(--gl-font,sans-serif); letter-spacing:.06em; text-transform:uppercase; color:var(--gl-mut,#55616F); border-bottom:1px solid var(--gl-line,#DCE1E8); }
+#pgGrafPainel .pgz-tab thead th:first-child{ text-align:left; }
+#pgGrafPainel .pgz-tab tbody th, #pgGrafPainel .pgz-tab tfoot th{ text-align:left; font-weight:600; color:var(--gl-ink,#0F2236); }
+#pgGrafPainel .pgz-tab small{ font-size:10px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:var(--gl-sub,#7A8594); margin-left:4px; }
+#pgGrafPainel .pgz-tab .pgz-td-r{ text-align:right; }
+#pgGrafPainel .pgz-tab .pgz-td-p{ color:var(--gl-mut,#55616F); }
+#pgGrafPainel .pgz-tab b{ color:var(--gl-ink,#0F2236); font-weight:600; }
+#pgGrafPainel .pgz-tab tbody tr:hover{ background:var(--gl-hover,#F3F5F8); }
+#pgGrafPainel .pgz-tr-atual{ background:var(--gl-sel,#E7EDF4); }
+#pgGrafPainel .pgz-tr-fut td, #pgGrafPainel .pgz-tr-fut th{ color:var(--gl-sub,#7A8594); }
+#pgGrafPainel .pgz-tab tfoot tr:first-child > *{ border-top:2px solid var(--gl-line,#DCE1E8); background:var(--gl-surf-2,#F7F8FA); }
+#pgGrafPainel .pgz-tab tfoot b{ font-weight:700; }
+#pgGrafPainel .pgz-tr-media > *{ color:var(--gl-mut,#55616F); border-bottom:0; }
+#pgGrafPainel .pgz-nota{ margin-top:10px; font-size:11.5px; line-height:1.45; color:var(--gl-mut,#55616F); }
+#pgGrafPainel .pgz-nota ul{ margin:6px 0 0; padding-left:18px; color:var(--gl-warn,#A66A12); }
+
+@container pgg (max-width: 620px){
+  #pgGrafPainel .pgz-barra{ justify-content:center; }
+  #pgGrafPainel .pgz-rosca{ width:128px; height:128px; flex-basis:128px; }
+}
+@media (prefers-reduced-motion: reduce){
+  #pgGrafPainel .pgz-anim *, #pgGrafPainel .pgz-kpi, #pgGrafPainel .pgz-aba::after{ animation:none !important; transition:none !important; stroke-dashoffset:0 !important; }
+}
+</style>
 </body>
 
 
