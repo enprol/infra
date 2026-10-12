@@ -11992,8 +11992,10 @@ function construir(J, imgI, imgE, pagAnt, dry, AR, ANX){
     });
     yc += hMax;
   }
-  function fotoCartao(rot, src){
-    var hBox = 50, hh = 8 + hBox + 2;
+  /* as duas fotos dividem o que sobra da página (mínimo 50 mm cada, como antes) */
+  function altFotos(){ return Math.max(50, Math.min(120, (botY - yc - 1) / 2 - 10)); }
+  function fotoCartao(rot, src, hBox){
+    hBox = hBox || 50; var hh = 8 + hBox + 2;
     ensure(hh);
     caixa(mL, yc, cw, hh);
     pdf.setFont(FONT, "bold"); pdf.setFontSize(9); pdf.setTextColor(0, 0, 0); pdf.text(rot, mL + 1.5, yc + 5.2);
@@ -12019,7 +12021,7 @@ function construir(J, imgI, imgE, pagAnt, dry, AR, ANX){
     linhaCartao([R(4, "Longitude:", m.lon), R(4, "E:", m.E ? m.E + " m" : ""), R(4, "δ (λ):", m.dlam ? m.dlam + " m" : "")]);
     linhaCartao([R(4, "Altitude Elipsoidal:", m.alt ? m.alt + " m" : ""), R(4, "MC:", m.mc), R(4, "δ (h):", m.dh ? m.dh + " m" : "")]);
     linhaCartao([R(12, "Equipamento utilizado:", "Marca: " + (m.marca || "") + "; Modelo: " + (m.modelo || "") + "; Número de Série: " + (m.serie || "") + ".")]);
-    fotoCartao("Foto de Localização:", m.fl); fotoCartao("Foto de detalhe:", m.fd);
+    var hf = altFotos(); fotoCartao("Foto de Localização:", m.fl, hf); fotoCartao("Foto de detalhe:", m.fd, hf);
   }
   function cartaoBase(b){
     var R = function(span, rot, val){ return { span:span, rot:rot, val:val }; };
@@ -12033,7 +12035,7 @@ function construir(J, imgI, imgE, pagAnt, dry, AR, ANX){
     linhaCartao([R(4, "Fuso:", b.fuso), R(4, "N (m):", b.N ? b.N + " m" : ""), R(4, "δ (λ) =", b.dlam ? b.dlam + " m" : "")]);
     linhaCartao([R(4, "Meridiano Central:", b.mc), R(4, "", ""), R(4, "δ (h) =", b.dh ? b.dh + " m" : "")]);
     linhaCartao([R(4, "Tempo de rastreio:", b.rastreio), R(8, "Tempo de espera para processamento de dados topográficos (IBGE):", b.espera)]);
-    fotoCartao("Foto de Localização:", b.fl); fotoCartao("Foto de detalhe:", b.fd);
+    var hf = altFotos(); fotoCartao("Foto de Localização:", b.fl, hf); fotoCartao("Foto de detalhe:", b.fd, hf);
   }
 
   /* ---------- fecho da Conclusão ---------- */
