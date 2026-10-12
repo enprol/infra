@@ -12851,7 +12851,7 @@ async function gerarMapaProcesso(p, aoAndar, comSat){
       if(Math.round(q.c) % passoE) return;
       var qx = X(q.E), qy = Y(q.N); if(qx < M.x + 20 || qx > M.x + M.w - 20 || qy < M.y + 20 || qy > M.y + M.h - 20) return;
       if(kmA && [kmA.ini, kmA.fim].some(function(z){ return Math.hypot(X(z.E) - qx, Y(z.N) - qy) < 34; })) return;
-      if(marcos.some(function(m){ return Math.hypot(X(m.E) - qx, Y(m.N) - qy) < 16; })) return;
+      if(marcos.some(function(m){ return Math.hypot(X(m.E) - qx, Y(m.N) - qy) < 34; })) return;
       var a = ord[Math.max(0, i - 1)], b = ord[Math.min(ord.length - 1, i + 1)], ang = Math.atan2(-(b.N - a.N), b.E - a.E)*180/Math.PI;
       if(ang > 90) ang -= 180; if(ang < -90) ang += 180;
       s += txtHalo(qx, qy + 3, kmTxt(q.c).replace(/,00$/, ""), { size:9.5, weight:700, fill:corTxt(q.st), halo:"#16202b", hw:2.6, rot:ang });
@@ -12885,37 +12885,7 @@ async function gerarMapaProcesso(p, aoAndar, comSat){
   rotulos.forEach(function(r){ caixas.push([X(r.E) - 6, Y(r.N) - 6, X(r.E) + 6, Y(r.N) + 6]); });
   rotulos.forEach(function(r){ s += '<circle cx="' + X(r.E).toFixed(1) + '" cy="' + Y(r.N).toFixed(1) + '" r="5.2" fill="#e60000" stroke="#ffffff" stroke-width="1.8"/>'; });
   if(baseNoMapa){ var bx = X(base.E), by = Y(base.N); s += '<polygon points="' + bx.toFixed(1) + ',' + (by - 8).toFixed(1) + ' ' + (bx - 7).toFixed(1) + ',' + (by + 5).toFixed(1) + ' ' + (bx + 7).toFixed(1) + ',' + (by + 5).toFixed(1) + '" fill="#1565c0" stroke="#ffffff" stroke-width="1.6"/>'; caixas.push([bx - 8, by - 9, bx + 8, by + 6]); }
-  // KM inicial / final: nos dois vértices mais distantes da área (o mais a oeste = inicial, entrada do eixo).
-  // As chamadas vão antes dos códigos dos marcos, para os códigos desviarem delas.
-  var kmI = (p.kmIni || "").trim(), kmF = (p.kmFim || "").trim(), vv = vert.length ? vert : marcos.map(function(m){ return { E:m.E, N:m.N }; });
-  if((kmI || kmF) && (kmA || vv.length >= 2)){
-    var pa, pb;
-    if(kmA){ pa = kmA.ini; pb = kmA.fim; }                     // cruzamento do eixo (estacas) com a área
-    else {
-      var dm = -1; pa = vv[0]; pb = vv[1];
-      for(var ia = 0; ia < vv.length; ia++) for(var ib = ia + 1; ib < vv.length; ib++){ var d2 = Math.hypot(vv[ia].E - vv[ib].E, vv[ia].N - vv[ib].N); if(d2 > dm){ dm = d2; pa = vv[ia]; pb = vv[ib]; } }
-      if(pa.E > pb.E){ var tq = pa; pa = pb; pb = tq; }
-    }
-    [[pa, "KM INICIAL", kmI], [pb, "KM FINAL", kmF]].forEach(function(it){
-      if(!it[2]) return;
-      var qx = X(it[0].E), qy = Y(it[0].N), w = 150, h = 44, lns = [it[1] + " = " + it[2], "E = " + fmtBR(it[0].E, 3), "N = " + fmtBR(it[0].N, 3)];
-      var fx = (qx < cx0) ? -1 : 1, fy = (qy < cy0) ? -1 : 1, esc = null;
-      // candidatos: para fora da área primeiro, depois os demais quadrantes, em duas distâncias
-      [[fx, fy], [fx, -fy], [-fx, fy], [-fx, -fy]].some(function(dq){
-        return [70, 120].some(function(dist){
-          var lx2 = qx + dq[0]*dist, ly2 = qy + dq[1]*dist*.7, anc = dq[0] < 0 ? "end" : "start";
-          var b = anc === "end" ? [lx2 - w, ly2 - 12, lx2 + 2, ly2 + h - 12] : [lx2 - 2, ly2 - 12, lx2 + w, ly2 + h - 12];
-          if(bate(b)) return false;
-          esc = { lx:lx2, ly:ly2, anc:anc }; caixas.push(b); return true;
-        });
-      });
-      if(!esc){ var lxF = Math.max(M.x + 12 + w, Math.min(M.x + M.w - 12 - w, qx + fx*80)); esc = { lx:lxF, ly:Math.max(M.y + 30, Math.min(M.y + M.h - 44, qy + fy*60)), anc:fx < 0 ? "end" : "start" }; }
-      s += '<line x1="' + qx.toFixed(1) + '" y1="' + qy.toFixed(1) + '" x2="' + esc.lx.toFixed(1) + '" y2="' + esc.ly.toFixed(1) + '" stroke="#ffffff" stroke-opacity=".7" stroke-width="3.4"/>'
-        + '<line x1="' + qx.toFixed(1) + '" y1="' + qy.toFixed(1) + '" x2="' + esc.lx.toFixed(1) + '" y2="' + esc.ly.toFixed(1) + '" stroke="#16202b" stroke-width="1.3"/>'
-        + '<circle cx="' + qx.toFixed(1) + '" cy="' + qy.toFixed(1) + '" r="7.5" fill="none" stroke="#ffffff" stroke-width="2.6"/><circle cx="' + qx.toFixed(1) + '" cy="' + qy.toFixed(1) + '" r="7.5" fill="none" stroke="#ff020c" stroke-width="1.6"/>';
-      lns.forEach(function(t, i){ s += txtHalo(esc.lx, esc.ly + i*14, t, { anchor:esc.anc, size:10.5, weight:700, fill:(i === 0 ? TC.km : TC.f), halo:TC.h, hw:3.2 }); });
-    });
-  }
+  // (as chamadas de KM inicial/final no mapa foram retiradas a pedido; o KM segue nos campos e na legenda da figura)
   rotulos.forEach(function(r){ rotular(X(r.E), Y(r.N), r.txt, TC.f); });
   if(baseNoMapa) rotular(X(base.E), Y(base.N), "BASE", TC.base);
   s += gt + '</g>';
