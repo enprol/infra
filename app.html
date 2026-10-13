@@ -24929,6 +24929,8 @@ function AV_gerarDescSituacao(){
   var FL   = { id:"a3", nome:"A3", W:420, H:297, m:6 };
   var MAPA = { x:6, y:6, w:306, h:227 };                             // janela do desenho
   var TAB  = { x:314, y:6, w:100, h:227 };
+  var MAPA2 = { x:6, y:6, w:306, h:227 };                            // 13/10/2026: moldura inteira da folha (o mapa continua por baixo/ao redor do carimbo e da tabela nos formatos maiores)
+  var COBRE = false;                                                 // true: carimbo e tabela (fundo branco) ficam POR CIMA do mapa
   var CAR  = { x:6, y:235, w:408, h:56 };
   var KC = 1, KV = 1;                                                // fatores do carimbo (horizontal / vertical)
   function aplicarFormato(id){
@@ -24937,11 +24939,17 @@ function AV_gerarDescSituacao(){
     FL.m = 6;                                                        // 13/10/2026: margem da borda = a do A3 em todos os formatos
     CAR.h  = 62;                                                     // 13/10/2026: carimbo e tabela com as MEDIDAS do A3 em qualquer formato — só o quadro da planta cresce
     TAB.w  = 100;
+    var ext = (FL.id === "a3x" || FL.id === "a2x");                  // estendidos: o quadro OBSERVAÇÃO se alonga (largura do carimbo do A3 estendido)
     MAPA.x = FL.m; MAPA.y = FL.m;
     MAPA.w = FL.W - FL.m*2 - TAB.w - 2;
     MAPA.h = FL.H - FL.m*2 - CAR.h - 2;
-    TAB.x  = MAPA.x + MAPA.w + 2; TAB.y = FL.m; TAB.h = MAPA.h;
-    CAR.x  = FL.m; CAR.y = FL.m + MAPA.h + 2; CAR.w = FL.W - FL.m*2;
+    CAR.w  = Math.min(FL.W - FL.m*2, ext ? 618 : 408);
+    CAR.x  = FL.W - FL.m - CAR.w; CAR.y = FL.m + MAPA.h + 2;         // carimbo no canto inferior direito
+    TAB.h  = Math.min(MAPA.h, 227);                                  // tabela com a altura do A3, encostada acima do carimbo
+    TAB.x  = MAPA.x + MAPA.w + 2; TAB.y = MAPA.y + MAPA.h - TAB.h;
+    COBRE = (CAR.w < FL.W - FL.m*2 - .5) || (TAB.h < MAPA.h - .5);
+    if(COBRE){ MAPA2.x = FL.m; MAPA2.y = FL.m; MAPA2.w = FL.W - FL.m*2; MAPA2.h = FL.H - FL.m*2; }
+    else { MAPA2.x = MAPA.x; MAPA2.y = MAPA.y; MAPA2.w = MAPA.w; MAPA2.h = MAPA.h; }
     KC = CAR.w/408; KV = CAR.h/62;
     return FL;
   }
@@ -25164,7 +25172,7 @@ function AV_gerarDescSituacao(){
   }
   // desenha o satélite num canvas próprio do tamanho da janela do mapa; devolve dataURL
   async function rasterSatelite(T, dpi, aoAndar, opt){
-    var B = (opt && opt.box) || MAPA;                          // caixa em mm onde o raster será desenhado (padrão: a janela do mapa)
+    var B = (opt && opt.box) || MAPA2;                          // caixa em mm onde o raster será desenhado (padrão: a janela do mapa)
     var z = (opt && opt.z) || 18;                                                // cobertura real do Esri nesta região (igual ao Mapa Geral); em 19 os tiles voltam cinza
     var pxW = Math.round(B.w/25.4*dpi), pxH = Math.round(B.h/25.4*dpi);
     var cv = document.createElement("canvas"); cv.width = pxW; cv.height = pxH;
@@ -25646,11 +25654,11 @@ function AV_gerarDescSituacao(){
       if(p[0] < x0) x0 = p[0]; if(p[0] > x1) x1 = p[0];
       if(p[1] < y0) y0 = p[1]; if(p[1] > y1) y1 = p[1];
     }
-    return !(x1 < MAPA.x - m || x0 > MAPA.x + MAPA.w + m || y1 < MAPA.y - m || y0 > MAPA.y + MAPA.h + m);
+    return !(x1 < MAPA2.x - m || x0 > MAPA2.x + MAPA2.w + m || y1 < MAPA2.y - m || y0 > MAPA2.y + MAPA2.h + m);
   }
   function segNoMapa(a, b, m){
-    return !(Math.max(a[0], b[0]) < MAPA.x - m || Math.min(a[0], b[0]) > MAPA.x + MAPA.w + m ||
-             Math.max(a[1], b[1]) < MAPA.y - m || Math.min(a[1], b[1]) > MAPA.y + MAPA.h + m);
+    return !(Math.max(a[0], b[0]) < MAPA2.x - m || Math.min(a[0], b[0]) > MAPA2.x + MAPA2.w + m ||
+             Math.max(a[1], b[1]) < MAPA2.y - m || Math.min(a[1], b[1]) > MAPA2.y + MAPA2.h + m);
   }
   // trechos da polilinha que passam pela janela do mapa (evita desenhar dezenas de milhares de pontos)
   function recortar(pts, m){
@@ -27427,7 +27435,7 @@ function AV_gerarDescSituacao(){
   function dxfLarguraTxt(fam, txt){ var m = dxfMedidas(fam); m.ctx.font = "100px " + m.fonte; return m.ctx.measureText(txt).width/100/m.cap; }   // em alturas de maiúscula
   function desenharDxfQuadro(P, T, g){
     if(!g || !g.prims || !g.prims.length) return;
-    var E0 = T.E(MAPA.x), E1 = T.E(MAPA.x + MAPA.w), N0 = T.N(MAPA.y + MAPA.h), N1 = T.N(MAPA.y), cam = null;
+    var E0 = T.E(MAPA2.x), E1 = T.E(MAPA2.x + MAPA2.w), N0 = T.N(MAPA2.y + MAPA2.h), N1 = T.N(MAPA2.y), cam = null;
     g.prims.forEach(function(p){
       var b = p.bb; if(b[2] < E0 || b[0] > E1 || b[3] < N0 || b[1] > N1) return;
       if(p.layer !== cam){ cam = p.layer; CAMDXF(P, "DXF_" + String(cam).toUpperCase().replace(/[^A-Z0-9_-]+/g, "_").slice(0, 60)); }
@@ -27507,10 +27515,10 @@ function AV_gerarDescSituacao(){
     /* ---------- janela do mapa ---------- */
     CAIXAS_ESTACA = [];
     CAMDXF(P, "ENP_MAPA_MOLDURA");
-    P.ret(MAPA.x, MAPA.y, MAPA.w, MAPA.h, { peso:.3 });
-    P.clip(MAPA.x, MAPA.y, MAPA.w, MAPA.h);
+    P.ret(MAPA2.x, MAPA2.y, MAPA2.w, MAPA2.h, { peso:.3 });
+    P.clip(MAPA2.x, MAPA2.y, MAPA2.w, MAPA2.h);
     // 09/10/2026: o DXF é COMPLEMENTO do mapa automático (por cima das camadas, por baixo do perímetro/rótulos do KML)
-    if((op.satelite || op.ortofoto) && op.rasterSat) P.img({ el:op.rasterSatEl, url:op.rasterSat }, MAPA.x, MAPA.y, MAPA.w, MAPA.h, { opac:(op.opacSat != null ? op.opacSat : EST("raster").opac/100) });
+    if((op.satelite || op.ortofoto) && op.rasterSat) P.img({ el:op.rasterSatEl, url:op.rasterSat }, MAPA2.x, MAPA2.y, MAPA2.w, MAPA2.h, { opac:(op.opacSat != null ? op.opacSat : EST("raster").opac/100) });
     if(op.ambiental) desenharAmbientais(P, T, op.ambientais);
     if(op.projeto && op.projGrupo) desenharProjeto(P, T, op.projGrupo, op.limGeo);
     // estaqueamento = símbolo do eixo: sem estacas no projeto, o eixo volta aos traços de ferrovia
@@ -27528,19 +27536,19 @@ function AV_gerarDescSituacao(){
       if(P.soPapel) P.soPapel(true);                 // DXF: a malha é da moldura (vai para a prancha, não para o modelo)
       var passoM = [10,20,25,50,100,200,250,500,1000].find(function(m){ return m*T.mmPorM >= 26; }) || 1000;
       var em = EST("malha"), oM = { cor:em.cor, peso:em.peso, tracejado:(em.trac ? [1.2,1.2] : []), opac:.85 };
-      var e0 = Math.ceil(T.E(MAPA.x)/passoM)*passoM, e1 = T.E(MAPA.x + MAPA.w);
+      var e0 = Math.ceil(T.E(MAPA2.x)/passoM)*passoM, e1 = T.E(MAPA2.x + MAPA2.w);
       for(var E = e0; E <= e1; E += passoM){
         var x = T.x(E);
-        P.linha(x, MAPA.y, x, MAPA.y + MAPA.h, oM);
-        P.texto(x, MAPA.y + 3.6, br(E,0), { tam:TAM.grade, cor:em.corTxt, align:"center", halo:true });
-        P.texto(x, MAPA.y + MAPA.h - 1.6, br(E,0), { tam:TAM.grade, cor:em.corTxt, align:"center", halo:true });
+        P.linha(x, MAPA2.y, x, MAPA2.y + MAPA2.h, oM);
+        P.texto(x, MAPA2.y + 3.6, br(E,0), { tam:TAM.grade, cor:em.corTxt, align:"center", halo:true });
+        P.texto(x, MAPA2.y + MAPA2.h - 1.6, br(E,0), { tam:TAM.grade, cor:em.corTxt, align:"center", halo:true });
       }
-      var n0 = Math.ceil(T.N(MAPA.y + MAPA.h)/passoM)*passoM, n1 = T.N(MAPA.y);
+      var n0 = Math.ceil(T.N(MAPA2.y + MAPA2.h)/passoM)*passoM, n1 = T.N(MAPA2.y);
       for(var N = n0; N <= n1; N += passoM){
         var yy = T.y(N);
-        P.linha(MAPA.x, yy, MAPA.x + MAPA.w, yy, oM);
-        P.texto(MAPA.x + 3.6, yy - 1.1, br(N,0), { tam:TAM.grade, cor:em.corTxt, rot:90, halo:true });
-        P.texto(MAPA.x + MAPA.w - 1.6, yy - 1.1, br(N,0), { tam:TAM.grade, cor:em.corTxt, rot:90, align:"right", halo:true });
+        P.linha(MAPA2.x, yy, MAPA2.x + MAPA2.w, yy, oM);
+        P.texto(MAPA2.x + 3.6, yy - 1.1, br(N,0), { tam:TAM.grade, cor:em.corTxt, rot:90, halo:true });
+        P.texto(MAPA2.x + MAPA2.w - 1.6, yy - 1.1, br(N,0), { tam:TAM.grade, cor:em.corTxt, rot:90, align:"right", halo:true });
       }
       if(P.soPapel) P.soPapel(false);
     }
@@ -27637,7 +27645,7 @@ function AV_gerarDescSituacao(){
     (function(){
       // sem logotipos no topo: os do carimbo bastam, e a altura livre vira linha de tabela
       CAMDXF(P, "ENP_TABELA");
-      P.ret(TAB.x, TAB.y, TAB.w, TAB.h, { peso:.3 });
+      P.ret(TAB.x, TAB.y, TAB.w, TAB.h, { peso:.3, fill:(COBRE ? "#ffffff" : null) });
       var y = TAB.y + 5.8;
       P.texto(TAB.x + TAB.w/2, y, geral ? "RESUMO DAS ÁREAS A DESAPROPRIAR" : "TABELA DE DISTÂNCIA, COORDENADAS E AZIMUTES", { tam:6.4, bold:true, align:"center" }); y += 4.6;
       P.texto(TAB.x + 2, y, "DATUM DE REFERÊNCIA: SIRGAS 2000", { tam:5.3 });
@@ -27808,7 +27816,7 @@ function AV_gerarDescSituacao(){
     pg = pg || { n:1, total:1 };
     var x = CAR.x, y = CAR.y, w = CAR.w, h = CAR.h;
     var V = h/62, KL = V;            // V: fator vertical (A3 = 1). 08/10/2026: colunas escalam igual à altura (proporções do carimbo fixas); a coluna do título fica com a largura que sobra
-    P.ret(x, y, w, h, { peso:.4 });
+    P.ret(x, y, w, h, { peso:.4, fill:(COBRE ? "#ffffff" : null) });
     // colunas: OBSERVAÇÃO | LEGENDA | RESPONSÁVEL+DATA | TÍTULO+DADOS (o título fica com a sobra).
     // A legenda ganhou largura à custa da observação; responsável e data viraram um quadro só,
     // porque a data é a da própria assinatura.
@@ -28140,7 +28148,7 @@ function AV_gerarDescSituacao(){
   }
   function chaveSat(T){ return [T.esc, T.cx.toFixed(1), T.cy.toFixed(1)].join("|"); }
   function limGeo(T){
-    var c1 = utmInv(T.E(MAPA.x), T.N(MAPA.y), G.fuso, G.sul), c2 = utmInv(T.E(MAPA.x+MAPA.w), T.N(MAPA.y+MAPA.h), G.fuso, G.sul);
+    var c1 = utmInv(T.E(MAPA2.x), T.N(MAPA2.y), G.fuso, G.sul), c2 = utmInv(T.E(MAPA2.x+MAPA2.w), T.N(MAPA2.y+MAPA2.h), G.fuso, G.sul);
     return { lo0:Math.min(c1[0],c2[0])-.002, lo1:Math.max(c1[0],c2[0])+.002, la0:Math.min(c1[1],c2[1])-.002, la1:Math.max(c1[1],c2[1])+.002 };
   }
   var LOGOS = null;
@@ -28175,8 +28183,8 @@ function AV_gerarDescSituacao(){
     if(op.ortofoto){
       if(aviso) aviso("Pedindo o recorte da ortofoto ao servidor…");
       var sps = spsAtual() || "04";
-      var bb = [T.E(MAPA.x), T.N(MAPA.y + MAPA.h), T.E(MAPA.x + MAPA.w), T.N(MAPA.y)].map(function(v){ return Math.round(v*100)/100; });
-      var px = Math.round(MAPA.w/25.4*Math.max(dpi, 200));   // ortofoto: nunca abaixo de 200 dpi (a prévia pede 110 e ficava borrada)
+      var bb = [T.E(MAPA2.x), T.N(MAPA2.y + MAPA2.h), T.E(MAPA2.x + MAPA2.w), T.N(MAPA2.y)].map(function(v){ return Math.round(v*100)/100; });
+      var px = Math.round(MAPA2.w/25.4*Math.max(dpi, 200));   // ortofoto: nunca abaixo de 200 dpi (a prévia pede 110 e ficava borrada)
       try{
         var r = await fetch("/api/ortofoto/" + sps + "?bbox=" + bb.join(",") + "&px=" + px);
         if(!r.ok){ var j = null; try{ j = await r.json(); }catch(e){} throw new Error((j && j.erro) || ("HTTP " + r.status)); }
