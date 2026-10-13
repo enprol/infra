@@ -26017,7 +26017,15 @@ function AV_gerarDescSituacao(){
       desenhar(P, po, CLARO, inter.length ? origem : null);
       if(!inter.length) return;
       CAMDXF(P, camada + "_INTERSECAO");
-      inter.forEach(function(r){ var pr = mm(r); if(pr.length >= 3) desenhar(P, pr, 0, origem); pecas.push(r); });
+      var eC = EST(tipo === "est" ? "app_est" : tipo);
+      inter.forEach(function(r){
+        var pr = mm(r);
+        if(pr.length >= 3){
+          desenhar(P, pr, 0, origem);
+          P.poli(pr, { cor:eC.cor || "#111111", peso:Math.max(.9, (eC.peso || .35)*2.6) });   // contorno destacado da interseção (13/10/2026)
+        }
+        pecas.push(r);
+      });
     });
     if(rotulo && pecas.length){
       var e = EST(tipo === "est" ? "app_est" : tipo);
@@ -26027,12 +26035,15 @@ function AV_gerarDescSituacao(){
         var ha = Math.abs(areaAnel(r))/10000; if(ha < .00005) return;
         var pt = pontoRotulo(r), q = [T.x(pt[0]), T.y(pt[1])];
         if(!noMapa(q, 0)) return;
-        var txt = rotulo + ": " + br(ha, 4) + " ha", o = { tam:TAM.conf, bold:true, align:"center", cor:e.cor || "#111111", halo:true };
-        var w = P.largura(txt, o), hL = TAM.conf*.3528*1.5, y = q[1];
-        function bate(yy){ return ROT_OCUP.some(function(b){ return Math.abs(b.x - q[0]) < (b.w + w)/2 && Math.abs(b.y - yy) < hL; }); }
+        // título em cima (nome da camada) e a área embaixo, em corpo maior (13/10/2026)
+        var t1 = String(rotulo), t2 = br(ha, 4) + " ha", tt = TAM.conf*1.5, ta = TAM.conf*1.4;
+        var o1 = { tam:tt, bold:true, align:"center", cor:e.cor || "#111111", halo:true }, o2 = { tam:ta, bold:true, align:"center", cor:"#111111", halo:true };
+        var h1 = tt*.3528*.78, h2 = ta*.3528*.78, w = Math.max(P.largura(t1, o1), P.largura(t2, o2)), hL = h1 + 1.2 + h2 + 1.2, y = q[1];
+        function bate(yy){ return ROT_OCUP.some(function(b){ return Math.abs(b.x - q[0]) < (b.w + w)/2 && Math.abs(b.y - yy) < (b.h + hL)/2; }); }
         for(var k = 1; k <= 8 && bate(y); k++) y = q[1] + (k % 2 ? 1 : -1)*Math.ceil(k/2)*hL;   // desce/sobe até ficar livre
-        ROT_OCUP.push({ x:q[0], y:y, w:w });
-        P.texto(q[0], y, txt, o);
+        ROT_OCUP.push({ x:q[0], y:y, w:w, h:hL });
+        P.texto(q[0], y - hL/2 + h1 + .6, t1, o1);
+        P.texto(q[0], y + hL/2 - .6, t2, o2);
       });
     }
     return pecas;
@@ -26410,7 +26421,7 @@ function AV_gerarDescSituacao(){
       var x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
       pol.forEach(function(p){ x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); });
       var cx = (x0 + x1)/2, cy = (y0 + y1)/2;
-      var t1 = "ÁREA " + (a.i + 1), t2 = br(a.area_m2/10000, 4) + " ha";
+      var t1 = aneisUtm().length > 1 ? ("ÁREA " + (a.i + 1)) : "ÁREA", t2 = br(a.area_m2/10000, 4) + " ha";
       var h1 = tam*.3528*.78, h2 = tam2*.3528*.78, hh = h1 + 1 + h2;
       var w = Math.max(P.largura(t1, { tam:tam, bold:true }), P.largura(t2, { tam:tam2, bold:true })) + 1.6;
       var dentro = ptEmPoli(cx, cy, pol) && (x1 - x0) > w + 2 && (y1 - y0) > hh + 2;
@@ -26459,7 +26470,7 @@ function AV_gerarDescSituacao(){
        o nome do próprio cadastro) e a faixa de domínio saem só com o texto. */
     function prefixoDe(g){
       var raw = String(brutosM[g.segs[0]] || ""), tp = tipoConf(raw, dvM[g.segs[0]]);
-      return (tp === "" && raw.trim() && !semExpropriado(raw)) ? "Expropriado:" : "";
+      return "";   /* lote10: 13/10/2026 — sem o prefixo "Expropriado:" */
     }
     /* 05/10/2026: o conjunto de divisas do mesmo confrontante é lido como UMA linha — o nome fica centralizado no
        comprimento TOTAL e orientado pela corda (1º ao último vértice do conjunto). Primeiro tenta um corpo em que o
@@ -26497,15 +26508,15 @@ function AV_gerarDescSituacao(){
         return { mx:mx, my:my, nx:nx, ny:ny, tx:tx, ty:ty };
       }
       var nome = g.nome.length > 42 ? g.nome.slice(0,41) + "…" : g.nome, posto = false, pref = prefixoDe(g);
-      var fracs = [.5, .4, .6, .3, .7, .2, .8], escalas = [1, .88, .76, .64, .52];
-      for(var fase = 0; fase < 3 && !posto; fase++){
+      var fracs = [.5, .4, .6, .3, .7, .2, .8], escalas = [1, .88, .76, .64, .52, .44, .36];
+      for(var fase = 0; fase < 4 && !posto; fase++){
         for(var si = 0; si < escalas.length && !posto; si++){
           var tz = tam*escalas[si], hz = tz*.3528*.78;
           var tp2 = tz*.82, hp = pref ? tp2*.3528*.78 + 1.2 : 0, hbox = hz + hp;   // hp = altura do "Expropriado:" + folga
           var w = Math.max(P.largura(nome, { tam:tz, bold:true }), pref ? P.largura(pref, { tam:tp2 }) : 0) + 1.4;
           if(fase === 0 && w > tot + .5) continue;       // 1ª tentativa: o nome cabe no comprimento total das divisas
           for(var fi = 0; fi < fracs.length && !posto; fi++){          // o meio do comprimento total primeiro, em qualquer distância
-            for(var d = 4.6 + hbox/2; d <= 36 && !posto; d += 2.8){
+            for(var d = 4.6 + hbox/2; d <= (fase >= 2 ? 60 : 36) && !posto; d += 2.8){
               var q = sobre(fracs[fi]);
               var ang = -Math.atan2(q.ty, q.tx)*180/Math.PI; if(ang > 90) ang -= 180; if(ang <= -90) ang += 180;
               var r = ang*Math.PI/180, up = [-Math.sin(r), -Math.cos(r)], ux = Math.cos(r), uy = -Math.sin(r);
@@ -26514,7 +26525,7 @@ function AV_gerarDescSituacao(){
               if(!noMapa([bb[0], bb[1]], -1) || !noMapa([bb[2], bb[3]], -1)) continue;
               if(ptEmPoli(cx, cy, pol) || ptEmPoli(cx + ux*w/2, cy + uy*w/2, pol) || ptEmPoli(cx - ux*w/2, cy - uy*w/2, pol)) continue;
               if(caixas.some(function(b){ return rotRetCruza(cx, cy, w, hbox + .8, ang, b, .4); })) continue;
-              if(fase < 2 && CAIXAS_ESTACA.some(function(b){ return rotRetCruza(cx, cy, w, hbox + .8, ang, b, .4); })) continue;
+              if(fase < 3 && CAIXAS_ESTACA.some(function(b){ return rotRetCruza(cx, cy, w, hbox + .8, ang, b, .6); })) continue;   // só a última tentativa ignora as estacas
               caixas.push(bb);
               // bloco centrado em (cx,cy), eixo "up" para cima: o nome fica embaixo e o "Expropriado:" logo acima dele
               P.texto(cx - up[0]*hbox/2, cy - up[1]*hbox/2, nome, { tam:tz, bold:true, align:"center", rot:ang, cor:"#14425f", halo:true });
@@ -26593,7 +26604,7 @@ function AV_gerarDescSituacao(){
       var aMax = 0; pts.forEach(function(p){ var a = ((p[0]-q0.x)*q0.tx + (p[1]-q0.y)*q0.ty)*dir; if(a > aMax) aMax = a; });
       var cima = q0.tx >= 0 ? -1 : 1;                   // normal (-ty, tx)*cima aponta para cima na tela (y do papel cresce para baixo)
       var lados = dir < 0 ? [cima, -cima] : [-cima, cima];
-      var nome = g.nome.length > 42 ? g.nome.slice(0,41) + "…" : g.nome, posto = false, pref = semExpropriado(raw) ? "" : "Expropriado:";
+      var nome = g.nome.length > 42 ? g.nome.slice(0,41) + "…" : g.nome, posto = false, pref = "";
       var escalas = [1, .88, .76, .64], folgas = [2, 5, 9, 14, 20, 28, 38];
       for(var si = 0; si < escalas.length && !posto; si++){
         var tz = tam*escalas[si], hz = tz*.3528*.78, tp2 = tz*.82, hp = pref ? tp2*.3528*.78 + 1.2 : 0, hbox = hz + hp;
@@ -26608,7 +26619,7 @@ function AV_gerarDescSituacao(){
             if(!noMapa([bb[0], bb[1]], -1) || !noMapa([bb[2], bb[3]], -1)) continue;
             if(ptEmPoli(cx, cy, pol) || ptEmPoli(cx + ux*w/2, cy + uy*w/2, pol) || ptEmPoli(cx - ux*w/2, cy - uy*w/2, pol)) continue;
             if(caixas.some(function(b){ return caixasSeCruzam(bb, b, .4); })) continue;
-            if(CAIXAS_ESTACA.some(function(b){ return caixasSeCruzam(bb, b, .4); })) continue;
+            if(CAIXAS_ESTACA.some(function(b){ return rotRetCruza(cx, cy, w, hbox + .8, ang, b, .8); })) continue;
             caixas.push(bb);
             P.texto(cx - up[0]*hbox/2, cy - up[1]*hbox/2, nome, { tam:tz, bold:true, align:"center", rot:ang, cor:"#14425f", halo:true });
             if(pref) P.texto(cx + up[0]*(hz + 1.2 - hbox/2), cy + up[1]*(hz + 1.2 - hbox/2), pref, { tam:tp2, align:"center", rot:ang, cor:"#14425f", halo:true });
@@ -45790,6 +45801,13 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
   if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", ligar); else ligar();
 })();
 </script>
+<style id="lote10-abas-css">
+#panel-desp1-planta .mdp-abas{display:flex;gap:2px;margin:-2px -2px 12px;border-bottom:2px solid #10283a;}
+#panel-desp1-planta .mdp-abas button{flex:1 1 0;border:0;background:#e9eef3;color:#4b6073;font:700 12px Bahnschrift,"Segoe UI",sans-serif;letter-spacing:.06em;text-transform:uppercase;padding:9px 10px;cursor:pointer;border-radius:8px 8px 0 0;transition:background .15s,color .15s;}
+#panel-desp1-planta .mdp-abas button:hover{background:#dbe5ee;}
+#panel-desp1-planta .mdp-abas button.on{background:#10283a;color:#fff;}
+#panel-desp1-planta .mdp-abas button:focus-visible{outline:2px solid #1B3A5C;outline-offset:2px;}
+</style>
 </body>
 
 
