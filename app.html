@@ -43533,7 +43533,7 @@ window.__ASSIN_DESENHISTA__ = {"andrezza": {"w": 460, "h": 164, "src": "data:ima
       try{ r = await orig.apply(this, arguments); }
       finally{ if(meu && window.FS_salvar === meu) window.FS_salvar = real; }
       var res = (r && r.blob) ? r : capt;                           // {retornar:true} devolve o blob; senão captura no FS_salvar
-      if(res) enviar(tipo, res.blob, res.nome);
+      if(res && !window.__PDF_PREVIA) enviar(tipo, res.blob, res.nome);   // pré-visualização: não envia
       return r;
     };
     nova.__produto = true;
@@ -45604,6 +45604,119 @@ window.MG_motion={abertura:abertura,cadastro:cadastro,fichas:fichas};
 #mdp_aba_car .car-obs-lista li em{ font-style:normal; font-size:11px; color:#55616F; white-space:nowrap; }
 #mdp_aba_car .car-obs-vazio{ margin:4px 0 0; font-size:12.5px; color:#55616F; }
 </style>
+<style id="lote6-rel-css">
+/* ===== Padrão único das abas de relatório (13/10/2026) — mesmo visual do "Conteúdo" da DESP-2, nos dois modos ===== */
+section.tab-panel.rel-pad{ background:#e9eef3 repeating-linear-gradient(135deg, rgba(10,77,124,.025) 0 2px, transparent 2px 16px) !important; padding-top:16px !important; }
+section.tab-panel.rel-pad > .wrap > .sub, section.tab-panel.rel-pad .wrap > p.sub:first-of-type{ display:none !important; }
+section.tab-panel.rel-pad .rel-pad-topo{ display:flex; align-items:center; flex-wrap:wrap; gap:8px 14px; margin:0 0 12px; }
+section.tab-panel.rel-pad .rel-pad-topo h1{ flex:1 1 320px; font-size:17px !important; margin:0 !important; letter-spacing:.2px; }
+section.tab-panel.rel-pad .rel-pad-acoes{ display:flex; flex-wrap:wrap; gap:8px; }
+section.tab-panel.rel-pad .rel-pad-acoes button{ display:inline-flex; align-items:center; gap:7px; min-height:34px; padding:7px 14px; border-radius:9px; border:1px solid #c9d2dc; background:#fff; color:#0F2236; font:600 13px "Segoe UI",Arial,sans-serif; cursor:pointer; }
+section.tab-panel.rel-pad .rel-pad-acoes button:hover{ border-color:#A7B8CB; background:#F4F6F9; }
+section.tab-panel.rel-pad .rel-pad-acoes button.pri{ background:#1B3A5C; border-color:#1B3A5C; color:#fff; }
+section.tab-panel.rel-pad .rel-pad-acoes button.pri:hover{ background:#264B72; }
+section.tab-panel.rel-pad .rel-pad-acoes button:focus-visible{ outline:2px solid #1B3A5C; outline-offset:2px; }
+section.tab-panel.rel-pad .rel-pad-acoes svg{ width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+section.tab-panel.rel-pad .dd-sw{ display:inline-grid !important; grid-template-columns:auto auto !important; margin:0 0 12px !important; padding:3px !important; border-radius:11px !important; }
+section.tab-panel.rel-pad .dd-sw button{ padding:6px 12px !important; }
+section.tab-panel.rel-pad .dd-sw button small{ display:none !important; }
+section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
+#relprev_ov{ position:fixed; inset:0; z-index:10060; display:flex; align-items:center; justify-content:center; padding:16px; background:rgba(15,34,54,.5); -webkit-backdrop-filter:blur(5px); backdrop-filter:blur(5px); }
+#relprev_ov[hidden]{ display:none; }
+#relprev_ov .relprev-box{ width:min(1100px,96vw); height:min(92vh,1100px); display:flex; flex-direction:column; background:#fff; border-radius:14px; overflow:hidden; box-shadow:0 24px 70px rgba(0,0,0,.35); }
+#relprev_ov header{ display:flex; align-items:center; gap:10px; padding:11px 16px; border-bottom:1px solid #E6EAF0; }
+#relprev_ov header h3{ margin:0; flex:1; font:600 15px "Segoe UI",sans-serif; color:#0F2236; }
+#relprev_ov header button, #relprev_ov footer button{ border:1px solid #DCE1E8; background:#fff; color:#0F2236; border-radius:8px; padding:7px 14px; font:600 13px "Segoe UI",sans-serif; cursor:pointer; }
+#relprev_ov footer button.pri{ background:#1B3A5C; border-color:#1B3A5C; color:#fff; }
+#relprev_ov .relprev-corpo{ flex:1; position:relative; background:#525659; }
+#relprev_ov iframe{ position:absolute; inset:0; width:100%; height:100%; border:0; }
+#relprev_ov .relprev-msg{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; padding:24px; text-align:center; color:#fff; font:500 14px "Segoe UI",sans-serif; }
+#relprev_ov footer{ display:flex; align-items:center; gap:10px; padding:10px 16px; border-top:1px solid #E6EAF0; }
+#relprev_ov footer small{ flex:1; color:#55616F; font-size:12px; }
+</style>
+<div id="relprev_ov" hidden>
+  <div class="relprev-box" role="dialog" aria-modal="true" aria-labelledby="relprev_tit">
+    <header><h3 id="relprev_tit">Pré-visualização do PDF</h3><button type="button" id="relprev_x" aria-label="Fechar">Fechar</button></header>
+    <div class="relprev-corpo"><div class="relprev-msg" id="relprev_msg">Gerando a pré-visualização…</div><iframe id="relprev_if" title="Pré-visualização do PDF" hidden></iframe></div>
+    <footer><small>Só para conferir — nada foi salvo nem enviado ao servidor.</small><button type="button" class="pri" id="relprev_salvar">Gerar e salvar o PDF</button></footer>
+  </div>
+</div>
+<script id="lote6-rel-js">
+/* Padrão único das abas de relatório (13/10/2026). Uma aba nova de relatório entra no padrão com uma linha aqui:
+   { painel, nome, previa: () => Promise<{blob, nome}> (sem salvar), salvar: () => gera e salva como sempre }.
+   barra:false = a aba já tem a própria barra com pré-visualização (Marcos). */
+(function(){
+  "use strict";
+  function $(id){ return document.getElementById(id); }
+  function ret(fn){ return function(){ var f = window[fn]; if(typeof f !== "function") return Promise.reject(new Error("gerador indisponível")); return Promise.resolve(f({ retornar:true })); }; }
+  function sal(fn){ return function(){ var f = window[fn]; if(typeof f === "function") return f(); }; }
+  var REL_PADRAO = [
+    { painel:"panel-desp2-relatorio", fn:"D2_gerarPDF", nome:"DESP-2 — Análise de Impacto e Transposição", previa:ret("D2_gerarPDF"), salvar:sal("D2_gerarPDF") },
+    { painel:"panel-desp1-vist", fn:"FB_gerarPDF", nome:"Ficha de Vistoria (Anexo B)", previa:ret("FB_gerarPDF"), salvar:sal("FB_gerarPDF") },
+    { painel:"panel-desp1-rel", fn:"REL_gerarPDF", nome:"Relatório Socioeconômico", previa:ret("REL_gerarPDF"), salvar:sal("REL_gerarPDF") },
+    { painel:"panel-desp1-drl", fn:"DRL_gerarPDF", nome:"DRL — Declaração de Respeito de Limites", previa:ret("DRL_gerarPDF"), salvar:sal("DRL_gerarPDF") },
+    { painel:"panel-desp1-parecer", fn:"PAR_gerarPDF", nome:"Parecer Jurídico", previa:ret("PAR_gerarPDF"), salvar:sal("PAR_gerarPDF") },
+    { painel:"panel-avaliacao-ftn", fn:"AVFTN_gerarPDF", nome:"Avaliação da terra nua (FTN)",
+      previa:function(){ if(typeof window.AVFTN_buildBytes !== "function") return Promise.reject(new Error("gerador indisponível"));
+        return Promise.resolve(window.AVFTN_buildBytes()).then(function(b){ return { blob:new Blob([b], { type:"application/pdf" }), nome:"Avaliacao_terra_nua.pdf" }; }); },
+      salvar:sal("AVFTN_gerarPDF") },
+    { painel:"panel-util-marcos", nome:"Implantação e Monografia de Marcos", barra:false }
+  ];
+  window.REL_PADRAO = REL_PADRAO;
+  var ICO_OLHO = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+  var ICO_PDF = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M9 14h6M9 17h4"/></svg>';
+  var atual = null, url = null, voltar = null;
+  function fechar(){
+    var ov = $("relprev_ov"); if(!ov || ov.hidden) return;
+    ov.hidden = true; var f = $("relprev_if"); f.hidden = true; f.removeAttribute("src");
+    if(url){ URL.revokeObjectURL(url); url = null; }
+    try{ if(voltar && voltar.focus) voltar.focus(); }catch(e){}
+  }
+  window.RELPAD_previa = async function(painel){
+    var cfg = REL_PADRAO.filter(function(c){ return c.painel === painel; })[0]; if(!cfg || !cfg.previa) return;
+    var ov = $("relprev_ov"); if(ov.parentNode !== document.body) document.body.appendChild(ov);
+    atual = cfg; voltar = document.activeElement;
+    $("relprev_tit").textContent = "Pré-visualização — " + cfg.nome;
+    var msg = $("relprev_msg"), fr = $("relprev_if");
+    msg.textContent = "Gerando a pré-visualização…"; msg.hidden = false; fr.hidden = true; ov.hidden = false; $("relprev_x").focus();
+    window.__PDF_PREVIA = true;
+    var r = null;
+    try{ r = await cfg.previa(); }
+    catch(e){ msg.textContent = "Não foi possível gerar a pré-visualização: " + ((e && e.message) || e); return; }
+    finally{ window.__PDF_PREVIA = false; }
+    if(ov.hidden || atual !== cfg) return;                          // fechou ou abriu outra enquanto gerava
+    if(!r || !r.blob){ msg.textContent = "O gerador não devolveu o PDF (talvez faltem dados obrigatórios — veja os avisos na tela)."; return; }
+    url = URL.createObjectURL(r.blob.type === "application/pdf" ? r.blob : new Blob([r.blob], { type:"application/pdf" }));
+    fr.src = url + "#view=FitH"; fr.hidden = false; msg.hidden = true;
+  };
+  function montar(cfg){
+    var p = $(cfg.painel); if(!p) return;
+    p.classList.add("rel-pad");
+    if(cfg.barra === false || p.querySelector(".rel-pad-topo")) return;
+    var h1 = p.querySelector(".wrap h1") || p.querySelector("h1"); if(!h1) return;
+    var topo = document.createElement("div"); topo.className = "rel-pad-topo";
+    h1.parentNode.insertBefore(topo, h1); topo.appendChild(h1);
+    var ac = document.createElement("div"); ac.className = "rel-pad-acoes"; ac.setAttribute("role", "toolbar"); ac.setAttribute("aria-label", "Ações do relatório");
+    // "Gerar PDF" na barra só quando a aba ainda não tem um botão próprio que chama o mesmo gerador
+    var jaTem = cfg.fn && Array.prototype.some.call(p.querySelectorAll("button[onclick]"), function(b){ return (b.getAttribute("onclick") || "").indexOf(cfg.fn + "(") >= 0; });
+    ac.innerHTML = '<button type="button" data-a="previa" title="Mostra como o PDF vai ficar, sem salvar nada">' + ICO_OLHO + 'Pré-visualizar PDF</button>' +
+                   (jaTem ? '' : '<button type="button" class="pri" data-a="gerar" title="Gera e salva o PDF">' + ICO_PDF + 'Gerar PDF</button>');
+    ac.addEventListener("click", function(ev){
+      var b = ev.target.closest && ev.target.closest("button[data-a]"); if(!b) return;
+      if(b.getAttribute("data-a") === "previa") window.RELPAD_previa(cfg.painel); else if(cfg.salvar) cfg.salvar();
+    });
+    topo.appendChild(ac);
+  }
+  function ligar(){
+    REL_PADRAO.forEach(montar);
+    $("relprev_x").addEventListener("click", fechar);
+    $("relprev_salvar").addEventListener("click", function(){ var c = atual; fechar(); if(c && c.salvar) c.salvar(); });
+    $("relprev_ov").addEventListener("mousedown", function(ev){ if(ev.target === this) fechar(); });
+    document.addEventListener("keydown", function(ev){ if(ev.key === "Escape" && !$("relprev_ov").hidden){ ev.preventDefault(); fechar(); } });
+  }
+  if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", ligar); else ligar();
+})();
+</script>
 </body>
 
 
