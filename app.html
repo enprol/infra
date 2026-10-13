@@ -24100,7 +24100,8 @@ function AV_gerarDescSituacao(){
       var uv = pts.map(function(p){ var u = utm(p[0], p[1], G.fuso); return { E:u.E, N:u.N }; });
       var s2 = 0, per = 0, n = uv.length;
       for(var i = 0; i < n; i++){ var j = (i+1)%n; s2 += uv[i].E*uv[j].N - uv[j].E*uv[i].N; per += Math.round(Math.hypot(uv[j].E-uv[i].E, uv[j].N-uv[i].N)*100)/100; }   // perímetro = soma das distâncias a 2 casas (fecha com a tabela)
-      l.push({ i:idx, nome:a.nome || "", v:uv, area_m2:areaElip(pts), area_plano_m2:Math.abs(s2/2), perim:per });
+      // 13/10/2026: a área oficial é a do plano UTM (a do AutoCAD); a elipsoidal fica em area_elip_m2 (referência)
+      l.push({ i:idx, nome:a.nome || "", v:uv, area_m2:Math.abs(s2/2), area_plano_m2:Math.abs(s2/2), area_elip_m2:areaElip(pts), perim:per });
     });
     _AC = { k:k, l:l }; return l;
   }
@@ -24276,11 +24277,11 @@ function AV_gerarDescSituacao(){
       perim += Math.round(d*100)/100;   // soma das distâncias a 2 casas (fecha com a tabela)
       segs.push({ i:k, de:k, para:(k+1)%n, az:az, dist:d });
     }
-    var areaPlano = Math.abs(s2/2), area = areaElip(uv);   // área ELIPSOIDAL (a do plano UTM fica em area_plano_m2)
+    var areaPlano = Math.abs(s2/2), areaElipM2 = areaElip(uv), area = areaPlano;   // 13/10/2026: área oficial = plano UTM (AutoCAD); a elipsoidal fica em area_elip_m2
     var cx = 0, cy = 0; uv.forEach(function(p){ cx += p.E; cy += p.N; }); cx /= n; cy /= n;
     G = {
       v: uv.map(function(p, k){ return { nome:"P" + String(k + 1 + deslocV).padStart(2,"0"), lon:p.lon, lat:p.lat, E:p.E, N:p.N }; }),
-      segs: segs, area_m2: area, area_plano_m2: areaPlano, area_ha: area/10000, perim: perim,
+      segs: segs, area_m2: area, area_plano_m2: areaPlano, area_elip_m2: areaElipM2, area_ha: area/10000, perim: perim,
       fuso: fuso, mc: mcDe(fuso), letra: FUSO_LETRA(pts[0][1]), sul: pts[0][1] < 0,
       cx: cx, cy: cy, nomeKml: gv("rel_kml_nome"), rotuloAnel: anel.nome || ""
     };
@@ -29488,13 +29489,13 @@ function AV_gerarDescSituacao(){
     var geralR = geralAtivo(), LA = aneisUtm();
     var nums = geralR ? [
       ["Áreas", LA.length], ["Vértices (total)", LA.reduce(function(s, a){ return s + a.v.length; }, 0)], ["Perímetro total", br(somaPerim(),2) + " m"],
-      ["Área total (elipsoide · memorial)", br(somaAreasHa(),4) + " ha"], ["Área total (elipsoide)", br(somaAreasHa()*10000,2) + " m²"],
-      ["Área total no plano UTM · AutoCAD", br(aneisUtm().reduce(function(s, a){ return s + a.area_plano_m2; }, 0)/10000,4) + " ha"],
+      ["Área total (plano UTM · memorial)", br(somaAreasHa(),4) + " ha"], ["Área total (plano UTM)", br(somaAreasHa()*10000,2) + " m²"],
+      ["Área total elipsoidal · referência", br(aneisUtm().reduce(function(s, a){ return s + a.area_elip_m2; }, 0)/10000,4) + " ha"],
       ["Datum", "SIRGAS 2000"], ["Projeção", "UTM " + G.fuso + G.letra + " · MC " + G.mc + "°"]
     ] : [
       ["Vértices", G.v.length], ["Perímetro", br(G.perim,2) + " m"],
-      ["Área (elipsoide · memorial)", br(G.area_ha,4) + " ha"], ["Área (elipsoide)", br(G.area_m2,2) + " m²"],
-      ["Área no plano UTM · AutoCAD", br(G.area_plano_m2/10000,4) + " ha"], ["Área no plano UTM", br(G.area_plano_m2,2) + " m²"],
+      ["Área (plano UTM · memorial)", br(G.area_ha,4) + " ha"], ["Área (plano UTM)", br(G.area_m2,2) + " m²"],
+      ["Área elipsoidal · referência", br(G.area_elip_m2/10000,4) + " ha"],
       ["Datum", "SIRGAS 2000"], ["Projeção", "UTM " + G.fuso + G.letra + " · MC " + G.mc + "°"]
     ];
     var h = "";
