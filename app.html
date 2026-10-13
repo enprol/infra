@@ -8789,7 +8789,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
   <p class="hint-inline tec-areas-dica" id="tec_areas_dica">Área total e Área total ocupada são as mesmas da Assistência Social (mudar aqui ou lá dá no mesmo). Remanescentes: preenchida a área desapropriada e um dos remanescentes, o outro é calculado — área total ocupada − desapropriada − remanescente informado.</p>
   <div class="vsub tec-geo-sub">Georreferenciamento (Anexo B — Ficha de Vistoria)</div><div id="geo_row_slot"></div>
 </div>
-<div class="vcard" id="tec_kmls_card"><div class="vsub">Arquivos KML do imóvel</div>
+<div class="vcard" id="tec_kmls_card"><div class="vsub tec-kml-cab">Arquivos KML do imóvel<button type="button" class="tec-cam-btn" onclick="IMVB_camAbrir()" title="Cor, espessura, tipo de linha e sombra de cada camada dos mapas automáticos"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3 3 8l9 5 9-5-9-5z"/><path d="m3 13 9 5 9-5"/></svg>Estilos das camadas…</button></div>
   <p class="hint-inline" style="margin-top:0;">Todos os KMLs do cadastro. O da <b>área desapropriada</b> alimenta a planta, o memorial descritivo e o Mapa Geral; os demais (opcionais) entram nos <b>mapas automáticos do DESP-2</b> conforme a regra de cada figura.</p>
   <div class="imv-kml-grade">
     <div class="vfield grow">
@@ -8836,16 +8836,31 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
       <textarea id="imv_kml_app_dados" style="display:none" aria-hidden="true"></textarea>
       <input type="hidden" id="imv_kml_app_nome">
     </div>
-    <div class="vfield grow">
-      <label>Benfeitorias <span class="hint-auto"> opcional — pontos/polígonos (.kml)</span></label>
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-        <button class="vbtn vbtn-ghost" type="button" data-imvbtn="benf" onclick="IMV_pick('benf')">📍 Escolher KML…</button>
-        <input type="file" data-imvfile="benf" accept=".kml,application/vnd.google-earth.kml+xml,text/xml,application/xml" style="display:none" onchange="IMV_escolher('benf',this)">
-        <span class="hint-inline" data-imvst="benf" style="margin:0;">Nenhum arquivo inserido.</span>
-        <button class="vbtn vbtn-ghost vbtn-sm" type="button" data-imvrem="benf" style="display:none" onclick="IMV_remover('benf')">Remover</button>
+    <div class="vfield grow imv-benf" id="imv_benf_box">
+      <label>Benfeitorias <span class="hint-auto"> KML (.kml) — vários por tipo, cada um com a sua identificação</span></label>
+      <div class="imv-benf-grupo" data-g="nr">
+        <div class="imv-benf-cab"><b>Não reprodutivas</b><small>casas, galpões, currais, cercas, poços…</small>
+          <button class="vbtn vbtn-ghost vbtn-sm" type="button" onclick="IMVB_add('nr')">＋ Adicionar KML</button></div>
+        <div class="imv-benf-lista" id="imv_benf_lista_nr"></div>
+        <span class="imv-metros" id="imv_cercas_m"></span>
+        <input type="file" id="imv_benf_file_nr" data-imvfile="benfnr" multiple accept=".kml,application/vnd.google-earth.kml+xml,text/xml,application/xml" style="display:none">
       </div>
-      <textarea id="imv_kml_benf_dados" style="display:none" aria-hidden="true"></textarea>
-      <input type="hidden" id="imv_kml_benf_nome">
+      <div class="imv-benf-grupo" data-g="r">
+        <div class="imv-benf-cab"><b>Reprodutivas</b><small>lavouras, pomares, palma, pastagem plantada… (substitui “Áreas de culturas”: sem KML aqui, a Figura 3C não sai e a atividade do imóvel vem da Ficha de Vistoria)</small>
+          <button class="vbtn vbtn-ghost vbtn-sm" type="button" onclick="IMVB_add('r')">＋ Adicionar KML</button></div>
+        <div class="imv-benf-lista" id="imv_benf_lista_r"></div>
+        <input type="file" id="imv_benf_file_r" data-imvfile="benfr" multiple accept=".kml,application/vnd.google-earth.kml+xml,text/xml,application/xml" style="display:none">
+      </div>
+      <input type="file" id="imv_benf_troca" accept=".kml,application/vnd.google-earth.kml+xml,text/xml,application/xml" style="display:none">
+      <textarea id="imv_benf_lista" style="display:none" aria-hidden="true"></textarea>
+      <div hidden>
+        <textarea id="imv_kml_benf_dados" aria-hidden="true"></textarea><input type="hidden" id="imv_kml_benf_nome">
+        <textarea id="imv_kml_cercas_dados" aria-hidden="true"></textarea><input type="hidden" id="imv_kml_cercas_nome">
+        <textarea id="imv_kml_culturas_dados" aria-hidden="true"></textarea><input type="hidden" id="imv_kml_culturas_nome">
+        <input type="checkbox" id="imv_culturas_nao" tabindex="-1" aria-hidden="true">
+        <textarea id="imv_kml_benfr_dados" aria-hidden="true"></textarea><input type="hidden" id="imv_kml_benfr_nome">
+        <textarea id="imv_kml_benfnr_dados" aria-hidden="true"></textarea><input type="hidden" id="imv_kml_benfnr_nome">
+      </div>
     </div>
     <div class="vfield grow">
       <label>Hidrografia identificada <span class="hint-auto"> linhas (.kml) — Figura 4</span></label>
@@ -8858,58 +8873,17 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
       <textarea id="imv_kml_hidro_dados" style="display:none" aria-hidden="true"></textarea>
       <input type="hidden" id="imv_kml_hidro_nome">
     </div>
-    <div class="vfield grow">
-      <label>Cercas <span class="hint-auto"> linhas (.kml) — Figuras 2 a 7</span></label>
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-        <button class="vbtn vbtn-ghost" type="button" data-imvbtn="cercas" onclick="IMV_pick('cercas')">📍 Escolher KML…</button>
-        <input type="file" data-imvfile="cercas" accept=".kml,application/vnd.google-earth.kml+xml,text/xml,application/xml" style="display:none" onchange="IMV_escolher('cercas',this)">
-        <span class="hint-inline" data-imvst="cercas" style="margin:0;">Nenhum arquivo inserido.</span>
-        <button class="vbtn vbtn-ghost vbtn-sm" type="button" data-imvrem="cercas" style="display:none" onclick="IMV_remover('cercas')">Remover</button>
-      </div>
-      <span class="imv-metros" id="imv_cercas_m"></span>
-      <textarea id="imv_kml_cercas_dados" style="display:none" aria-hidden="true"></textarea>
-      <input type="hidden" id="imv_kml_cercas_nome">
-    </div>
-    <div class="vfield grow">
-      <label>Áreas de culturas <span class="hint-auto"> polígonos (.kml) — Figura 3C · um polígono por atividade (o nome vira o rótulo)</span></label>
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-        <button class="vbtn vbtn-ghost" type="button" data-imvbtn="culturas" onclick="IMV_pick('culturas')">📍 Escolher KML…</button>
-        <input type="file" data-imvfile="culturas" accept=".kml,application/vnd.google-earth.kml+xml,text/xml,application/xml" style="display:none" onchange="IMV_escolher('culturas',this)">
-        <span class="hint-inline" data-imvst="culturas" style="margin:0;">Nenhum arquivo inserido.</span>
-        <button class="vbtn vbtn-ghost vbtn-sm" type="button" data-imvrem="culturas" style="display:none" onclick="IMV_remover('culturas')">Remover</button>
-        <label class="imv-nao" title="Marque quando o imóvel não tem lavoura/cultura: o laudo traz a frase padrão e a Figura 3C não sai"><input type="checkbox" id="imv_culturas_nao"> <span>🚫 A propriedade não possui atividade agrícola</span></label>
-      </div>
-      <textarea id="imv_kml_culturas_dados" style="display:none" aria-hidden="true"></textarea>
-      <input type="hidden" id="imv_kml_culturas_nome">
-    </div>
-    <div class="vfield grow">
-      <label>Benfeitorias reprodutivas <span class="hint-auto"> pontos/polígonos (.kml) — o NOME de cada elemento é o tipo (milho, palma, manga…)</span></label>
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-        <button class="vbtn vbtn-ghost" type="button" data-imvbtn="benfr" onclick="IMV_pick('benfr')">📍 Escolher KML…</button>
-        <input type="file" data-imvfile="benfr" accept=".kml,application/vnd.google-earth.kml+xml,text/xml,application/xml" style="display:none" onchange="IMV_escolher('benfr',this)">
-        <span class="hint-inline" data-imvst="benfr" style="margin:0;">Nenhum arquivo inserido.</span>
-        <button class="vbtn vbtn-ghost vbtn-sm" type="button" data-imvrem="benfr" style="display:none" onclick="IMV_remover('benfr')">Remover</button>
-      </div>
-      <textarea id="imv_kml_benfr_dados" style="display:none" aria-hidden="true"></textarea>
-      <input type="hidden" id="imv_kml_benfr_nome">
-    </div>
-    <div class="vfield grow">
-      <label>Benfeitorias não reprodutivas <span class="hint-auto"> pontos/polígonos (.kml) — casas, currais, cercas…</span></label>
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-        <button class="vbtn vbtn-ghost" type="button" data-imvbtn="benfnr" onclick="IMV_pick('benfnr')">📍 Escolher KML…</button>
-        <input type="file" data-imvfile="benfnr" accept=".kml,application/vnd.google-earth.kml+xml,text/xml,application/xml" style="display:none" onchange="IMV_escolher('benfnr',this)">
-        <span class="hint-inline" data-imvst="benfnr" style="margin:0;">Nenhum arquivo inserido.</span>
-        <button class="vbtn vbtn-ghost vbtn-sm" type="button" data-imvrem="benfnr" style="display:none" onclick="IMV_remover('benfnr')">Remover</button>
-      </div>
-      <textarea id="imv_kml_benfnr_dados" style="display:none" aria-hidden="true"></textarea>
-      <input type="hidden" id="imv_kml_benfnr_nome">
-    </div>
   </div>
 </div>
-<h2 class="vsec acc" onclick="FV_toggleSec(this)"><span>Quadro de camadas — estilos dos mapas automáticos</span><span class="acc-chevron">▾</span></h2>
+<div class="tec-cam-ov" id="tec_cam_ov" hidden>
+<div class="tec-cam-box" role="dialog" aria-modal="true" aria-labelledby="tec_cam_tit">
+<header><h3 id="tec_cam_tit">Quadro de camadas — estilos dos mapas automáticos</h3><button type="button" class="tec-cam-x" onclick="IMVB_camFechar()" aria-label="Fechar">×</button></header>
 <div class="vcard" id="d2map_quadro_card">
   <p class="hint-inline" style="margin-top:0;">Cor, espessura, tipo de linha e <b>sombra projetada</b> de cada camada, como no quadro de layers do AutoCAD. Os estilos ficam <b>salvos no servidor</b> e valem para todos os cadastros.</p>
   <div id="d2map_quadro"><p class="hint-inline">Carregando estilos…</p></div>
+</div>
+<footer><button type="button" class="vbtn vbtn-ghost" onclick="IMVB_camFechar()">Fechar</button></footer>
+</div>
 </div>
 <div class="vsub" style="margin-top:22px;">Benfeitorias (itens 12 e 13 da Avaliação — DESP 3)</div>
 <p class="hint-inline" style="margin-top:0;">As tabelas abaixo são as mesmas da aba Avaliação (DESP 3 → Avaliação): editar aqui ou lá preenche o mesmo lugar.</p>
@@ -39108,7 +39082,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
      na aba Técnica — o clique funciona nos dois lugares. ========================= */
   const D2PLANTAS_FIDS = ["f1","f2","f2b","f3","f3b","f3b2","f3b3","f3b4","f3b5","f3b6","f3c","f4","f5","f6","f7"];
   // figuras que não aparecem quando vazias (3B das demais áreas) ou quando o imóvel não tem atividade agrícola (3C)
-  function figOculta(fid){ return (/^f3b[2-9]$/.test(fid) && !figs[fid]) || (fid==="f3c" && !!(document.getElementById("imv_culturas_nao")||{}).checked) || (fid==="f2b" && !figs[fid]); }
+  function figOculta(fid){ return (/^f3b[2-9]$/.test(fid) && !figs[fid]) || (fid==="f3c" && (!!(document.getElementById("imv_culturas_nao")||{}).checked || !((window.IMV_get && window.IMV_get("culturas").kml) || "").trim())) || (fid==="f2b" && !figs[fid]); }
   function D2PLANTAS_disponiveis(){ return D2PLANTAS_FIDS.filter(function(f){ return !!figs[f]; }); }
   function D2PLANTAS_renderizar(fid){
     if(!figs[fid]) return;
@@ -40944,7 +40918,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       var geom={}, pinos=[], falhou=[];   // cam -> geometria
       // ---- camadas client-side (KML) ----
       ['area','desap','vias','appest','hidro','cercas','culturas'].forEach(function(cam){ if(!need[cam]) return; var g=d2mapKML(d2mapFonteKML(cam)); if(g.polys.length+g.lines.length+g.pts.length) geom[cam]=g; });
-      if(fid==='f3c' && need.culturas && !geom.culturas){ st('Insira o KML de "Áreas de culturas" em Técnica › Arquivos KML do imóvel (ou marque que a propriedade não possui atividade agrícola).'); return; }
+      if(fid==='f3c' && need.culturas && !geom.culturas){ st('Insira o KML das culturas em Técnica › Arquivos KML do imóvel › Benfeitorias › Reprodutivas.'); return; }
       if(!rot && need.benf){ var gb=d2mapKML(d2mapFonteKML('benf')); if(gb.pts.length||gb.polys.length) geom.benf=gb; }
       ['benfr','benfnr'].forEach(function(c){ if(!need[c]) return; var gn=d2mapKMLnomes(d2mapFonteKML(c)); if(gn.items.length) geom[c]=gn; });
       // camada derivada: área remanescente = área total do imóvel MENOS a área desapropriada
@@ -43064,14 +43038,11 @@ window.__ASSIN_DESENHISTA__ = {"andrezza": {"w": 460, "h": 164, "src": "data:ima
     { k:"area", rot:"Área total do imóvel", tipo:"poligono", dados:"imv_kml_area_dados", file:function(){ return document.querySelector('input[data-imvfile="area"]'); }, re:/area[_\s-]*total|total|matr[ií]cula|im[oó]vel|propriedade|gleba|sigef|poligono|pol[ií]gono/i },
     { k:"vias", rot:"Vias de acesso", tipo:"linha", dados:"imv_kml_vias_dados", file:function(){ return document.querySelector('input[data-imvfile="vias"]'); }, re:/\bvias?\b|acesso|estrada|caminho|rodovia|trilha/i },
     { k:"app", rot:"APP estimada", tipo:"poligono", dados:"imv_kml_app_dados", file:function(){ return document.querySelector('input[data-imvfile="app"]'); }, re:/\bapp\b|preserva[cç]/i },
-    { k:"benf", rot:"Benfeitorias", tipo:"misto", dados:"imv_kml_benf_dados", file:function(){ return document.querySelector('input[data-imvfile="benf"]'); }, re:/benf|constru|edifica|casa|curral/i },
     { k:"hidro", rot:"Hidrografia", tipo:"linha", dados:"imv_kml_hidro_dados", file:function(){ return document.querySelector('input[data-imvfile="hidro"]'); }, re:/hidro|\brio\b|c[oó]rrego|[aá]gua|nascente|drenagem|ribeir/i },
-    { k:"cercas", rot:"Cercas", tipo:"linha", dados:"imv_kml_cercas_dados", file:function(){ return document.querySelector('input[data-imvfile="cercas"]'); }, re:/cerca/i },
-    { k:"culturas", rot:"Áreas de culturas", tipo:"poligono", dados:"imv_kml_culturas_dados", file:function(){ return document.querySelector('input[data-imvfile="culturas"]'); }, re:/cultur|lavoura|plantio|plantaç|plantac|agr[ií]col|cultivo|roça|roca/i }
-    ,{ k:"benfnr", rot:"Benfeitorias não reprodutivas", tipo:"misto", dados:"imv_kml_benfnr_dados", file:function(){ return document.querySelector('input[data-imvfile="benfnr"]'); }, re:/n[aã]o[_\s-]*reprodut|n[_\s-]*reprodut|nreprod/i },
-    { k:"benfr", rot:"Benfeitorias reprodutivas", tipo:"misto", dados:"imv_kml_benfr_dados", file:function(){ return document.querySelector('input[data-imvfile="benfr"]'); }, re:/reprodut|pomar|fruteira|lavoura permanente/i }
+    { k:"benfnr", rot:"Benfeitorias não reprodutivas", tipo:"misto", multi:true, dados:"imv_kml_benfnr_dados", file:function(){ return document.querySelector('input[data-imvfile="benfnr"]'); }, re:/n[aã]o[_\s-]*reprodut|n[_\s-]*reprodut|nreprod|benf|constru|edifica|casa|curral|galp|cerca|po[cç]o/i },
+    { k:"benfr", rot:"Benfeitorias reprodutivas", tipo:"misto", multi:true, dados:"imv_kml_benfr_dados", file:function(){ return document.querySelector('input[data-imvfile="benfr"]'); }, re:/reprodut|pomar|fruteira|lavoura|cultur|plantio|planta[cç]|agr[ií]col|cultivo|ro[cç]a|palma|capim|pastagem/i }
   ];
-  var ORDEM_NOME = ["culturas", "benfnr", "benfr", "cercas", "benf", "hidro", "app", "vias", "desap", "area"];
+  var ORDEM_NOME = ["benfr", "benfnr", "hidro", "app", "vias", "desap", "area"];   // 13/10/2026: benfeitorias unificadas (listas com vários KMLs)
 
   /* ---------- análise de KML ---------- */
   function analisa(txt){
@@ -43147,13 +43118,13 @@ window.__ASSIN_DESENHISTA__ = {"andrezza": {"w": 460, "h": 164, "src": "data:ima
     var base = nome.replace(/\.kml$/i, "");
     for(var i = 0; i < ORDEM_NOME.length; i++){
       var sl = SLOTS.filter(function(s){ return s.k === ORDEM_NOME[i]; })[0];
-      if(sl.re.test(base) && !usados[sl.k]) return sl.k;
+      if(sl.re.test(base) && (sl.multi || !usados[sl.k])) return sl.k;
     }
     var tipo = medidas(info).tipo;
     if(/^INFRA_|CTD/i.test(base) && !usados.desap && tipo === "poligono") return "desap";
-    if(tipo === "linha"){ var l = ["vias", "hidro", "cercas"].filter(function(k){ return !usados[k]; })[0]; return l || ""; }
-    if(tipo === "poligono"){ var q = ["desap", "area", "app", "culturas"].filter(function(k){ return !usados[k]; })[0]; return q || ""; }
-    if(tipo === "misto" || tipo === "ponto") return usados.benf ? "" : "benf";
+    if(tipo === "linha"){ var l = ["vias", "hidro"].filter(function(k){ return !usados[k]; })[0]; return l || "benfnr"; }
+    if(tipo === "poligono"){ var q = ["desap", "area", "app"].filter(function(k){ return !usados[k]; })[0]; return q || "benfr"; }
+    if(tipo === "misto" || tipo === "ponto") return "benfnr";
     return "";
   }
   async function receber(files){
@@ -43175,7 +43146,7 @@ window.__ASSIN_DESENHISTA__ = {"andrezza": {"w": 460, "h": 164, "src": "data:ima
     ov.innerHTML = '<div class="tec-box"><header><h3>📥 Classificar os KMLs recebidos</h3><button type="button" data-x>×</button></header><div class="tec-corpo">' +
       '<p class="tec-p">Sugeri o destino de cada arquivo pelo nome e pelo tipo de geometria (polígono/linha/ponto). Confira e ajuste; nada é gravado antes de você confirmar.</p>' +
       itens.map(function(it, i){
-        var ja = it.k && ($(SLOTS.filter(function(s){ return s.k === it.k; })[0].dados) || {}).value;
+        var sl0 = it.k && SLOTS.filter(function(s){ return s.k === it.k; })[0], ja = sl0 && !sl0.multi && ($(sl0.dados) || {}).value;
         return '<div class="tec-arq" data-i="' + i + '">' + (it.info.ok ? svgMini(it.info, 100, 58) : '<svg></svg>') +
           '<div><b>' + H(it.f.name) + '</b><small>' + H(it.info.ok ? it.med.txt : "não encontrei geometria neste arquivo") + '</small><span class="sub" data-sub style="display:' + (ja ? "block" : "none") + '">substitui o KML já inserido</span></div>' +
           '<select>' + opts + '</select></div>';
@@ -43183,21 +43154,23 @@ window.__ASSIN_DESENHISTA__ = {"andrezza": {"w": 460, "h": 164, "src": "data:ima
     document.body.appendChild(ov);
     Array.prototype.forEach.call(ov.querySelectorAll(".tec-arq"), function(row, i){
       var sel = row.querySelector("select"); sel.value = itens[i].k || "";
-      sel.onchange = function(){ var sl = SLOTS.filter(function(s){ return s.k === sel.value; })[0]; var ja = sl && ($(sl.dados) || {}).value; row.querySelector("[data-sub]").style.display = ja ? "block" : "none"; };
+      sel.onchange = function(){ var sl = SLOTS.filter(function(s){ return s.k === sel.value; })[0]; var ja = sl && !sl.multi && ($(sl.dados) || {}).value; row.querySelector("[data-sub]").style.display = ja ? "block" : "none"; };
     });
     ov.addEventListener("click", function(ev){ if(ev.target === ov || (ev.target.hasAttribute && ev.target.hasAttribute("data-x"))) ov.remove(); });
     $("tec_aplicar").onclick = function(){
       var escolhas = {}, dup = false;
       Array.prototype.forEach.call(ov.querySelectorAll(".tec-arq"), function(row, i){
         var k = row.querySelector("select").value; if(!k) return;
-        if(escolhas[k]) dup = true; escolhas[k] = itens[i];
+        var slk = SLOTS.filter(function(s){ return s.k === k; })[0];
+        if(escolhas[k] && !(slk && slk.multi)) dup = true;
+        (escolhas[k] = escolhas[k] || []).push(itens[i]);
       });
-      if(dup){ alert("Dois arquivos foram para o mesmo destino. Cada destino recebe um KML só."); return; }
+      if(dup){ alert("Dois arquivos foram para o mesmo destino. Só as benfeitorias recebem vários KMLs; os outros destinos recebem um KML só."); return; }
       var n = 0;
       Object.keys(escolhas).forEach(function(k){
         var sl = SLOTS.filter(function(s){ return s.k === k; })[0], inp = sl.file();
         if(!inp) return;
-        try{ var dt = new DataTransfer(); dt.items.add(escolhas[k].f); inp.files = dt.files; inp.dispatchEvent(new Event("change", { bubbles:true })); n++; }catch(e){ console.warn("KML:", e); }
+        try{ var dt = new DataTransfer(); escolhas[k].forEach(function(x){ dt.items.add(x.f); }); inp.files = dt.files; inp.dispatchEvent(new Event("change", { bubbles:true })); n += escolhas[k].length; }catch(e){ console.warn("KML:", e); }
       });
       ov.remove();
       setTimeout(function(){ SIG = {}; refrescarMinis(); trilha(); }, 900);
@@ -45159,6 +45132,266 @@ window.MG_motion={abertura:abertura,cadastro:cadastro,fichas:fichas};
     }
     if(window.REL_kmAgendar) window.REL_kmAgendar(1500);
   }
+  if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", ligar); else ligar();
+})();
+</script>
+<style id="lote4-kml-css">
+#panel-desp1-tecnica .tec-kml-cab{ display:flex; align-items:center; gap:10px; }
+#panel-desp1-tecnica .tec-cam-btn{ margin-left:auto; display:inline-flex; align-items:center; gap:6px; border:1px solid #DCE1E8; background:#fff; color:#55616F; border-radius:8px; padding:5px 10px; font:600 12px "Segoe UI",sans-serif; text-transform:none; letter-spacing:0; cursor:pointer; }
+#panel-desp1-tecnica .tec-cam-btn:hover{ color:#0F2236; border-color:#A7B8CB; background:#F4F6F9; }
+#panel-desp1-tecnica .tec-cam-btn:focus-visible{ outline:2px solid #1B3A5C; outline-offset:2px; }
+#panel-desp1-tecnica .tec-cam-btn svg{ width:14px; height:14px; fill:none; stroke:currentColor; stroke-width:2; stroke-linejoin:round; }
+.tec-cam-ov{ position:fixed; inset:0; z-index:10050; display:flex; align-items:center; justify-content:center; padding:18px; background:rgba(15,34,54,.42); -webkit-backdrop-filter:blur(5px); backdrop-filter:blur(5px); }
+.tec-cam-ov[hidden]{ display:none; }
+.tec-cam-box{ width:min(980px,96vw); max-height:90vh; display:flex; flex-direction:column; background:#fff; border-radius:14px; box-shadow:0 24px 70px rgba(0,0,0,.32); overflow:hidden; }
+.tec-cam-box header{ display:flex; align-items:center; gap:10px; padding:12px 18px; border-bottom:1px solid #E6EAF0; }
+.tec-cam-box header h3{ margin:0; flex:1; font:600 15px "Segoe UI",sans-serif; color:#0F2236; }
+.tec-cam-x{ border:0; background:none; font-size:24px; line-height:1; color:#55616F; cursor:pointer; padding:2px 8px; border-radius:6px; }
+.tec-cam-x:hover{ background:#F1F3F6; }
+.tec-cam-box #d2map_quadro_card{ margin:0; border:0; box-shadow:none; border-radius:0; overflow:auto; flex:1; }
+.tec-cam-box footer{ display:flex; justify-content:flex-end; padding:10px 0 0; }
+#panel-desp1-tecnica .imv-kml-grade > .imv-benf{ grid-column:1 / -1; flex-basis:100% !important; }
+.imv-benf-grupo{ border:1px solid #E1E6EC; border-radius:10px; padding:10px 12px; margin-top:8px; background:#FAFBFC; }
+.imv-benf-cab{ display:flex; align-items:center; flex-wrap:wrap; gap:6px 10px; }
+.imv-benf-cab b{ font-size:13px; color:#0F2236; }
+.imv-benf-cab small{ font-size:11.5px; color:#55616F; flex:1 1 260px; }
+.imv-benf-lista:empty::before{ content:"Nenhum KML inserido."; display:block; font-size:12px; color:#7A8797; padding:6px 0 2px; }
+.imv-benf-item{ display:grid; grid-template-columns:22px minmax(170px,1.1fr) 190px minmax(140px,1fr) auto auto; gap:8px; align-items:center; padding:7px 0; border-top:1px solid #EDF0F3; }
+.imv-benf-item:first-child{ border-top:0; }
+.imv-benf-n{ font:700 11px "Segoe UI",sans-serif; color:#55616F; text-align:center; }
+.imv-benf-item input[type=text]{ width:100%; box-sizing:border-box; border:1px solid #C9D2DC; border-radius:7px; padding:6px 9px; font:13px "Segoe UI",sans-serif; background:#fff; }
+.imv-benf-item select{ width:100%; border:1px solid #C9D2DC; border-radius:7px; padding:6px 8px; font:12.5px "Segoe UI",sans-serif; background:#fff; }
+.imv-benf-info{ font-size:11.5px; color:#55616F; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.imv-benf-info.erro{ color:#B3382C; }
+@media (max-width:760px){ .imv-benf-item{ grid-template-columns:22px 1fr; } .imv-benf-item > :nth-child(n+3){ grid-column:2; } }
+</style>
+<script id="lote4-kml-js">
+/* Lote 4 (13/10/2026): benfeitorias unificadas em duas listas (não reprodutivas / reprodutivas), cada uma com vários
+   KMLs identificados. Guardadas em #imv_benf_lista (JSON). Os campos antigos (imv_kml_benf/cercas/culturas/benfr/
+   benfnr e imv_culturas_nao) ficam ocultos e são DERIVADOS daqui — é deles que os mapas da DESP-2 e o laudo leem:
+   cercas = não reprodutivas do tipo "Cerca"; benf e benfnr = as demais não reprodutivas; benfr e culturas = reprodutivas. */
+(function(){
+  "use strict";
+  var MAX_MB = 25;
+  function $(id){ return document.getElementById(id); }
+  function H(v){ return String(v == null ? "" : v).replace(/[&<>"]/g, function(c){ return { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[c]; }); }
+  function sujo(){ try{ if(window.CAD_marcarSujo) window.CAD_marcarSujo(); }catch(e){} }
+  var L = { nr:[], r:[] }, derivando = false;
+  var GENERICO = /^(sem t[ií]tulo|untitled|pol[ií]gono|polygon|caminho|path|linha|line|ponto|point|placemark|marcador|marca|novo pol[ií]gono|nova linha|novo caminho)([\s_-]*(sem t[ií]tulo|\d+))*$/i;
+  function uid(){ return "b" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+  function nomeBase(n){ return String(n || "").replace(/\.kml$/i, "").replace(/[_]+/g, " ").trim(); }
+  function els(d, tag){ return Array.prototype.slice.call(d.getElementsByTagNameNS("*", tag)); }
+  function filho(el, tag){ for(var c = el.firstElementChild; c; c = c.nextElementSibling){ if(c.localName === tag) return c; } return null; }
+  function dentroDe(el, tag){ for(var p = el.parentNode; p && p.nodeType === 1; p = p.parentNode){ if(p.localName === tag) return true; } return false; }
+  function analisar(txt){
+    var d = new DOMParser().parseFromString(txt, "application/xml");
+    if(d.getElementsByTagName("parsererror").length) return { erro:"o arquivo não é um XML válido" };
+    if(!d.documentElement || d.documentElement.localName.toLowerCase() !== "kml") return { erro:"o arquivo não parece ser um KML (falta a tag <kml>)" };
+    var pl = els(d, "Polygon").length, ln = els(d, "LineString").length, pt = els(d, "Point").length;
+    if(!pl && !ln && !pt) return { erro:"não há geometria (polígono, linha ou ponto) no arquivo" };
+    return { pm:els(d, "Placemark").length, pl:pl, ln:ln, pt:pt };
+  }
+  function tipoAuto(it){ var a = analisar(it.kml); return (/cerca/i.test((it.ident || "") + " " + (it.nome || "")) || (!a.erro && a.ln && !a.pl && !a.pt)) ? "cerca" : "outra"; }
+  function infoTxt(it){ var a = analisar(it.kml); if(a.erro) return { t:a.erro, erro:true };
+    var g = []; if(a.pl) g.push(a.pl + " polígono(s)"); if(a.ln) g.push(a.ln + " linha(s)"); if(a.pt) g.push(a.pt + " ponto(s)");
+    return { t:(it.nome || "arquivo.kml") + " — " + g.join(", ") }; }
+
+  /* ---- junta vários KMLs num só (estilos renomeados por item; nome vazio/genérico vira a identificação) ---- */
+  function mesclar(itens, titulo){
+    var ser = new XMLSerializer(), estilos = [], pastas = [];
+    itens.forEach(function(it, n){
+      var d = new DOMParser().parseFromString(it.kml, "application/xml");
+      if(d.getElementsByTagName("parsererror").length) return;
+      var pre = "i" + n + "_", ren = {};
+      els(d, "Style").concat(els(d, "StyleMap")).forEach(function(st){ var id = st.getAttribute("id"); if(id){ ren[id] = pre + id; st.setAttribute("id", pre + id); } });
+      els(d, "styleUrl").forEach(function(u){ var t = (u.textContent || "").trim(); if(t.charAt(0) === "#" && ren[t.slice(1)]) u.textContent = "#" + ren[t.slice(1)]; });
+      els(d, "Style").concat(els(d, "StyleMap")).forEach(function(st){ if(!dentroDe(st, "Placemark")) estilos.push(ser.serializeToString(st)); });
+      var pms = els(d, "Placemark");
+      pms.forEach(function(pm){
+        var nm = filho(pm, "name"), t = nm ? (nm.textContent || "").trim() : "";
+        if(it.ident && (!t || GENERICO.test(t))){
+          if(!nm){ nm = d.createElementNS(pm.namespaceURI, "name"); pm.insertBefore(nm, pm.firstChild); }
+          nm.textContent = it.ident;
+        }
+      });
+      pastas.push("<Folder><name>" + H(it.ident || nomeBase(it.nome)) + "</name>" + pms.map(function(pm){ return ser.serializeToString(pm); }).join("") + "</Folder>");
+    });
+    if(!pastas.length) return "";
+    return '<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>' + H(titulo) + "</name>" + estilos.join("") + pastas.join("") + "</Document></kml>";
+  }
+  function setLegado(k, itens, titulo){
+    var ta = $("imv_kml_" + k + "_dados"), nm = $("imv_kml_" + k + "_nome"); if(!ta) return;
+    var kml = itens.length ? mesclar(itens, titulo) : "", nome = itens.map(function(x){ return x.nome || nomeBase(x.ident) + ".kml"; }).join(" + ");
+    if(ta.value === kml && (!nm || nm.value === nome)) return;
+    ta.value = kml; if(nm) nm.value = nome;
+    ta.dispatchEvent(new Event("input", { bubbles:true })); ta.dispatchEvent(new Event("change", { bubbles:true }));
+  }
+  function derivar(){
+    derivando = true;
+    try{
+      var cer = L.nr.filter(function(x){ return x.tipo === "cerca"; }), out = L.nr.filter(function(x){ return x.tipo !== "cerca"; });
+      setLegado("cercas", cer, "Cercas");
+      setLegado("benf", out, "Benfeitorias");
+      setLegado("benfnr", out, "Benfeitorias não reprodutivas");
+      setLegado("benfr", L.r, "Benfeitorias reprodutivas");
+      setLegado("culturas", L.r, "Áreas de culturas");
+      // o antigo "não possui atividade agrícola" não é mais marcado à mão: sem KML reprodutivo a Figura 3C some e o
+      // texto da atividade (DESP-2) sai da Ficha de Vistoria — nada de afirmar "sem atividade" contra o que a Ficha diz
+      var nao = $("imv_culturas_nao"), deve = false;
+      if(nao && nao.checked !== deve){ nao.checked = deve; nao.dispatchEvent(new Event("input", { bubbles:true })); nao.dispatchEvent(new Event("change", { bubbles:true })); }
+    } finally { derivando = false; }
+  }
+  function gravar(marcar){
+    var t = $("imv_benf_lista"); if(!t) return;
+    var v = JSON.stringify({ v:1, nr:L.nr, r:L.r });
+    if(t.value !== v) t.value = v;
+    derivar(); render(); if(marcar) sujo();
+  }
+
+  /* ---- lê o estado (ou converte os campos antigos de um cadastro anterior a 13/10/2026) ---- */
+  function converter(){
+    var vistos = {};
+    function add(g, k, ident, tipo){
+      var kml = ($("imv_kml_" + k + "_dados") || {}).value || ""; if(!kml.trim() || vistos[kml]) return; vistos[kml] = true;
+      var nome = ($("imv_kml_" + k + "_nome") || {}).value || (k + ".kml");
+      var it = { id:uid(), ident:ident || nomeBase(nome), nome:nome, kml:kml };
+      if(g === "nr") it.tipo = tipo || tipoAuto(it);
+      L[g].push(it);
+    }
+    add("nr", "benf", null, "outra"); add("nr", "benfnr", null, "outra"); add("nr", "cercas", "Cercas", "cerca");
+    add("r", "benfr", null, null); add("r", "culturas", "Áreas de culturas", null);
+  }
+  function sincronizar(){
+    var t = $("imv_benf_lista"); if(!t) return;
+    L = { nr:[], r:[] };
+    var ok = false;
+    if((t.value || "").trim()){ try{ var o = JSON.parse(t.value); if(o && o.v === 1){ L.nr = (o.nr || []).filter(function(x){ return x && x.kml; }); L.r = (o.r || []).filter(function(x){ return x && x.kml; }); ok = true; } }catch(e){} }
+    if(!ok){
+      converter();                                           // cadastro antigo: monta as listas a partir dos campos soltos
+      if(L.nr.length || L.r.length) t.value = JSON.stringify({ v:1, nr:L.nr, r:L.r });
+    }
+    derivar(); render();
+  }
+  var _pendF = null;
+  function agendarSinc(){
+    if(_pendF) return;                                       // já há uma sincronização marcada
+    var feito = false, f = _pendF = function(){ if(feito) return; feito = true; _pendF = null; sincronizar(); };
+    if(window.__CAD_RESTAURANDO){
+      var fila = window.__CAD_pend = window.__CAD_pend || new Set();   // a fila do app é um Set (09/10/2026)
+      try{ if(typeof fila.add === "function") fila.add(f); else if(typeof fila.push === "function") fila.push(f); }catch(e){}  // roda no fim da restauração do cadastro…
+      var t0 = Date.now();                                     // …ou, se essa fila se perder, assim que a restauração acabar
+      (function espera(){ if(feito) return; if(!window.__CAD_RESTAURANDO || Date.now() - t0 > 20000) f(); else setTimeout(espera, 300); })();
+    } else setTimeout(f, 0);
+  }
+
+  /* ---- tela ---- */
+  function render(){
+    ["nr", "r"].forEach(function(g){
+      var host = $("imv_benf_lista_" + g); if(!host) return;
+      host.innerHTML = L[g].map(function(it, i){
+        var inf = infoTxt(it);
+        return '<div class="imv-benf-item" data-g="' + g + '" data-i="' + i + '">' +
+          '<span class="imv-benf-n">' + (i + 1) + '</span>' +
+          '<input type="text" value="' + H(it.ident) + '" placeholder="Identificação (ex.: ' + (g === "nr" ? "Casa sede, Curral, Cerca de arame" : "Milho, Palma, Pomar de manga") + ')" aria-label="Identificação da benfeitoria ' + (g === "nr" ? "não reprodutiva " : "reprodutiva ") + (i + 1) + '" data-f="ident">' +
+          (g === "nr" ? '<select data-f="tipo" aria-label="Tipo"><option value="outra"' + (it.tipo !== "cerca" ? " selected" : "") + '>Construção / outra</option><option value="cerca"' + (it.tipo === "cerca" ? " selected" : "") + '>Cerca (mede os metros)</option></select>' : '<span></span>') +
+          '<span class="imv-benf-info' + (inf.erro ? " erro" : "") + '" title="' + H(inf.t) + '">' + H(inf.t) + '</span>' +
+          '<button class="vbtn vbtn-ghost vbtn-sm" type="button" data-a="trocar">Trocar</button>' +
+          '<button class="vbtn vbtn-ghost vbtn-sm" type="button" data-a="rem" aria-label="Remover ' + H(it.ident || it.nome) + '">Remover</button>' +
+        '</div>';
+      }).join("");
+    });
+  }
+  function lerArquivos(files, cb){
+    var lista = Array.prototype.slice.call(files || []), feitos = [], erros = [];
+    if(!lista.length){ cb(feitos, erros); return; }
+    var n = lista.length;
+    lista.forEach(function(f, k){
+      function fim(){ if(--n === 0) cb(feitos.filter(Boolean), erros); }
+      if(/\.kmz$/i.test(f.name)){ erros.push(f.name + ": KMZ é compactado — exporte como .kml no Google Earth"); return fim(); }
+      if(!/\.kml$/i.test(f.name) && !/kml|xml/i.test(f.type || "")){ erros.push(f.name + ": não é .kml"); return fim(); }
+      if(f.size > MAX_MB * 1048576){ erros.push(f.name + ": maior que " + MAX_MB + " MB"); return fim(); }
+      var rd = new FileReader();
+      rd.onerror = function(){ erros.push(f.name + ": erro ao ler"); fim(); };
+      rd.onload = function(){ var txt = String(rd.result || ""), a = analisar(txt);
+        if(a.erro) erros.push(f.name + ": " + a.erro); else feitos[k] = { nome:f.name, kml:txt };
+        fim(); };
+      rd.readAsText(f, "UTF-8");
+    });
+  }
+  window.IMVB_add = function(g){ var i = $("imv_benf_file_" + g); if(i) i.click(); };
+  window.IMVB_lista = function(){ return { nr:L.nr.slice(), r:L.r.slice() }; };
+  var trocaAlvo = null;
+  function ligar(){
+    ["nr", "r"].forEach(function(g){
+      var inp = $("imv_benf_file_" + g); if(!inp || inp._l4) return; inp._l4 = true;
+      inp.addEventListener("change", function(){
+        lerArquivos(inp.files, function(ok, erros){
+          ok.forEach(function(x){ var it = { id:uid(), ident:nomeBase(x.nome), nome:x.nome, kml:x.kml }; if(g === "nr") it.tipo = tipoAuto(it); L[g].push(it); });
+          inp.value = "";
+          if(ok.length) gravar(true);
+          if(erros.length) alert("Não foi possível usar:\n• " + erros.join("\n• "));
+        });
+      });
+      var host = $("imv_benf_lista_" + g); if(!host) return;
+      host.addEventListener("input", function(ev){
+        var t = ev.target, row = t.closest && t.closest(".imv-benf-item"); if(!row || t.getAttribute("data-f") !== "ident") return;
+        var it = L[g][+row.getAttribute("data-i")]; if(!it) return;
+        it.ident = t.value; clearTimeout(host._tm); host._tm = setTimeout(function(){ var v = JSON.stringify({ v:1, nr:L.nr, r:L.r }); $("imv_benf_lista").value = v; derivar(); sujo(); }, 350);
+      });
+      host.addEventListener("change", function(ev){
+        var t = ev.target, row = t.closest && t.closest(".imv-benf-item"); if(!row) return;
+        var it = L[g][+row.getAttribute("data-i")]; if(!it) return;
+        if(t.getAttribute("data-f") === "tipo"){ it.tipo = t.value; gravar(true); }
+        if(t.getAttribute("data-f") === "ident"){ it.ident = t.value.trim(); gravar(true); }
+      });
+      host.addEventListener("click", function(ev){
+        var b = ev.target.closest && ev.target.closest("button[data-a]"); if(!b) return;
+        var row = b.closest(".imv-benf-item"), i = +row.getAttribute("data-i"), it = L[g][i]; if(!it) return;
+        if(b.getAttribute("data-a") === "rem"){
+          if(!confirm('Remover o KML "' + (it.ident || it.nome) + '"?')) return;
+          L[g].splice(i, 1); gravar(true);
+        } else { trocaAlvo = { g:g, id:it.id }; $("imv_benf_troca").click(); }
+      });
+    });
+    var tr = $("imv_benf_troca");
+    if(tr && !tr._l4){ tr._l4 = true; tr.addEventListener("change", function(){
+      var alvo = trocaAlvo; trocaAlvo = null;
+      lerArquivos(tr.files, function(ok, erros){
+        tr.value = "";
+        if(erros.length){ alert("Não foi possível usar:\n• " + erros.join("\n• ")); return; }
+        if(!ok.length || !alvo) return;
+        var it = L[alvo.g].filter(function(x){ return x.id === alvo.id; })[0]; if(!it) return;
+        it.kml = ok[0].kml; it.nome = ok[0].nome; gravar(true);
+      });
+    }); }
+    // restauração do cadastro (e o "novo cadastro", que limpa os campos): refaz as listas a partir do que foi gravado
+    var t = $("imv_benf_lista");
+    if(t && !t._l4){ t._l4 = true; ["input", "change"].forEach(function(e){ t.addEventListener(e, function(){ if(!derivando) agendarSinc(); }); }); }
+    ["benf", "cercas", "culturas", "benfr", "benfnr"].forEach(function(k){
+      var ta = $("imv_kml_" + k + "_dados");
+      if(ta && !ta._l4){ ta._l4 = true; ["input", "change"].forEach(function(e){ ta.addEventListener(e, function(){ if(!derivando && window.__CAD_RESTAURANDO) agendarSinc(); }); }); }
+    });
+    var p = $("panel-desp1-tecnica");
+    if(p && !p._l4){ p._l4 = true; new MutationObserver(function(){
+      if(!p.classList.contains("ativa")) return;
+      var v = JSON.stringify({ v:1, nr:L.nr, r:L.r }), atual = ($("imv_benf_lista") || {}).value || "";
+      if(atual !== v && !(atual === "" && !L.nr.length && !L.r.length)) sincronizar();
+    }).observe(p, { attributes:true, attributeFilter:["class"] }); }
+    sincronizar();
+  }
+
+  /* ---- janela do Quadro de camadas ---- */
+  var voltarFoco = null;
+  window.IMVB_camAbrir = function(){
+    var ov = $("tec_cam_ov"); if(!ov) return;
+    if(ov.parentNode !== document.body) document.body.appendChild(ov);      // fora do painel: nada corta a janela
+    voltarFoco = document.activeElement; ov.hidden = false;
+    var x = ov.querySelector(".tec-cam-x"); if(x) x.focus();
+  };
+  window.IMVB_camFechar = function(){ var ov = $("tec_cam_ov"); if(!ov || ov.hidden) return; ov.hidden = true; try{ if(voltarFoco && voltarFoco.focus) voltarFoco.focus(); }catch(e){} };
+  document.addEventListener("keydown", function(ev){ var ov = $("tec_cam_ov"); if(ev.key === "Escape" && ov && !ov.hidden){ ev.preventDefault(); window.IMVB_camFechar(); } });
+  document.addEventListener("mousedown", function(ev){ var ov = $("tec_cam_ov"); if(ov && !ov.hidden && ev.target === ov) window.IMVB_camFechar(); });
+
   if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", ligar); else ligar();
 })();
 </script>
