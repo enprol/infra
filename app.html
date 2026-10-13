@@ -24934,10 +24934,9 @@ function AV_gerarDescSituacao(){
   function aplicarFormato(id){
     var f = FORMATOS[id] || FORMATOS.a3;
     FL.id = FORMATOS[id] ? id : "a3"; FL.nome = f.nome; FL.W = f.W; FL.H = f.H;
-    FL.m = f.W >= 841 ? 10 : (f.W >= 594 ? 8 : 6);
-    var kh = Math.min(1.5, f.H/297);                                 // carimbo cresce menos que a folha
-    CAR.h  = Math.round(62*kh*10)/10;                                // 62 mm no A3: título 2× e campos 1,5× sem folga morta
-    TAB.w  = Math.round(100*kh*10)/10;
+    FL.m = 6;                                                        // 13/10/2026: margem da borda = a do A3 em todos os formatos
+    CAR.h  = 62;                                                     // 13/10/2026: carimbo e tabela com as MEDIDAS do A3 em qualquer formato — só o quadro da planta cresce
+    TAB.w  = 100;
     MAPA.x = FL.m; MAPA.y = FL.m;
     MAPA.w = FL.W - FL.m*2 - TAB.w - 2;
     MAPA.h = FL.H - FL.m*2 - CAR.h - 2;
@@ -27821,38 +27820,59 @@ function AV_gerarDescSituacao(){
 
     /* OBSERVAÇÃO — observações livres + benfeitorias numeradas com quantidade.
        O texto quebra em várias linhas; com muitos itens o corpo diminui até caber. */
+    var largo = extraW > .5, xAreas = largo ? c1 - 66*KL : c1;   // 13/10/2026: formato largo = observação em colunas + áreas (RL, APP, base do CAR) em quadros separados
     tit(x, y, "OBSERVAÇÃO:");
     P.linha(x, y + hcab, c1, y + hcab, { peso:.25 });
-    var wObs = c1 - x - 3.6, oyIni = y + hcab + 4.2;
+    var wReg = xAreas - x, ncol = largo ? Math.max(1, Math.floor(wReg/100)) : 1, wCol = wReg/ncol;
+    var wObs = wCol - 3.6, oyIni = y + hcab + 4.2;
     var itens = (ex.obs || []).filter(Boolean).map(function(t){ return { desc:t }; }).concat(obsBenfeitorias());
-    var rodape = 14.6*V, fimObs = y + h - rodape;
-    var oTam = 6.15, oLin = [], oLH = 0;
+    var rodape = largo ? 2.5 : 14.6*V, fimObs = y + h - rodape;
+    var oTam = 6.15, oLin = [], oLH = 0, oPos = [];
     for(;;){
       oLH = oTam*.3528*1.26;
       oLin = itens.map(function(o){
         var t = o.desc + (o.qtd ? ("  —  " + o.qtd + (o.unid ? " " + o.unid : "")) : "");
         return quebrar(P, t, wObs - 7.8, { tam:oTam });
       });
-      var alt = oLin.reduce(function(a, l){ return a + l.length*oLH + oLH*.35; }, 0);
-      if(oTam <= 3.6 || oyIni + alt <= fimObs) break;
+      var col = 0, yy0 = oyIni, estouro = false; oPos = [];
+      oLin.forEach(function(ls){
+        if(yy0 + ls.length*oLH > fimObs && col < ncol - 1 && yy0 > oyIni){ col++; yy0 = oyIni; }
+        if(yy0 + ls.length*oLH > fimObs) estouro = true;
+        oPos.push({ c:col, y:yy0 }); yy0 += ls.length*oLH + oLH*.35;
+      });
+      if(oTam <= 3.6 || !estouro) break;
       oTam -= .15;
     }
-    var oy = oyIni;
+    for(var kc = 1; kc < ncol; kc++) P.linha(x + kc*wCol, y + hcab, x + kc*wCol, y + h, { cor:"#c9d3de", peso:.12 });
     oLin.forEach(function(ls, i){
+      var oy = oPos[i].y, xc = x + oPos[i].c*wCol;
       if(oy + ls.length*oLH > fimObs) return;
-      P.ret(x + 1.8, oy - oLH*.72, 4.6, oLH*.98, { peso:.12 });
-      P.texto(x + 4.1, oy, String(i+1).padStart(2,"0"), { tam:Math.min(5.1, oTam*.85), align:"center" });
-      ls.forEach(function(t, k){ P.texto(x + 7.8, oy + k*oLH, t, { tam:oTam }); });
-      oy += ls.length*oLH + oLH*.35;
+      P.ret(xc + 1.8, oy - oLH*.72, 4.6, oLH*.98, { peso:.12 });
+      P.texto(xc + 4.1, oy, String(i+1).padStart(2,"0"), { tam:Math.min(5.1, oTam*.85), align:"center" });
+      ls.forEach(function(t, k){ P.texto(xc + 7.8, oy + k*oLH, t, { tam:oTam }); });
     });
-    oy = y + h - rodape + 3.4;
-    [["ÁREA DA RESERVA LEGAL:", (ex.reserva || "0,0000") + " ha"],
+    var areasC = [["ÁREA DA RESERVA LEGAL:", (ex.reserva || "0,0000") + " ha"],
      ["ÁREA DE APP:", (ex.app || "0,0000") + " ha"],
-     ["REFERÊNCIA BASE DO CAR:", ex.car_ref || ""]].forEach(function(r){
-      P.texto(x + 1.8, oy, r[0], { tam:5.6 });
-      P.texto(c1 - 1.8, oy, r[1], { tam:5.6, align:"right" });
-      oy += 3.8*V;                                    // campos mais juntos, como pedido
-    });
+     ["REFERÊNCIA BASE DO CAR:", ex.car_ref || ""]];
+    if(largo){
+      P.linha(xAreas, y, xAreas, y + h, { peso:.25 });
+      P.texto(xAreas + 1.8, y + 4.4, "ÁREAS E REFERÊNCIA:", { tam:6.9, bold:true });
+      var hA = (y + h - (y + hcab))/3;
+      areasC.forEach(function(r, i){
+        var by = y + hcab + i*hA;
+        if(i) P.linha(xAreas, by, c1, by, { cor:"#9aa7b5", peso:.1 });
+        P.texto(xAreas + 1.8, by + 3.6, r[0], { tam:5.4, cor:"#4a5a6a" });
+        var vv = caber(P, r[1], c1 - xAreas - 6.4, 7, true, 4.2);
+        P.texto(xAreas + 4.4, by + hA - 2.6, vv.txt, { tam:vv.tam, bold:true });
+      });
+    } else {
+      var oy = y + h - rodape + 3.4;
+      areasC.forEach(function(r){
+        P.texto(x + 1.8, oy, r[0], { tam:5.6 });
+        P.texto(c1 - 1.8, oy, r[1], { tam:5.6, align:"right" });
+        oy += 3.8*V;                                    // campos mais juntos, como pedido
+      });
+    }
 
     /* LEGENDA — símbolos e textos como no desenho aprovado (posições do DXF, reescaladas) */
     CAMDXF(P, "ENP_LEGENDA");
