@@ -24241,6 +24241,13 @@ function AV_gerarDescSituacao(){
     pts.forEach(function(p){ if(!limpo.length || !mesmo(limpo[limpo.length-1], p)) limpo.push(p); });
     pts = limpo;
     if(pts.length < 3){ G = null; return { erro:"O perímetro tem menos de 3 vértices." }; }
+    // 13/10/2026: com vários perímetros a numeração continua (Área 2 começa depois do último vértice da Área 1)
+    var deslocV = 0;
+    for(var ka = 0; ka < ST.area; ka++){
+      var pa = ANEIS[ka].pts.slice(); while(pa.length > 1 && mesmo(pa[0], pa[pa.length-1])) pa.pop();
+      var la = []; pa.forEach(function(q){ if(!la.length || !mesmo(la[la.length-1], q)) la.push(q); });
+      if(la.length >= 3) deslocV += la.length;
+    }
 
     var fuso = fusoDe(pts[0][0]);
     var uv = pts.map(function(p){ var u = utm(p[0], p[1], fuso); return { lon:p[0], lat:p[1], E:u.E, N:u.N }; });
@@ -24272,7 +24279,7 @@ function AV_gerarDescSituacao(){
     var areaPlano = Math.abs(s2/2), area = areaElip(uv);   // área ELIPSOIDAL (a do plano UTM fica em area_plano_m2)
     var cx = 0, cy = 0; uv.forEach(function(p){ cx += p.E; cy += p.N; }); cx /= n; cy /= n;
     G = {
-      v: uv.map(function(p, k){ return { nome:"P" + String(k+1).padStart(2,"0"), lon:p.lon, lat:p.lat, E:p.E, N:p.N }; }),
+      v: uv.map(function(p, k){ return { nome:"P" + String(k + 1 + deslocV).padStart(2,"0"), lon:p.lon, lat:p.lat, E:p.E, N:p.N }; }),
       segs: segs, area_m2: area, area_plano_m2: areaPlano, area_ha: area/10000, perim: perim,
       fuso: fuso, mc: mcDe(fuso), letra: FUSO_LETRA(pts[0][1]), sul: pts[0][1] < 0,
       cx: cx, cy: cy, nomeKml: gv("rel_kml_nome"), rotuloAnel: anel.nome || ""
@@ -24551,7 +24558,8 @@ function AV_gerarDescSituacao(){
     var N = function(t){ out.push({ t:t, b:false }); }, B = function(t){ out.push({ t:t, b:true }); };
     var v0 = G.v[0];
     N("Inicia-se a descrição deste perímetro no vértice "); B(v0.nome);
-    var km0 = kmDe(0); if(km0){ N(", no KM="); B(km0); }
+    var kmA0 = kmAtual(), TXT_KM = (kmA0 && kmA0.doEixo === false) ? ", em perpendicular ao KM=" : ", no KM=";   // 13/10/2026
+    var km0 = kmDe(0); if(km0){ N(TXT_KM); B(km0); }
     N(", de coordenadas N "); B(br(v0.N,3) + "m"); N(" e E "); B(br(v0.E,3) + "m"); N("; ");
     G.segs.forEach(function(s, i){
       var b = G.v[s.para], nome = cs[i] || "";
@@ -24562,7 +24570,7 @@ function AV_gerarDescSituacao(){
       N("com azimute de "); B(dms(s.az));
       N(" por uma distância de "); B(br(s.dist,2) + "m");
       N("  até o vértice "); B(b.nome);
-      if(km && !fim){ N(", no KM="); B(km); }
+      if(km && !fim){ N(TXT_KM); B(km); }
       if(fim){ N(", "); return; }
       N(", de coordenadas N "); B(br(b.N,3) + "m"); N(" e E "); B(br(b.E,3) + "m"); N("; ");
     });
@@ -26448,7 +26456,7 @@ function AV_gerarDescSituacao(){
       });
       if(!tot) return false;
       var p0 = pts[0].A, p1 = pts[pts.length-1].B, cdx = p1[0]-p0[0], cdy = p1[1]-p0[1], cL = Math.hypot(cdx, cdy);
-      var reta = cL > 1 && cL >= tot*.7;                 // quase reto: segue a corda; muito dobrado: segue o trecho sob o texto
+      var reta = cL > 1;                                 // 13/10/2026: sempre a direção geral do trecho contínuo (a corda do 1º ao último vértice)
       function sobre(f){
         var alvo = pts[pts.length-1], t = 1, d = tot*f;
         for(var k = 0; k < pts.length; k++){ if(d <= pts[k].ini + pts[k].L){ alvo = pts[k]; t = pts[k].L ? (d - pts[k].ini)/pts[k].L : .5; break; } }
@@ -26467,8 +26475,8 @@ function AV_gerarDescSituacao(){
           var tp2 = tz*.82, hp = pref ? tp2*.3528*.78 + 1.2 : 0, hbox = hz + hp;   // hp = altura do "Expropriado:" + folga
           var w = Math.max(P.largura(nome, { tam:tz, bold:true }), pref ? P.largura(pref, { tam:tp2 }) : 0) + 1.4;
           if(fase === 0 && w > tot + .5) continue;       // 1ª tentativa: o nome cabe no comprimento total das divisas
-          for(var d = 4.6 + hbox/2; d <= 36 && !posto; d += 2.8){
-            for(var fi = 0; fi < fracs.length && !posto; fi++){
+          for(var fi = 0; fi < fracs.length && !posto; fi++){          // o meio do comprimento total primeiro, em qualquer distância
+            for(var d = 4.6 + hbox/2; d <= 36 && !posto; d += 2.8){
               var q = sobre(fracs[fi]);
               var ang = -Math.atan2(q.ty, q.tx)*180/Math.PI; if(ang > 90) ang -= 180; if(ang <= -90) ang += 180;
               var r = ang*Math.PI/180, up = [-Math.sin(r), -Math.cos(r)], ux = Math.cos(r), uy = -Math.sin(r);
@@ -26587,13 +26595,30 @@ function AV_gerarDescSituacao(){
   /* KM inicial e final do eixo da ferrovia na área desapropriada: marca no vértice (o mesmo KM do
      memorial/carimbo — kmDe: manual da tabela ou calculado) + chamada até o rótulo. O rótulo vai
      FORA do polígono, sem cobrir outros rótulos e, se couber, fora da faixa de domínio (40 m do eixo). */
+  // a caixa (com folga m, em mm) cruza ou encosta numa aresta do polígono?
+  function caixaTocaPoli(bb, pol, m){
+    var x0 = bb[0] - m, y0 = bb[1] - m, x1 = bb[2] + m, y1 = bb[3] + m;
+    function dentro(p){ return p[0] >= x0 && p[0] <= x1 && p[1] >= y0 && p[1] <= y1; }
+    function cruza(a, b, c, d){
+      var o = function(p, q, r){ return (q[0]-p[0])*(r[1]-p[1]) - (q[1]-p[1])*(r[0]-p[0]); };
+      var d1 = o(a, b, c), d2 = o(a, b, d), d3 = o(c, d, a), d4 = o(c, d, b);
+      return ((d1 > 0) !== (d2 > 0)) && ((d3 > 0) !== (d4 > 0));
+    }
+    var L = [[[x0,y0],[x1,y0]], [[x1,y0],[x1,y1]], [[x1,y1],[x0,y1]], [[x0,y1],[x0,y0]]];
+    for(var i = 0; i < pol.length; i++){
+      var a = pol[i], b = pol[(i+1)%pol.length];
+      if(dentro(a) || dentro(b)) return true;
+      for(var k = 0; k < 4; k++) if(cruza(a, b, L[k][0], L[k][1])) return true;
+    }
+    return false;
+  }
   function desenharKmEixo(P, T, pol, caixas){ CAMDXF(P, "ENP_KM_EIXO");
     var e = eixoIniFim(); if(!e) return;
     var alvos = [];
     [[e.ini, "KM INICIAL"], [e.fim, "KM FINAL"]].forEach(function(a){
       var i = a[0]; if(i == null || i < 0 || !G.v[i] || alvos.some(function(x){ return x.i === i; })) return;
       var txt = kmDe(i) || (e.km.v[i] && e.km.v[i].ch != null ? kmTxt(e.km.v[i].ch) : "");
-      if(txt) alvos.push({ i:i, txt:a[1] + " = " + txt.replace(/^\s*KM\s*=?\s*/i, ""),
+      if(txt) alvos.push({ i:i, fim:a[1] === "KM FINAL", txt:a[1] + " = " + txt.replace(/^\s*KM\s*=?\s*/i, ""),
         coord:"E= " + br(G.v[i].E,3) + "   N= " + br(G.v[i].N,3) });   // coordenada UTM do vértice, logo abaixo
     });
     if(!alvos.length) return;
@@ -26607,6 +26632,11 @@ function AV_gerarDescSituacao(){
     alvos.forEach(function(a){
       var q = pol[a.i], w = Math.max(P.largura(a.txt, { tam:tam, bold:true }), P.largura(a.coord, { tam:tam2, bold:true })) + 1.4, melhor = null;
       var fora = [q[0] - cgx, q[1] - cgy], fl = Math.hypot(fora[0], fora[1]) || 1; fora = [fora[0]/fl, fora[1]/fl];
+      // direção preferida: o sentido do KM (do vértice do KM inicial ao do KM final) — o final vai adiante, o inicial para trás —
+      // somado a "para fora da área"
+      var pI = pol[e.ini], pF = pol[e.fim], pref = fora;
+      if(pI && pF && e.ini !== e.fim){ var vk = [pF[0]-pI[0], pF[1]-pI[1]], vl = Math.hypot(vk[0], vk[1]) || 1, sg = a.fim ? 1 : -1;
+        pref = [sg*vk[0]/vl + fora[0]*.5, sg*vk[1]/vl + fora[1]*.5]; var pl = Math.hypot(pref[0], pref[1]) || 1; pref = [pref[0]/pl, pref[1]/pl]; }
       for(var ai = 0; ai < 24; ai++){
         var ang = ai*Math.PI/12, dx = Math.cos(ang), dy = Math.sin(ang);
         for(var d = 7; d <= 90; d += 3){
@@ -26614,13 +26644,14 @@ function AV_gerarDescSituacao(){
           var bb = [cx - w/2, cy - hh/2 - .5, cx + w/2, cy + hh/2 + .5];
           if(!noMapa([bb[0], bb[1]], -1.5) || !noMapa([bb[2], bb[3]], -1.5)) continue;
           if([[bb[0],bb[1]],[bb[2],bb[1]],[bb[0],bb[3]],[bb[2],bb[3]],[cx,cy]].some(function(pt){ return ptEmPoli(pt[0], pt[1], pol); })) continue;
+          if(caixaTocaPoli(bb, pol, .9)) continue;                      // 13/10/2026: nada do rótulo sobre a linha do perímetro
           if(caixas.some(function(b){ return caixasSeCruzam(bb, b, .5); })) continue;
           var sobreEstaca = CAIXAS_ESTACA.some(function(b){ return caixasSeCruzam(bb, b, .6); });
           var atravessa = false; for(var t = .2; t < 1; t += .1){ if(ptEmPoli(q[0] + (cx - q[0])*t, q[1] + (cy - q[1])*t, pol)){ atravessa = true; break; } }
           if(atravessa) continue;
           // número de estaca: evitado com força (400), mas nunca deixa o KM sem rótulo
-          var custo = d - (dx*fora[0] + dy*fora[1])*6 + (sobreEstaca ? 400 : 0);
-          if(eixo.length && [[bb[0],bb[1]],[bb[2],bb[1]],[bb[0],bb[3]],[bb[2],bb[3]],[cx,cy]].some(function(pt){ return distEixo(pt[0], pt[1]) < meia; })) custo += 200;
+          var custo = d - (dx*pref[0] + dy*pref[1])*30 + (sobreEstaca ? 400 : 0);   // 13/10/2026: segue o sentido do KM para fora da área (KM final adiante, KM inicial para trás)
+          if(eixo.length && [[bb[0],bb[1]],[bb[2],bb[1]],[bb[0],bb[3]],[bb[2],bb[3]],[cx,cy]].some(function(pt){ return distEixo(pt[0], pt[1]) < meia; })) custo += 15;   // 13/10/2026: faixa pesa menos que seguir o sentido do KM para fora da área
           if(!melhor || custo < melhor.custo) melhor = { cx:cx, cy:cy, bb:bb, custo:custo };
         }
       }
@@ -26636,7 +26667,7 @@ function AV_gerarDescSituacao(){
       caixas.push(melhor.bb);
       // chamada até a borda da caixa mais próxima do vértice
       var ex = Math.max(melhor.bb[0], Math.min(q[0], melhor.bb[2])), ey = Math.max(melhor.bb[1], Math.min(q[1], melhor.bb[3]));
-      P.linha(q[0], q[1], ex, ey, { cor:COR_KM, peso:.3 });
+      P.linha(q[0], q[1], ex, ey, { cor:"#000000", peso:.3 });          // chamada preta (13/10/2026)
       P.texto(melhor.cx, melhor.cy - hh/2 + h1, a.txt, { tam:tam, bold:true, align:"center", cor:"#000000", halo:true });   // texto preto, contorno branco (05/10/2026)
       P.texto(melhor.cx, melhor.cy + hh/2, a.coord, { tam:tam2, bold:true, align:"center", cor:"#000000", halo:true });
     });
@@ -27176,7 +27207,7 @@ function AV_gerarDescSituacao(){
     }
     // MULTILEADER: CONTEXT_DATA{ ... LEADER{ ... LEADER_LINE{ 10/20 … } … } texto 304 em 12/22, altura 41, seta 140 }
     function dxfMLeader(e, tf, layer, cor, lw){
-      var nivel = [], txt = "", tl = null, th = 0, aw = 0, linhas = [], cur = null, conexao = null, emLeader = false, dog = null, dogL = 0, dogs = [];
+      var nivel = [], txt = "", tl = null, th = 0, aw = 0, linhas = [], cur = null, conexao = null, emLeader = false, dog = null, dogL = 0, dogs = [], mAtt = 1, mEsp = 1;
       e.g.forEach(function(q){
         var c = q[0], v = q[1];
         if(c === 300 && v === "CONTEXT_DATA{"){ nivel.push("C"); return; }
@@ -27186,12 +27217,17 @@ function AV_gerarDescSituacao(){
         var topo = nivel[nivel.length - 1];
         if(topo === "LL"){ if(c === 10) cur.push([+v, 0]); else if(c === 20 && cur.length) cur[cur.length - 1][1] = +v; return; }
         if(topo === "L"){ if(c === 10) conexao = [+v, 0]; else if(c === 20 && conexao) conexao[1] = +v; else if(c === 11) dog = [+v, 0]; else if(c === 21 && dog) dog[1] = +v; else if(c === 40) dogL = +v; return; }   // 11/21 = direção e 40 = comprimento do patamar (dogleg)
-        if(topo === "C"){ if(c === 304 && v !== "LEADER_LINE{") txt += v; else if(c === 12) tl = [+v, 0]; else if(c === 22 && tl) tl[1] = +v; else if(c === 41) th = +v; else if(c === 140) aw = +v; }
+        if(topo === "C"){ if(c === 304 && v !== "LEADER_LINE{") txt += v; else if(c === 12) tl = [+v, 0]; else if(c === 22 && tl) tl[1] = +v; else if(c === 41) th = +v; else if(c === 140) aw = +v; else if(c === 171) mAtt = +v || 1; else if(c === 45) mEsp = +v || 1; }
       });
       linhas.forEach(function(l){ var pts = l.pts.slice(); if(l.con) pts.push(l.con); if(pts.length > 1){ add0({ k:"L", pts:pts }, tf, layer, cor, lw); seta(pts[1], pts[0], aw || hdr.DIMASZ*hdr.DIMSCALE, tf, layer, cor, lw); } });
       dogs.forEach(function(d){ add0({ k:"L", pts:d }, tf, layer, cor, lw); });
       if(txt && tl){ var lns = dxfLimpaTxt(txt).split("\n"), h = th || hdr.DIMTXT*hdr.DIMSCALE;
-        lns.forEach(function(ln, k){ if(ln.trim()) add0({ k:"T", x:tl[0], y:tl[1] - h - k*h*1.6, h:h, rot:0, txt:ln, ha:0, va:0 }, tf, layer, cor, lw); }); }
+        // 13/10/2026: o ponto 12/22 é o ANEXO do texto (171: 1-3 topo esq/centro/dir, 4-6 meio, 7-9 base) — antes tudo saía
+        // como "topo à esquerda" e um leader com texto à esquerda da seta (anexo 3) ficava deslocado
+        if(!(mAtt >= 1 && mAtt <= 9)) mAtt = 1; if(!(mEsp >= .25 && mEsp <= 4)) mEsp = 1;
+        var colM = (mAtt - 1)%3, linM = Math.floor((mAtt - 1)/3), passoM = h*5/3*mEsp, HM = h + (lns.length - 1)*passoM;
+        var off0M = linM === 0 ? -h : (linM === 1 ? HM/2 - h : HM - h);
+        lns.forEach(function(ln, k){ if(ln.trim()) add0({ k:"T", x:tl[0], y:tl[1] + off0M - k*passoM, h:h, rot:0, txt:ln, ha:colM, va:0, font:"arial.ttf" }, tf, layer, cor, lw); }); }
     }
     // hachura com padrão: cada família (ângulo 53, base 43/44, deslocamento 45/46, traços 49) cortada pela borda (par/ímpar)
     function hachuraPadrao(g, k0, aneis){
@@ -28142,7 +28178,7 @@ function AV_gerarDescSituacao(){
     cv.width = Math.round(MAPA.w*s); cv.height = Math.round(MAPA.h*s);
     cv.style.width = larguraCss + "px"; cv.style.height = (larguraCss*MAPA.h/MAPA.w) + "px";
     ctx.setTransform(1,0,0,1,0,0); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, cv.width, cv.height);
-    var op = await preparar(T, dpiMapa, aviso, Object.assign({ semCotaFaixa:true, semConf:true }, sobre || {}));   // quadro (Compor a planta / JPG): sem a cota de 40 m da faixa e sem o texto de confrontação
+    var op = await preparar(T, dpiMapa, aviso, Object.assign({ semCotaFaixa:true }, sobre || {}));   // quadro (Compor a planta / JPG): sem a cota de 40 m da faixa; os confrontantes saem como na tabela (13/10/2026) /* lote7 */
     if(cancelado && cancelado()) return null;
     ctx.setTransform(1,0,0,1,0,0); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, cv.width, cv.height);
     ctx.translate(-MAPA.x*s, -MAPA.y*s);
@@ -29335,18 +29371,24 @@ function AV_gerarDescSituacao(){
   /* ---- lista de opções do confrontante: CTDs já cadastrados no mesmo SPS + áreas remanescentes ---- */
   var LISTA_CONF = { sps:null, itens:[], carregando:false };
   var REMANESCENTES = ["Área remanescente"];   // uma só opção: sai com o nome do proprietário/posseiro do cadastro
-  function spsAtual(){ var l = gv("fb_proc_lote"); return l ? String(parseInt(l,10)).padStart(2,"0") : ""; }
+  // SPS do cadastro aberto: "4", "04", "SPS-04" ou, sem lote, o "SPS-04" do nome do cadastro (13/10/2026)
+  function spsAtual(){
+    var d = String(gv("fb_proc_lote") || "").replace(/\D/g, "");
+    if(!d){ var m = /SPS[\s-]*0*(\d+)/i.exec(String((window.__CAD_ATUAL && window.__CAD_ATUAL.ctd) || "")); if(m) d = m[1]; }
+    return d ? ("0" + parseInt(d, 10)).slice(-2) : "";
+  }
   function sps2(l){ var d = String(l == null ? "" : l).replace(/\D/g,""); return d ? ("0" + d).slice(-2) : ""; }
   function ctdCurto(v){ var m = String(v||"").match(/CTD\s*([A-Za-z0-9]+(?:[-.\/][A-Za-z0-9]+)*)/i); return m ? m[1] : String(v||""); }
   function carregarConfrontantes(){
     var sps = spsAtual();
     if(LISTA_CONF.carregando || (LISTA_CONF.sps === sps && LISTA_CONF.itens.length)) return Promise.resolve();
+    if(LISTA_CONF.sps !== sps){ LISTA_CONF.itens = []; renderDatalist(); }   // trocou de SPS: a lista antiga sai já
     LISTA_CONF.carregando = true;
     var base = (typeof window.CAD_SERVIDOR_URL === "string" ? window.CAD_SERVIDOR_URL : "").replace(/\/+$/, "");
     return fetch(base + "/api/cadastros?limite=500", {cache:"no-cache"}).then(function(r){ return r.json(); }).then(function(l){
       var meu = ctdCurto((window.__CAD_ATUAL && window.__CAD_ATUAL.ctd) || "") || gv("fb_proc_ctd");
       LISTA_CONF.itens = (Array.isArray(l) ? l : []).filter(function(it){
-        return it && it.proprietario && (!sps || sps2(it.lote) === sps) && ctdCurto(it.ctd) !== meu;
+        return it && it.proprietario && !!sps && sps2(it.lote) === sps && ctdCurto(it.ctd) !== meu;   // sem SPS conhecido: nenhum de outro SPS
       }).map(function(it){ return { ctd:ctdCurto(it.ctd), nome:String(it.proprietario).trim(), posseiro:it.posseiro || "" }; })
        .sort(function(a,b){ return a.ctd.localeCompare(b.ctd, "pt-BR", {numeric:true}); });
       LISTA_CONF.sps = sps;
@@ -29526,7 +29568,7 @@ function AV_gerarDescSituacao(){
           DIVISAS.map(function(d){ return '<option value="' + d[0] + '"' + (ownD === d[0] ? ' selected' : '') + '>' + esc(d[1]) + '</option>'; }).join("") + '</select></td>' +
         (function(){ var ownM = (c[i] && c[i].m) ? c[i].m : "";
           return '<td><input type="text" value="' + esc(ownM) + '" placeholder="' + esc(ownM ? "" : (ms[i] ? ("↑ " + ms[i]) : "nº da matrícula")) + '" style="min-width:110px" oninput="MDP_confIn(' + i + ',\'m\',this.value' + kj + ')" onchange="MDP_conf(' + i + ',\'m\',this.value' + kj + ')"' + (ownM ? '' : ' class="mdp-herd"') + '></td>'; })() +
-        '<td><div class="mdp-conf-w"><input type="text" list="mdp_dl_conf" value="' + esc(own) + '" placeholder="' + esc(own ? "" : (cs[i] ? ("↑ " + cs[i]) : "nome ou nº do CTD")) + '" oninput="MDP_confIn(' + i + ',\'c\',this.value' + kj + ')" onchange="MDP_confResolver(' + i + ',this.value' + kj + ')"' + (own ? '' : ' class="mdp-herd"') + '>' +
+        '<td><div class="mdp-conf-w"><input type="text" list="mdp_dl_conf" autocomplete="off" value="' + esc(own) + '" placeholder="' + esc(own ? "" : (cs[i] ? ("↑ " + cs[i]) : "nome ou nº do CTD")) + '" oninput="MDP_confIn(' + i + ',\'c\',this.value' + kj + ')" onchange="MDP_confResolver(' + i + ',this.value' + kj + ')"' + (own ? '' : ' class="mdp-herd"') + '>' +
           '</div></td>' +
         '</tr>';
     });
