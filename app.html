@@ -8784,8 +8784,9 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 <div class="wrap">
 <h1>Técnica</h1>
 <p class="sub">Áreas de locação e área a desapropriar (preenchimento único, usado nos demais documentos) e as Benfeitorias da Avaliação (DESP 3) — o que for preenchido aqui ou lá aparece nos dois lugares.</p>
-<div class="vcard"><div class="vsub">Áreas de Locação</div><div class="rel-areas" id="rel_areas"></div><div class="vactions" style="margin-top:6px;"><button class="vbtn vbtn-ghost" type="button" onclick="REL_addArea()">+ Adicionar área</button></div>
-  <div class="tec-areas-ha vrow"><div class="vfield"><label>Área Desap. (ha)</label><input type="text" id="fb_area_desap" class="num4" inputmode="decimal" placeholder="0,0000"></div><div class="vfield"><label>Remanescente norte (ha)</label><input type="text" id="d2_kf_remN" class="num4" inputmode="decimal" placeholder="0,0000"></div><div class="vfield"><label>Remanescente sul / sede (ha)</label><input type="text" id="d2_kf_remS" class="num4" inputmode="decimal" placeholder="0,0000"></div></div>
+<div class="vcard"><div class="vsub">Áreas de Locação</div><div class="rel-areas" id="rel_areas"></div><p class="hint-inline rel-km-aviso" id="rel_km_aviso" role="status" aria-live="polite"></p><div class="vactions" style="margin-top:6px;"><button class="vbtn vbtn-ghost" type="button" onclick="REL_addArea()">+ Adicionar área</button></div>
+  <div class="tec-areas-ha vrow"><div class="vfield"><label>Área total (ha)</label><input type="text" aria-label="Área total (ha)" data-espelho="fb_area_total" class="num4" inputmode="decimal" placeholder="0,0000"></div><div class="vfield"><label>Área total ocupada (ha)</label><input type="text" aria-label="Área total ocupada (ha)" data-espelho="fb_area_ocupada" class="num4" inputmode="decimal" placeholder="0,0000"></div><div class="vfield"><label>Área Desap. (ha)</label><input type="text" id="fb_area_desap" class="num4" inputmode="decimal" placeholder="0,0000"></div><div class="vfield"><label>Remanescente norte (ha)</label><input type="text" id="d2_kf_remN" class="num4" inputmode="decimal" placeholder="0,0000"></div><div class="vfield"><label>Remanescente sul / sede (ha)</label><input type="text" id="d2_kf_remS" class="num4" inputmode="decimal" placeholder="0,0000"></div></div>
+  <p class="hint-inline tec-areas-dica" id="tec_areas_dica">Área total e Área total ocupada são as mesmas da Assistência Social (mudar aqui ou lá dá no mesmo). Remanescentes: preenchida a área desapropriada e um dos remanescentes, o outro é calculado — área total ocupada − desapropriada − remanescente informado.</p>
   <div class="vsub tec-geo-sub">Georreferenciamento (Anexo B — Ficha de Vistoria)</div><div id="geo_row_slot"></div>
 </div>
 <div class="vcard" id="tec_kmls_card"><div class="vsub">Arquivos KML do imóvel</div>
@@ -17780,6 +17781,7 @@ window.FOTO_rodapeHTML=rodapeHTML;
       '<div class="par"><span>KM Final</span><input type="text" class="e-fim" value="'+(fim||"")+'" placeholder="940+002,28"></div>'+
       '<div class="par"><span>Tipo da área</span><select class="e-tipo">'+
         '<option value="Faixa de Domínio">Faixa de Domínio</option>'+
+        '<option value="Alargamento">Alargamento</option>'+
         '<option value="Área Remanescente">Área Remanescente</option>'+
       '</select></div>'+
       '<button type="button" class="rm" title="Remover área">✕</button>';
@@ -24413,7 +24415,12 @@ function AV_gerarDescSituacao(){
     return { ini:ini, fim:fim, km:km };
   }
   function kmAuto(i){ var e = eixoIniFim(); return (e && (i === e.ini || i === e.fim) && e.km.v[i].ch != null) ? kmTxt(e.km.v[i].ch) : ""; }
-  function kmDe(i){ return kmManual(i) || kmAuto(i); }
+  // 13/10/2026: KM digitado na Técnica (Áreas de Locação, selo "manual") substitui o calculado nos vértices do eixo
+  function kmNumTxt(s){ var m = String(s || "").replace(/\s/g, "").match(/^(\d+)\+(\d+(?:[.,]\d+)?)$/); return m ? (+m[1]*1000 + parseFloat(m[2].replace(",", "."))) : NaN; }
+  function relKm(j){ var f = window.REL_kmDoAnel; try{ return (typeof f === "function") ? f(j) : null; }catch(e){ return null; } }
+  function anelAtivo(){ return (ANEIS.length > 1) ? (ST.area | 0) : 0; }
+  function kmRelVert(i){ var m = relKm(anelAtivo()); if(!m) return ""; var e = eixoIniFim(); if(!e) return ""; if(i === e.ini) return m.ini || ""; if(i === e.fim && e.fim !== e.ini) return m.fim || ""; return ""; }
+  function kmDe(i){ return kmManual(i) || kmRelVert(i) || kmAuto(i); }
   // Os dados da tabela são guardados pela coordenada (ver conf()): trocar o P01 NÃO gira nada.
   // Só um cadastro ainda no formato antigo (por número de trecho) é convertido aqui, ANTES de o P01
   // mudar — com a numeração do P01 atual, que é a do dado gravado.
@@ -27459,8 +27466,24 @@ function AV_gerarDescSituacao(){
   function dataImpressao(){ var d = new Date(), z = function(n){ return String(n).padStart(2, "0"); }; return z(d.getDate()) + "/" + z(d.getMonth() + 1) + "/" + d.getFullYear(); }
   // segmento = KM inicial ao KM final e extensão, do(s) KML inserido(s); na planta geral, os totais
   function segmentoAuto(km){
-    if(geralAtivo()){ var kt = kmTotais(); return kt ? ("KM=" + kmTxt(kt.ini) + " ao KM=" + kmTxt(kt.fim) + " = " + br(kt.soma, 2) + "m") : ""; }
+    if(geralAtivo()){
+      var kt = kmTotais(); if(!kt) return "";
+      var gi = Infinity, gf = -Infinity, soma = 0;
+      kt.L.forEach(function(x){
+        var a = x.km.ini, b = x.km.fim, m = relKm(x.i);
+        if(m){ var mi = kmNumTxt(m.ini), mf = kmNumTxt(m.fim); if(isFinite(mi)) a = mi; if(isFinite(mf)) b = mf; }
+        gi = Math.min(gi, a); gf = Math.max(gf, b); soma += Math.max(0, b - a);
+      });
+      return "KM=" + kmTxt(gi) + " ao KM=" + kmTxt(gf) + " = " + br(soma, 2) + "m";
+    }
     km = km || kmAtual();
+    var m = relKm(anelAtivo());
+    if(m){
+      var mi = kmNumTxt(m.ini), mf = kmNumTxt(m.fim);
+      var ti = m.ini || (km ? kmTxt(km.ini) : "___"), tf = m.fim || (km ? kmTxt(km.fim) : "___");
+      var a2 = isFinite(mi) ? mi : (km ? km.ini : NaN), b2 = isFinite(mf) ? mf : (km ? km.fim : NaN);
+      return "KM=" + ti + " ao KM=" + tf + (isFinite(a2) && isFinite(b2) ? (" = " + br(b2 - a2, 2) + "m") : "");
+    }
     return km ? ("KM=" + kmTxt(km.ini) + " ao KM=" + kmTxt(km.fim) + " = " + br(km.ext, 2) + "m") : "";
   }
   function autoCarimbo(c){
@@ -27660,7 +27683,7 @@ function AV_gerarDescSituacao(){
   };
   // KM inicial/final de CADA perímetro (mapas da DESP-2 com vários perímetros, 08/10/2026): o mesmo cálculo da planta (calcularKm),
   // um por anel do KML, com a posição (lon/lat) do vértice que marca cada KM.
-  window.MDP_kmAneis = async function(){
+  window.MDP_kmAneis = async function(opc){
     if(!G) analisar(); if(!G) return null;
     await carregarContexto();
     var L = kmPorAnel(); if(!L) return null;
@@ -27674,6 +27697,8 @@ function AV_gerarDescSituacao(){
         return { i:i, lon:ll[0], lat:ll[1], E:p.E, N:p.N, ch:(ch != null ? ch : null), km:(ch != null ? kmTxt(ch) : "") };
       }
       var ini = pt(k.iIni), fim = pt(k.iFim);
+      var mR = (opc && opc.semManual) ? null : relKm(x.i);        // KM digitado na Técnica vale nos mapas
+      if(mR){ if(ini && mR.ini) ini.km = mR.ini; if(fim && mR.fim) fim.km = mR.fim; }
       return { i:x.i, nome:a.nome || "", ini:ini, fim:((fim && ini && fim.i === ini.i) ? null : fim), ext:k.ext };
     }).filter(Boolean);
   };
@@ -33367,32 +33392,115 @@ window.UFOTO_rodapeHTML=rodapeHTML;
   function f19(id){ const e=document.getElementById(id); return e?(e.value||"").trim():""; }
 
   // ---- Áreas de Locação (formato Estacas Km, igual à DESP 3) ----
-  const areas=[];  // cada item: {ini, fim, tipo}
+  // 13/10/2026: tipo "Alargamento"; KM inicial/final automático pelo KML da área desapropriada: cada perímetro do KML
+  // corresponde, na ordem, a uma área do tipo Faixa de Domínio ou Alargamento. kmFonte = "auto" (veio do KML) ou
+  // "manual" (digitado — vale em todo o app: planta, memorial, mapas da DESP-2, relatórios e capas).
+  // Cadastros antigos: KM já digitado que não bate com o KML vira "manual" (nada é sobrescrito sem o usuário pedir).
+  const areas=[];  // cada item: {ini, fim, tipo, kmFonte}
+  const TIPOS_AREA=['Faixa de Domínio','Alargamento','Área Remanescente'], TIPOS_DESAP=['Faixa de Domínio','Alargamento'];
+  function ehDesap(a){ return !!a && typeof a==="object" && TIPOS_DESAP.indexOf(a.tipo||"Faixa de Domínio")>=0; }
+  function escA(v){ return String(v==null?"":v).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+  function kmNum(v){ const m=String(v||"").replace(/\s/g,"").match(/^(\d+)\+(\d+(?:[.,]\d+)?)$/); return m?(+m[1]*1000+parseFloat(m[2].replace(",","."))):NaN; }
+  function mesmoKm(x,y){ x=String(x||"").trim(); y=String(y||"").trim(); if(x===y) return true; const a=kmNum(x), b=kmNum(y); return isFinite(a)&&isFinite(b)&&Math.abs(a-b)<0.01; }
+  let kmEstado={st:"inicio"};   // inicio | semkml | calc | ok | falha
+  function seloKm(a,i){
+    if(!ehDesap(a)) return '<span class="rel-km-selo" title="Área remanescente: KM digitado">digitado</span>';
+    if(a.kmFonte==="manual") return '<span class="rel-km-selo man" title="KM digitado: vale na planta, no memorial, nos mapas, relatórios e capas">manual</span>'+
+      (kmEstado.st==="ok"?'<button type="button" class="rel-km-usar" onclick="REL_kmUsarKml('+i+')" title="Volta ao KM calculado pelo KML">↺ usar KML</button>':'');
+    if(a.kmFonte==="auto") return '<span class="rel-km-selo auto" title="Calculado pelo KML da área desapropriada, no eixo da ferrovia">automático (KML)</span>';
+    return '';
+  }
+  function avisoKm(){
+    const el=document.getElementById("rel_km_aviso"); if(!el) return;
+    const st=kmEstado.st;
+    el.className="hint-inline rel-km-aviso"+(st==="falha"?" alerta":"");
+    el.textContent =
+      st==="ok" ? "KM inicial e final preenchidos automaticamente pelo KML da área desapropriada"+(kmEstado.n>1?(" ("+kmEstado.n+" perímetros, um por área de Faixa de Domínio/Alargamento)"):"")+". Se digitar outro valor, o digitado passa a valer em todo o app — planta, memorial, mapas, relatórios e capas."
+      : st==="calc" ? "Calculando o KM pelo KML…"
+      : st==="falha" ? "Não foi possível calcular o KM pelo KML"+(kmEstado.msg?(" ("+kmEstado.msg+")"):"")+". Preencha o KM inicial e final manualmente."
+      : st==="semkml" ? "KM inicial e final: insira o KML da área desapropriada (Arquivos KML do imóvel) para o preenchimento automático, ou digite."
+      : "";
+  }
+  function renderSelos(){ areas.forEach((a,i)=>{ const e=document.getElementById("rel_km_fonte_"+i); if(e) e.innerHTML=seloKm(a,i); }); avisoKm(); }
   function renderAreas(){
     const host=document.getElementById("rel_areas"); if(!host) return;
     host.innerHTML="";
     areas.forEach((a,i)=>{
       if(typeof a==="string"){ a={ini:"",fim:"",tipo:"Faixa de Domínio"}; areas[i]=a; }
       const div=document.createElement("div"); div.className="rel-estaca-linha";
+      const tipo=a.tipo||'Faixa de Domínio';
       div.innerHTML=
         '<span class="rot">ÁREA '+(i+1)+'</span>'+
-        '<div class="par"><span>KM Inicial</span><input type="text" value="'+(a.ini||"").replace(/"/g,"&quot;")+'" placeholder="939+921,31" oninput="REL_setArea('+i+',\'ini\',this.value)"></div>'+
-        '<div class="par"><span>KM Final</span><input type="text" value="'+(a.fim||"").replace(/"/g,"&quot;")+'" placeholder="940+002,28" oninput="REL_setArea('+i+',\'fim\',this.value)"></div>'+
-        '<div class="par"><span>Tipo da área</span><select onchange="REL_setArea('+i+',\'tipo\',this.value)">'+
-          ['Faixa de Domínio','Área Remanescente'].map(o=>'<option'+((a.tipo||'Faixa de Domínio')===o?' selected':'')+'>'+o+'</option>').join('')+
+        '<div class="par"><span>KM Inicial</span><input type="text" value="'+escA(a.ini)+'" placeholder="939+921,31" aria-label="KM inicial da área '+(i+1)+'" oninput="REL_setArea('+i+',\'ini\',this.value)"></div>'+
+        '<div class="par"><span>KM Final</span><input type="text" value="'+escA(a.fim)+'" placeholder="940+002,28" aria-label="KM final da área '+(i+1)+'" oninput="REL_setArea('+i+',\'fim\',this.value)"></div>'+
+        '<div class="par"><span>Tipo da área</span><select aria-label="Tipo da área '+(i+1)+'" onchange="REL_setArea('+i+',\'tipo\',this.value)">'+
+          TIPOS_AREA.concat(TIPOS_AREA.indexOf(tipo)<0?[tipo]:[]).map(o=>'<option'+(tipo===o?' selected':'')+'>'+escA(o)+'</option>').join('')+
         '</select></div>'+
-        '<button class="rm" type="button" title="Remover área" onclick="REL_remArea('+i+')">✕</button>';
+        '<div class="rel-km-fonte" id="rel_km_fonte_'+i+'">'+seloKm(a,i)+'</div>'+
+        '<button class="rm" type="button" title="Remover área" aria-label="Remover área '+(i+1)+'" onclick="REL_remArea('+i+')">✕</button>';
       host.appendChild(div);
     });
+    avisoKm();
   }
   // Item 2: envia as Áreas de Locação para a DESP 3 (Áreas — Estacas Km), com correspondência direta
   function syncDESP3(){ if(window.FV_setEstacas){ window.FV_setEstacas(areas.map(a=> (typeof a==="object"&&a)?{ini:a.ini||"",fim:a.fim||"",tipo:a.tipo||""}:{ini:"",fim:"",tipo:""})); } }
+  function sujo(){ try{ if(window.CAD_marcarSujo) window.CAD_marcarSujo(); }catch(e){} }
   window.REL_syncDESP3=syncDESP3;
-  window.REL_addArea=function(){ areas.push({ini:"",fim:"",tipo:"Faixa de Domínio"}); renderAreas(); syncDESP3(); };
-  window.REL_remArea=function(i){ areas.splice(i,1); renderAreas(); syncDESP3(); };
-  window.REL_setArea=function(i,campo,v){ if(typeof areas[i]!=="object"){ areas[i]={ini:"",fim:"",tipo:"Faixa de Domínio"}; } areas[i][campo]=v; syncDESP3(); };
+  window.REL_addArea=function(){ areas.push({ini:"",fim:"",tipo:"Faixa de Domínio"}); renderAreas(); syncDESP3(); agendarKm(300); };
+  window.REL_remArea=function(i){ areas.splice(i,1); renderAreas(); syncDESP3(); agendarKm(300); };
+  window.REL_setArea=function(i,campo,v){
+    if(typeof areas[i]!=="object"){ areas[i]={ini:"",fim:"",tipo:"Faixa de Domínio"}; }
+    areas[i][campo]=v;
+    if(campo==="ini"||campo==="fim"){ if(ehDesap(areas[i])) areas[i].kmFonte="manual"; const e=document.getElementById("rel_km_fonte_"+i); if(e) e.innerHTML=seloKm(areas[i],i); }
+    if(campo==="tipo"){ renderSelos(); agendarKm(300); }
+    syncDESP3();
+  };
   window.REL_getAreas=function(){ return areas; };
-  window.REL_setAreas=function(arr){ areas.length=0; (Array.isArray(arr)?arr:[]).forEach(a=>areas.push(a)); renderAreas(); syncDESP3(); };
+  window.REL_setAreas=function(arr){ areas.length=0; (Array.isArray(arr)?arr:[]).forEach(a=>areas.push(a)); renderAreas(); syncDESP3(); agendarKm(400); };
+  // KM digitado (manual) do j-ésimo perímetro do KML — a planta, o memorial e os mapas usam no lugar do calculado
+  window.REL_kmDoAnel=function(j){
+    const idx=areas.map((a,k)=>ehDesap(a)?k:-1).filter(k=>k>=0), a=areas[idx[j]];
+    if(!a || a.kmFonte!=="manual") return null;
+    const ini=String(a.ini||"").trim(), fim=String(a.fim||"").trim();
+    return (ini||fim) ? {ini:ini, fim:fim} : null;
+  };
+  window.REL_kmUsarKml=function(i){ if(areas[i] && typeof areas[i]==="object"){ areas[i].kmFonte="auto"; agendarKm(0, true); } };
+  let _kmTm=null, _kmVez=0;
+  function agendarKm(ms, forcar){ clearTimeout(_kmTm); _kmTm=setTimeout(()=>{ kmAuto(!!forcar); }, ms==null?600:ms); }
+  window.REL_kmAgendar=agendarKm;
+  async function kmAuto(forcar){
+    const vez=++_kmVez;
+    const kml=((document.getElementById("rel_kml_dados")||{}).value||"").trim();
+    let mudouValor=false;
+    function limparAutos(desde){   // perímetro que não existe mais: KM automático antigo sai
+      areas.map((a,k)=>ehDesap(a)?k:-1).filter(k=>k>=0).slice(desde).forEach(k=>{ const a=areas[k]; if(a.kmFonte==="auto"){ if(a.ini||a.fim) mudouValor=true; a.ini=""; a.fim=""; delete a.kmFonte; } });
+    }
+    if(!kml){ kmEstado={st:"semkml"}; limparAutos(0); if(mudouValor){ renderAreas(); syncDESP3(); sujo(); } else renderSelos(); return; }
+    if(typeof window.MDP_kmAneis!=="function"){ kmEstado={st:"falha", msg:"módulo da planta indisponível"}; renderSelos(); return; }
+    kmEstado={st:"calc"}; avisoKm();
+    let L=null, erro="";
+    try{ L=await window.MDP_kmAneis({ semManual:true }); }catch(e){ erro=(e&&e.message)||String(e); }
+    if(vez!==_kmVez) return;                                   // chegou um pedido mais novo
+    if(!L || !L.length){ kmEstado={st:"falha", msg: erro || "o KML não cruza o eixo do projeto, ou o SPS não tem as estacas carregadas"}; renderSelos(); return; }
+    L=L.slice().sort((x,y)=>x.i-y.i);
+    let novas=0;
+    L.forEach((x,j)=>{
+      const ai=(x.ini&&x.ini.km)||"", af=(x.fim&&x.fim.km)||"";
+      let idx=areas.map((a,k)=>ehDesap(a)?k:-1).filter(k=>k>=0), a=areas[idx[j]];
+      if(!a){                                                  // KML com mais perímetros que áreas: cria a área
+        a={ini:"",fim:"",tipo:"Faixa de Domínio"};
+        const pos=idx.length?idx[idx.length-1]+1:0; areas.splice(pos,0,a); novas++;
+      }
+      if(a.kmFonte==="manual") return;
+      if(a.kmFonte!=="auto" && (String(a.ini||"").trim()||String(a.fim||"").trim()) && !(mesmoKm(a.ini,ai)&&mesmoKm(a.fim,af))){ a.kmFonte="manual"; return; }
+      if(a.ini!==ai || a.fim!==af) mudouValor=true;
+      a.ini=ai; a.fim=af; a.kmFonte="auto";
+    });
+    limparAutos(L.length);
+    kmEstado={st:"ok", n:L.length};
+    if(mudouValor || novas){ renderAreas(); syncDESP3(); sujo(); } else renderSelos();
+    if(forcar && window.MDP_render && document.querySelector("#panel-desp1-planta.ativa")) try{ window.MDP_render(); }catch(e){}
+  }
   // texto formatado de uma área: "KM 939+921,31 ao KM 940+002,28 (Faixa de Domínio)"
   function areaTexto(a){
     if(typeof a==="string") return a;
@@ -39067,7 +39175,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
   function kmFaixaDominio(){
     const areas=(window.REL_getAreas && window.REL_getAreas())||[];
     let alvo=null;
-    for(let i=0;i<areas.length;i++){ const a=areas[i]; if(a && typeof a==="object" && (a.tipo||"Faixa de Domínio")==="Faixa de Domínio" && ((a.ini||"").trim()||(a.fim||"").trim())){ alvo=a; break; } }
+    for(let i=0;i<areas.length;i++){ const a=areas[i]; if(a && typeof a==="object" && ["Faixa de Domínio","Alargamento"].indexOf(a.tipo||"Faixa de Domínio")>=0 && ((a.ini||"").trim()||(a.fim||"").trim())){ alvo=a; break; } }
     if(!alvo){ for(let j=0;j<areas.length;j++){ const a=areas[j]; if(a && typeof a==="object" && ((a.ini||"").trim()||(a.fim||"").trim())){ alvo=a; break; } } }
     if(!alvo) return "";
     const ini=(alvo.ini||"").trim(), fim=(alvo.fim||"").trim();
@@ -44949,6 +45057,109 @@ window.MG_motion={abertura:abertura,cadastro:cadastro,fichas:fichas};
   if(typeof trocar === "function"){
     window.ATIV_trocar = function(){ try{ sessionStorage.removeItem(KEY); }catch(e){} return trocar.apply(this, arguments); };
   }
+})();
+</script>
+<style id="lote3-areas-css">
+#panel-desp1-tecnica .rel-estaca-linha .rel-km-fonte{ align-self:center; display:flex; flex-direction:column; align-items:flex-start; gap:4px; min-width:118px; }
+.rel-km-selo{ display:inline-block; font:700 10.5px/1.4 "Segoe UI",sans-serif; padding:2px 9px; border-radius:999px; background:#EEF1F5; color:#55616F; white-space:nowrap; }
+.rel-km-selo.auto{ background:#E6F1EA; color:#2B7A57; }
+.rel-km-selo.man{ background:#FCF1DE; color:#8A5208; }
+.rel-km-usar{ border:1px solid #DCE1E8; background:#fff; color:#1B3A5C; border-radius:7px; padding:3px 8px; font:600 11px "Segoe UI",sans-serif; cursor:pointer; }
+.rel-km-usar:hover{ border-color:#A7B8CB; background:#F4F6F9; }
+.rel-km-usar:focus-visible{ outline:2px solid #1B3A5C; outline-offset:2px; }
+.rel-km-aviso{ margin:2px 0 8px !important; }
+.rel-km-aviso.alerta{ color:#8A5208 !important; }
+#panel-desp1-tecnica .tec-areas-ha{ flex-wrap:wrap; align-items:flex-end; }
+#panel-desp1-tecnica .tec-areas-ha .vfield{ flex:1 1 150px; min-width:140px; }
+#panel-desp1-tecnica .tec-areas-ha .vfield.tec-calc label::after{ content:" · calculado"; font-weight:600; color:#2B7A57; text-transform:none; letter-spacing:0; }
+.tec-areas-dica{ margin:4px 0 10px !important; }
+</style>
+<script id="lote3-areas-js">
+/* Lote 3 (13/10/2026): espelhos de Área total / Área total ocupada (Assistência Social) na Técnica e cálculo dos
+   remanescentes. Os espelhos não têm dado próprio: leem e escrevem nos campos originais (fb_area_total, fb_area_ocupada). */
+(function(){
+  "use strict";
+  function $(id){ return document.getElementById(id); }
+  function num(v){ v = String(v == null ? "" : v).trim(); if(!v) return NaN; var n = parseFloat(v.replace(/\./g, "").replace(",", ".")); return isFinite(n) ? n : NaN; }
+  function fmt(n){ return n.toLocaleString("pt-BR", { minimumFractionDigits:4, maximumFractionDigits:4 }); }
+  function sujo(){ try{ if(window.CAD_marcarSujo) window.CAD_marcarSujo(); }catch(e){} }
+  var ocupado = false;
+  function setar(el, v){ if(!el || el.value === v) return; ocupado = true; try{ el.value = v; el.dispatchEvent(new Event("input", { bubbles:true })); el.dispatchEvent(new Event("change", { bubbles:true })); } finally { ocupado = false; } }
+
+  /* ---- espelhos ---- */
+  function espelhos(){ return Array.prototype.slice.call(document.querySelectorAll("input[data-espelho]")); }
+  function puxar(){ espelhos().forEach(function(m){ var o = $(m.getAttribute("data-espelho")); if(o && m !== document.activeElement && m.value !== o.value) m.value = o.value; }); }
+  function ligarEspelhos(){
+    espelhos().forEach(function(m){
+      var o = $(m.getAttribute("data-espelho")); if(!o || m._esp) return; m._esp = true;
+      m.addEventListener("input", function(){ if(ocupado) return; setar(o, m.value); sujo(); if(o.id === "fb_area_ocupada") recalcular(o.id); });
+      m.addEventListener("focus", function(){ if(o.value !== m.value) m.value = o.value; foto(); });
+      ["input", "change"].forEach(function(t){ o.addEventListener(t, function(){ if(m !== document.activeElement) m.value = o.value; }); });
+    });
+  }
+
+  /* ---- remanescentes ---- */
+  // alvo "calculado": o remanescente que foi preenchido pela conta (marcado com .tec-calc). Regra:
+  // mexeu num remanescente → recalcula o OUTRO, se ele estiver vazio, já for calculado ou batia com a conta antes;
+  // mexeu na desapropriada ou na ocupada → recalcula o calculado (ou o vazio, ou o Sul/sede se a conta batia).
+  var CAMPOS = { desap:"fb_area_desap", ocup:"fb_area_ocupada", n:"d2_kf_remN", s:"d2_kf_remS" };
+  var antes = null, calc = null;      // calc: "n" | "s" | null
+  function vals(){ var r = {}; Object.keys(CAMPOS).forEach(function(k){ var e = $(CAMPOS[k]); r[k] = num(e && e.value); }); return r; }
+  function foto(){ antes = vals(); }
+  function bate(v){ return isFinite(v.desap) && isFinite(v.ocup) && isFinite(v.n) && isFinite(v.s) && Math.abs(v.ocup - v.desap - v.n - v.s) < 0.00051; }
+  function marcar(){ ["n", "s"].forEach(function(k){ var e = $(CAMPOS[k]); var f = e && e.closest(".vfield"); if(f) f.classList.toggle("tec-calc", calc === k); }); }
+  function recalcular(origemId){
+    if(ocupado) return;
+    var v = vals(), alvo = null, msg = "";
+    if(origemId === CAMPOS.n || origemId === CAMPOS.s){
+      var mexido = (origemId === CAMPOS.n) ? "n" : "s", outro = (mexido === "n") ? "s" : "n";
+      if(calc === mexido) calc = null;                                     // digitou no que era calculado: agora é dele
+      if(!isFinite(v[outro]) || calc === outro || (antes && bate(antes))) alvo = outro;
+    } else {
+      if(calc) alvo = calc;
+      else if(!isFinite(v.n) && isFinite(v.s)) alvo = "n";
+      else if(!isFinite(v.s) && isFinite(v.n)) alvo = "s";
+      else if(antes && bate(antes)) alvo = "s";
+    }
+    if(alvo){
+      var outro2 = (alvo === "n") ? "s" : "n";
+      if(isFinite(v.desap) && isFinite(v.ocup) && isFinite(v[outro2])){
+        var r = v.ocup - v.desap - v[outro2];
+        if(r >= -0.00005){ setar($(CAMPOS[alvo]), fmt(Math.max(0, r))); calc = alvo; }
+        else { calc = null; msg = "A área desapropriada mais o remanescente informado passam da área total ocupada — confira os valores."; }
+      }
+    }
+    avisar(msg);
+    marcar(); foto();
+  }
+  function avisar(t){
+    var d = $("tec_areas_dica"); if(!d) return;
+    if(!d._orig) d._orig = d.textContent;
+    d.textContent = t || d._orig; d.style.color = t ? "#8A5208" : "";
+  }
+  function ligarRem(){
+    Object.keys(CAMPOS).forEach(function(k){
+      var e = $(CAMPOS[k]); if(!e || e._rem) return; e._rem = true;
+      e.addEventListener("focus", foto);
+      e.addEventListener("input", function(){ if(ocupado || window.__CAD_RESTAURANDO) return; recalcular(e.id); });   // inclui a área que a planta publica pelo KML
+    });
+  }
+
+  /* ---- liga e reage à Técnica / ao KML ---- */
+  function aoMostrarTecnica(){ puxar(); foto(); marcar(); if(window.REL_kmAgendar) window.REL_kmAgendar(150); }
+  function ligar(){
+    ligarEspelhos(); ligarRem(); puxar(); foto();
+    var k = $("rel_kml_dados");
+    if(k && !k._l3){ k._l3 = true; ["input", "change"].forEach(function(t){ k.addEventListener(t, function(){ if(window.REL_kmAgendar) window.REL_kmAgendar(500); }); }); }
+    var p = $("panel-desp1-tecnica");
+    if(p && !p._l3){
+      p._l3 = true;
+      new MutationObserver(function(){ if(p.classList.contains("ativa")) aoMostrarTecnica(); }).observe(p, { attributes:true, attributeFilter:["class"] });
+      if(p.classList.contains("ativa")) aoMostrarTecnica();
+    }
+    if(window.REL_kmAgendar) window.REL_kmAgendar(1500);
+  }
+  if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", ligar); else ligar();
 })();
 </script>
 </body>
