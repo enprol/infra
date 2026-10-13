@@ -24352,9 +24352,14 @@ function AV_gerarDescSituacao(){
   // 06/10/2026: a opção "Área remanescente" vale o nome do proprietário/posseiro do PRÓPRIO cadastro — na planta, no memorial,
   // no DRL e na tabela. O valor guardado continua "Área remanescente" (por isso o tipo "rem", em azul, ainda é reconhecido).
   function nomeRemanescente(){ var c = doCadastro(); return String(c.posseiro || c.expropriado || "").trim(); }
+  var NOME_FAIXA_EF = "EF-232 – FTN";   /* lote8 */
+  function ehFaixaEF(v){ return /^\s*faixa\s+de\s+dom[ií]nio(\s+da\s+ferrovia)?\s*$/i.test(String(v || "")); }
   function confrontantes(){
     var nm = nomeRemanescente();
-    return confrontantesBrutos().map(function(v){ return (nm && /remanescente/i.test(String(v || ""))) ? nm : v; });
+    return confrontantesBrutos().map(function(v){
+      if(ehFaixaEF(v)) return NOME_FAIXA_EF;                                   // 13/10/2026: peças técnicas imprimem a ferrovia
+      return (nm && /remanescente/i.test(String(v || ""))) ? nm : v;
+    });
   }
   // matrícula do confrontante por trecho: em branco repete a do trecho anterior SÓ se o confrontante é o mesmo
   function matriculas(){
@@ -24375,7 +24380,7 @@ function AV_gerarDescSituacao(){
   function tipoConf(nome, divisa){
     var t = String(nome || "").toLowerCase();
     if(/remanescente/.test(t)) return "rem";
-    if(/faixa/.test(t) || divisa === "fd_ant") return "faixa";
+    if(/faixa/.test(t) || /ef-232/.test(t) || divisa === "fd_ant") return "faixa";
     return "";
   }
   // 05/10/2026: "divisa na faixa de domínio" — marcada com o check na coluna Confrontante da tabela ("1" sim, "0" não).
@@ -25608,6 +25613,16 @@ function AV_gerarDescSituacao(){
     return d;
   }
   function caixasSeCruzam(a, b, m){ m = m || 0; return !(a[2] + m < b[0] || b[2] + m < a[0] || a[3] + m < b[1] || b[3] + m < a[1]); }
+  // o retângulo w×h centrado em (cx,cy) e girado ang° (sentido do desenho do texto) toca a caixa b (AABB), com folga m?
+  function rotRetCruza(cx, cy, w, h, ang, b, m){
+    var r = ang*Math.PI/180, c = Math.cos(r), sn = Math.sin(r), hw = w/2 + m, hh = h/2 + m;
+    var xs = [b[0], b[2]], ys = [b[1], b[3]], minU = Infinity, maxU = -Infinity, minV = Infinity, maxV = -Infinity;
+    for(var i = 0; i < 2; i++) for(var j = 0; j < 2; j++){
+      var dx = xs[i] - cx, dy = ys[j] - cy, u = dx*c - dy*sn, v = dx*sn + dy*c;   // coordenadas no referencial do texto
+      if(u < minU) minU = u; if(u > maxU) maxU = u; if(v < minV) minV = v; if(v > maxV) maxV = v;
+    }
+    return !(maxU < -hw || minU > hw || maxV < -hh || minV > hh);
+  }
   function caixaRot(cx, cy, w, h, ang){
     var r = ang*Math.PI/180, c = Math.abs(Math.cos(r)), s = Math.abs(Math.sin(r)), hw = (w*c + h*s)/2, hh = (w*s + h*c)/2;
     return [cx - hw, cy - hh, cx + hw, cy + hh];
@@ -26448,7 +26463,20 @@ function AV_gerarDescSituacao(){
     /* 05/10/2026: o conjunto de divisas do mesmo confrontante é lido como UMA linha — o nome fica centralizado no
        comprimento TOTAL e orientado pela corda (1º ao último vértice do conjunto). Primeiro tenta um corpo em que o
        nome caiba nesse comprimento; só depois relaxa. Evita os números de estaca; fica FORA do perímetro. */
-    function posicionarGrupo(g, segsG){
+    function posicionarGrupo(g, segsG0){
+      /* 13/10/2026: "reta contínua" — o grupo se parte onde a direção muda; o nome vai na reta mais longa */
+      var segsG = segsG0, runs = [], cur = null;
+      segsG0.forEach(function(i){
+        var s0 = G.segs[i], A0 = pol[s0.de], B0 = pol[s0.para], dx0 = B0[0]-A0[0], dy0 = B0[1]-A0[1], L0 = Math.hypot(dx0, dy0);
+        if(!L0) return;
+        var ux = dx0/L0, uy = dy0/L0;
+        if(cur){
+          var cl = Math.hypot(cur.vx, cur.vy) || 1, cosA = (ux*cur.vx + uy*cur.vy)/cl;
+          if(cosA >= Math.cos(14*Math.PI/180)){ cur.segs.push(i); cur.len += L0; cur.vx += ux*L0; cur.vy += uy*L0; return; }
+        }
+        cur = { segs:[i], len:L0, vx:ux*L0, vy:uy*L0 }; runs.push(cur);
+      });
+      if(runs.length > 1){ var mel = runs[0]; runs.forEach(function(r){ if(r.len > mel.len) mel = r; }); segsG = mel.segs; }
       var pts = [], tot = 0;
       segsG.forEach(function(i){
         var s = G.segs[i], A = pol[s.de], B = pol[s.para], L = Math.hypot(B[0]-A[0], B[1]-A[1]);
@@ -26484,8 +26512,8 @@ function AV_gerarDescSituacao(){
               var bb = caixaRot(cx, cy, w, hbox + .8, ang);
               if(!noMapa([bb[0], bb[1]], -1) || !noMapa([bb[2], bb[3]], -1)) continue;
               if(ptEmPoli(cx, cy, pol) || ptEmPoli(cx + ux*w/2, cy + uy*w/2, pol) || ptEmPoli(cx - ux*w/2, cy - uy*w/2, pol)) continue;
-              if(caixas.some(function(b){ return caixasSeCruzam(bb, b, .4); })) continue;
-              if(fase < 2 && CAIXAS_ESTACA.some(function(b){ return caixasSeCruzam(bb, b, .4); })) continue;
+              if(caixas.some(function(b){ return rotRetCruza(cx, cy, w, hbox + .8, ang, b, .4); })) continue;
+              if(fase < 2 && CAIXAS_ESTACA.some(function(b){ return rotRetCruza(cx, cy, w, hbox + .8, ang, b, .4); })) continue;
               caixas.push(bb);
               // bloco centrado em (cx,cy), eixo "up" para cima: o nome fica embaixo e o "Expropriado:" logo acima dele
               P.texto(cx - up[0]*hbox/2, cy - up[1]*hbox/2, nome, { tam:tz, bold:true, align:"center", rot:ang, cor:"#14425f", halo:true });
@@ -29460,11 +29488,13 @@ function AV_gerarDescSituacao(){
     var geralR = geralAtivo(), LA = aneisUtm();
     var nums = geralR ? [
       ["Áreas", LA.length], ["Vértices (total)", LA.reduce(function(s, a){ return s + a.v.length; }, 0)], ["Perímetro total", br(somaPerim(),2) + " m"],
-      ["Área total", br(somaAreasHa(),4) + " ha"], ["Área total", br(somaAreasHa()*10000,2) + " m²"],
+      ["Área total (elipsoide · memorial)", br(somaAreasHa(),4) + " ha"], ["Área total (elipsoide)", br(somaAreasHa()*10000,2) + " m²"],
+      ["Área total no plano UTM · AutoCAD", br(aneisUtm().reduce(function(s, a){ return s + a.area_plano_m2; }, 0)/10000,4) + " ha"],
       ["Datum", "SIRGAS 2000"], ["Projeção", "UTM " + G.fuso + G.letra + " · MC " + G.mc + "°"]
     ] : [
       ["Vértices", G.v.length], ["Perímetro", br(G.perim,2) + " m"],
-      ["Área", br(G.area_ha,4) + " ha"], ["Área", br(G.area_m2,2) + " m²"],
+      ["Área (elipsoide · memorial)", br(G.area_ha,4) + " ha"], ["Área (elipsoide)", br(G.area_m2,2) + " m²"],
+      ["Área no plano UTM · AutoCAD", br(G.area_plano_m2/10000,4) + " ha"], ["Área no plano UTM", br(G.area_plano_m2,2) + " m²"],
       ["Datum", "SIRGAS 2000"], ["Projeção", "UTM " + G.fuso + G.letra + " · MC " + G.mc + "°"]
     ];
     var h = "";
