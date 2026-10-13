@@ -25703,14 +25703,16 @@ function AV_gerarDescSituacao(){
   }
 
   /* ---- preenchimentos (hachuras) ---- */
-  function hachurar(P, pol, ang, esp, o){
+  function hachurar(P, pol, ang, esp, o, origem){
     var xs = pol.map(function(p){ return p[0]; }), ys = pol.map(function(p){ return p[1]; });
     var x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs), y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
     var cx = (x0+x1)/2, cy = (y0+y1)/2, R = Math.hypot(x1-x0, y1-y0)/2 + 1, r = ang*Math.PI/180, ux = Math.cos(r), uy = -Math.sin(r), nx = -uy, ny = ux;
+    if(origem){ cx = origem[0]; cy = origem[1]; R = Math.max(Math.hypot(x0-cx, y0-cy), Math.hypot(x1-cx, y0-cy), Math.hypot(x0-cx, y1-cy), Math.hypot(x1-cx, y1-cy)) + 1; }
     if(R/esp > 900) esp = R/900;
     if(P.hachura){ P.hachura(pol, ang, esp, o); return; }   // DXF: HATCH do CAD em vez de linhas recortadas
     P.clipPoli(pol);
-    for(var t = -R; t <= R; t += esp) P.linha(cx + nx*t - ux*R, cy + ny*t - uy*R, cx + nx*t + ux*R, cy + ny*t + uy*R, o);
+    var t0 = origem ? -Math.ceil(R/esp)*esp : -R;          // com origem: linhas em múltiplos de esp a partir dela
+    for(var t = t0; t <= R; t += esp) P.linha(cx + nx*t - ux*R, cy + ny*t - uy*R, cx + nx*t + ux*R, cy + ny*t + uy*R, o);
     P.clipOff();
   }
   function hexagonos(P, pol, r, o){
@@ -25738,23 +25740,24 @@ function AV_gerarDescSituacao(){
     P.clipOff();
   }
   var AREAS = { area_d:1, remanescente:1, pastagem:1, app:1, rl:1, benf:1, mata:1 };
-  function preencher(P, aneis, tipo, escala){
+  function preencher(P, aneis, tipo, escala, claro, origem){
     var pol = aneis[0]; if(!pol || pol.length < 3) return;
     var k = escala || 1, e = EST(tipo), esp = (e.esp || 1)*k, pe = e.peso*k;
+    if(claro) e = Object.assign({}, e, { cor:clarear(e.cor, claro), tram:e.tram ? clarear(e.tram, claro) : e.tram });   // parte fora da área desapropriada
     switch(tipo){
       case "area_d":
-        hachurar(P, pol, 45, esp, { cor:e.tram, peso:fTram(tipo, .16) });
+        hachurar(P, pol, 45, esp, { cor:e.tram, peso:fTram(tipo, .16) }, origem);
         P.poli(pol, { cor:e.cor, peso:pe }); break;
       case "remanescente":
         hexagonos(P, pol, esp, { cor:e.tram, peso:fTram(tipo, .12) }); P.poli(pol, { cor:e.cor, peso:pe }); break;
       case "pastagem":
         marcasCapim(P, pol, esp, { cor:e.tram, peso:fTram(tipo, .12) }); P.poli(pol, { cor:e.cor, peso:pe }); break;
       case "app":
-        hachurar(P, pol, 45, esp, { cor:e.tram, peso:fTram(tipo, .14) }); P.poli(pol, { cor:e.cor, peso:pe }); break;
+        hachurar(P, pol, 45, esp, { cor:e.tram, peso:fTram(tipo, .14) }, origem); P.poli(pol, { cor:e.cor, peso:pe }); break;
       case "rl":
-        hachurar(P, pol, 45, esp, { cor:e.tram, peso:fTram(tipo, .16) }); P.poli(pol, { cor:e.cor, peso:pe }); break;
+        hachurar(P, pol, 45, esp, { cor:e.tram, peso:fTram(tipo, .16) }, origem); P.poli(pol, { cor:e.cor, peso:pe }); break;
       case "benf":
-        hachurar(P, pol, 135, esp, { cor:e.tram, peso:fTram(tipo, .13) }); P.poli(pol, { cor:e.cor, peso:pe }); break;
+        hachurar(P, pol, 135, esp, { cor:e.tram, peso:fTram(tipo, .13) }, origem); P.poli(pol, { cor:e.cor, peso:pe }); break;
       case "mata":
         P.poli(pol, { cor:e.cor, peso:pe, fill:e.tram, opacFill:.28 }); break;
     }
@@ -25868,20 +25871,199 @@ function AV_gerarDescSituacao(){
     var pu = function(an){ return an.map(function(p){ var u = utm(p[0], p[1], G.fuso); return [u.E, u.N]; }); };
     return { rl:rl.map(pu), app:app.map(pu), est:est.map(pu) };
   }
+  /* ---- interseção de polígonos (Greiner–Hormann) — 13/10/2026 ----
+     interPoli(sujeito, recorte): anéis simples [[x,y],...] (sem repetir o 1º no fim) → lista de anéis da interseção.
+     Para fugir dos casos degenerados (vértice exatamente sobre a aresta do outro, arestas sobrepostas), o recorte é
+     deslocado de alguns micrômetros — irrelevante na escala de uma planta (coordenadas UTM em metros). */
+  function anelLimpo(r){
+    var o = [];
+    (r || []).forEach(function(p){ if(p && isFinite(p[0]) && isFinite(p[1])){ var u = o[o.length - 1]; if(!u || u[0] !== p[0] || u[1] !== p[1]) o.push([+p[0], +p[1]]); } });
+    if(o.length > 1){ var a = o[0], z = o[o.length - 1]; if(a[0] === z[0] && a[1] === z[1]) o.pop(); }
+    return o.length >= 3 ? o : null;
+  }
+  function areaAnel(r){ var s = 0; for(var i = 0, n = r.length; i < n; i++){ var a = r[i], b = r[(i + 1) % n]; s += a[0]*b[1] - b[0]*a[1]; } return s/2; }
+  function dentroAnel(x, y, r){
+    var d = false;
+    for(var i = 0, j = r.length - 1; i < r.length; j = i++){
+      var xi = r[i][0], yi = r[i][1], xj = r[j][0], yj = r[j][1];
+      if(((yi > y) !== (yj > y)) && (x < (xj - xi)*(y - yi)/(yj - yi) + xi)) d = !d;
+    }
+    return d;
+  }
+  function interPoli(sujeito, recorte){
+    var S = anelLimpo(sujeito), C0 = anelLimpo(recorte); if(!S || !C0) return [];
+    var C = C0.map(function(p){ return [p[0] + 3.17e-6, p[1] + 2.29e-6]; });
+    function no(p){ return { x:p[0], y:p[1], prox:null, ant:null, inter:false, entra:false, viz:null, alfa:0, visto:false }; }
+    function lista(r){ var ini = null, u = null; r.forEach(function(p){ var n = no(p); if(!ini) ini = n; else { u.prox = n; n.ant = u; } u = n; }); u.prox = ini; ini.ant = u; return ini; }
+    function proxOriginal(n){ var q = n.prox; while(q.inter) q = q.prox; return q; }
+    function inserir(n, a, b){                      // n entre a e b (originais), ordenado por alfa
+      var c = a; while(c.prox !== b && c.prox.inter && c.prox.alfa < n.alfa) c = c.prox;
+      n.prox = c.prox; n.ant = c; c.prox.ant = n; c.prox = n;
+    }
+    var ls = lista(S), lc = lista(C), houve = false;
+    var sOrig = [], cOrig = [], n0 = ls; do { sOrig.push(n0); n0 = n0.prox; } while(n0 !== ls);
+    n0 = lc; do { cOrig.push(n0); n0 = n0.prox; } while(n0 !== lc);
+    sOrig.forEach(function(s1, i){
+      var s2 = sOrig[(i + 1) % sOrig.length];
+      cOrig.forEach(function(c1, j){
+        var c2 = cOrig[(j + 1) % cOrig.length];
+        var d = (c2.y - c1.y)*(s2.x - s1.x) - (c2.x - c1.x)*(s2.y - s1.y); if(d === 0) return;
+        var ua = ((c2.x - c1.x)*(s1.y - c1.y) - (c2.y - c1.y)*(s1.x - c1.x))/d;
+        var ub = ((s2.x - s1.x)*(s1.y - c1.y) - (s2.y - s1.y)*(s1.x - c1.x))/d;
+        if(ua <= 0 || ua >= 1 || ub <= 0 || ub >= 1) return;
+        var x = s1.x + ua*(s2.x - s1.x), y = s1.y + ua*(s2.y - s1.y);
+        var a = no([x, y]), b = no([x, y]);
+        a.inter = b.inter = true; a.alfa = ua; b.alfa = ub; a.viz = b; b.viz = a;
+        inserir(a, s1, s2); inserir(b, c1, c2); houve = true;
+      });
+    });
+    if(!houve){
+      if(dentroAnel(S[0][0], S[0][1], C)) return [S];          // sujeito inteiro dentro do recorte
+      if(dentroAnel(C0[0][0], C0[0][1], S)) return [C0];       // recorte inteiro dentro do sujeito
+      return [];
+    }
+    // entrada/saída: começa fora (true = a próxima interseção é entrada)
+    var st = !dentroAnel(ls.x, ls.y, C), q = ls;
+    do { if(q.inter){ q.entra = st; st = !st; } q = q.prox; } while(q !== ls);
+    st = !dentroAnel(lc.x, lc.y, S); q = lc;
+    do { if(q.inter){ q.entra = st; st = !st; } q = q.prox; } while(q !== lc);
+    var saida = [], guarda = 0;
+    for(;;){
+      var cur = ls, achou = null;
+      do { if(cur.inter && !cur.visto){ achou = cur; break; } cur = cur.prox; } while(cur !== ls);
+      if(!achou) break;
+      var anel = [[achou.x, achou.y]]; cur = achou;
+      do {
+        cur.visto = true; if(cur.viz) cur.viz.visto = true;
+        if(cur.entra){ do { cur = cur.prox; anel.push([cur.x, cur.y]); } while(!cur.inter); }
+        else { do { cur = cur.ant; anel.push([cur.x, cur.y]); } while(!cur.inter); }
+        cur = cur.viz;
+        if(++guarda > 200000) break;
+      } while(!cur.visto);
+      var lim = anelLimpo(anel); if(lim && Math.abs(areaAnel(lim)) > 1e-6) saida.push(lim);
+      if(guarda > 200000) break;
+    }
+    return saida;
+  }
+  // interseção de um anel com vários anéis de recorte (os perímetros da área desapropriada)
+  function interVarios(sujeito, recortes){ var o = []; (recortes || []).forEach(function(r){ o = o.concat(interPoli(sujeito, r)); }); return o; }
+  // ponto bem dentro do anel, para o rótulo (centroide; se cair fora, o meio da maior corda horizontal)
+  function pontoRotulo(r){
+    var A = areaAnel(r), cx = 0, cy = 0;
+    for(var i = 0, n = r.length; i < n; i++){ var a = r[i], b = r[(i + 1) % n], f = a[0]*b[1] - b[0]*a[1]; cx += (a[0] + b[0])*f; cy += (a[1] + b[1])*f; }
+    if(A){ cx /= 6*A; cy /= 6*A; } else { cx = r[0][0]; cy = r[0][1]; }
+    if(dentroAnel(cx, cy, r)) return [cx, cy];
+    var ys = r.map(function(p){ return p[1]; }), y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys), melhor = null;
+    for(var k = 1; k < 20; k++){
+      var y = y0 + (y1 - y0)*k/20, xs = [];
+      for(var i2 = 0, j = r.length - 1; i2 < r.length; j = i2++){ var p = r[i2], q = r[j]; if((p[1] > y) !== (q[1] > y)) xs.push(p[0] + (y - p[1])*(q[0] - p[0])/(q[1] - p[1])); }
+      xs.sort(function(a, b){ return a - b; });
+      for(var m = 0; m + 1 < xs.length; m += 2){ var w = xs[m + 1] - xs[m]; if(!melhor || w > melhor.w) melhor = { w:w, x:(xs[m] + xs[m + 1])/2, y:y }; }
+    }
+    return melhor ? [melhor.x, melhor.y] : [cx, cy];
+  }
+
+  /* cor clareada (t = fração em direção ao branco) — a parte das camadas FORA da área desapropriada */
+  function clarear(hex, t){
+    var c = String(hex || "#000000").replace("#", ""); if(c.length === 3) c = c[0]+c[0]+c[1]+c[1]+c[2]+c[2];
+    var n = [0, 2, 4].map(function(i){ return parseInt(c.substr(i, 2), 16); }); if(n.some(isNaN)) return hex;
+    return "#" + n.map(function(v){ return ("0" + Math.round(v + (255 - v)*t).toString(16)).slice(-2); }).join("");
+  }
+  var CLARO = .62, ROT_P = null, ROT_OCUP = [];
+  // anéis UTM da área desapropriada (na planta geral, todos os perímetros; na de cada área, o perímetro dela)
+  function recortesDesap(){
+    if(!G) return [];
+    if(geralAtivo()) return aneisUtm().map(function(a){ return a.v.map(function(q){ return [q.E, q.N]; }); });
+    return [G.v.map(function(q){ return [q.E, q.N]; })];
+  }
+  /* Uma camada de áreas com a interseção realçada: o polígono inteiro sai claro e o pedaço dentro da área desapropriada
+     é vetorizado (camada própria no DXF) e desenhado com a simbologia normal por cima — a trama usa a MESMA origem nos
+     dois, então as linhas coincidem. rotulo: escreve a área da interseção. Devolve os pedaços (UTM). */
+  function camadaInter(P, T, lista, tipo, camada, rotulo, REC, desenhar){
+    var mm = function(an){ return an.map(function(q){ return [T.x(q[0]), T.y(q[1])]; }); };
+    desenhar = desenhar || function(P2, po, claro, origem){ preencher(P2, [po], tipo, null, claro, origem); };
+    var pecas = [];
+    (lista || []).forEach(function(an){
+      var po = mm(an); if(po.length < 3 || !caixaCruzaMapa(po, 40)) return;
+      var inter = REC.length ? interVarios(an, REC) : [];
+      if(!REC.length){ CAMDXF(P, camada); desenhar(P, po, 0, null); return; }
+      var xs = po.map(function(q){ return q[0]; }), ys = po.map(function(q){ return q[1]; });
+      var origem = [(Math.min.apply(null, xs) + Math.max.apply(null, xs))/2, (Math.min.apply(null, ys) + Math.max.apply(null, ys))/2];
+      CAMDXF(P, camada + "_FORA");
+      desenhar(P, po, CLARO, inter.length ? origem : null);
+      if(!inter.length) return;
+      CAMDXF(P, camada + "_INTERSECAO");
+      inter.forEach(function(r){ var pr = mm(r); if(pr.length >= 3) desenhar(P, pr, 0, origem); pecas.push(r); });
+    });
+    if(rotulo && pecas.length){
+      var e = EST(tipo === "est" ? "app_est" : tipo);
+      CAMDXF(P, camada + "_AREA");
+      if(ROT_P !== P){ ROT_P = P; ROT_OCUP = []; }              // rótulos já postos nesta folha
+      pecas.forEach(function(r){
+        var ha = Math.abs(areaAnel(r))/10000; if(ha < .00005) return;
+        var pt = pontoRotulo(r), q = [T.x(pt[0]), T.y(pt[1])];
+        if(!noMapa(q, 0)) return;
+        var txt = rotulo + ": " + br(ha, 4) + " ha", o = { tam:TAM.conf, bold:true, align:"center", cor:e.cor || "#111111", halo:true };
+        var w = P.largura(txt, o), hL = TAM.conf*.3528*1.5, y = q[1];
+        function bate(yy){ return ROT_OCUP.some(function(b){ return Math.abs(b.x - q[0]) < (b.w + w)/2 && Math.abs(b.y - yy) < hL; }); }
+        for(var k = 1; k <= 8 && bate(y); k++) y = q[1] + (k % 2 ? 1 : -1)*Math.ceil(k/2)*hL;   // desce/sobe até ficar livre
+        ROT_OCUP.push({ x:q[0], y:y, w:w });
+        P.texto(q[0], y, txt, o);
+      });
+    }
+    return pecas;
+  }
   function desenharAmbientais(P, T, A){
     if(!A) return;
-    function mm(an){ return an.map(function(p){ return [T.x(p[0]), T.y(p[1])]; }); }
-    CAMDXF(P, "ENP_RESERVA_LEGAL");
-    (A.rl || []).forEach(function(an){ var po = mm(an); if(caixaCruzaMapa(po, 40)) preencher(P, [po], "rl"); });
-    CAMDXF(P, "ENP_APP");
-    (A.app || []).forEach(function(an){ var po = mm(an); if(caixaCruzaMapa(po, 40)) preencher(P, [po], "app"); });
-    CAMDXF(P, "ENP_APP_ESTIMADA");
+    var REC = recortesDesap();
+    camadaInter(P, T, A.rl, "rl", "ENP_RESERVA_LEGAL", "RESERVA LEGAL", REC);
+    camadaInter(P, T, A.app, "app", "ENP_APP", "APP", REC);
     // APP estimada: mesma trama da APP, contorno tracejado para distinguir da declarada no CAR
-    (A.est || []).forEach(function(an){
-      var po = mm(an); if(!caixaCruzaMapa(po, 40)) return;
+    camadaInter(P, T, A.est, "est", "ENP_APP_ESTIMADA", "APP ESTIMADA", REC, function(P2, po, claro, origem){
       var ee = EST("app_est");
-      hachurar(P, po, 135, ee.esp, { cor:ee.tram, peso:fTram("app_est", .12) });
-      P.poli(po, { cor:ee.cor, peso:ee.peso, tracejado:[2,1.4] });
+      hachurar(P2, po, 135, ee.esp, { cor:claro ? clarear(ee.tram, claro) : ee.tram, peso:fTram("app_est", .12) }, origem);
+      P2.poli(po, { cor:claro ? clarear(ee.cor, claro) : ee.cor, peso:ee.peso, tracejado:[2,1.4] });
+    });
+  }
+  /* benfeitorias da Técnica (KMLs das listas não reprodutivas / reprodutivas) na planta */
+  var _BKML = {};
+  function kmlGeo(kml){
+    if(_BKML[kml]) return _BKML[kml];
+    var out = { pl:[], ln:[], pt:[] };
+    try{
+      var d = new DOMParser().parseFromString(kml, "application/xml");
+      if(!d.getElementsByTagName("parsererror").length){
+        Array.prototype.forEach.call(d.getElementsByTagNameNS("*", "Placemark"), function(pm){
+          var nmEl = null; for(var c = pm.firstElementChild; c; c = c.nextElementSibling){ if(c.localName === "name"){ nmEl = c; break; } }
+          var nome = nmEl ? (nmEl.textContent || "").trim() : "";
+          function crd(el){ var c2 = el && el.getElementsByTagNameNS("*", "coordinates")[0]; if(!c2) return [];
+            return c2.textContent.trim().split(/\s+/).map(function(t){ var q = t.split(","); return [+q[0], +q[1]]; }).filter(function(q){ return isFinite(q[0]) && isFinite(q[1]); }); }
+          Array.prototype.forEach.call(pm.getElementsByTagNameNS("*", "Polygon"), function(pg){ var ob = pg.getElementsByTagNameNS("*", "outerBoundaryIs")[0] || pg, r = crd(ob); if(r.length >= 3) out.pl.push({ nome:nome, r:r }); });
+          Array.prototype.forEach.call(pm.getElementsByTagNameNS("*", "LineString"), function(ls){ var r = crd(ls); if(r.length >= 2) out.ln.push({ nome:nome, r:r }); });
+          Array.prototype.forEach.call(pm.getElementsByTagNameNS("*", "Point"), function(pp){ var r = crd(pp); if(r.length) out.pt.push({ nome:nome, p:r[0] }); });
+        });
+      }
+    }catch(e){}
+    var ks = Object.keys(_BKML); if(ks.length > 40) _BKML = {};
+    _BKML[kml] = out; return out;
+  }
+  function desenharBenfTecnica(P, T, REC){
+    if(typeof window.IMVB_lista !== "function" || !G) return;
+    var L = window.IMVB_lista(); if(!L) return;
+    var toU = function(q){ var u = utm(q[0], q[1], G.fuso); return [u.E, u.N]; };
+    var mm = function(r){ return r.map(function(q){ return [T.x(q[0]), T.y(q[1])]; }); };
+    var eb = EST("benf");
+    (L.nr || []).forEach(function(it){
+      if(it.tipo === "cerca") return;                                 // cercas: já entram pelas divisas da tabela de confrontação
+      var g = kmlGeo(it.kml || "");
+      camadaInter(P, T, g.pl.map(function(x){ return x.r.map(toU); }), "benf", "ENP_BENFEITORIA", null, REC);
+      if(g.ln.length || g.pt.length) CAMDXF(P, "ENP_BENFEITORIA");
+      g.ln.forEach(function(x){ recortar(mm(x.r.map(toU)), 3).forEach(function(r){ P.poli(r, { cor:eb.cor, peso:eb.peso, fechar:false }); }); });
+      g.pt.forEach(function(x){ var q = mm([toU(x.p)])[0]; if(noMapa(q, 0)) P.circ(q[0], q[1], .8, { cor:eb.cor, peso:.25, fill:"#ffffff" }); });
+    });
+    (L.r || []).forEach(function(it){
+      var g = kmlGeo(it.kml || "");
+      g.pl.forEach(function(x){ camadaInter(P, T, [x.r.map(toU)], "benf", "ENP_BENFEITORIA_REPRODUTIVA", String(x.nome || it.ident || "BENFEITORIA REPRODUTIVA").toUpperCase(), REC); });
     });
   }
 
@@ -25892,7 +26074,10 @@ function AV_gerarDescSituacao(){
     var el = $("mdp_camadas"); if(!el) return;
     el.value = JSON.stringify(CAM); el.dispatchEvent(new Event("input", {bubbles:true}));
   }
+  var INTER_TIPOS = { rl:2, app:2, benf:1 };   // 2 = com rótulo da área da interseção
   function desenharExtras(P, T){
+    var REC = recortesDesap();
+    desenharBenfTecnica(P, T, REC);
     camadasLer().arquivos.forEach(function(a){
       (a.camadas || []).forEach(function(c){
         if(!c.tipo || c.tipo === "ignorar") return;
@@ -25902,6 +26087,7 @@ function AV_gerarDescSituacao(){
           if(f.k === "pl"){
             f.c.forEach(function(aneis){
               var an = aneis.map(mmp); if(!an[0] || !caixaCruzaMapa(an[0], 60)) return;
+              if(INTER_TIPOS[c.tipo] && aneis[0] && aneis[0].length >= 3){ camadaInter(P, T, [aneis[0]], c.tipo, "ENP_EXTRA_" + String(c.tipo).toUpperCase(), INTER_TIPOS[c.tipo] === 2 ? ({ rl:"RESERVA LEGAL", app:"APP" })[c.tipo] : null, REC); return; }
               if(AREAS[c.tipo]) preencher(P, an, c.tipo);
               else an.forEach(function(r){ tracar(P, r.concat([r[0]]), c.tipo); });
             });
@@ -26902,7 +27088,7 @@ function AV_gerarDescSituacao(){
       pr.layer = layer; pr.cor = cor; pr.lw = lw;
       if(pr.pts) pr.pts = pr.pts.map(function(q){ return tf(q[0], q[1]); });
       if(pr.k === "T" && pr.fit) pr.fit = tf(pr.fit[0], pr.fit[1]);
-      if(pr.k === "T"){ var q = tf(pr.x, pr.y), q2 = tf(pr.x + Math.cos(pr.rot*Math.PI/180)*pr.h, pr.y + Math.sin(pr.rot*Math.PI/180)*pr.h), q3 = tf(pr.x, pr.y + pr.h);
+      if(pr.k === "T"){ var q = tf(pr.x, pr.y), q2 = tf(pr.x + Math.cos(pr.rot*Math.PI/180)*pr.h, pr.y + Math.sin(pr.rot*Math.PI/180)*pr.h), q3 = tf(pr.x - Math.sin(pr.rot*Math.PI/180)*pr.h, pr.y + Math.cos(pr.rot*Math.PI/180)*pr.h);   // altura medida na perpendicular do texto (texto girado em bloco)
         pr.x = q[0]; pr.y = q[1]; pr.rot = Math.atan2(q2[1] - q[1], q2[0] - q[0])*180/Math.PI; pr.h = Math.hypot(q3[0] - q[0], q3[1] - q[1]); }
       var b = [1e18, 1e18, -1e18, -1e18], acc = function(x, y){ if(x < b[0]) b[0] = x; if(y < b[1]) b[1] = y; if(x > b[2]) b[2] = x; if(y > b[3]) b[3] = y; };
       if(pr.pts) pr.pts.forEach(function(q){ acc(q[0], q[1]); }); else if(pr.k === "T"){ acc(pr.x, pr.y); acc(pr.x + pr.h*Math.max(1, String(pr.txt).length*.6), pr.y + pr.h); }
@@ -26954,11 +27140,19 @@ function AV_gerarDescSituacao(){
       else if(t === "MTEXT"){ var mt = "", mx2 = 1, my2 = 0, temDir = false;
         e.g.forEach(function(q){ if(q[0] === 3) mt += q[1]; else if(q[0] === 11){ mx2 = +q[1]; temDir = true; } else if(q[0] === 21) my2 = +q[1]; }); mt += s1(e, 1, "");
         var msty = styles[String(s1(e, 7, "STANDARD")).toUpperCase()] || {}, mW = /\\W([0-9.]+)/.exec(mt), mQ = /\\Q(-?[0-9.]+)/.exec(mt), mWf = mW ? (+mW[1] || 1) : (msty.wf || 1), mObl = mQ ? +mQ[1] : (msty.obl || 0);
-        var att = g1(e, 71, 1), rt = temDir ? Math.atan2(my2, mx2)*180/Math.PI : g1(e, 50, 0), hm = g1(e, 40, 0) || msty.h || 2.5, lin = dxfLimpaTxt(mt).split("\n"), passoL = hm*1.6;
+        // 13/10/2026 — o texto fica onde o CAD põe: fonte e altura escritas DENTRO do texto (\fArial|…; e \H0.7x;),
+        // entrelinha do CAD (5/3 × fator 44) e parágrafo alinhado (\pxqc; \pxqr;) dentro da largura do quadro (41)
+        var mF = /\\f([^|;\\]+)/i.exec(mt), mFonte = mF ? (mF[1].trim() + (/\.(shx|ttf|otf|ttc)$/i.test(mF[1].trim()) ? "" : ".ttf")) : (msty.font || "");
+        var att = g1(e, 71, 1), rt = temDir ? Math.atan2(my2, mx2)*180/Math.PI : g1(e, 50, 0), hm = g1(e, 40, 0) || msty.h || 2.5;
+        var mH = /^\{?\\H([0-9.]+)(x?);/.exec(mt); if(mH && +mH[1] > 0) hm = mH[2] ? hm*(+mH[1]) : +mH[1];
+        var fat44 = g1(e, 44, 1); if(!(fat44 >= .25 && fat44 <= 4)) fat44 = 1;
+        var lin = dxfLimpaTxt(mt).split("\n"), passoL = hm*5/3*fat44;
         var linha = Math.floor((att - 1)/3), H = hm + (lin.length - 1)*passoL;        // 0 = topo, 1 = meio, 2 = base do bloco de texto
         var off0 = linha === 0 ? -hm : (linha === 1 ? H/2 - hm : H - hm), rr2 = rt*Math.PI/180, ix0 = X(g1(e,10,0)), iy0 = g1(e,20,0);
+        var colA = (att - 1)%3, largQ = g1(e, 41, 0), mP = /\\pxq([lcr])/i.exec(mt), haL = colA, dx0 = 0;
+        if(mP && largQ > 0){ var qP = { l:0, c:1, r:2 }[mP[1].toLowerCase()]; dx0 = (qP - colA)*largQ/2; haL = qP; }
         lin.forEach(function(ln, k){ if(!ln.trim()) return; var off = off0 - k*passoL;
-          add({ k:"T", x:ix0 - Math.sin(rr2)*off, y:iy0 + Math.cos(rr2)*off, h:hm, rot:rt, txt:ln, ha:(att - 1)%3, va:0, font:msty.font || "", wf:mWf, obl:mObl }, tf, layer, cor, lw); }); }
+          add({ k:"T", x:ix0 + Math.cos(rr2)*dx0 - Math.sin(rr2)*off, y:iy0 + Math.sin(rr2)*dx0 + Math.cos(rr2)*off, h:hm, rot:rt, txt:ln, ha:haL, va:0, font:mFonte, wf:mWf, obl:mObl }, tf, layer, cor, lw); }); }
       else if(t === "HATCH"){ dxfHatch(e, tf, layer, cor, lw, op); }
       else if(t === "LEADER"){                                                       // linhas + seta no 1º vértice
         var lv = [], c1 = null; e.g.forEach(function(q){ if(q[0] === 10){ c1 = [+q[1], 0]; lv.push(c1); } else if(q[0] === 20 && c1) c1[1] = +q[1]; });
@@ -27100,7 +27294,7 @@ function AV_gerarDescSituacao(){
           if(dist > 0 && wNat > 0){ rot = Math.atan2(p.fit[1] - p.y, p.fit[0] - p.x)*180/Math.PI; if(p.modo === "fit") escX *= dist/wNat; else h *= dist/wNat; }
         }
         var tam = h*T.mmPorM/med.cap/0.3528; if(tam < 1.1 || tam > 360) return;     // altura do DXF = altura da maiúscula
-        var al = p.ha === 1 ? "center" : (p.ha === 2 ? "right" : "left"), rr = rot*Math.PI/180, sh = p.va === 2 ? -h/2 : (p.va === 3 ? -h : 0);   // meio/topo: desce a linha de base
+        var al = p.ha === 1 ? "center" : (p.ha === 2 ? "right" : "left"), rr = rot*Math.PI/180, sh = p.va === 2 ? -h/2 : (p.va === 3 ? -h : (p.va === 1 ? h*.3 : 0));   // meio/topo: desce a linha de base; embaixo (1): sobe a linha de base acima das descendentes
         var x = p.x - Math.sin(rr)*sh, y = p.y + Math.cos(rr)*sh;
         P.texto(T.x(x), T.y(y), p.txt, { tam:tam, rot:rot, align:al, cor:p.cor, fam:fam, escX:escX, ital:Math.abs(p.obl || 0) > 4 });
         return;
@@ -28224,9 +28418,13 @@ function AV_gerarDescSituacao(){
       carFixo("Data", dataImpressao(), "DA IMPRESSÃO") + carFixo("Folha", folhasTxt(nf), "AUTOMÁTICA") + '</div></section>';
     h += '<section class="car-bloco"><header><i>05</i> Ambiental</header><div class="car-grade">' +
       carCel("reserva", "Área da reserva legal (ha)", "", "0,0000") + carCel("app", "Área de APP (ha)", "", "0,0000") + carCel("car_ref", "Referência base do CAR", "", "AGOSTO/2026") + '</div></section>';
-    var obs = ex.obs || [];
-    h += '<section class="car-bloco"><header><i>06</i> Observações <small>as benfeitorias numeradas entram sozinhas</small></header><div class="car-obs">' +
-      [0,1,2,3,4,5].map(function(i){ return '<div class="car-cel"><b>' + String(i+1).padStart(2,"0") + '</b><label for="car_obs' + i + '">Observação ' + (i+1) + '</label><input type="text" id="car_obs' + i + '" value="' + esc(obs[i] || "") + '" placeholder="Ex.: CERCA 7.F.F (2,00mX2,00m)= 94,52m" oninput="MDP_setObs(' + i + ',this.value)"></div>'; }).join("") + '</div></section>';
+    var obsLivres = (ex.obs || []).filter(Boolean), obsBnf = obsBenfeitorias(), nObs = 0;
+    function nObsTxt(){ nObs++; return String(nObs).padStart(2, "0"); }
+    h += '<section class="car-bloco"><header><i>06</i> Observações <small>são as benfeitorias lançadas na Técnica (itens 12 e 13), numeradas e com a quantidade — sem valor</small></header>' +
+      ((obsLivres.length || obsBnf.length) ? '<ol class="car-obs-lista">' +
+        obsLivres.map(function(t){ return '<li><b>' + nObsTxt() + '</b><span>' + esc(t) + '</span><em>anotação antiga</em></li>'; }).join("") +
+        obsBnf.map(function(o){ return '<li><b>' + nObsTxt() + '</b><span>' + esc(o.desc) + (o.qtd ? ' <strong>— ' + esc(o.qtd) + (o.unid ? ' ' + esc(o.unid) : '') + '</strong>' : '') + '</span><em>' + (o.cat === "R" ? "reprodutiva" : "não reprodutiva") + '</em></li>'; }).join("") + '</ol>'
+       : '<p class="car-obs-vazio">Nenhuma benfeitoria lançada. Elas entram aqui sozinhas, numeradas, quando forem lançadas em <b>Técnica › Benfeitorias</b> (itens 12 e 13 da Avaliação).</p>') + '</section>';
     box.innerHTML = h; carChip();
   }
   function carChip(){
@@ -29310,7 +29508,7 @@ function AV_gerarDescSituacao(){
     var c = conf(), cs = confrontantes(), dv = divisasDe(), km = kmAtual(), ms = matriculas();
     var h = '<div class="mdp-tab-topo"><button type="button" class="vbtn vbtn-ghost vbtn-sm" onclick="MDP_tabelaJpg()" title="Vértices, azimutes, distâncias, coordenadas e confrontantes — sem as colunas de KM">🖼️ Gerar imagem JPG da tabela</button></div>' +
       '<div class="mdp-tab-wrap"><table class="mdp-tab"><thead><tr>' +
-      '<th>Vért.</th><th>Vért.</th><th>Azimute</th><th>Dist. (m)</th><th>N (m)</th><th>E (m)</th><th>KM no eixo</th><th>KM no memorial</th><th>Tipo de divisa</th><th>Matrícula</th><th>Confrontante</th><th></th>' +
+      '<th title="Divisa na faixa de domínio (a distância sai em vermelho na tabela da planta)">FD</th><th>Vért.</th><th>Vért.</th><th>Azimute</th><th>Dist. (m)</th><th>N (m)</th><th>E (m)</th><th>KM no eixo</th><th>KM no memorial</th><th>Tipo de divisa</th><th>Matrícula</th><th>Confrontante</th>' +
       '</tr></thead><tbody>';
     var nomeDiv = {}; DIVISAS.forEach(function(d){ nomeDiv[d[0]] = d[1]; });
     G.segs.forEach(function(s, i){
@@ -29319,7 +29517,7 @@ function AV_gerarDescSituacao(){
       var own = (c[i] && c[i].c) ? c[i].c : "", ownD = (c[i] && c[i].d) ? c[i].d : "";
       var kv = km && km.v[s.de] && km.v[s.de].ch != null ? km.v[s.de] : null;
       var fdOn = fdSeg(i, cs, dv, c), fdExpl = !!(c[i] && c[i].fd != null && String(c[i].fd) !== "");
-      h += '<tr><td><b>' + a.nome + '</b></td><td>' + b.nome + '</td><td class="mdp-c">' + dms(s.az) + '</td>' +
+      h += '<tr><td class="mdp-fd-td">' + '<label class="mdp-fd' + (fdOn ? ' on' : '') + (fdExpl ? '' : ' auto') + '" title="Marque se esta divisa confronta com a FAIXA DE DOMÍNIO — a distância sai em vermelho na tabela da planta' + (fdExpl ? '' : ' (marcação automática pelo nome do confrontante)') + '"><input type="checkbox"' + (fdOn ? ' checked' : '') + ' onchange="MDP_fd(' + i + ',this.checked' + kj + ')"><span>FD</span></label></td><td><b>' + a.nome + '</b></td><td>' + b.nome + '</td><td class="mdp-c">' + dms(s.az) + '</td>' +
         '<td class="mdp-r"' + (fdOn ? ' style="color:#d32f2f;font-weight:700" title="Divisa na faixa de domínio"' : '') + '>' + br(s.dist,2) + '</td><td class="mdp-r">' + br(a.N,3) + '</td><td class="mdp-r">' + br(a.E,3) + '</td>' +
         '<td class="mdp-kmauto" title="' + (kv ? ('Distância ao eixo: ' + br(Math.abs(kv.off),1) + ' m') : '') + '">' + (kv ? (kmTxt(kv.ch) + (kv.noLim ? '<i title="toca o limite da faixa de domínio">●</i>' : '')) : '—') + '</td>' +
         (function(){ var man = kmManual(s.de), au = kmAuto(s.de);
@@ -29329,8 +29527,8 @@ function AV_gerarDescSituacao(){
         (function(){ var ownM = (c[i] && c[i].m) ? c[i].m : "";
           return '<td><input type="text" value="' + esc(ownM) + '" placeholder="' + esc(ownM ? "" : (ms[i] ? ("↑ " + ms[i]) : "nº da matrícula")) + '" style="min-width:110px" oninput="MDP_confIn(' + i + ',\'m\',this.value' + kj + ')" onchange="MDP_conf(' + i + ',\'m\',this.value' + kj + ')"' + (ownM ? '' : ' class="mdp-herd"') + '></td>'; })() +
         '<td><div class="mdp-conf-w"><input type="text" list="mdp_dl_conf" value="' + esc(own) + '" placeholder="' + esc(own ? "" : (cs[i] ? ("↑ " + cs[i]) : "nome ou nº do CTD")) + '" oninput="MDP_confIn(' + i + ',\'c\',this.value' + kj + ')" onchange="MDP_confResolver(' + i + ',this.value' + kj + ')"' + (own ? '' : ' class="mdp-herd"') + '>' +
-          '<label class="mdp-fd' + (fdOn ? ' on' : '') + (fdExpl ? '' : ' auto') + '" title="Marque se esta divisa confronta com a FAIXA DE DOMÍNIO — a distância sai em vermelho na tabela da planta' + (fdExpl ? '' : ' (marcação automática pelo nome do confrontante)') + '"><input type="checkbox"' + (fdOn ? ' checked' : '') + ' onchange="MDP_fd(' + i + ',this.checked' + kj + ')"><span>FD</span></label></div></td>' +
-        '<td><button type="button" class="mdp-mini" title="Repetir confrontante, matrícula e divisa nos trechos seguintes" onclick="MDP_confAbaixo(' + i + kj + ')">↓</button></td></tr>';
+          '</div></td>' +
+        '</tr>';
     });
     h += '</tbody></table></div>';
     var lim = limites();
@@ -45395,6 +45593,17 @@ window.MG_motion={abertura:abertura,cadastro:cadastro,fichas:fichas};
   if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", ligar); else ligar();
 })();
 </script>
+<style id="lote5-planta-css">
+#panel-desp1-planta .mdp-tab td.mdp-fd-td{ text-align:center; width:1%; }
+#panel-desp1-planta .mdp-tab th:first-child{ text-align:center; }
+#panel-desp1-planta .mdp-tab .mdp-fd input, #panel-desp1-planta .mdp-comp-dir .mdp-tab .mdp-fd input{ min-width:0 !important; width:auto !important; }
+#mdp_aba_car .car-obs-lista{ list-style:none; margin:0; padding:4px 0 0; display:grid; gap:6px; }
+#mdp_aba_car .car-obs-lista li{ display:grid; grid-template-columns:30px 1fr auto; gap:10px; align-items:baseline; padding:7px 10px; border:1px solid #E1E6EC; border-radius:8px; background:#FAFBFC; font-size:13px; }
+#mdp_aba_car .car-obs-lista li b{ font:800 11px ui-monospace,Consolas,monospace; color:#c8791a; }
+#mdp_aba_car .car-obs-lista li strong{ white-space:nowrap; }
+#mdp_aba_car .car-obs-lista li em{ font-style:normal; font-size:11px; color:#55616F; white-space:nowrap; }
+#mdp_aba_car .car-obs-vazio{ margin:4px 0 0; font-size:12.5px; color:#55616F; }
+</style>
 </body>
 
 
