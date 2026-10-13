@@ -5480,7 +5480,7 @@ body.ativ-pesquisa{ overflow:hidden; }
             <th class="pg-desp-th pg-col-dp" title="DESP 1 — R$ 1.802,53 por cadastro">DESP 1</th>
             <th class="pg-desp-th pg-col-dp" title="DESP 2 — R$ 1.072,53 por cadastro">DESP 2</th>
             <th class="pg-desp-th pg-col-dp" title="DESP 3 — R$ 4.045,01 por cadastro">DESP 3</th>
-            <th class="pg-desp-th pg-desp-valor-th" title="Soma dos valores unitários dos DESPs marcados no cadastro">R$&nbsp;DESPs</th>
+            <th class="pg-desp-th pg-desp-valor-th pg-col-dpv" title="Soma dos valores unitários dos DESPs marcados no cadastro">R$&nbsp;DESPs</th>
             <th>Lote (SPS)</th>
             <th>Nº Processo SEI</th>
             <th>Cadastro</th>
@@ -5504,7 +5504,7 @@ body.ativ-pesquisa{ overflow:hidden; }
             <th class="pg-col-dp"><button type="button" class="pg-filtbtn" id="pgFiltBtnD1" onclick="PG_toggleFiltro(event,'d1')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
             <th class="pg-col-dp"><button type="button" class="pg-filtbtn" id="pgFiltBtnD2" onclick="PG_toggleFiltro(event,'d2')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
             <th class="pg-col-dp"><button type="button" class="pg-filtbtn" id="pgFiltBtnD3" onclick="PG_toggleFiltro(event,'d3')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
-            <th></th>
+            <th class="pg-col-dpv"></th>
             <th><button type="button" class="pg-filtbtn" id="pgFiltBtnLote" onclick="PG_toggleFiltro(event,'lote')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
             <th><button type="button" class="pg-filtbtn" id="pgFiltBtnSei" onclick="PG_toggleFiltro(event,'sei')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
             <th><button type="button" class="pg-filtbtn" id="pgFiltBtnCad" onclick="PG_toggleFiltro(event,'cad')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
@@ -21396,25 +21396,31 @@ function AV_gerarDescSituacao(){
   // grupo "Produtos (DESP)" retrátil: recolhido, somem as 3 caixas e fica só a coluna R$ DESPs
   var _pgDespFechado = false;
   try{ _pgDespFechado = localStorage.getItem('pg_grupo_desp_fechado') === '1'; }catch(e){}
+  try{ if(sessionStorage.getItem('pg_gerencial_ok') !== '1') _pgDespFechado = true; }catch(e){ _pgDespFechado = true; }
   function PG_aplicarGrupoDesp(){
     var tabela = document.querySelector('#painelGeral .pg-tabela');
     if(!tabela) return;
     tabela.classList.toggle('pg-desp-fechado', _pgDespFechado);
     var th = document.getElementById('pgGrupoDesp'), txt = document.getElementById('pgGrupoDespTxt');
     if(th){
-      th.colSpan = _pgDespFechado ? 2 : 5;
+      th.colSpan = _pgDespFechado ? 1 : 5;
       th.setAttribute('aria-expanded', String(!_pgDespFechado));
       var filtrado = _pgDespFechado && ['d1','d2','d3'].some(function(c){ return !!_pgSel[c]; });
       if(txt) txt.textContent = _pgDespFechado ? ('▸ DESP' + (filtrado ? ' •' : '')) : '▾ Medição e produtos (DESP)';
-      th.title = _pgDespFechado ? 'DESP 1 / 2 / 3 recolhidos' + (filtrado ? ' (há filtro ativo neles)' : '') + ' — clique para expandir'
-        : 'Clique para recolher DESP 1 / 2 / 3 (Medição e a coluna R$ DESPs continuam)';
+      th.title = _pgDespFechado ? 'DESP 1 / 2 / 3 e R$ DESPs ocultos' + (filtrado ? ' (há filtro ativo neles)' : '') + ' — clique para expandir (pede a senha)'
+        : 'Clique para recolher DESP 1 / 2 / 3 e R$ DESPs (a Medição continua)';
     }
     requestAnimationFrame(PG_ajustarLayoutTabela);
   }
   window.PG_toggleGrupoDesp = function(){
-    _pgDespFechado = !_pgDespFechado;
-    try{ localStorage.setItem('pg_grupo_desp_fechado', _pgDespFechado ? '1' : '0'); }catch(e){}
-    PG_aplicarGrupoDesp();
+    function aplicar(fechar){
+      _pgDespFechado = fechar;
+      try{ localStorage.setItem('pg_grupo_desp_fechado', _pgDespFechado ? '1' : '0'); }catch(e){}
+      PG_aplicarGrupoDesp();
+    }
+    if(!_pgDespFechado){ aplicar(true); return; }   // recolher é livre; expandir pede a senha
+    if(!window.PG_pedirSenha) return;
+    window.PG_pedirSenha('Expandir Medição e produtos (DESP) e a coluna R$ DESPs.', { sessao:true }).then(function(ok){ if(ok) aplicar(false); });
   };
 
   // ---- DESP 1 / 2 / 3: caixa de marcação por cadastro (gravada no servidor, como a Medição) ----
@@ -21516,7 +21522,7 @@ function AV_gerarDescSituacao(){
         + ' oncontextmenu="return PG_menuContexto(event,' + "'" + esc(it.ctd) + "'" + ',' + "'" + esc(it.secao) + "'" + ')">'
         + PG_medicaoCelHTML(it)
         + PG_despCelHTML(it, 'd1') + PG_despCelHTML(it, 'd2') + PG_despCelHTML(it, 'd3')
-        + '<td class="pg-desp-valor">' + (it.desps ? (despValor(it) ? money(despValor(it)) : '—') : '?') + '</td>'
+        + '<td class="pg-desp-valor pg-col-dpv">' + (it.desps ? (despValor(it) ? money(despValor(it)) : '—') : '?') + '</td>'
         + '<td>' + esc(loteFmt(it.lote)) + '</td>'
         + '<td>' + esc(it.sei||"—") + '</td>'
         + '<td><b>' + esc(ctdFmt(it.ctd)) + '</b></td>'
@@ -21551,7 +21557,7 @@ function AV_gerarDescSituacao(){
       rodape.innerHTML = '<tr>'
         + '<td></td>'
         + ['d1','d2','d3'].map(function(k){ var q = itens.filter(function(it){ return it.desps && it.desps[k]; }).length; return '<td class="pg-desp-td pg-col-dp" title="Cadastros com ' + k.toUpperCase().replace('D','DESP ') + '"><b>' + q + '</b></td>'; }).join('')
-        + '<td class="pg-desp-valor">' + money(itens.reduce(function(a, it){ return a + despValor(it); }, 0)) + '</td>'
+        + '<td class="pg-desp-valor pg-col-dpv">' + money(itens.reduce(function(a, it){ return a + despValor(it); }, 0)) + '</td>'
         + '<td></td>'
         + '<td></td>'
         + '<td>' + itens.length + ' item(ns)</td>'
@@ -21717,6 +21723,7 @@ function AV_gerarDescSituacao(){
         Array.isArray(it.melhorias) ? it.melhorias.length : '', num(haNum(it.area_total)), num(haNum(it.area_desapropriada)),
         num(it.valor_terra_nua), num(it.valor_benf_reprodutiva), num(it.valor_benf_nao_reprodutiva), num(it.valor_total)]);
     });
+    if(_pgDespFechado) linhas = linhas.map(function(l){ return l.slice(0, 1).concat(l.slice(5)); });   // DESP ocultos não saem no CSV
     var csv = '﻿' + linhas.map(function(l){ return l.map(function(c){ return '"' + String(c).replace(/"/g, '""') + '"'; }).join(';'); }).join('\r\n');
     var a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([csv], { type:'text/csv;charset=utf-8' }));
@@ -43347,13 +43354,13 @@ window.__ANX_EST_B64__ = "JVBERi0xLjYKJeLjz9MKNSAwIG9iago8PAovTGVuZ3RoIDI0Cj4+Cn
     h.innerHTML = '<div class="pgv-card" style="--i:0"><span class="rot">Cadastros</span><b class="big" id="pgvN">0</b><div class="pgv-split" id="pgvSps"></div></div>' +
       '<div class="pgv-card" style="--i:1;--glow:rgba(229,72,77,.14)"><span class="rot">Andamento por etapa · clique para ver o que falta</span><div class="pgv-et" id="pgvEt"></div></div>' +
       '<div class="pgv-card pgv-ring" style="--i:2"><svg viewBox="0 0 90 90" aria-hidden="true"><circle class="t" cx="45" cy="45" r="38"/><circle class="v" id="pgvAnel" cx="45" cy="45" r="38"/></svg><div><span class="rot">Completos</span><b class="big" id="pgvComp">0</b><em id="pgvCompDe">de 0</em></div></div>' +
-      '<div class="pgv-card pgv-val" style="--i:3;--glow:rgba(233,161,0,.18)"><span class="rot">Desapropriação</span><b class="big" id="pgvValor">R$ 0</b><div class="lin"><span>Área <b id="pgvHa">0</b> ha</span><span>Terra nua <b id="pgvTn">—</b></span></div></div>';
+      '<div class="pgv-card pgv-val" style="--i:3;--glow:rgba(233,161,0,.18)"><span class="rot">Desapropriação</span><b class="big" id="pgvValor">R$ 0</b><div class="lin"><span>Área <b id="pgvHa">0</b> ha</span><span>Terra nua <b id="pgvTn">—</b></span><span>Benfeitorias <b id="pgvBf">—</b></span></div></div>';
     bar.parentNode.insertBefore(h, bar);
   }
   function atualizar(){
     montar(); var l = itens(); if(!$('pgvN')) return;
-    var n = l.length, comp = l.filter(function(it){ return pend(it) === 0; }).length, val = 0, ha = 0, tn = 0;
-    l.forEach(function(it){ val += (+it.valor_total || 0); tn += (+it.valor_terra_nua || 0); var a = numBr(it.area_desapropriada); if(isFinite(a)) ha += a; });
+    var n = l.length, comp = l.filter(function(it){ return pend(it) === 0; }).length, val = 0, ha = 0, tn = 0, bf = 0;
+    l.forEach(function(it){ val += (+it.valor_total || 0); tn += (+it.valor_terra_nua || 0); bf += (+it.valor_benf_reprodutiva || 0) + (+it.valor_benf_nao_reprodutiva || 0); var a = numBr(it.area_desapropriada); if(isFinite(a)) ha += a; });
     contar($('pgvN'), n, function(v){ return Math.round(v); });
     var s4 = l.filter(function(it){ return /^0?4$/.test(String(it.lote||'').replace(/\D/g,'')); }).length, s7 = l.filter(function(it){ return /^0?7$/.test(String(it.lote||'').replace(/\D/g,'')); }).length;
     $('pgvSps').innerHTML = (s4 ? '<i class="a" style="flex:' + s4 + '">SPS-04 · ' + s4 + '</i>' : '') + (s7 ? '<i class="b" style="flex:' + s7 + '">SPS-07 · ' + s7 + '</i>' : '') + (n - s4 - s7 > 0 ? '<i style="flex:' + (n - s4 - s7) + ';background:#9db0bd">outros · ' + (n - s4 - s7) + '</i>' : '');
@@ -43362,7 +43369,7 @@ window.__ANX_EST_B64__ = "JVBERi0xLjYKJeLjz9MKNSAwIG9iago8PAovTGVuZ3RoIDI0Cj4+Cn
     requestAnimationFrame(function(){ Array.prototype.forEach.call(document.querySelectorAll('#pgvEt .pgv-trilho i'), function(i){ i.style.width = i.dataset.p + '%'; i.style.setProperty('--bg', (100/Math.max(1,+i.dataset.p/100)) + '%'); }); });
     contar($('pgvComp'), comp, function(v){ return Math.round(v); }); $('pgvCompDe').textContent = 'de ' + n + (n ? ' · ' + Math.round(comp/n*100) + '%' : '');
     $('pgvAnel').style.strokeDashoffset = 238.76*(1 - (n ? comp/n : 0));
-    contar($('pgvValor'), val, fmtMi, 420); contar($('pgvHa'), ha, function(v){ return v.toLocaleString('pt-BR',{maximumFractionDigits:2}); }, 420); $('pgvTn').textContent = tn ? fmtMi(tn) : '—';
+    contar($('pgvValor'), val, fmtMi, 420); contar($('pgvHa'), ha, function(v){ return v.toLocaleString('pt-BR',{maximumFractionDigits:2}); }, 420); $('pgvTn').textContent = tn ? fmtMi(tn) : '—'; $('pgvBf').textContent = bf ? fmtMi(bf) : '—';
   }
   function decorar(){
     var corpo = $('pgCorpo'), pg = $('painelGeral'); if(!corpo || !pg) return;
@@ -44874,6 +44881,136 @@ window.MG_fichas=(function(){var el=document.getElementById("mgFichaLoad"),cv=do
 window.MG_motion={abertura:abertura,cadastro:cadastro,fichas:fichas};
 })();
 
+</script>
+<style id="pg-senha-css">
+.pg-tabela.pg-desp-fechado .pg-col-dpv{ display:none; }
+#painelGeral .pgv-val .lin{ flex-wrap:wrap; row-gap:4px; }
+#pgSenhaOv{ position:fixed; inset:0; z-index:2147483200; display:flex; align-items:center; justify-content:center; padding:16px;
+  background:rgba(15,34,54,.45); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px); font-family:var(--gl-font,"Segoe UI",sans-serif); }
+#pgSenhaOv[hidden]{ display:none; }
+#pgSenhaOv .pgs-card{ width:min(380px,94vw); background:rgba(255,255,255,.96); border:1px solid rgba(255,255,255,.6); border-radius:16px;
+  padding:22px 24px 18px; box-shadow:0 24px 70px rgba(0,0,0,.32); color:#0F2236; }
+#pgSenhaOv .pgs-card.err{ animation:pgsTremor 260ms; }
+@keyframes pgsTremor{ 20%{transform:translateX(-7px)} 45%{transform:translateX(6px)} 70%{transform:translateX(-4px)} 100%{transform:none} }
+#pgSenhaOv h2{ margin:0 0 4px; font:600 17px/1.3 var(--gl-disp,"Segoe UI",sans-serif); display:flex; align-items:center; gap:8px; }
+#pgSenhaOv h2 svg{ width:18px; height:18px; flex:none; fill:none; stroke:#1B3A5C; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+#pgSenhaOv p{ margin:0 0 14px; font-size:13px; color:#55616F; overflow-wrap:anywhere; }
+#pgSenhaOv input{ width:100%; box-sizing:border-box; height:40px; padding:0 12px; font:inherit; font-size:15px; border:1px solid #DCE1E8; border-radius:10px; background:#fff; color:#0F2236; }
+#pgSenhaOv input:focus{ outline:2px solid #1B3A5C; outline-offset:1px; }
+#pgSenhaOv input[aria-invalid="true"]{ border-color:#B3382C; }
+#pgSenhaOv .pgs-err{ min-height:18px; margin-top:6px; font-size:12.5px; color:#B3382C; }
+#pgSenhaOv .pgs-bt{ display:flex; justify-content:flex-end; gap:8px; margin-top:8px; }
+#pgSenhaOv .pgs-bt button{ height:36px; padding:0 16px; border-radius:9px; border:1px solid #DCE1E8; background:#fff; color:#0F2236; font:inherit; font-size:14px; cursor:pointer; }
+#pgSenhaOv .pgs-bt button.pri{ background:#1B3A5C; border-color:#1B3A5C; color:#fff; }
+#pgSenhaOv .pgs-bt button:disabled{ opacity:.55; cursor:default; }
+#pgSenhaOv .pgs-bt button:focus-visible{ outline:2px solid #1B3A5C; outline-offset:2px; }
+</style>
+<div id="pgSenhaOv" hidden>
+  <form class="pgs-card" id="pgSenhaForm" role="dialog" aria-modal="true" aria-labelledby="pgSenhaTit" autocomplete="off">
+    <h2 id="pgSenhaTit"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Confirme com a senha</h2>
+    <p id="pgSenhaMot"></p>
+    <input type="password" id="pgSenhaIn" autocomplete="new-password" placeholder="Senha gerencial" aria-label="Senha gerencial" aria-describedby="pgSenhaErr">
+    <div class="pgs-err" id="pgSenhaErr" role="alert"></div>
+    <div class="pgs-bt"><button type="button" id="pgSenhaCan">Cancelar</button><button type="submit" class="pri" id="pgSenhaOk">Confirmar</button></div>
+  </form>
+</div>
+<script id="pg-senha-js">
+(function(){
+  "use strict";
+  var HASH = "c2d3008e1f355d1740110142f68a95f1f27bd3130dd895d74c15ccba5ecc0a7c", KEY = "pg_gerencial_ok";
+  function sha256(ascii){
+    function rr(v, a){ return (v >>> a) | (v << (32 - a)); }
+    var maxWord = Math.pow(2, 32), result = "", words = [], bits = ascii.length * 8, i, j;
+    var hash = sha256.h = sha256.h || [], k = sha256.k = sha256.k || [], pc = k.length, comp = {};
+    for(var cand = 2; pc < 64; cand++){
+      if(!comp[cand]){
+        for(i = 0; i < 313; i += cand) comp[i] = cand;
+        hash[pc] = (Math.pow(cand, .5) * maxWord) | 0;
+        k[pc++] = (Math.pow(cand, 1 / 3) * maxWord) | 0;
+      }
+    }
+    ascii += "\x80";
+    while(ascii.length % 64 - 56) ascii += "\x00";
+    for(i = 0; i < ascii.length; i++){ j = ascii.charCodeAt(i); if(j >> 8) return ""; words[i >> 2] |= j << ((3 - i) % 4) * 8; }
+    words[words.length] = (bits / maxWord) | 0;
+    words[words.length] = bits;
+    for(j = 0; j < words.length;){
+      var w = words.slice(j, j += 16), old = hash;
+      hash = hash.slice(0, 8);
+      for(i = 0; i < 64; i++){
+        var w15 = w[i - 15], w2 = w[i - 2], a = hash[0], e = hash[4];
+        var t1 = hash[7] + (rr(e, 6) ^ rr(e, 11) ^ rr(e, 25)) + ((e & hash[5]) ^ (~e & hash[6])) + k[i]
+          + (w[i] = (i < 16) ? w[i] : (w[i - 16] + (rr(w15, 7) ^ rr(w15, 18) ^ (w15 >>> 3)) + w[i - 7] + (rr(w2, 17) ^ rr(w2, 19) ^ (w2 >>> 10))) | 0);
+        var t2 = (rr(a, 2) ^ rr(a, 13) ^ rr(a, 22)) + ((a & hash[1]) ^ (a & hash[2]) ^ (hash[1] & hash[2]));
+        hash = [(t1 + t2) | 0].concat(hash);
+        hash[4] = (hash[4] + t1) | 0;
+      }
+      for(i = 0; i < 8; i++) hash[i] = (hash[i] + old[i]) | 0;
+    }
+    for(i = 0; i < 8; i++) for(j = 3; j + 1; j--){ var b = (hash[i] >> (j * 8)) & 255; result += (b < 16 ? 0 : "") + b.toString(16); }
+    return result;
+  }
+  function $(id){ return document.getElementById(id); }
+  function liberado(){ try{ return sessionStorage.getItem(KEY) === "1"; }catch(e){ return false; } }
+  var fim = null;
+  /* motivo: texto da janela; op.sessao = true → lembra a liberação até fechar a aba / trocar de atividade */
+  window.PG_pedirSenha = function(motivo, op){
+    op = op || {};
+    if(op.sessao && liberado()) return Promise.resolve(true);
+    return new Promise(function(resolve){
+      if(fim) fim(false);
+      var ov = $("pgSenhaOv"), inp = $("pgSenhaIn"), err = $("pgSenhaErr"), card = $("pgSenhaForm"), voltar = document.activeElement, trava = false;
+      $("pgSenhaMot").textContent = motivo || "";
+      inp.value = ""; err.textContent = ""; inp.removeAttribute("aria-invalid"); ov.hidden = false;
+      setTimeout(function(){ inp.focus(); }, 30);
+      function sair(ok){
+        fim = null; ov.hidden = true; inp.value = "";
+        card.onsubmit = null; $("pgSenhaCan").onclick = null; ov.onmousedown = null; document.removeEventListener("keydown", tecla, true);
+        try{ if(voltar && voltar.focus) voltar.focus(); }catch(e){}
+        resolve(ok);
+      }
+      function tecla(ev){ if(ev.key === "Escape"){ ev.preventDefault(); ev.stopPropagation(); sair(false); } }
+      fim = sair;
+      document.addEventListener("keydown", tecla, true);
+      $("pgSenhaCan").onclick = function(){ sair(false); };
+      ov.onmousedown = function(ev){ if(ev.target === ov) sair(false); };
+      card.onsubmit = function(ev){
+        ev.preventDefault();
+        if(trava) return;
+        if(sha256(inp.value) === HASH){
+          if(op.sessao){ try{ sessionStorage.setItem(KEY, "1"); }catch(e){} }
+          sair(true); return;
+        }
+        trava = true; $("pgSenhaOk").disabled = true;
+        err.textContent = "Senha incorreta."; inp.setAttribute("aria-invalid", "true"); inp.value = "";
+        card.classList.remove("err"); void card.offsetWidth; card.classList.add("err");
+        setTimeout(function(){ trava = false; $("pgSenhaOk").disabled = false; inp.focus(); }, 700);
+      };
+    });
+  };
+  /* excluir cadastro: sempre pede (qualquer caminho: menu do Painel, lista, botão do cadastro) */
+  var excluir = window.CAD_excluir;
+  if(typeof excluir === "function"){
+    window.CAD_excluir = function(ctd, rotulo, secao){
+      return window.PG_pedirSenha('Excluir o cadastro "' + (rotulo || ctd) + '".').then(function(ok){
+        if(ok) return excluir.call(window, ctd, rotulo, secao);
+      });
+    };
+  }
+  /* Gráficos: abrir pede a senha (uma vez por sessão); fechar é livre */
+  var graf = window.PG_grafAlternar;
+  if(typeof graf === "function"){
+    window.PG_grafAlternar = function(){
+      if(window.PG_grafAberto && window.PG_grafAberto()) return graf();
+      return window.PG_pedirSenha("Acessar os Gráficos do Painel Geral.", { sessao:true }).then(function(ok){ if(ok) graf(); });
+    };
+  }
+  /* trocar de atividade encerra a liberação */
+  var trocar = window.ATIV_trocar;
+  if(typeof trocar === "function"){
+    window.ATIV_trocar = function(){ try{ sessionStorage.removeItem(KEY); }catch(e){} return trocar.apply(this, arguments); };
+  }
+})();
 </script>
 </body>
 
