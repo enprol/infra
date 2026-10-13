@@ -21418,7 +21418,7 @@ function AV_gerarDescSituacao(){
       var filtrado = _pgDespFechado && ['d1','d2','d3'].some(function(c){ return !!_pgSel[c]; });
       if(txt) txt.textContent = _pgDespFechado ? ('▸ DESP' + (filtrado ? ' •' : '')) : '▾ Medição e produtos (DESP)';
       th.title = _pgDespFechado ? 'DESP 1 / 2 / 3 e R$ DESPs ocultos' + (filtrado ? ' (há filtro ativo neles)' : '') + ' — clique para expandir (pede a senha)'
-        : 'Clique para recolher DESP 1 / 2 / 3 e R$ DESPs (a Medição continua) — pede a senha';
+        : 'Clique para recolher DESP 1 / 2 / 3 e R$ DESPs (a Medição continua)';
     }
     requestAnimationFrame(PG_ajustarLayoutTabela);
   }
@@ -21428,9 +21428,9 @@ function AV_gerarDescSituacao(){
       try{ localStorage.setItem('pg_grupo_desp_fechado', _pgDespFechado ? '1' : '0'); }catch(e){}
       PG_aplicarGrupoDesp();
     }
+    if(!_pgDespFechado){ aplicar(true); return; }   // recolher é livre; só expandir pede a senha
     if(!window.PG_pedirSenha) return;
-    var expandir = _pgDespFechado;   // expandir e recolher pedem a senha
-    window.PG_pedirSenha((expandir ? 'Expandir' : 'Recolher') + ' Medição e produtos (DESP) e a coluna R$ DESPs.').then(function(ok){ if(ok) aplicar(!expandir); });
+    window.PG_pedirSenha('Expandir Medição e produtos (DESP) e a coluna R$ DESPs.').then(function(ok){ if(ok) aplicar(false); });
   };
 
   // ---- DESP 1 / 2 / 3: caixa de marcação por cadastro (gravada no servidor, como a Medição) ----
