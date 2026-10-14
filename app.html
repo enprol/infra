@@ -38290,6 +38290,253 @@ window.DRL_gerarPDF=async function(opts){
     (window.MG_fichas ? MG_fichas.ler(fr, file) : fr.readAsText(file));
   };
 
+  /* socCompl — 14/10/2026: Ficha Social de COMPLEMENTO importada num cadastro já existente (mescla campo a campo) */
+  var SC_FIXOS = { fb_proc_ctd:"Nº CTD", fb_proc_lote:"Nº Lote (SPS-__)", fb_proc_ferrovia:"Ferrovia", fb_proc_uf:"UF (no código)", fb_proc_sei:"Processo (SEI)" };
+  var SC_DERIV = { fb_processo:1, fb_proc_preview:1, rel_processo:1, rel_sei:1, par_sei:1 };   // montados a partir dos fixos
+  function sc_txt(v){ return (v == null ? "" : String(v)).replace(/\s+/g, " ").trim(); }
+  function sc_igual(a, b){ return sc_txt(a).toLowerCase() === sc_txt(b).toLowerCase(); }
+  function sc_norm(v){ return sc_txt(v).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, ""); }
+  function sc_cl(v){ return JSON.parse(JSON.stringify(v == null ? null : v)); }
+  function sc_curto(t, n){ t = sc_txt(t); return t.length > n ? t.slice(0, n - 1) + "…" : t; }
+  // elemento anterior (irmão ou de um ancestral) que casa com `sel`; para ao topar com o título de outra seção
+  function sc_antes(el, sel, parar){
+    while(el && el !== document.body){
+      var q = el.previousElementSibling;
+      while(q){
+        if(q.matches(sel)) return q;
+        var h = q.querySelectorAll ? q.querySelectorAll(sel) : [];
+        if(h.length) return h[h.length - 1];
+        if(parar && q.matches(parar)) return null;
+        q = q.previousElementSibling;
+      }
+      el = el.parentElement;
+    }
+    return null;
+  }
+  function sc_secaoDe(e){
+    var h = sc_antes(e, "h2.vsec");
+    if(h){ var sp = h.querySelector("span"); var t = sc_txt((sp || h).textContent); if(t) return t; }
+    return /^rel_/.test(e.id) ? "Relatório Técnico" : (/^par_/.test(e.id) ? "Parecer Jurídico" : "Demais campos");
+  }
+  function sc_rotuloDe(e){
+    var op = "", grp = "", lb = null;
+    if(e.type === "checkbox" || e.type === "radio"){
+      var lo = e.closest("label"); if(lo) op = sc_txt(lo.textContent);
+      var vf = e.closest(".vfield");
+      if(vf){ Array.prototype.some.call(vf.querySelectorAll("label"), function(l){ if(!l.contains(e)){ grp = sc_txt(l.textContent); return true; } return false; }); }
+    } else {
+      lb = e.id ? document.querySelector('label[for="' + e.id + '"]') : null;
+      if(!lb){ var vf2 = e.closest(".vfield"); if(vf2) lb = vf2.querySelector("label"); }
+      op = lb ? sc_txt(lb.textContent) : "";
+    }
+    var t = grp && op ? grp + " › " + op : (op || grp);
+    if(!t) t = sc_txt(e.getAttribute("aria-label") || e.placeholder || e.id);
+    var sub = sc_antes(e, ".vsub", "h2.vsec");
+    return (sub ? sc_txt(sub.textContent) + " › " : "") + t;
+  }
+  function sc_opcao(e, v){   // select: acha a opção (ignora caixa); devolve o value ou null
+    var r = null;
+    Array.prototype.some.call(e.options, function(o){ if(sc_igual(o.value, v) || sc_igual(o.text, v)){ r = o.value; return true; } return false; });
+    return r;
+  }
+  function sc_dispara(e, id){
+    try{ if(e.hasAttribute("data-rtf") && window.RTF) window.RTF.render(id); }catch(err){}
+    e.dispatchEvent(new Event("input", { bubbles:true }));
+    e.dispatchEvent(new Event("change", { bubbles:true }));
+  }
+
+  var __socCompletoAntigo = window.CAMPOSOC_importar;
+  window.CAMPOSOC_importar = function(input){
+    // cadastro ainda não aberto/salvo: não há o que complementar — importação completa como antes
+    if(!window.__CAD_ATUAL) return __socCompletoAntigo(input);
+    var file = input && input.files && input.files[0];
+    if(!file) return;
+    var fr = new FileReader();
+    fr.onload = async function(){
+      try{
+        var o = JSON.parse(fr.result);
+        if(!o || o._app !== "ENPROL-FichaSocial")
+          throw new Error("Este arquivo não é uma Ficha Social do app das assistentes sociais.");
+        var campos = o.campos || {}, G = function(id){ return document.getElementById(id); };
+        var lista = [];     // {sec, rot, atual, novo, auto, ap}
+        function cmp(sec, rot, atual, novo, ap){
+          var nv = sc_txt(novo); if(!nv) return;                 // vazio no arquivo nunca apaga
+          var at = sc_txt(atual); if(sc_igual(at, nv)) return;   // igual: nada a fazer
+          lista.push({ sec:sec, rot:rot, atual:at, novo:nv, auto:!at, ap:ap });
+        }
+
+        // ---- dados fixos: o cadastro manda ----
+        var fixosDif = [];
+        Object.keys(SC_FIXOS).forEach(function(id){
+          var e = G(id), cur = e ? sc_txt(e.value) : "", arq = sc_txt(campos[id]);
+          if(!e) return;
+          if(!cur && arq){ cmp("Identificação do processo", SC_FIXOS[id], "", arq, (function(e, id, v){ return function(){ var ov = e.tagName === "SELECT" ? sc_opcao(e, v) : v; if(ov != null){ e.value = ov; sc_dispara(e, id); } }; })(e, id, arq)); }
+          else if(arq && !sc_igual(cur, arq)) fixosDif.push({ rot:SC_FIXOS[id], cad:cur, arq:arq, id:id });
+        });
+
+        // ---- campos da Ficha de Vistoria / Relatório (ids idênticos aos da web) ----
+        Object.keys(campos).forEach(function(id){
+          if(SC_FIXOS[id] || SC_DERIV[id]) return;
+          var e = G(id); if(!e || e.type === "file" || e.tagName === "BUTTON") return;
+          var v = campos[id], sec = sc_secaoDe(e), rot = sc_rotuloDe(e);
+          if(e.type === "checkbox" || e.type === "radio"){
+            if(!(v && typeof v === "object" && v.__chk) || e.checked) return;   // desmarcado no arquivo nunca tira a marca
+            var outro = null;
+            if(e.type === "radio" && e.name){ Array.prototype.forEach.call(document.querySelectorAll('input[type="radio"]'), function(r){ if(r.name === e.name && r.checked) outro = r; }); }
+            var rotOp = function(x){ var l = x.closest("label"); return sc_txt(l ? l.textContent : (x.value || x.id)); };
+            lista.push({ sec:sec, rot:rot, atual: outro ? rotOp(outro) : "", novo: e.type === "radio" ? rotOp(e) : "marcar", auto:!outro,
+              ap:(function(e, id){ return function(){ e.checked = true; sc_dispara(e, id); }; })(e, id) });
+            return;
+          }
+          if(v && typeof v === "object") return;
+          var nv = sc_txt(v); if(!nv) return;
+          var val = nv;
+          if(e.tagName === "SELECT"){ val = sc_opcao(e, nv); if(val == null) return; }
+          cmp(sec, rot, e.value, nv, (function(e, id, val){ return function(){ e.value = val; sc_dispara(e, id); }; })(e, id, val));
+        });
+
+        // ---- 4.5 Composição familiar: pessoa nova entra; pessoa já listada (mesmo nome) é comparada campo a campo ----
+        var famW = sc_cl(window.FB_getFamilia ? window.FB_getFamilia() : []) || [], famMud = false, SF = "4.5 Composição familiar";
+        (o.familia || []).forEach(function(p){
+          if(!p || !sc_txt(p.nome)) return;
+          var alvo = null; famW.forEach(function(q){ if(!alvo && q && sc_norm(q.nome) === sc_norm(p.nome)) alvo = q; });
+          if(!alvo){
+            lista.push({ sec:SF, rot:"Nova pessoa: " + sc_txt(p.nome), atual:"", novo:[sc_txt(p.parentesco), sc_txt(p.idade) ? sc_txt(p.idade) + " anos" : ""].filter(Boolean).join(", ") || "—", auto:true,
+              ap:function(){ famW.push(sc_cl(p)); famMud = true; } });
+            return;
+          }
+          [["parentesco", "Grau de parentesco"], ["idade", "Idade"]].forEach(function(c){
+            cmp(SF, sc_txt(alvo.nome) + " › " + c[1], alvo[c[0]], p[c[0]], function(){ alvo[c[0]] = p[c[0]]; famMud = true; });
+          });
+        });
+
+        // ---- Áreas de Locação (Relatório Técnico): por posição ----
+        var arW = sc_cl(window.REL_getAreas ? window.REL_getAreas() : []) || [], arMud = false, SA = "Áreas de Locação (Relatório Técnico)";
+        (o.relAreas || []).forEach(function(a, i){
+          if(!a || typeof a !== "object") return;
+          var c = arW[i];
+          if(!c){
+            lista.push({ sec:SA, rot:"Área " + (i + 1), atual:"", novo:"KM " + (sc_txt(a.ini) || "___") + " ao KM " + (sc_txt(a.fim) || "___") + (a.tipo ? " (" + sc_txt(a.tipo) + ")" : ""), auto:true,
+              ap:function(){ arW.push(sc_cl(a)); arMud = true; } });
+            return;
+          }
+          [["ini", "KM inicial"], ["fim", "KM final"], ["tipo", "Tipo da área"]].forEach(function(k){
+            cmp(SA, "Área " + (i + 1) + " › " + k[1], c[k[0]], a[k[0]], function(){ c[k[0]] = a[k[0]]; arMud = true; });
+          });
+        });
+
+        // ---- Tabelas 1 e 2 de vulnerabilidade: linha pelo critério ----
+        var rt = o.relTabelas || {}, tabW = {}, tabMud = false, ST = "Tabelas de vulnerabilidade (Relatório Técnico)";
+        [1, 2].forEach(function(n){
+          var arq = rt[String(n)] || rt[n] || []; if(!arq.length || !window.REL_getTabela) return;
+          var cur = tabW[n] = sc_cl(window.REL_getTabela(n)) || [];
+          arq.forEach(function(r, i){
+            if(!r) return;
+            var c = null; cur.forEach(function(x){ if(!c && x && sc_txt(x.crit) === sc_txt(r.crit)) c = x; });
+            if(!c) c = cur[i]; if(!c) return;
+            [["resp", "Resposta"], ["obs", "Observação"]].forEach(function(k){
+              cmp(ST, "Tabela " + n + " › " + sc_curto(c.crit || r.crit, 70) + " › " + k[1], c[k[0]], r[k[0]], function(){ c[k[0]] = r[k[0]]; tabMud = true; });
+            });
+          });
+        });
+
+        // ---- Check list documental do Parecer Jurídico ----
+        var ckW = sc_cl(window.PAR_getChecklist ? window.PAR_getChecklist() : {}) || {}, ckMud = false, SC = "Check list documental (Parecer Jurídico)";
+        var pc = o.parChecklist || {};
+        Object.keys(pc).forEach(function(n){
+          if(!Array.isArray(pc[n]) || !Array.isArray(ckW[n])) return;
+          pc[n].forEach(function(r, i){
+            var c = ckW[n][i]; if(!r || !c) return;
+            [["resp", "Resposta"], ["obs", "Observação"]].forEach(function(k){
+              cmp(SC, "Grupo " + (+n + 1) + " › " + sc_curto(c.crit, 60) + " › " + k[1], c[k[0]], r[k[0]], function(){ c[k[0]] = r[k[0]]; ckMud = true; });
+            });
+          });
+        });
+
+        // ---- fotografias (5.3): só as que ainda não estão lá ----
+        var atuaisF = (window.FB_getFotos ? window.FB_getFotos() : []) || [], sigs = {};
+        atuaisF.forEach(function(x){ var sr = (typeof x === "string") ? x : (x && x.src) || ""; if(sr) sigs[assinatura({ src:sr })] = true; });
+        var fotosNovas = [];
+        (o.fotos || []).forEach(function(x, i){
+          var sr = (typeof x === "string") ? x : (x && x.src) || ""; if(!sr) return;
+          var sg = assinatura({ src:sr }); if(sigs[sg]) return; sigs[sg] = true;
+          var leg = (typeof x === "object" && x.legenda) || (o.legendas && o.legendas[i]) || "";
+          fotosNovas.push(leg ? { src:sr, legenda:leg } : x);
+        });
+        if(fotosNovas.length) lista.push({ sec:"Fotografias e assinatura", rot:"Fotografias (5.3)", atual:"", novo:fotosNovas.length + " foto(s) nova(s) (as já existentes são ignoradas)", auto:true,
+          ap:function(){ window.FB_setFotos(atuaisF.concat(fotosNovas)); } });
+
+        // ---- assinatura do(a) vistoriador(a) ----
+        var assArq = (o.assinaturas && o.assinaturas.fb) || "", assCur = (window.__ASSIN__ && window.__ASSIN__.fb) || "";
+        if(assArq && assArq !== assCur) lista.push({ sec:"Fotografias e assinatura", rot:"Assinatura do(a) vistoriador(a)", atual: assCur ? "imagem já cadastrada" : "", novo:"imagem do arquivo", auto:!assCur,
+          ap:function(){
+            window.__ASSIN__ = window.__ASSIN__ || { fb:null, rel:null }; window.__ASSIN__.fb = assArq;
+            var pv = G("fb_ass_img_prev");
+            if(pv) pv.innerHTML = '<img src="' + assArq + '" style="max-height:64px;border:1px solid #cfd9e4;border-radius:6px;padding:3px;background:#fff;">';
+          } });
+
+        // ---- confirmação ----
+        var novos = lista.filter(function(l){ return l.auto; }), conf = lista.filter(function(l){ return !l.auto; });
+        var ctdCad = sc_txt((G("fb_proc_ctd") || {}).value), ctdArq = sc_txt(campos.fb_proc_ctd);
+        var aviso = "";
+        if(fixosDif.length){
+          aviso = '<p><b>Dados fixos do cadastro — mantidos como estão:</b> '
+            + fixosDif.map(function(f){ return esc(f.rot) + ' <i>(cadastro: ' + esc(f.cad) + ' · arquivo: ' + esc(f.arq) + ')</i>'; }).join('; ') + '.</p>';
+          if(fixosDif.some(function(f){ return f.id === "fb_proc_ctd" || f.id === "fb_proc_lote"; }))
+            aviso += '<p style="color:#b3261e"><b>Atenção:</b> o Nº CTD / Lote do arquivo é diferente do deste cadastro. Confira se este é o arquivo certo antes de aplicar.</p>';
+        }
+        var resumo = {}; novos.forEach(function(l){ resumo[l.sec] = (resumo[l.sec] || 0) + 1; });
+        var resumoHtml = Object.keys(resumo).map(function(k){ return esc(k) + ': ' + resumo[k]; }).join(' · ');
+        var introBase = '<p>Arquivo <b>' + esc(file.name) + '</b>' + (o._geradoEm ? ' (gerado em ' + esc(new Date(o._geradoEm).toLocaleString("pt-BR")) + ')' : '') + ' → cadastro <b>CTD ' + esc(ctdCad || ctdArq || "?") + '</b>.</p>' + aviso
+          + '<p>Campos que estavam <b>vazios</b> e vêm preenchidos <b>entram sozinhos</b>: <b>' + novos.length + '</b> item(ns)'
+          + (resumoHtml ? ' <small>(' + resumoHtml + ')</small>' : '') + '.</p>';
+
+        if(!lista.length){
+          alert("Nada a complementar: tudo o que o arquivo traz já está no cadastro igual (ou o arquivo está vazio nos demais campos)." + (fixosDif.length ? "\n\nDados fixos mantidos: " + fixosDif.map(function(f){ return f.rot; }).join(", ") + "." : ""));
+          input.value = ""; return;
+        }
+        var res;
+        if(conf.length){
+          var secs = [], mapa = {};
+          conf.forEach(function(l, i){ l.id = "c" + i; if(!mapa[l.sec]){ mapa[l.sec] = { t:l.sec, colAtual:"No cadastro", colNovo:"No arquivo do campo", linhas:[] }; secs.push(mapa[l.sec]); } });
+          conf.forEach(function(l){ mapa[l.sec].linhas.push({ id:l.id, rot:l.rot, atual:l.atual, novo:l.novo, marcado:true, tag:"troca", tagTxt:"será trocado" }); });
+          res = await dlgMescla({
+            titulo: "Complementar o cadastro com a Ficha Social — confirmar o que será trocado",
+            intro: introBase + '<p><b>Estes campos já estão preenchidos no cadastro com valor diferente.</b> Marque os que devem passar a valer o que veio do campo; os <b>desmarcados ficam como estão</b>. Cancelar não altera nada.</p>',
+            okTxt: "Aplicar", modos: null,
+            montar: function(){ return { secoes:secs, fotos:[] }; }
+          });
+          if(!res.ok){ input.value = ""; return; }
+        } else {
+          var msg = "Complementar o cadastro CTD " + (ctdCad || ctdArq || "?") + " com a Ficha Social\n\n• " + novos.length + " item(ns) novo(s) vão ser acrescentados"
+            + (resumoHtml ? "\n   (" + resumoHtml.replace(/&amp;/g, "&") + ")" : "")
+            + "\n• nenhum campo já preenchido será alterado"
+            + (fixosDif.length ? "\n• dados fixos mantidos: " + fixosDif.map(function(f){ return f.rot; }).join(", ") : "")
+            + (fixosDif.some(function(f){ return f.id === "fb_proc_ctd" || f.id === "fb_proc_lote"; }) ? "\n\nATENÇÃO: o Nº CTD/Lote do arquivo é diferente do deste cadastro." : "")
+            + "\n\nImportar agora?";
+          if(!confirm(msg)){ input.value = ""; return; }
+          res = { ok:true, campos:{} };
+        }
+
+        // ---- aplica ----
+        var nNovos = 0, nTrocas = 0;
+        novos.forEach(function(l){ l.ap(); nNovos++; });
+        conf.forEach(function(l){ if(res.campos[l.id]){ l.ap(); nTrocas++; } });
+        if(famMud && window.FB_setFamilia) window.FB_setFamilia(famW);
+        if(arMud && window.REL_setAreas) window.REL_setAreas(arW);
+        if(tabMud && window.REL_setTabela){ [1, 2].forEach(function(n){ if(tabW[n]) window.REL_setTabela(n, tabW[n]); }); try{ if(window.REL_atualizarIVS) window.REL_atualizarIVS(); }catch(err){} }
+        if(ckMud && window.PAR_setChecklist) window.PAR_setChecklist(ckW);
+        try{ if(window.FB_montarProcesso) window.FB_montarProcesso(); }catch(err){}
+        try{ if(window.CAD_marcarSujo) window.CAD_marcarSujo(); }catch(err){}
+        alert("Ficha Social aplicada ao cadastro.\n\n• " + nNovos + " item(ns) novo(s) acrescentado(s)\n• " + nTrocas + " item(ns) trocado(s) de " + conf.length + " proposto(s)\n\nConfira as abas “Ficha de Vistoria e Cadastro Socioeconômico (Anexo B)” e “Relatório Técnico de Caracterização Socioeconômica”, e salve o cadastro.");
+      }catch(e){
+        alert("Não consegui ler o arquivo:\n" + e.message);
+      }
+      input.value = "";
+    };
+    (window.MG_fichas ? MG_fichas.ler(fr, file) : fr.readAsText(file));
+  };
+
   /* ---------------- infraestrutura comum dos PDFs ---------------- */
   var END=["Av. Des. Moreira, nº 1300, T. Norte, Conj. 1016/1021, Aldeota, 60.170-002, Fortaleza-CE","Rua Idelfonso Freire, nº 106, Sala 202, Centro, 56.506-520, Arcoverde-PE","Rua Pedro Batista Ferreira, nº 278, Centro, 76.500-000, Santa Terezinha de Goiás-GO","Rua Nilo Peçanha, nº 25, 1º Andar, Sala 07, Centro, 47.640-000, Santa Maria da Vitória-BA","Rua Irmã Ambrosina, nº 249, Conj 03 e 04, Centro, 61.760-405, Eusébio-CE","Rua dos Timbiras, nº 2213, Conj.1206/1209, Lourdes, 30.140-069, Belo Horizonte-MG"];
   var TEL=["(+55 85) 3289-6363   comercial@enprol.com.br","(+55 85) 3289-6363   comercial@enprol.com.br","(+55 85) 3289-6363   comercial@enprol.com.br","(+55 85) 3289-6363   comercial@enprol.com.br","(+55 85) 3289-6363   comercial@enprol.com.br","(+55 31) 3253-5500   comercial@enprol.com.br"];
