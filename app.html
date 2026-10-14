@@ -20172,6 +20172,28 @@ window.FOTO_rodapeHTML=rodapeHTML;
       im.src = src;
     });
   }
+  /* roteiroPag — distância (m) de um ponto ao polígono da área total do imóvel; 0 se estiver dentro; null sem KML */
+  function distPontoImovel(pt){
+    try{
+      const kml = (window.IMV_get && window.IMV_get("area") && window.IMV_get("area").kml) || "";
+      if(!kml || !pt) return null;
+      const rs = []; kml.replace(/<coordinates>([\s\S]*?)<\/coordinates>/g, function(m, c){
+        const r = c.trim().split(/\s+/).map(function(t){ const q = t.split(","); return [+q[0], +q[1]]; }).filter(function(q){ return isFinite(q[0]) && isFinite(q[1]); });
+        if(r.length >= 3) rs.push(r); return m; });
+      if(!rs.length) return null;
+      const k = 111320 * Math.cos(pt.lat * Math.PI / 180), px = pt.lon * k, py = pt.lat * 110574; let best = Infinity, dentro = false;
+      rs.forEach(function(r){
+        for(let i = 0, j = r.length - 1; i < r.length; j = i++){
+          const xi = r[i][0], yi = r[i][1], xj = r[j][0], yj = r[j][1];
+          if(((yi > pt.lat) !== (yj > pt.lat)) && (pt.lon < (xj - xi) * (pt.lat - yi) / (yj - yi) + xi)) dentro = !dentro;
+          const ax = xj * k, ay = yj * 110574, bx = xi * k, by = yi * 110574, vx = bx - ax, vy = by - ay;
+          let t = ((px - ax) * vx + (py - ay) * vy) / (vx * vx + vy * vy || 1); t = Math.max(0, Math.min(1, t));
+          best = Math.min(best, Math.hypot(px - ax - t * vx, py - ay - t * vy));
+        }
+      });
+      return dentro ? 0 : best;
+    }catch(e){ return null; }
+  }
   async function anexoRoteiro(out, procRef){
     const R = roteiroDados(); if(!R) return;
     const {jsPDF} = window.jspdf, doc = new jsPDF({unit:"pt",format:"a4",compress:true}), ctx = makeCtx(doc);
@@ -20183,21 +20205,10 @@ window.FOTO_rodapeHTML=rodapeHTML;
     doc.setFontSize(15); doc.setTextColor(30,40,55);
     doc.text("ROTEIRO DE ACESSO", ctx.W/2, ctx.H/2+20, {align:"center"});
     doc.line(ctx.W/2-90, ctx.H/2+36, ctx.W/2+90, ctx.H/2+36);
-    novaPagina(doc,ctx);                                                             // folha do roteiro (mesmo desenho do utilitário)
+    novaPagina(doc,ctx);                                                             // folha do roteiro
     const L = ctx.MR - ctx.ML;
     doc.setFont("helvetica","bold"); doc.setFontSize(16); doc.setTextColor(23,90,159);
     doc.text("ROTEIRO DE ACESSO", ctx.ML, ctx.y + 14); ctx.y += 28;
-    if(R.txt){
-      doc.setFont("helvetica","bold"); doc.setFontSize(7.5); doc.setTextColor(90,100,112);
-      doc.text("DESCRIÇÃO DO ROTEIRO DE ACESSO", ctx.ML, ctx.y + 7);
-      doc.setDrawColor(211,219,228); doc.setLineWidth(0.5); doc.line(ctx.ML, ctx.y + 11, ctx.MR, ctx.y + 11); ctx.y += 18;
-      doc.setFont("helvetica","normal"); doc.setFontSize(9.5);
-      const lin = doc.splitTextToSize(R.txt, L - 24), hb = lin.length * 13 + 16;
-      doc.setFillColor(250,252,254); doc.setDrawColor(200,210,222); doc.setLineWidth(0.6); doc.roundedRect(ctx.ML, ctx.y, L, hb, 4, 4, "FD");
-      doc.setTextColor(36,52,71); lin.forEach(function(t, k){ doc.text(t, ctx.ML + 12, ctx.y + 17 + k * 13); });
-      ctx.y += hb + 16;
-    }
-    if(!R.txt && !R.mapa) paragrafo(doc,ctx,"(Roteiro de acesso ainda não preenchido neste cadastro — informe os Pontos A e B em Técnica › Roteiro de Acesso.)",9.5);
     let qrUri = R.qrSrc;
     try{
       if(!qrUri && R.A && R.B && window.__MDP_qr){
@@ -20205,23 +20216,28 @@ window.FOTO_rodapeHTML=rodapeHTML;
         if(qr){ const by = await window.__MDP_qr.png(qr); let bin = ""; for(let i=0;i<by.length;i+=8192) bin += String.fromCharCode.apply(null, by.subarray(i, i+8192)); qrUri = "data:image/png;base64," + btoa(bin); }
       }
     }catch(err){ console.warn("QR do anexo de roteiro:", err); }
+    const qw = 62, qh = 74, wTxt = qrUri ? L - qw - 20 : L, yTop = ctx.y;
+    // descrição em texto corrido (sem caixa), ao lado do QR
+    doc.setFont("helvetica","bold"); doc.setFontSize(7.5); doc.setTextColor(90,100,112);
+    doc.text("DESCRIÇÃO DO ROTEIRO DE ACESSO", ctx.ML, ctx.y + 7);
+    doc.setDrawColor(211,219,228); doc.setLineWidth(0.5); doc.line(ctx.ML, ctx.y + 11, ctx.ML + wTxt, ctx.y + 11); ctx.y += 20;
+    doc.setFont("helvetica","normal"); doc.setFontSize(9.5); doc.setTextColor(36,52,71);
+    const lin = doc.splitTextToSize(R.txt || "(Roteiro de acesso ainda não preenchido neste cadastro — informe os Pontos A e B em Técnica › Roteiro de Acesso.)", wTxt);
+    lin.forEach(function(t, k){ doc.text(t, ctx.ML, ctx.y + 9 + k * 13); });
+    let yFim = ctx.y + lin.length * 13 + 4;
+    if(qrUri){
+      try{ doc.addImage(qrUri, /^data:image\/jpe?g/.test(qrUri) ? "JPEG" : "PNG", ctx.MR - qw, yTop, qw, qh, undefined, "FAST"); }catch(err){ console.warn("QR:", err); }
+      const d = distPontoImovel(R.B);
+      const cap = ["Percurso do Ponto A ao Ponto B"].concat(d == null ? [] : [d <= 1 ? "Destino dentro do imóvel" : "Destino a " + Math.round(d) + " m do limite do imóvel"]);
+      doc.setFont("helvetica","normal"); doc.setFontSize(6.5); doc.setTextColor(90,100,112);
+      let cy = yTop + qh + 8; cap.forEach(function(t){ doc.splitTextToSize(t, 110).forEach(function(l){ doc.text(l, ctx.MR, cy, {align:"right"}); cy += 7.5; }); });
+      yFim = Math.max(yFim, cy);
+    }
+    ctx.y = yFim + 10;
     if(R.mapa){
       doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(30,40,55);
-      doc.text("CROQUI DE ACESSO À ÁREA ABRANGIDA", ctx.W/2, ctx.y + 8, {align:"center"}); ctx.y += 18;
-      const h = Math.max(200, ctx.MB - ctx.y - 4);                                    // o croqui preenche o resto da folha
-      if(ctx.y + h > ctx.H) ctx.y = ctx.MT;
-      const rec = await recorteCover(R.mapa, L, h);
-      doc.setDrawColor(190,200,214); doc.setLineWidth(0.8);
-      if(rec) doc.addImage(rec, "JPEG", ctx.ML, ctx.y, L, h, undefined, "FAST"); else inserirImagem(doc,ctx,R.mapa,h);
-      doc.rect(ctx.ML, ctx.y, L, h);
-      if(qrUri){
-        const qw = 60, qh = 72, qx = ctx.MR - 14 - qw, qy = ctx.y + h - 14 - qh;
-        doc.setFillColor(255,255,255); doc.rect(qx - 2, qy - 2, qw + 4, qh + 4, "F");
-        try{ doc.addImage(qrUri, /^data:image\/jpe?g/.test(qrUri) ? "JPEG" : "PNG", qx, qy, qw, qh, undefined, "FAST"); }catch(err){ console.warn("QR:", err); }
-      }
-      ctx.y += h;
-    } else if(qrUri){
-      ensure(doc,ctx,90); doc.addImage(qrUri, /^data:image\/jpe?g/.test(qrUri) ? "JPEG" : "PNG", ctx.ML, ctx.y, 60, 72, undefined, "FAST"); ctx.y += 80;
+      doc.text("CROQUI DE ACESSO À ÁREA ABRANGIDA", ctx.W/2, ctx.y + 8, {align:"center"}); ctx.y += 16;
+      inserirImagem(doc, ctx, R.mapa, Math.max(180, ctx.MB - ctx.y - 14));        // inteiro, centralizado e ajustado ao espaço da folha
     }
     doc.deletePage(1);                                                               // a 1ª página (em branco) nasce com o documento
     const ax = await PDFLib.PDFDocument.load(doc.output("arraybuffer"));
