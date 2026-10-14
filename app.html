@@ -38458,7 +38458,7 @@ window.DRL_gerarPDF=async function(opts){
   window.CAMPO_fotoParaGaleria = function(gid, i, dest){
     if(!dest) return;
     var c = ctxFoto(gid, i), d = CAMPO && galeriaPorId(CAMPO, dest); if(!c || !d) return;
-    c.g.arr.splice(i, 1); d.arr.push(c.p);
+    c.g.arr.splice(i, 1); d.arr.push(c.p); c.p.galManual = 1;
     renderFotos(); marcarSujo();
   };
   window.CAMPO_fotoRemover = function(gid, i){
@@ -38528,7 +38528,7 @@ window.DRL_gerarPDF=async function(opts){
       var pos = fig ? +fig.dataset.i : dest.arr.length;
       orig.g.arr.splice(arrasto.i, 1);
       if(orig.g === dest && arrasto.i < pos) pos--;               // a fila encolheu antes do ponto de soltura
-      dest.arr.splice(Math.max(0, Math.min(pos, dest.arr.length)), 0, orig.p);
+      dest.arr.splice(Math.max(0, Math.min(pos, dest.arr.length)), 0, orig.p); if(orig.g !== dest) orig.p.galManual = 1;
       arrasto = null;
       renderFotos(); marcarSujo();
     });
@@ -39348,6 +39348,8 @@ window.DRL_gerarPDF=async function(opts){
       todas.forEach(function(o){ var g = o.p.gps; if(g && g.st !== "nao" && !ja[assinatura(o.p)]) fixas.push({ z:g.z, E:g.E, N:g.N }); });
       corrigirLeituras(feitas, fixas, sul);
       feitas.forEach(function(x){ grupos[x.k].forEach(function(o){ gravarGps(o.p, x.r, x.st, sul); }); });
+      var nMov = moverParaAreaDesap(alvo.map(function(o){ return o.p; }));
+      if(nMov) alert(nMov + " foto(s) com coordenada dentro da área desapropriada foram movidas para “Área desapropriada” no Relatório Fotográfico.");
       marcarSujo();
       relAtualizarMapa();
       if(_("campo_fotos_box")) renderFotos();
@@ -39407,6 +39409,34 @@ window.DRL_gerarPDF=async function(opts){
     return out;
   }
   function desapAssin(){ var k = desapKml(); return k.length + ":" + k.slice(0, 60) + k.slice(-60); }
+
+  /* autoDesap — move para "Área desapropriada" as fotos cuja coordenada cai dentro do KML da área desapropriada */
+  function pontoDentro(lon, lat, ring){
+    var d = false;
+    for(var i = 0, j = ring.length - 1; i < ring.length; j = i++){
+      var xi = ring[i][0], yi = ring[i][1], xj = ring[j][0], yj = ring[j][1];
+      if(((yi > lat) !== (yj > lat)) && (lon < (xj - xi) * (lat - yi) / (yj - yi) + xi)) d = !d;
+    }
+    return d;
+  }
+  function moverParaAreaDesap(ps){
+    if(!CAMPO) return 0;
+    var polys = desapPolys(); if(!polys.length) return 0;
+    var sul = !(CAMPO.gps && CAMPO.gps.lat > 0), n = 0, set = ps ? ps.filter(Boolean) : null;
+    var destino = CAMPO.fotosAreaDesap = CAMPO.fotosAreaDesap || [];
+    todasFotos(CAMPO).forEach(function(o){
+      var g = o.p.gps; if(o.gid === "fotosAreaDesap" || o.p.galManual) return;
+      if(set && set.indexOf(o.p) < 0) return;
+      if(!g || !(g.st === "ok" || g.st === "corr" || g.st === "man") || !isFinite(g.E) || !isFinite(g.N)) return;
+      var ll = utmInvF(g.E, g.N, g.z, sul);
+      if(!polys.some(function(r){ return pontoDentro(ll[0], ll[1], r); })) return;
+      var gal = galeriaPorId(CAMPO, o.gid); if(!gal) return;
+      var i = gal.arr.indexOf(o.p); if(i < 0) return;
+      gal.arr.splice(i, 1); destino.push(o.p); n++;
+    });
+    return n;
+  }
+  window.CAMPO_moverParaAreaDesap = function(){ var n = moverParaAreaDesap(null); if(n){ marcarSujo(); renderFotos(); } return n; };
 
   /* ---------- mapa na tela (Leaflet, satélite Esri) ---------- */
   var LMAP = null, _lfl = null;
@@ -39505,6 +39535,9 @@ window.DRL_gerarPDF=async function(opts){
       linha.classList.remove("cm-l-erro");
       var igual = assinatura(o.p);
       todasFotos(CAMPO).forEach(function(q){ if(assinatura(q.p) === igual) gravarGps(q.p, r, "man", sul); });   // a mesma foto em outro tópico recebe o mesmo ponto
+      var mesmas = todasFotos(CAMPO).filter(function(q){ return assinatura(q.p) === igual; }).map(function(q){ return q.p; });
+      mesmas.forEach(function(q){ delete q.galManual; });                                                    // coordenada nova: reavalia o tópico
+      if(moverParaAreaDesap(mesmas)) alert("Foto dentro da área desapropriada: movida para “Área desapropriada” no Relatório Fotográfico.");
     }
     marcarSujo(); relAtualizarMapa();
     if(_("campo_fotos_box")) renderFotos();
