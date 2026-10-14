@@ -5373,9 +5373,9 @@ body.ativ-pesquisa{ overflow:hidden; }
       </div>
     </div>
     <input type="file" id="cad_abrir_file" accept=".json" style="display:none" onchange="CAD_abrir(this)">
-    <button class="btn-unir" id="btnUnirTudo" onclick="unirTudo()">
-      <span class="ico">🗂️</span>
-      <span class="txt">Unificar todo o material</span>
+    <button class="btn-unir" id="btnUnirTudo" onclick="unirTudo()" title="Escolher e baixar os PDFs do cadastro (PDF único ou ZIP)">
+      <span class="ico">⬇</span>
+      <span class="txt">Baixar material técnico</span>
     </button>
   </div>
   <div class="unir-status" id="unirStatus"></div>
@@ -5442,8 +5442,8 @@ body.ativ-pesquisa{ overflow:hidden; }
 
 <!-- Botão flutuante (mobile) para unificar -->
 <button class="fab-unir" id="fabUnir" onclick="unirTudo()">
-  <span class="ico">🗂️</span>
-  <span class="txt">Unificar todo o material</span>
+  <span class="ico">⬇</span>
+  <span class="txt">Baixar material técnico</span>
 </button>
 
 
@@ -19406,14 +19406,43 @@ window.FOTO_rodapeHTML=rodapeHTML;
     return keys.sort();
   }
   // numeração em sequência dos anexos que vêm depois de I–III: Orçamentos e Roteiro de Acesso
+  /* hubMaterial — anexos do memorial, na ordem; a numeração segue o que estiver disponível E selecionado */
+  const ANX_ORDEM = [
+    { k:"rot", t:"Roteiro de Acesso",                 capa:"ROTEIRO DE ACESSO" },
+    { k:"pla", t:"Planta e Memorial Descritivo",      capa:"PLANTA E MEMORIAL DESCRITIVO" },
+    { k:"orc", t:"Orçamentos (Tabelas do RGV)",       capa:"ORÇAMENTOS" },
+    { k:"met", t:"Metodologia",                       capa:"METODOLOGIA" },
+    { k:"est", t:"Relatório Estatístico",             capa:"RELATÓRIO ESTATÍSTICO" },
+    { k:"amo", t:"Planilha da Amostra e Mapa de Localização dos Dados de Mercado", capa:["PLANILHA DA AMOSTRA E MAPA DE LOCALIZAÇÃO", "DOS DADOS DE MERCADO"] }
+  ];
+  let ANX_SEL = null;                                                                // seleção do "Baixar material técnico" (null = todos os disponíveis)
+  function anxDisponiveis(){
+    const c = anxCasos(), kml = ((document.getElementById("rel_kml_dados") || {}).value || "").trim();
+    return { rot:true, pla:!!kml && typeof window.MDP_pdfsTodos === "function", orc:benfTabelasRGV().length > 0, met:!!(c.tn || c.br || c.bnr), est:!!c.tn, amo:!!c.tn };
+  }
   function anxPlano(){
-    const c = anxCasos(), R = ["I","II","III","IV","V","VI","VII"]; let n = 0; const o = {};
-    o.rot = R[n++];                                                                  // Roteiro de Acesso: sempre
-    if(benfTabelasRGV().length) o.orc = R[n++];                                      // Orçamentos: com benfeitorias
-    if(c.tn || c.br || c.bnr) o.met = R[n++];                                        // Metodologia
-    if(c.tn){ o.est = R[n++]; o.amo = R[n++]; }                                      // Relatório Estatístico e Planilha da Amostra (só com Terra Nua)
+    const d = anxDisponiveis(), R = ["I","II","III","IV","V","VI","VII","VIII"]; let n = 0; const o = {};
+    ANX_ORDEM.forEach(function(a){ if(d[a.k] && (!ANX_SEL || ANX_SEL[a.k])) o[a.k] = R[n++]; });
     return o;
   }
+  function capaAnx(doc, ctx, romano, titulo){
+    novaPagina(doc,ctx);
+    doc.setDrawColor(31,111,192); doc.setLineWidth(1.2); doc.line(ctx.W/2-90, ctx.H/2-34, ctx.W/2+90, ctx.H/2-34);
+    doc.setFont("helvetica","bold"); doc.setFontSize(24); doc.setTextColor(23,90,159);
+    doc.text("ANEXO " + romano, ctx.W/2, ctx.H/2-8, {align:"center"});
+    doc.setFontSize(15); doc.setTextColor(30,40,55);
+    const tl = [].concat(titulo);
+    tl.forEach(function(l,i){ doc.text(l, ctx.W/2, ctx.H/2+20+i*19, {align:"center"}); });
+    doc.line(ctx.W/2-90, ctx.H/2+36+(tl.length-1)*19, ctx.W/2+90, ctx.H/2+36+(tl.length-1)*19);
+  }
+  async function capaPdf(k, procRef){                                               // PDF de uma página: a capa do anexo k
+    const a = ANX_ORDEM.filter(function(x){ return x.k === k; })[0];
+    const {jsPDF} = window.jspdf, doc = new jsPDF({unit:"pt",format:"a4",compress:true}), ctx = makeCtx(doc);
+    ctx.rodapePadrao = true; ctx.procRef = procRef;
+    capaAnx(doc, ctx, anxPlano()[k] || "", a.capa); doc.deletePage(1);
+    return PDFLib.PDFDocument.load(doc.output("arraybuffer"));
+  }
+  async function juntar(out, pdf, idx){ (await out.copyPages(pdf, idx || pdf.getPageIndices())).forEach(function(pg){ out.addPage(pg); }); }
   async function paginasBenfeitorias(procRef){
     if(!benfIndice().length) return null;
     const {jsPDF} = window.jspdf, doc = new jsPDF({unit:"pt",format:"a4",compress:true}), ctx = makeCtx(doc);
@@ -19539,7 +19568,7 @@ window.FOTO_rodapeHTML=rodapeHTML;
       doc.setTextColor(30,40,55); ctx.y += 4;
     }
     /* ordemBenf */
-    if(benfTabelasRGV().length){
+    if(benfTabelasRGV().length && anxPlano().orc){
       doc.setFont("helvetica","italic"); doc.setFontSize(7.5); doc.setTextColor(90,100,112);
       ensure(doc,ctx,12); doc.text("As tabelas do RGV que fundamentam os valores unitários (preços e orçamentos de cercas) estão no Anexo " + (anxPlano().orc || "") + " — Orçamentos.", ctx.ML, ctx.y + 8);
       ctx.y += 14; doc.setTextColor(30,40,55);
@@ -19602,12 +19631,7 @@ window.FOTO_rodapeHTML=rodapeHTML;
     (function(){
       const c = anxCasos(), itens = ["Memorial de Cálculo"];
       benfIndice().forEach(function(t){ itens.push(t); });
-      { const pl = anxPlano();
-        if(pl.rot) itens.push("Anexo " + pl.rot + " — Roteiro de Acesso");
-        if(pl.orc) itens.push("Anexo " + pl.orc + " — Orçamentos (Tabelas do RGV)");
-        if(pl.met) itens.push("Anexo " + pl.met + " — Metodologia");
-        if(pl.est) itens.push("Anexo " + pl.est + " — Relatório Estatístico");
-        if(pl.amo) itens.push("Anexo " + pl.amo + " — Planilha da Amostra e Mapa de Localização dos Dados de Mercado"); }
+      { const pl = anxPlano(); ANX_ORDEM.forEach(function(x){ if(pl[x.k]) itens.push("Anexo " + pl[x.k] + " — " + x.t); }); }
       subLbl(doc,ctx,"ÍNDICE");
       doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(35,45,60);
       itens.forEach(function(t){ ensure(doc,ctx,14); doc.text("•  " + t, ctx.ML+8, ctx.y+9); ctx.y += 14; });
@@ -20099,23 +20123,12 @@ window.FOTO_rodapeHTML=rodapeHTML;
     if(c.bnr){ add(3,100,782); add(4,92,786); add(5,92,785); }                       // depreciação das benfeitorias não reprodutivas
     return L;
   }
-  async function anexosFtn(out, procRef){
+  async function anexoMet(out, procRef){
     const c = anxCasos();
-    if(!(c.tn || c.br || c.bnr)) return;                                             // nada calculado: sem anexos
     const {jsPDF} = window.jspdf, doc = new jsPDF({unit:"pt",format:"a4",compress:true}), ctx = makeCtx(doc);
     ctx.rodapePadrao = true; ctx.procRef = procRef;
-    const capa = function(romano, titulo){
-      novaPagina(doc,ctx);
-      doc.setDrawColor(31,111,192); doc.setLineWidth(1.2); doc.line(ctx.W/2-90, ctx.H/2-34, ctx.W/2+90, ctx.H/2-34);
-      doc.setFont("helvetica","bold"); doc.setFontSize(24); doc.setTextColor(23,90,159);
-      doc.text("ANEXO " + romano, ctx.W/2, ctx.H/2-8, {align:"center"});
-      doc.setFontSize(15); doc.setTextColor(30,40,55);
-      const tl = [].concat(titulo);
-      tl.forEach(function(l,i){ doc.text(l, ctx.W/2, ctx.H/2+20+i*19, {align:"center"}); });
-      doc.line(ctx.W/2-90, ctx.H/2+36+(tl.length-1)*19, ctx.W/2+90, ctx.H/2+36+(tl.length-1)*19);
-    };
     const plano = [], blocos = anxMetBlocos(c);
-    capa(anxPlano().met, "METODOLOGIA");
+    capaAnx(doc, ctx, anxPlano().met, "METODOLOGIA");
     novaPagina(doc,ctx);
     blocos.forEach(function(b, i){
       const h = b.b - b.t;
@@ -20123,28 +20136,35 @@ window.FOTO_rodapeHTML=rodapeHTML;
       plano.push({ pag: doc.internal.getNumberOfPages(), p:b.p, t:b.t, b:b.b, y:ctx.y });
       ctx.y += h + 10;
     });
-    if(c.tn){ capa(anxPlano().est, "RELATÓRIO ESTATÍSTICO"); capa(anxPlano().amo, ["PLANILHA DA AMOSTRA E MAPA DE LOCALIZAÇÃO", "DOS DADOS DE MERCADO"]); }
     doc.deletePage(1);                                                               // a 1ª página (em branco) nasce com o documento
-    const ax = await PDFLib.PDFDocument.load(doc.output("arraybuffer"));
-    const base = out.getPageCount();
-    const nAx = ax.getPageCount(), ateAqui = c.tn ? nAx - 1 : nAx;                   // com Terra Nua, a última capa (Anexo III) entra depois do relatório estatístico
-    (await out.copyPages(ax, ax.getPageIndices().slice(0, ateAqui))).forEach(function(pg){ out.addPage(pg); });
-    const met = await PDFLib.PDFDocument.load(anxBytes(window.__ANX_MET_B64__));
+    const ax = await PDFLib.PDFDocument.load(doc.output("arraybuffer")), base = out.getPageCount();
+    await juntar(out, ax);
+    const met = await PDFLib.PDFDocument.load(anxBytes(window.__ANX_MET_B64__));   // recortes vetoriais do PDF da metodologia, sem alterar o texto
     const embs = await out.embedPages(plano.map(function(q){ return met.getPage(q.p); }),
       plano.map(function(q){ const sp = met.getPage(q.p); return { left:0, bottom:sp.getHeight() - q.b, right:sp.getWidth(), top:sp.getHeight() - q.t }; }));
     plano.forEach(function(q, i){
       const SW = met.getPage(q.p).getWidth(), h = q.b - q.t, dest = out.getPage(base + q.pag - 2);
       dest.drawPage(embs[i], { x:0, y:dest.getHeight() - q.y - h, width:SW, height:h });
     });
-    if(c.tn){                                                                        // Anexo II: o relatório do SisDEA tal qual (sem a capa original "Anexo 9", que é trocada pela capa própria)
-      const est = await PDFLib.PDFDocument.load(anxBytes(window.__ANX_EST_B64__));
-      const idx = est.getPageIndices().slice(1);
-      (await out.copyPages(est, idx)).forEach(function(pg){ out.addPage(pg); });
-      // Anexo III: capa própria + planilha da amostra e mapa (pág. 2 e 3 do PDF recebido, sem a capa original "Anexo 7")
-      (await out.copyPages(ax, [nAx - 1])).forEach(function(pg){ out.addPage(pg); });
-      const amo = await PDFLib.PDFDocument.load(anxBytes(window.__ANX_AMO_B64__));
-      (await out.copyPages(amo, amo.getPageIndices().slice(1))).forEach(function(pg){ out.addPage(pg); });
-    }
+  }
+  async function anexoEst(out, procRef){                                            // relatório do SisDEA tal qual, sem a capa original
+    await juntar(out, await capaPdf("est", procRef));
+    const est = await PDFLib.PDFDocument.load(anxBytes(window.__ANX_EST_B64__));
+    await juntar(out, est, est.getPageIndices().slice(1));
+  }
+  async function anexoAmo(out, procRef){                                            // planilha da amostra e mapa, sem a capa original
+    await juntar(out, await capaPdf("amo", procRef));
+    const amo = await PDFLib.PDFDocument.load(anxBytes(window.__ANX_AMO_B64__));
+    await juntar(out, amo, amo.getPageIndices().slice(1));
+  }
+  async function anexoPla(out, procRef){                                            // plantas (geral + perímetros) e memoriais descritivos
+    if(typeof window.MDP_pdfsTodos !== "function") throw new Error("módulo da planta indisponível");
+    const r = await window.MDP_pdfsTodos();
+    if(r.erro) throw new Error(r.erro);
+    const arqs = (r.plantas || []).concat(r.memoriais || []);
+    if(!arqs.length) throw new Error("nenhuma planta ou memorial foi gerado");
+    await juntar(out, await capaPdf("pla", procRef));
+    for(let i = 0; i < arqs.length; i++){ await juntar(out, await PDFLib.PDFDocument.load(new Uint8Array(await arqs[i].blob.arrayBuffer()), {ignoreEncryption:true})); }
   }
 
   /* roteiroV2 — Anexo de Roteiro de Acesso: layout da aba Utilitários > Roteiro de Acesso (título, descrição, croqui de acesso com QR) */
@@ -20295,39 +20315,88 @@ window.FOTO_rodapeHTML=rodapeHTML;
     }
   }
 
-  window.AVFTN_buildBytes = async function(){
+  // opts: { sel:{rot,pla,orc,met,est,amo} (o que entra/numera), memorial:false (sem o memorial), so:"rot"|... (só aquele anexo; "nenhum" = só o memorial) }
+  window.AVFTN_buildBytes = async function(opts){
+    opts = opts || {};
     return window.AV_comModo("ftn", async function(){
-      window.AV_recalcular();
-      try{ if(window.BENF_carregarImgs) await window.BENF_carregarImgs(); }catch(err){}
-      const {jsPDF}=window.jspdf, doc=new jsPDF({unit:"pt",format:"a4",compress:true}), ctx=makeCtx(doc);
-      desenharFtnCompacto(doc,ctx);
-      const yFim = ctx.y;                                      // onde terminou o conteúdo na última página
-      doc.deletePage(1);                                       // a 1ª página (em branco) nasce com o documento
-      const lau = await PDFLib.PDFDocument.load(doc.output("arraybuffer"));
-      const fin = await PDFLib.PDFDocument.load(window.AV_paginasFinais(false,true,true));   // sem a amostra do SISDEA
-      const out = await PDFLib.PDFDocument.create();
-      (await out.copyPages(lau, lau.getPageIndices())).forEach(function(pg){ out.addPage(pg); });
-      // a tabela "Imóvel avaliando" vem na mesma página da memória de cálculo, se couber (recorte da página dela, sem os logos)
-      const pf = fin.getPage(0), PW = pf.getWidth(), PH = pf.getHeight(), TOPO = 84, ALT = 316;
-      const ultima = out.getPage(out.getPageCount() - 1), yTopo = yFim + 16;
-      if(fin.getPageCount() === 1 && yTopo + ALT <= ctx.MB){
-        const emb = await out.embedPage(pf, { left:0, bottom:PH - TOPO - ALT, right:PW, top:PH - TOPO });
-        ultima.drawPage(emb, { x:0, y:ultima.getHeight() - yTopo - ALT, width:PW, height:ALT });
-      } else {
-        const base0 = out.getPageCount();
-        (await out.copyPages(fin, fin.getPageIndices())).forEach(function(pg){ out.addPage(pg); });
-        try{ await padronizarPaginasFin(out, base0, ctx.procRef); }catch(err){ console.warn("cabeçalho/rodapé da página do imóvel avaliando:", err); }
-      }
-      try{ const pb = await paginasBenfeitorias(ctx.procRef); if(pb) (await out.copyPages(pb, pb.getPageIndices())).forEach(function(pg){ out.addPage(pg); }); }
-      catch(err){ console.error("benfeitorias:", err); alert("O memorial foi gerado, mas as benfeitorias não puderam ser incluídas: " + (err && err.message || err)); }
-      try{ await anexoRoteiro(out, ctx.procRef); }
-      catch(err){ console.error("anexo de roteiro:", err); alert("O memorial foi gerado, mas o anexo de Roteiro de Acesso não pôde ser incluído: " + (err && err.message || err)); }
-      try{ await anexoOrcamentos(out, ctx.procRef); }
-      catch(err){ console.error("anexo de orçamentos:", err); alert("O memorial foi gerado, mas o anexo de Orçamentos não pôde ser incluído: " + (err && err.message || err)); }
-      try{ await anexosFtn(out, ctx.procRef); }
-      catch(err){ console.error("anexos:", err); alert("O memorial foi gerado, mas os anexos (Metodologia / Relatório estatístico) não puderam ser incluídos: " + (err && err.message || err)); }
-      return await out.save();
+      ANX_SEL = opts.sel || null;
+      try{
+        window.AV_recalcular();
+        try{ if(window.BENF_carregarImgs) await window.BENF_carregarImgs(); }catch(err){}
+        const out = await PDFLib.PDFDocument.create(), procRef = val("fv_processo");
+        if(opts.memorial !== false){
+          const {jsPDF}=window.jspdf, doc=new jsPDF({unit:"pt",format:"a4",compress:true}), ctx=makeCtx(doc);
+          desenharFtnCompacto(doc,ctx);
+          const yFim = ctx.y;                                    // onde terminou o conteúdo na última página
+          doc.deletePage(1);                                     // a 1ª página (em branco) nasce com o documento
+          const lau = await PDFLib.PDFDocument.load(doc.output("arraybuffer"));
+          const fin = await PDFLib.PDFDocument.load(window.AV_paginasFinais(false,true,true));   // sem a amostra do SISDEA
+          await juntar(out, lau);
+          // a tabela "Imóvel avaliando" vem na mesma página da memória de cálculo, se couber (recorte da página dela, sem os logos)
+          const pf = fin.getPage(0), PW = pf.getWidth(), PH = pf.getHeight(), TOPO = 84, ALT = 316;
+          const ultima = out.getPage(out.getPageCount() - 1), yTopo = yFim + 16;
+          if(fin.getPageCount() === 1 && yTopo + ALT <= ctx.MB){
+            const emb = await out.embedPage(pf, { left:0, bottom:PH - TOPO - ALT, right:PW, top:PH - TOPO });
+            ultima.drawPage(emb, { x:0, y:ultima.getHeight() - yTopo - ALT, width:PW, height:ALT });
+          } else {
+            const base0 = out.getPageCount();
+            await juntar(out, fin);
+            try{ await padronizarPaginasFin(out, base0, procRef); }catch(err){ console.warn("cabeçalho/rodapé da página do imóvel avaliando:", err); }
+          }
+          try{ const pb = await paginasBenfeitorias(procRef); if(pb) await juntar(out, pb); }
+          catch(err){ console.error("benfeitorias:", err); alert("O memorial foi gerado, mas as benfeitorias não puderam ser incluídas: " + (err && err.message || err)); }
+        }
+        const FN = { rot:anexoRoteiro, pla:anexoPla, orc:anexoOrcamentos, met:anexoMet, est:anexoEst, amo:anexoAmo }, pl = anxPlano();
+        for(let i = 0; i < ANX_ORDEM.length; i++){
+          const x = ANX_ORDEM[i];
+          if(!pl[x.k] || (opts.so && opts.so !== x.k)) continue;
+          try{ await FN[x.k](out, procRef); }
+          catch(err){
+            console.error("anexo " + x.k + ":", err);
+            if(opts.so) throw err;
+            alert("O PDF foi gerado, mas o Anexo " + pl[x.k] + " — " + x.t + " não pôde ser incluído: " + (err && err.message || err));
+          }
+        }
+        if(!out.getPageCount()) return null;
+        return await out.save();
+      } finally { ANX_SEL = null; }
     });
+  };
+  // o que este cadastro tem para os anexos (o botão "Baixar material técnico" usa para habilitar/numerar)
+  window.AVFTN_disponiveis = function(){ try{ return anxDisponiveis(); }catch(e){ return { rot:true }; } };
+  window.AVFTN_anexosOrdem = function(){ return ANX_ORDEM.map(function(x){ return { k:x.k, t:x.t }; }); };
+  // folha de rosto de uma parte do material técnico (PDF de uma página)
+  window.AVFTN_folhaRosto = function(parte, titulo, itens){
+    const {jsPDF} = window.jspdf, doc = new jsPDF({unit:"pt",format:"a4",compress:true}), ctx = makeCtx(doc);
+    ctx.rodapePadrao = true; novaPagina(doc,ctx);
+    const cx = ctx.W/2, L = ctx.MR - ctx.ML; let y = 196;
+    doc.setFont("helvetica","bold"); doc.setFontSize(8); doc.setTextColor(122,133,148);
+    doc.text("MATERIAL TÉCNICO DO CADASTRO", cx, y, {align:"center", charSpace:1.4});
+    y += 58; doc.setFontSize(50); doc.setTextColor(27,58,92); doc.text("PARTE " + parte, cx, y, {align:"center"});
+    y += 32; doc.setFontSize(14.5); doc.setTextColor(30,40,55); doc.text(String(titulo).toUpperCase(), cx, y, {align:"center", charSpace:0.6});
+    y += 20; doc.setDrawColor(31,111,192); doc.setLineWidth(1.4); doc.line(cx-48, y, cx+48, y);
+    y += 40;
+    const x0 = cx - 175, wl = 330;
+    (itens || []).forEach(function(t, i){
+      const lin = doc.splitTextToSize(String(t), wl);
+      doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(31,111,192);
+      doc.text(String(i + 1).padStart(2, "0"), x0, y);
+      doc.setFont("helvetica","normal"); doc.setFontSize(10.5); doc.setTextColor(36,52,71);
+      lin.forEach(function(l, k){ doc.text(l, x0 + 26, y + k * 14); });
+      y += lin.length * 14 + 9;
+      doc.setDrawColor(226,231,238); doc.setLineWidth(0.4); doc.line(x0 + 26, y - 6, x0 + 26 + wl, y - 6);
+    });
+    const yb = ctx.MB - 84, mun = [val("av_municipio"), val("av_uf")].filter(Boolean).join("/");
+    doc.setFillColor(244,248,252); doc.setDrawColor(188,214,240); doc.setLineWidth(0.6); doc.roundedRect(ctx.ML, yb, L, 70, 3, 3, "FD");
+    doc.setFillColor(31,111,192); doc.rect(ctx.ML, yb, 4, 70, "F");
+    const campos = [["Processo administrativo", val("fv_processo") || "—", 0, L - 24], ["Proprietário / ocupante", val("av_nome") || "—", 0, L * 0.62], ["Município / UF", mun || "—", L * 0.64, L * 0.34]];
+    campos.forEach(function(c, i){
+      const yy = yb + (i === 0 ? 8 : 38), xx = ctx.ML + 14 + c[2];
+      doc.setFont("helvetica","bold"); doc.setFontSize(6.3); doc.setTextColor(100,112,128); doc.text(c[0].toUpperCase(), xx, yy + 6);
+      doc.setFontSize(8.6); doc.setTextColor(20,40,70); doc.text(doc.splitTextToSize(String(c[1]), c[3])[0], xx, yy + 17);
+    });
+    doc.deletePage(1);
+    return new Uint8Array(doc.output("arraybuffer"));
   };
   // nome do arquivo salvo: CTD_<código>_memorial_de_calculo_e_anexos.pdf (ex.: CTD_001_..., CTD_006A_..., CTD_002-CP_...)
   function nomeArqMemorial(){
@@ -30143,6 +30212,30 @@ function AV_gerarDescSituacao(){
     OPC.escala = escLer(); sincronizarBarras(); renderTudo(); agendarPreview(60);
   };
   // PDF da planta geral + um de cada área (cada um na sua escala), um arquivo por perímetro
+  /* hubMaterial — plantas (geral + uma por perímetro) e memoriais descritivos (um por perímetro), devolvendo {blob, nome} sem salvar */
+  window.MDP_pdfsTodos = async function(){
+    var a = analisar(); if(a.erro) return { erro:a.erro, plantas:[], memoriais:[] };
+    var est0 = { geral:ST.geral, area:ST.area, esc:OPC.escala, ini:ST.inicio, inv:ST.inverter }, pl = [], me = [], multi = ANEIS.length >= 2;
+    var modos = multi ? [{ g:true }].concat(ANEIS.map(function(x, i){ return { g:false, i:i }; })) : [{ atual:true }];
+    try{
+      for(var k = 0; k < modos.length; k++){
+        var m = modos[k];
+        if(!m.atual){
+          ST.geral = m.g;
+          if(!m.g){ ST.area = m.i; if(m.i === est0.area){ ST.inicio = est0.ini; ST.inverter = est0.inv; } else { ST.inicio = 0; ST.inverter = false; } }
+          G = null; PAN.x = 0; PAN.y = 0; CACHE_SAT.chave = ""; OPC.folha = 0; analisar(); OPC.escala = escLer();
+        }
+        var r = await window.MDP_pdfPlanta({ retornar:true }); if(r && r.blob) pl.push(r);
+        if(!multi || !m.g){ var q = await window.MDP_pdfMemorial({ retornar:true }); if(q && q.blob) me.push(q); }
+      }
+    } finally {
+      if(multi){
+        ST.geral = est0.geral; ST.area = est0.area; ST.inicio = est0.ini; ST.inverter = est0.inv; G = null; PAN.x = 0; PAN.y = 0; CACHE_SAT.chave = "";
+        analisar(); OPC.escala = escLer(); try{ sincronizarBarras(); renderTudo(); agendarPreview(60); }catch(e){}
+      }
+    }
+    return { plantas:pl, memoriais:me };
+  };
   window.MDP_pdfPlantasTodas = async function(sobre, sufixo){
     var a = analisar(); if(a.erro){ alert(a.erro); return; }
     if(ANEIS.length < 2){ return window.MDP_pdfPlanta({ sobre:sobre, sufixo:sufixo }); }
@@ -46659,6 +46752,242 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
       if(ch !== _chave && !_gerando){ _chave = ch; window.AVVILA_gerar(false); }
     }catch(e){}
   }, 2500);
+})();
+</script>
+<style>
+/* hubMaterial — "Baixar material técnico" */
+#mtec_ov{ position:fixed; inset:0; z-index:100050; display:flex; align-items:center; justify-content:center; padding:20px;
+  background:rgba(15,34,54,.42); backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px); animation:mtecFade .18s var(--gl-ease,ease) both; }
+#mtec_ov[hidden]{ display:none; }
+@keyframes mtecFade{ from{ opacity:0; } to{ opacity:1; } }
+@keyframes mtecUp{ from{ opacity:0; transform:translateY(10px) scale(.985); } to{ opacity:1; transform:none; } }
+.mtec-box{ width:min(1020px,100%); max-height:min(92vh,880px); display:flex; flex-direction:column; overflow:hidden;
+  background:var(--gl-surf,#fff); border-radius:var(--gl-r-l,14px); box-shadow:var(--gl-sh-3,0 24px 48px -18px rgba(15,34,54,.3));
+  font-family:var(--gl-font,"Segoe UI",sans-serif); color:var(--gl-txt,#1E2935); animation:mtecUp .26s var(--gl-ease,ease) both; }
+.mtec-head{ display:flex; align-items:flex-start; gap:16px; padding:20px 24px 16px; border-bottom:1px solid var(--gl-line-2,#ECEFF3);
+  background:linear-gradient(180deg,#F7F9FC,#fff); }
+.mtec-head .ico{ flex:none; width:40px; height:40px; border-radius:10px; display:grid; place-items:center; background:var(--gl-navy,#1B3A5C); color:#fff; }
+.mtec-head .ico svg{ width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+.mtec-head h2{ margin:0; font:650 19px/1.2 var(--gl-disp,"Segoe UI",sans-serif); letter-spacing:-.01em; color:var(--gl-ink,#0F2236); }
+.mtec-head .ident{ margin-top:4px; font-size:12.5px; color:var(--gl-mut,#55616F); }
+.mtec-head .ident b{ color:var(--gl-ink,#0F2236); font-weight:600; }
+.mtec-head .x{ margin-left:auto; border:0; background:transparent; width:32px; height:32px; border-radius:8px; color:var(--gl-mut,#55616F); font-size:20px; line-height:1; cursor:pointer; }
+.mtec-head .x:hover{ background:var(--gl-hover,#F3F5F8); }
+.mtec-corpo{ flex:1; overflow:auto; padding:18px 24px 6px; display:grid; grid-template-columns:1fr 1.18fr; gap:16px; align-content:start; }
+.mtec-parte{ position:relative; border:1px solid var(--gl-line,#DCE1E8); border-radius:12px; padding:14px 14px 8px; background:var(--gl-surf,#fff); overflow:hidden; }
+.mtec-parte::after{ content:attr(data-num); position:absolute; right:12px; top:-14px; font:800 88px/1 var(--gl-disp,"Segoe UI",sans-serif);
+  color:var(--gl-navy,#1B3A5C); opacity:.05; pointer-events:none; letter-spacing:-.04em; }
+.mtec-parte header{ display:flex; align-items:baseline; gap:10px; margin:0 2px 10px; }
+.mtec-parte .rot{ font:700 10.5px/1 var(--gl-font,"Segoe UI",sans-serif); letter-spacing:.14em; color:#1F6FC0; text-transform:uppercase; }
+.mtec-parte h3{ margin:0; font:600 14.5px/1.25 var(--gl-disp,"Segoe UI",sans-serif); color:var(--gl-ink,#0F2236); }
+.mtec-parte .todos{ margin-left:auto; border:0; background:transparent; color:var(--gl-navy-2,#264B72); font:600 12px var(--gl-font,"Segoe UI",sans-serif); cursor:pointer; padding:4px 6px; border-radius:6px; }
+.mtec-parte .todos:hover{ background:var(--gl-sel,#E7EDF4); }
+.mtec-item{ display:grid; grid-template-columns:20px 1fr auto; align-items:center; gap:10px; padding:9px 8px; border-radius:9px; cursor:pointer;
+  transition:background var(--gl-t,180ms); }
+.mtec-item:hover{ background:var(--gl-surf-2,#F7F8FA); }
+.mtec-item + .mtec-item{ border-top:1px solid var(--gl-line-2,#ECEFF3); }
+.mtec-item input{ width:16px; height:16px; margin:0; accent-color:var(--gl-navy,#1B3A5C); cursor:pointer; }
+.mtec-item .t{ font-size:13.5px; line-height:1.3; color:var(--gl-txt,#1E2935); }
+.mtec-item .t small{ display:block; font-size:11.5px; color:var(--gl-sub,#7A8594); margin-top:2px; }
+.mtec-item .anx{ display:inline-block; min-width:62px; font:700 10.5px/1 var(--gl-font,"Segoe UI",sans-serif); letter-spacing:.06em; color:#1F6FC0; text-transform:uppercase; margin-right:2px; }
+.mtec-item.sub{ padding-left:20px; }
+.mtec-item.off{ cursor:not-allowed; }
+.mtec-item.off .t{ color:var(--gl-sub,#7A8594); }
+.mtec-item.off .anx{ color:var(--gl-navy-4,#A7B8CB); }
+.mtec-chip{ font:600 10.5px/1 var(--gl-font,"Segoe UI",sans-serif); padding:4px 7px; border-radius:999px; white-space:nowrap; }
+.mtec-chip.na{ background:#F1F3F6; color:var(--gl-sub,#7A8594); }
+.mtec-chip.wk{ background:#E8F0FA; color:#1F6FC0; }
+.mtec-chip.ok{ background:#E6F3EC; color:var(--gl-ok,#2B7A57); }
+.mtec-chip.er{ background:#FBECEA; color:var(--gl-err,#AE3F38); }
+.mtec-chip.wk::before{ content:""; display:inline-block; width:8px; height:8px; margin-right:5px; border:1.6px solid currentColor; border-right-color:transparent; border-radius:50%; vertical-align:-1px; animation:mtecGira .7s linear infinite; }
+@keyframes mtecGira{ to{ transform:rotate(360deg); } }
+.mtec-pe{ display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding:14px 24px 18px; border-top:1px solid var(--gl-line-2,#ECEFF3); background:var(--gl-surf-2,#F7F8FA); }
+.mtec-fmt{ display:inline-flex; padding:3px; border-radius:10px; background:var(--gl-trk,#EBEEF2); }
+.mtec-fmt label{ position:relative; cursor:pointer; }
+.mtec-fmt input{ position:absolute; opacity:0; pointer-events:none; }
+.mtec-fmt span{ display:flex; flex-direction:column; padding:7px 14px; border-radius:8px; font:600 12.5px/1.15 var(--gl-font,"Segoe UI",sans-serif); color:var(--gl-mut,#55616F); transition:all var(--gl-t,180ms); }
+.mtec-fmt span small{ font-weight:500; font-size:10.5px; color:var(--gl-sub,#7A8594); margin-top:2px; }
+.mtec-fmt input:checked + span{ background:#fff; color:var(--gl-ink,#0F2236); box-shadow:var(--gl-sh-1,0 1px 2px rgba(15,34,54,.05)); }
+.mtec-fmt input:focus-visible + span{ outline:2px solid #1F6FC0; outline-offset:1px; }
+.mtec-resumo{ flex:1; min-width:180px; font-size:12.5px; color:var(--gl-mut,#55616F); }
+.mtec-resumo b{ color:var(--gl-ink,#0F2236); }
+.mtec-btn{ border:1px solid var(--gl-line,#DCE1E8); background:#fff; color:var(--gl-ink,#0F2236); border-radius:9px; padding:10px 16px; font:600 13px var(--gl-font,"Segoe UI",sans-serif); cursor:pointer; }
+.mtec-btn.pri{ background:var(--gl-navy,#1B3A5C); border-color:var(--gl-navy,#1B3A5C); color:#fff; display:inline-flex; align-items:center; gap:8px; }
+.mtec-btn.pri:hover{ background:var(--gl-navy-2,#264B72); }
+.mtec-btn:disabled{ opacity:.55; cursor:progress; }
+.mtec-barra{ height:3px; background:var(--gl-trk,#EBEEF2); }
+.mtec-barra i{ display:block; height:100%; width:0; background:#1F6FC0; transition:width .3s var(--gl-ease,ease); }
+.mtec-box.gerando .mtec-item{ cursor:default; }
+@media (max-width:760px){ .mtec-corpo{ grid-template-columns:1fr; } .mtec-pe{ flex-direction:column; align-items:stretch; } }
+</style>
+<div id="mtec_ov" hidden>
+  <div class="mtec-box" role="dialog" aria-modal="true" aria-labelledby="mtec_tit">
+    <div class="mtec-head">
+      <div class="ico"><svg viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M12 12v6M9 15l3 3 3-3"/></svg></div>
+      <div><h2 id="mtec_tit">Baixar material técnico</h2><div class="ident" id="mtec_ident"></div></div>
+      <button type="button" class="x" id="mtec_x" aria-label="Fechar">×</button>
+    </div>
+    <div class="mtec-barra"><i id="mtec_bar"></i></div>
+    <div class="mtec-corpo" id="mtec_corpo"></div>
+    <div class="mtec-pe">
+      <div class="mtec-fmt" role="radiogroup" aria-label="Formato do download">
+        <label><input type="radio" name="mtec_fmt" value="pdf" checked><span>PDF único<small>com folha de rosto por parte</small></span></label>
+        <label><input type="radio" name="mtec_fmt" value="zip"><span>Arquivo ZIP<small>cada item em um PDF</small></span></label>
+      </div>
+      <div class="mtec-resumo" id="mtec_resumo" aria-live="polite"></div>
+      <button type="button" class="mtec-btn" id="mtec_cancelar">Cancelar</button>
+      <button type="button" class="mtec-btn pri" id="mtec_ir">Gerar e baixar</button>
+    </div>
+  </div>
+</div>
+<script>
+/* hubMaterial — "Baixar material técnico": escolhe os PDFs do cadastro por parte e baixa em PDF único (com folhas de rosto) ou ZIP */
+(function(){
+  "use strict";
+  function $(id){ return document.getElementById(id); }
+  function esc(s){ return String(s == null ? "" : s).replace(/[&<>"]/g, function(c){ return { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[c]; }); }
+  function v(id){ var e = $(id); return e ? String(e.value || "").trim() : ""; }
+  var P1 = [
+    { k:"fb",  fn:"FB_gerarPDF",  t:"Ficha de Vistoria e Cadastro Socioeconômico (Anexo B)" },
+    { k:"rel", fn:"REL_gerarPDF", t:"Relatório Socioeconômico" },
+    { k:"par", fn:"PAR_gerarPDF", t:"Relatório Jurídico" },
+    { k:"d2",  fn:"D2_gerarPDF",  t:"Relatório de Análise de Impacto e Transposição da Faixa de Domínio" }
+  ];
+  var MEM = { k:"memorial", t:"Memorial de Cálculo de Terra Nua e Benfeitorias" };
+  var MOTIVO = { pla:"sem KML da área em Técnica › Áreas de Locação", orc:"sem benfeitorias com tabela do RGV", met:"sem valores de terra nua ou benfeitorias", est:"sem amostra de terra nua (SisDEA)", amo:"sem amostra de terra nua (SisDEA)" };
+  var ROMANO = ["I","II","III","IV","V","VI","VII","VIII"];
+  var sel = {}, disp = {}, ANX = [], gerando = false;
+
+  function anexos(){ return (window.AVFTN_anexosOrdem ? window.AVFTN_anexosOrdem() : []); }
+  function numeracao(){ var n = 0, o = {}; ANX.forEach(function(a){ if(disp[a.k] && sel[a.k]) o[a.k] = ROMANO[n++]; }); return o; }
+  function linha(it, extra){
+    var off = extra && extra.off;
+    return '<label class="mtec-item' + (extra && extra.sub ? " sub" : "") + (off ? " off" : "") + '" data-k="' + it.k + '">'
+      + '<input type="checkbox" data-k="' + it.k + '"' + (sel[it.k] && !off ? " checked" : "") + (off ? " disabled" : "") + '>'
+      + '<span class="t">' + (extra && extra.anx ? '<span class="anx" data-anx="' + it.k + '"></span>' : "") + esc(it.t) + (off ? '<small>' + esc(off) + '</small>' : "") + '</span>'
+      + '<span class="mtec-chip" data-st="' + it.k + '" hidden></span></label>';
+  }
+  function montar(){
+    var at = window.__CAD_ATUAL || {}, ctd = at.ctd ? String(at.ctd).split(" - ")[0] : (v("fb_proc_ctd") ? "CTD " + v("fb_proc_ctd") : "cadastro sem número");
+    var dono = v("av_nome") || v("fb_nome") || "";
+    $("mtec_ident").innerHTML = "<b>" + esc(ctd) + "</b>" + (dono ? " · " + esc(dono) : "") + (v("fv_processo") ? " · " + esc(v("fv_processo")) : "");
+    var h = '<section class="mtec-parte" data-num="I"><header><span class="rot">Parte I</span><h3>Relatórios e peças técnicas</h3><button type="button" class="todos" data-todos="1">Marcar todos</button></header>';
+    P1.forEach(function(it){ h += linha(it, typeof window[it.fn] === "function" ? null : { off:"gerador indisponível" }); });
+    h += '</section><section class="mtec-parte" data-num="II"><header><span class="rot">Parte II</span><h3>Avaliação e anexos</h3><button type="button" class="todos" data-todos="2">Marcar todos</button></header>';
+    h += linha(MEM);
+    ANX.forEach(function(a){ h += linha(a, { anx:true, sub:true, off: disp[a.k] ? "" : ("não se aplica — " + (MOTIVO[a.k] || "sem dados")) }); });
+    h += '</section>';
+    $("mtec_corpo").innerHTML = h;
+    atualizar();
+  }
+  function marcados(){ return P1.concat([MEM], ANX).filter(function(it){ return sel[it.k] && (it.fn ? typeof window[it.fn] === "function" : (it.k === "memorial" || disp[it.k])); }); }
+  function atualizar(){
+    var num = numeracao();
+    Array.prototype.forEach.call(document.querySelectorAll("#mtec_corpo [data-anx]"), function(e){ var k = e.getAttribute("data-anx"); e.textContent = num[k] ? "Anexo " + num[k] : "Anexo —"; });
+    Array.prototype.forEach.call(document.querySelectorAll("#mtec_corpo [data-todos]"), function(b){
+      var lista = b.getAttribute("data-todos") === "1" ? P1 : [MEM].concat(ANX);
+      var tudo = lista.every(function(it){ var c = document.querySelector('#mtec_corpo input[data-k="' + it.k + '"]'); return !c || c.disabled || c.checked; });
+      b.textContent = tudo ? "Desmarcar todos" : "Marcar todos";
+    });
+    var m = marcados(), n1 = m.filter(function(it){ return P1.indexOf(it) >= 0; }).length, n2 = m.length - n1;
+    var zip = (document.querySelector('input[name="mtec_fmt"]:checked') || {}).value === "zip";
+    $("mtec_resumo").innerHTML = m.length ? ("<b>" + m.length + "</b> item(ns) — Parte I: " + n1 + " · Parte II: " + n2 + (zip ? " · um PDF por item" : " · em um PDF só")) : "Marque ao menos um item.";
+    $("mtec_ir").disabled = !m.length || gerando;
+  }
+  function chip(k, cls, txt){ var c = document.querySelector('#mtec_corpo [data-st="' + k + '"]'); if(!c) return; c.hidden = !cls; c.className = "mtec-chip " + (cls || ""); c.textContent = txt || ""; }
+  function abrir(){
+    if(gerando){ $("mtec_ov").hidden = false; return; }
+    disp = window.AVFTN_disponiveis ? window.AVFTN_disponiveis() : { rot:true };
+    ANX = anexos();
+    P1.concat([MEM], ANX).forEach(function(it){ if(!(it.k in sel)) sel[it.k] = true; });
+    montar();
+    $("mtec_ov").hidden = false; document.body.classList.add("modal-aberto");
+    setTimeout(function(){ try{ $("mtec_ir").focus(); }catch(e){} }, 30);
+  }
+  function fechar(){ if(gerando) return; $("mtec_ov").hidden = true; document.body.classList.remove("modal-aberto"); }
+  function nomeArq(t){ return String(t).replace(/[\\\/:*?"<>|]+/g, "-").replace(/\s+/g, " ").trim(); }
+  function sufixo(){ try{ return window.__CTDsuf ? window.__CTDsuf() : ""; }catch(e){ return ""; } }
+  function bytesDe(x){ return x instanceof Uint8Array ? Promise.resolve(x) : x.arrayBuffer().then(function(b){ return new Uint8Array(b); }); }
+
+  async function gerar(){
+    var m = marcados(); if(!m.length || gerando) return;
+    var zip = (document.querySelector('input[name="mtec_fmt"]:checked') || {}).value === "zip";
+    var anxSel = {}; ANX.forEach(function(a){ anxSel[a.k] = !!sel[a.k]; });
+    var num = numeracao(), feitos = [], falhas = [];
+    gerando = true; $("mtec_ov").querySelector(".mtec-box").classList.add("gerando"); $("mtec_ir").disabled = true; $("mtec_cancelar").disabled = true;
+    Array.prototype.forEach.call(document.querySelectorAll("#mtec_corpo input"), function(c){ c.disabled = true; });
+    var loadOrig = window.ENP_loading; window.ENP_loading = function(){};               // o modal mostra o andamento; sem a tela de "carregando" por cima
+    try{
+      for(var i = 0; i < m.length; i++){
+        var it = m[i], bytes = null;
+        chip(it.k, "wk", "gerando"); $("mtec_bar").style.width = Math.round(i / (m.length + 1) * 100) + "%";
+        try{
+          if(it.fn){ var r = await window[it.fn]({ retornar:true }); if(r && r.blob) bytes = await bytesDe(r.blob); }
+          else if(it.k === "memorial"){ bytes = await window.AVFTN_buildBytes({ sel:anxSel, so:"nenhum" }); }
+          else { bytes = await window.AVFTN_buildBytes({ sel:anxSel, memorial:false, so:it.k }); }
+        }catch(e){ console.error("material técnico — " + it.t + ":", e); }
+        if(bytes && bytes.length){
+          var parte = P1.indexOf(it) >= 0 ? 1 : 2, rot = num[it.k] ? "Anexo " + num[it.k] + " — " + it.t : it.t;
+          feitos.push({ it:it, parte:parte, rot:rot, bytes:bytes }); chip(it.k, "ok", "pronto");
+        } else { falhas.push(it.t); chip(it.k, "er", "não gerado"); }
+      }
+      if(!feitos.length){ $("mtec_resumo").innerHTML = "Nada foi gerado. Confira se os itens marcados estão preenchidos."; return; }
+      $("mtec_bar").style.width = "92%"; $("mtec_resumo").textContent = zip ? "Compactando…" : "Juntando em um PDF…";
+      var base = "Material_Tecnico_" + (sufixo() || "cadastro").replace(/\s+/g, "_");
+      var blob, nome;
+      if(zip){
+        var ent = [], cont = { 1:0, 2:0 }, pasta = { 1:"Parte I - Relatórios e peças técnicas", 2:"Parte II - Avaliação e anexos" };
+        feitos.forEach(function(f){ cont[f.parte]++; ent.push({ path:pasta[f.parte] + "/" + String(cont[f.parte]).padStart(2, "0") + " - " + nomeArq(f.rot) + ".pdf", blob:new Blob([f.bytes], { type:"application/pdf" }) }); });
+        blob = await window.ZIP_build(ent); nome = base + ".zip";
+      } else {
+        var out = await PDFLib.PDFDocument.create();
+        for(var pt = 1; pt <= 2; pt++){
+          var desta = feitos.filter(function(f){ return f.parte === pt; }); if(!desta.length) continue;
+          var rosto = window.AVFTN_folhaRosto(pt === 1 ? "I" : "II", pt === 1 ? "Relatórios e peças técnicas" : "Avaliação e anexos", desta.map(function(f){ return f.rot; }));
+          var lista = [rosto].concat(desta.map(function(f){ return f.bytes; }));
+          for(var j = 0; j < lista.length; j++){
+            var src = await PDFLib.PDFDocument.load(lista[j], { ignoreEncryption:true });
+            (await out.copyPages(src, src.getPageIndices())).forEach(function(pg){ out.addPage(pg); });
+          }
+        }
+        blob = new Blob([await out.save()], { type:"application/pdf" }); nome = base + ".pdf";
+      }
+      $("mtec_bar").style.width = "100%";
+      if(window.FS_salvar) await window.FS_salvar(blob, nome);
+      else { var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = nome; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function(){ URL.revokeObjectURL(a.href); }, 5000); }
+      $("mtec_resumo").innerHTML = "<b>" + esc(nome) + "</b> — " + feitos.length + " item(ns)" + (falhas.length ? '<br><span style="color:var(--gl-err,#AE3F38)">Não gerado(s): ' + esc(falhas.join("; ")) + "</span>" : "");
+    }catch(e){
+      console.error("material técnico:", e);
+      $("mtec_resumo").innerHTML = '<span style="color:var(--gl-err,#AE3F38)">Erro: ' + esc(e && e.message || e) + "</span>";
+    }finally{
+      window.ENP_loading = loadOrig;
+      gerando = false; $("mtec_ov").querySelector(".mtec-box").classList.remove("gerando");
+      $("mtec_cancelar").disabled = false; $("mtec_cancelar").textContent = "Fechar"; $("mtec_ir").textContent = "Gerar de novo";
+      Array.prototype.forEach.call(document.querySelectorAll("#mtec_corpo .mtec-item:not(.off) input"), function(c){ c.disabled = false; });
+      $("mtec_ir").disabled = !marcados().length;
+      setTimeout(function(){ $("mtec_bar").style.width = "0"; }, 1200);
+    }
+  }
+
+  document.addEventListener("change", function(ev){
+    var t = ev.target; if(!t || !t.closest || !t.closest("#mtec_ov")) return;
+    if(t.dataset && t.dataset.k){ sel[t.dataset.k] = t.checked; P1.concat([MEM], ANX).forEach(function(it){ chip(it.k, null); }); }
+    atualizar();
+  });
+  document.addEventListener("click", function(ev){
+    var t = ev.target; if(!t || !t.closest) return;
+    if(t.id === "mtec_ov" || t.closest("#mtec_x") || t.closest("#mtec_cancelar")){ fechar(); return; }
+    if(t.closest("#mtec_ir")){ gerar(); return; }
+    var b = t.closest("[data-todos]"); if(!b || gerando) return;
+    var lista = b.getAttribute("data-todos") === "1" ? P1 : [MEM].concat(ANX);
+    var algum = lista.some(function(it){ var c = document.querySelector('#mtec_corpo input[data-k="' + it.k + '"]'); return c && !c.disabled && !c.checked; });
+    lista.forEach(function(it){ var c = document.querySelector('#mtec_corpo input[data-k="' + it.k + '"]'); if(c && !c.disabled){ c.checked = algum; sel[it.k] = algum; } });
+    b.textContent = algum ? "Desmarcar todos" : "Marcar todos";
+    atualizar();
+  });
+  document.addEventListener("keydown", function(ev){ if(ev.key === "Escape" && !$("mtec_ov").hidden){ ev.stopPropagation(); fechar(); } }, true);
+  window.unirTudo = abrir;
+  window.MTEC_abrir = abrir;
 })();
 </script>
 </body>
