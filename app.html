@@ -33341,6 +33341,7 @@ function AV_gerarDescSituacao(){
   }
 
   window.FB_gerarPDF = async function(opts){
+    var __mapaF = null; try{ __mapaF = window.CAMPO_mapaRelatorio ? await window.CAMPO_mapaRelatorio() : null; }catch(e){}   /* campoMapa */
     if(!(window.jspdf||window.jsPDF)){
       alert("Biblioteca de PDF ainda carregando. Tente novamente em instantes."); return;
     }
@@ -33800,6 +33801,12 @@ function AV_gerarDescSituacao(){
     }
     h2("5.4 Fotografias do imóvel:");
     const fotos = (window.FB_getFotos?window.FB_getFotos():[]) || [];
+    if(fotos.length && __mapaF){                                                 // mapa geral da localização das fotografias
+      const mw = contentW, mh = mw*__mapaF.h/__mapaF.w;
+      if(y + mh + 6 > botY){ rodape(); novaPagina(); }
+      try{ pdf.addImage(__mapaF.url, "JPEG", mL, y, mw, mh); }catch(e){}
+      y += mh + 1.5; F("italic"); pdf.setFontSize(FS-2); pdf.text("Mapa de localização das fotografias", mL + contentW/2, y + 2.6, {align:"center"}); F("normal"); pdf.setFontSize(FS); y += 7;
+    }
     if(fotos.length){
       const fw=(contentW-6)/2, fh=fw*0.72, lh=4;
       let col=0, linTem=false;
@@ -35195,6 +35202,8 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     if(g("rel_resp_reg")){ pdf.text(g("rel_resp_reg"), W/2, yc, {align:"center"}); yc+=5; }
     if(fotos.length){ rod(); nova(); titulo("6. RELATÓRIO FOTOGRÁFICO DO IMÓVEL");
       campo("Nº do Processo / Lote", g("rel_processo")); campo("Nome do Expropriado", g("rel_expropriado")); yc+=2;
+      { var __mp = null; try{ __mp = window.CAMPO_mapaRelatorio ? await window.CAMPO_mapaRelatorio() : null; }catch(e){}   // mapa geral da localização das fotografias
+        if(__mp){ const mw = cw, mh = mw*__mp.h/__mp.w; if(yc + mh + 6 > botY){ rod(); nova(); } try{ pdf.addImage(__mp.url, "JPEG", mL, yc, mw, mh); }catch(e){} yc += mh + 1.5; pdf.setFont(FONT,"italic"); pdf.setFontSize(8.5); pdf.setTextColor(70,70,70); pdf.text("Mapa de localização das fotografias", mL + cw/2, yc + 2.6, {align:"center"}); pdf.setFont(FONT,"normal"); pdf.setTextColor(0,0,0); yc += 7; } }
       const fw=(cw-6)/2, fh=fw*0.72; let col=0;
       for(let i=0;i<fotos.length;i++){ if(col===0 && yc+fh>botY){ rod(); nova(); } const x=mL+col*(fw+6); try{ pdf.addImage(fotos[i],"JPEG",x,yc,fw,fh); }catch(e){} col++; if(col===2){ col=0; yc+=fh+5; } }
       if(col===1) yc+=fh+5; }
@@ -38616,6 +38625,18 @@ window.DRL_gerarPDF=async function(opts){
   };
 
   /* ---------------- envio para a Ficha de Vistoria ---------------- */
+  // mapa geral da localização das fotos para os relatórios (só depois de "Enviar para a Ficha de Vistoria"); refaz se as coordenadas/KML mudaram
+  window.CAMPO_mapaRelatorio = async function(){
+    if(!CAMPO || !CAMPO.mapaEnviado) return null;
+    var sig = pontosFotos(CAMPO).map(function(q){ return q.z + ":" + q.E + ":" + q.N; }).join("|") + "#" + desapAssin(), m = CAMPO.mapaFotos;
+    if(!m || m.sig !== sig){
+      try{
+        var n = await mapaEstatico(CAMPO, false);
+        if(n){ CAMPO.mapaFotos = { url:n.url, w:n.w, h:n.h, sig:sig, em:new Date().toISOString() }; m = CAMPO.mapaFotos; marcarSujo(); }
+      }catch(e){ console.warn("mapa das fotos:", e); }
+    }
+    return (m && m.url) ? m : null;
+  };
   window.CAMPO_paraFicha = function(){
     if(!CAMPO){ alert("Importe uma ficha de campo primeiro."); return; }
     var g = CAMPO.geral || {}, fotos = todasFotos(CAMPO);
@@ -38695,7 +38716,9 @@ window.DRL_gerarPDF=async function(opts){
     if(fotos.length && window.D2_setFotos){
       window.D2_setFotos(fotos.map(function(o){ return {src:o.p.src, legenda:legenda(o)}; }));
     }
-    alert("Pronto. Confira as abas “Ficha de Vistoria e Cadastro Socioeconômico (Anexo B)” e “Relatório de Análise de Impacto e Transposição (DESP-2)”.");
+    CAMPO.mapaEnviado = true; marcarSujo();                                  // o mapa geral das fotos acompanha as fotos nos relatórios
+    try{ lerCoordenadas(false).then(function(){ return window.CAMPO_mapaRelatorio(); }); }catch(err){}
+    alert("Pronto. Confira as abas “Ficha de Vistoria e Cadastro Socioeconômico (Anexo B)” e “Relatório de Análise de Impacto e Transposição (DESP-2)”.\n\nO mapa geral de localização das fotografias vai junto, antes das fotos (precisa das coordenadas lidas dos carimbos).");
     };
     if(conflitos.length){
       dlgMescla({
@@ -39125,9 +39148,9 @@ window.DRL_gerarPDF=async function(opts){
   }
   // A linha da coordenada fica no canto inferior direito: texto branco com contorno escuro. Recorta, amplia 3x e fica só com o
   // que é claro E tem borda escura por perto — assim o céu/capim claro atrás do carimbo não vira "texto".
-  function recorteCarimbo(im, brilho, escuro, raio){
+  function recorteCarimbo(im, brilho, escuro, raio, yFrac){
     var W = im.naturalWidth || im.width, H = im.naturalHeight || im.height;
-    var x0 = Math.floor(W*.55), y0 = Math.floor(H*.905), cw = W - x0, ch = H - y0, k = 3;
+    var x0 = Math.floor(W*.55), y0 = Math.floor(H*(yFrac || .905)), cw = W - x0, ch = H - y0, k = 3;   /* ocrBloco */
     var cv = document.createElement("canvas"); cv.width = cw*k; cv.height = ch*k;
     var g = cv.getContext("2d"); g.drawImage(im, x0, y0, cw, ch, 0, 0, cv.width, cv.height);
     var d = g.getImageData(0, 0, cv.width, cv.height), px = d.data, wd = cv.width, ht = cv.height, n = wd*ht;
@@ -39174,8 +39197,34 @@ window.DRL_gerarPDF=async function(opts){
     if(!(z >= 18 && z <= 25) || !(E >= 100000 && E <= 900000) || !norteOk(N, sul)) return null;
     return { z:z, E:E, N:N };
   }
+  // o OCR às vezes inventa um dígito a mais ("91700527" em vez de "9100527"): sem o dígito sobrando o número volta ao tamanho certo.
+  // Devolve todas as leituras possíveis (uma por dígito retirado); a correção escolhe pela proximidade das demais fotos.
+  function tirarUm(str){ var o = [], v = {}; for(var i = 0; i < str.length; i++){ var t = str.slice(0, i) + str.slice(i + 1); if(!v[t]){ v[t] = 1; o.push(t); } } return o; }
+  function candidatosBloco(tx){
+    var out = [];
+    String(tx || "").split(/\r?\n/).forEach(function(ln){
+      var t = ln.trim().split(/\s+/);
+      for(var i = 0; i + 2 < t.length; i++){
+        var ze = t[i].replace(/[^0-9A-Z]/g, ""), e = t[i + 1].replace(/\D/g, ""), n = t[i + 2].replace(/\D/g, "");
+        if(!/^\d\d[A-Z0-9]?$/.test(ze) || e.length < 6 || e.length > 7 || n.length < 7 || n.length > 8) continue;
+        var Es = e.length === 6 ? [e] : tirarUm(e), Ns = n.length === 7 ? [n] : tirarUm(n);
+        Es.forEach(function(E){ Ns.forEach(function(N){
+          if(E.length === 6 && N.length === 7 && +E >= 100000 && +E <= 900000 && (norteOk(+N, true) || norteOk(+N, false))) out.push({ z:+ze.slice(0, 2), E:+E, N:+N });
+        }); });
+      }
+    });
+    return out;
+  }
+  // carimbo de 3 linhas (data/hora · coordenada · município): procura, linha a linha, a que tem a coordenada
+  function analisarBloco(tx){
+    var linhas = String(tx || "").split(/\r?\n/), q = null;
+    for(var i = 0; i < linhas.length && !q; i++) q = analisarCarimbo(linhas[i]);
+    if(!q){ for(var j = 0; j + 1 < linhas.length && !q; j++) q = analisarCarimbo(linhas[j] + linhas[j + 1]); }   // linha da coordenada partida em duas
+    return q;
+  }
   // três binarizações diferentes; devolve as leituras válidas com quantas vezes cada uma saiu (votação)
   var VARIANTES_OCR = [[235, 130, 7], [240, 120, 6], [225, 120, 6]];
+  var ALTURAS_BLOCO = [.78, .70];                         // início (fração da altura) do bloco do carimbo quando ele tem 3 ou mais linhas
   async function lerCarimbo(w, src){
     var im = await carregarImg(src); if(!im) return [];
     var cands = [];
@@ -39187,6 +39236,21 @@ window.DRL_gerarPDF=async function(opts){
       var igual = cands.filter(function(c){ return c.E === q.E && c.N === q.N; })[0];
       if(igual) igual.n++; else { q.n = 1; cands.push(q); }
     }
+    // sem leitura no recorte estreito: o carimbo tem mais linhas (ex.: município por baixo da coordenada) — lê o bloco de baixo inteiro
+    if(!cands.length){ try{ await w.setParameters({ tessedit_pageseg_mode:"6" }); }catch(e){} }   // bloco de várias linhas (o leitor normal lê uma linha só)
+    for(var alt = 0; alt < ALTURAS_BLOCO.length && !cands.length; alt++){
+      for(var i2 = 0; i2 < VARIANTES_OCR.length; i2++){
+        var v2 = VARIANTES_OCR[i2];
+        var r2 = await w.recognize(recorteCarimbo(im, v2[0], v2[1], v2[2], ALTURAS_BLOCO[alt]));
+        var tx2 = r2 && r2.data && r2.data.text, l2 = [], q2 = analisarBloco(tx2);
+        if(q2) l2.push(q2); else l2 = candidatosBloco(tx2);
+        l2.forEach(function(q3){
+          var ig2 = cands.filter(function(c){ return c.E === q3.E && c.N === q3.N; })[0];
+          if(ig2) ig2.n++; else { q3.n = 1; cands.push(q3); }
+        });
+      }
+    }
+    try{ await w.setParameters({ tessedit_pageseg_mode:"7" }); }catch(e){}                      // volta ao modo de uma linha para a próxima foto
     return cands;
   }
   function mediana(a){ a = a.slice().sort(function(x, y){ return x - y; }); return a[a.length >> 1]; }
@@ -39328,6 +39392,22 @@ window.DRL_gerarPDF=async function(opts){
     return g.z + (g.l || "") + " " + g.E + " " + g.N;
   }
 
+  /* campoMapa — polígonos do KML da área desapropriada (Relatório Técnico > KML), [[lon,lat],...] */
+  function desapKml(){ var e = _("rel_kml_dados"); return e ? String(e.value || "") : ""; }
+  function desapPolys(){
+    var kml = desapKml(), out = [];
+    if(!kml) return out;
+    kml.replace(/<Polygon[\s\S]*?<\/Polygon>/g, function(pg){
+      var m = /<outerBoundaryIs>[\s\S]*?<coordinates>([\s\S]*?)<\/coordinates>/.exec(pg) || /<coordinates>([\s\S]*?)<\/coordinates>/.exec(pg);
+      if(!m) return pg;
+      var r = m[1].trim().split(/\s+/).map(function(t){ var q = t.split(","); return [+q[0], +q[1]]; }).filter(function(q){ return isFinite(q[0]) && isFinite(q[1]); });
+      if(r.length >= 3) out.push(r);
+      return pg;
+    });
+    return out;
+  }
+  function desapAssin(){ var k = desapKml(); return k.length + ":" + k.slice(0, 60) + k.slice(-60); }
+
   /* ---------- mapa na tela (Leaflet, satélite Esri) ---------- */
   var LMAP = null, _lfl = null;
   function carregarLeaflet(){
@@ -39383,13 +39463,20 @@ window.DRL_gerarPDF=async function(opts){
         title:"Ponto da ficha (GPS do aplicativo)" }).addTo(LMAP).bindPopup("Ponto registrado pelo aplicativo de campo ao preencher a ficha" + (f.gps.precisao ? " (±" + Math.round(f.gps.precisao) + " m)" : ""));
       lim.push([f.gps.lat, f.gps.lon]);
     }
+    var dpl = desapPolys();                                                   // área desapropriada (KML), quando houver
+    dpl.forEach(function(r){
+      var pl = L.polygon(r.map(function(q){ return [q[1], q[0]]; }), { color:"#ffe600", weight:2.6, fillColor:"#ffe600", fillOpacity:.22 }).addTo(LMAP);
+      pl.bindTooltip("Área desapropriada (KML)", { sticky:true });
+      r.forEach(function(q){ lim.push([q[1], q[0]]); });
+    });
     if(lim.length) LMAP.fitBounds(lim, { padding:[40, 40], maxZoom:18 });
     else if(f.gps && isFinite(f.gps.lat)) LMAP.setView([f.gps.lat, f.gps.lon], 14);
     else LMAP.setView([-8.5, -36.5], 7);
     setTimeout(function(){ if(LMAP) LMAP.invalidateSize(); }, 150);
     var lg = _("cm_legenda");
     if(lg) lg.innerHTML = legendaGalerias(f).map(function(x){ return '<span><i style="background:' + x.cor + '"></i>' + esc(x.t) + '</span>'; }).join("")
-      + (R.mapa.ficha && f.gps ? '<span><i class="ficha"></i>Ponto da ficha (GPS do app)</span>' : "");
+      + (R.mapa.ficha && f.gps ? '<span><i class="ficha"></i>Ponto da ficha (GPS do app)</span>' : "")
+      + (dpl.length ? '<span><i style="background:#ffe600"></i>Área desapropriada (KML)</span>' : "");
     relStatus();
     relListaDesenhar();
   }
@@ -39447,6 +39534,7 @@ window.DRL_gerarPDF=async function(opts){
     var grupos = agruparPontos(pontosFotos(f)); if(!grupos.length) return null;
     var W = 1500, H = 1050, pts = grupos.map(function(g){ return [g.lon, g.lat]; });
     if(usarFicha && f.gps && isFinite(f.gps.lat)) pts.push([f.gps.lon, f.gps.lat]);
+    var dpoly = desapPolys(); dpoly.forEach(function(r){ r.forEach(function(q){ pts.push([q[0], q[1]]); }); });   /* campoMapa */
     var minLon = Math.min.apply(null, pts.map(function(q){ return q[0]; })), maxLon = Math.max.apply(null, pts.map(function(q){ return q[0]; }));
     var minLat = Math.min.apply(null, pts.map(function(q){ return q[1]; })), maxLat = Math.max.apply(null, pts.map(function(q){ return q[1]; }));
     var z = 18;
@@ -39473,12 +39561,21 @@ window.DRL_gerarPDF=async function(opts){
     }
     if(ok < fila.length*.5) return null;                       // sem internet / serviço fora do ar: o PDF segue sem o mapa
     function xy(lon, lat){ var p = mercPx(lon, lat, z); return [(p[0] - x0)*esc, (p[1] - y0)*esc]; }
+    dpoly.forEach(function(rg){                                                // área desapropriada (KML)
+      g.beginPath(); rg.forEach(function(q, i){ var a = xy(q[0], q[1]); if(i) g.lineTo(a[0], a[1]); else g.moveTo(a[0], a[1]); }); g.closePath();
+      g.fillStyle = "rgba(255,230,0,.22)"; g.fill(); g.lineWidth = 5; g.lineJoin = "round"; g.strokeStyle = "#ffe600"; g.stroke();
+    });
     var r = 30;
     if(usarFicha && f.gps && isFinite(f.gps.lat)){ var pf = xy(f.gps.lon, f.gps.lat); desenharPin(g, pf[0], pf[1], r, "#111", "★"); }
     grupos.slice().sort(function(p, q){ return q.lat - p.lat; }).forEach(function(gr){       // de cima para baixo: o de baixo fica por cima
       var p = xy(gr.lon, gr.lat), n0 = Math.min.apply(null, gr.pts.map(function(q){ return q.n; }));
       desenharPin(g, p[0], p[1], r, corGaleria(gr.gid), n0);
     });
+    if(dpoly.length){                                                         // legenda da área desapropriada
+      g.fillStyle = "rgba(0,0,0,.55)"; g.fillRect(20, 20, 292, 46);
+      g.fillStyle = "rgba(255,230,0,.35)"; g.fillRect(32, 32, 34, 22); g.lineWidth = 4; g.strokeStyle = "#ffe600"; g.strokeRect(32, 32, 34, 22);
+      g.fillStyle = "#fff"; g.font = "700 19px Arial"; g.textAlign = "left"; g.textBaseline = "middle"; g.fillText("Área desapropriada", 78, 43);
+    }
     // escala e norte
     var mpp = 156543.03392*Math.cos(((minLat + maxLat)/2)*Math.PI/180)/Math.pow(2, z)/esc, alvo = mpp*220, nice = [10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000], m = nice[0];
     nice.forEach(function(v){ if(v <= alvo) m = v; });
@@ -42336,6 +42433,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
   }
   window.D2_gerarPDF=async function(opts){
     opts=opts||{}; await D2DOC_prepararImgs(); window.D2_puxar(false);
+    var __mapaF = null; try{ __mapaF = window.CAMPO_mapaRelatorio ? await window.CAMPO_mapaRelatorio() : null; }catch(e){}   /* campoMapa */
     // item c) é 100% derivado da Ficha 4.9.1 (DESP-1) — regenera na hora de gerar o PDF
     if(window.D2_rebuild) window.D2_rebuild("descri_o_do_tipo_de_atividad");
     DESP2_TOPICOS.forEach(function(tp){ var v=document.getElementById('d2_view_'+tp.id); if(v && v.getAttribute('contenteditable')==='true') window.D2_syncFromView(tp.id); });
@@ -42753,6 +42851,12 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
         var D2fts=(window.D2_fotosRelatorio?window.D2_fotosRelatorio().fotos:[]).filter(function(f){ return f && (f.src || f.legenda); });
         if(!D2fts.length){ parRich("[Sem fotos inseridas.]"); }
         else {
+          if(__mapaF){                                                           // mapa geral da localização das fotografias, antes das fotos
+            var mw=Math.min(cw,170), mh=mw*__mapaF.h/__mapaF.w;
+            if(yc+mh+7>botY){ rod(); nova(); }
+            try{ pdf.addImage(__mapaF.url, "JPEG", mL+(cw-mw)/2, yc, mw, mh); }catch(e){}
+            yc+=mh+1.5; pdf.setFont(FONT,"italic"); pdf.setFontSize(8.5); pdf.setTextColor(70,70,70); pdf.text("Mapa de localização das fotografias", mL+cw/2, yc+2.6, {align:"center"}); pdf.setFont(FONT,"normal"); pdf.setTextColor(0,0,0); yc+=7;
+          }
           var gap=8, CAP_FS=8.5, CAP_LH=3.6, CAP_MAX=4, fwMax=(cw-gap)/2;
           pdf.setFont(FONT,"normal"); pdf.setFontSize(CAP_FS);
           var capTxt=function(fi){ return "Foto "+(fi+1<10?"0":"")+(fi+1)+(D2fts[fi].legenda?(" – "+String(D2fts[fi].legenda).trim()):""); };
