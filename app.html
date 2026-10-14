@@ -19391,6 +19391,125 @@ window.FOTO_rodapeHTML=rodapeHTML;
   // PDF "Avaliação da terra nua" (aba Avaliação FTN), versão compacta (06/10/2026): as tabelas da tela — Nota Agronômica,
   // glebas por classe, escala de valor da CCU — mais a memória de cálculo (IV) e, em seguida, a tabela do imóvel avaliando.
   // Sem os textos longos das variáveis, sem as tabelas de referência e sem a amostra do SISDEA.
+  /* memBenf — Memorial de cálculo das benfeitorias (itens 12 e 13) no PDF da Avaliação FTN */
+  function benfIndice(){
+    const out = [];
+    if(typeof window.BNF_lerLinhas !== "function") return out;
+    const tem = function(gs){ return gs.some(function(g){ return window.BNF_lerLinhas(g).some(function(l){ return l.disc || l.vu; }); }); };
+    const rep = tem(["121","122","123","124"]), nrep = tem(["13"]);
+    if(rep) out.push("Memorial de Cálculo de Benfeitorias Reprodutivas");
+    if(nrep) out.push("Memorial de Cálculo de Benfeitorias Não Reprodutivas");
+    if(rep || nrep) out.push("Tabelas de Referência e Orçamentos do RGV (Anexos 3 e 4)");
+    return out;
+  }
+  function desenharMemorialBenfeitorias(doc,ctx){
+    if(typeof window.BNF_lerLinhas !== "function") return;
+    try{ if(window.BNF_recalc) window.BNF_recalc(); }catch(e){}
+    const gruposRep = [["121","12.1 — Culturas Permanentes"],["122","12.2 — Culturas Temporárias"],["123","12.3 — Pastagem"],["124","12.4 — Extrativismo"]];
+    const ler = function(g){ return window.BNF_lerLinhas(g).filter(function(l){ return l.disc || l.vu; }); };
+    const rep = gruposRep.map(function(g){ return { cod:g[0], t:g[1], l:ler(g[0]) }; }).filter(function(g){ return g.l.length; });
+    const nrep = ler("13");
+    if(!rep.length && !nrep.length) return;
+    const tabelasUsadas = [], fontes = [];
+    const marca = function(l){
+      String(l.img||"").split("|").forEach(function(k){ if(k && tabelasUsadas.indexOf(k) === -1) tabelasUsadas.push(k); });
+      if(l.tabela && fontes.indexOf(l.tabela) === -1) fontes.push(l.tabela);
+    };
+    const tot = function(id){ const e = document.getElementById(id); return (e && e.textContent.trim()) || "R$ 0,00"; };
+    const L = ctx.MR - ctx.ML;
+    // tabela com quebra de página (repete o cabeçalho); cols: [{t, w, al}], linhas: [[...]], rodape: [rótulo, valor]
+    const tabela = function(cols, linhas, rodape){
+      const soma = cols.reduce(function(a,c){ return a + c.w; }, 0), W = cols.map(function(c){ return c.w / soma * L; });
+      const cab = function(){
+        ensure(doc,ctx,30);
+        doc.setFillColor(31,111,192); doc.rect(ctx.ML, ctx.y, L, 17, "F");
+        doc.setFont("helvetica","bold"); doc.setFontSize(7.5); doc.setTextColor(255,255,255);
+        let x = ctx.ML;
+        cols.forEach(function(c, i){
+          const ln = doc.splitTextToSize(c.t, W[i] - 6);
+          const y0 = ctx.y + 8.5 - (ln.length - 1) * 4 + 2;
+          ln.forEach(function(t, k){ doc.text(t, c.al === "l" ? x + 3 : x + W[i] / 2, y0 + k * 8, c.al === "l" ? {} : {align:"center"}); });
+          x += W[i];
+        });
+        ctx.y += 17;
+      };
+      cab();
+      doc.setDrawColor(211,219,228); doc.setLineWidth(0.4);
+      linhas.forEach(function(r){
+        doc.setFont("helvetica","normal"); doc.setFontSize(7.5);
+        const cel = r.map(function(v, i){ return doc.splitTextToSize(String(v == null || v === "" ? "—" : v), W[i] - 6); });
+        const h = Math.max.apply(null, cel.map(function(a){ return a.length; })) * 9 + 6;
+        if(ctx.y + h > ctx.MB){ novaPagina(doc,ctx); cab(); doc.setFont("helvetica","normal"); doc.setFontSize(7.5); }
+        let x = ctx.ML; doc.setTextColor(35,45,60);
+        cel.forEach(function(a, i){
+          doc.rect(x, ctx.y, W[i], h);
+          a.forEach(function(t, k){
+            const al = cols[i].al;
+            doc.text(t, al === "l" ? x + 3 : (al === "r" ? x + W[i] - 3 : x + W[i] / 2), ctx.y + 9 + k * 9, al === "l" ? {} : {align: al === "r" ? "right" : "center"});
+          });
+          x += W[i];
+        });
+        ctx.y += h;
+      });
+      if(rodape){
+        ensure(doc,ctx,18);
+        doc.setFillColor(238,244,251); doc.rect(ctx.ML, ctx.y, L, 15, "FD");
+        doc.setFont("helvetica","bold"); doc.setFontSize(8); doc.setTextColor(23,90,159);
+        doc.text(rodape[0], ctx.MR - W[W.length - 1] - 4, ctx.y + 10, {align:"right"});
+        doc.text(rodape[1], ctx.MR - 3, ctx.y + 10, {align:"right"});
+        ctx.y += 15;
+      }
+      doc.setTextColor(30,40,55); ctx.y += 6;
+    };
+    const money = function(v){ return v ? "R$ " + v : "R$ 0,00"; };
+    if(rep.length){
+      novaPagina(doc,ctx);
+      secBar(doc,ctx,"MEMORIAL DE CÁLCULO DE BENFEITORIAS REPRODUTIVAS");
+      paragrafo(doc,ctx,"Valor Total = Quantidade × Valor Unitário × Depreciação (método de Ross-Heidecke: D = (100 − k) / 100). Quando a depreciação não é numérica (ex.: produtiva, imaturo), o fator aplicado é 1.",8.5);
+      rep.forEach(function(g){
+        subLbl(doc,ctx,g.t);
+        g.l.forEach(marca);
+        tabela([{t:"Discriminação",w:31,al:"l"},{t:"Estado / idade",w:14,al:"l"},{t:"Unid.",w:6,al:"c"},{t:"Qtd.",w:8,al:"r"},{t:"Deprec.",w:13,al:"c"},{t:"Vl. unitário (R$)",w:13,al:"r"},{t:"Vl. total (R$)",w:15,al:"r"}],
+          g.l.map(function(l){ return [l.disc, l.estado, l.unid, l.qtd, l.dep, l.vu, (l.total || "").replace(/^R\$\s*/, "")]; }),
+          ["TOTAL " + g.t.split(" ")[0], tot("bnf_tot_" + g.cod)]);
+      });
+      if(rep.length > 1 || true){
+        ensure(doc,ctx,22);
+        doc.setFont("helvetica","bold"); doc.setFontSize(9.5); doc.setTextColor(23,90,159);
+        doc.text("TOTAL 12 (BENFEITORIAS REPRODUTIVAS): " + tot("bnf_tot_12"), ctx.MR, ctx.y + 10, {align:"right"});
+        ctx.y += 20; doc.setTextColor(30,40,55);
+      }
+    }
+    if(nrep.length){
+      if(rep.length) ensure(doc,ctx,120); else novaPagina(doc,ctx);
+      secBar(doc,ctx,"MEMORIAL DE CÁLCULO DE BENFEITORIAS NÃO REPRODUTIVAS");
+      if(!rep.length) paragrafo(doc,ctx,"Valor Total = Quantidade × Valor Unitário × Depreciação (método de Ross-Heidecke: D = (100 − k) / 100).",8.5);
+      nrep.forEach(marca);
+      tabela([{t:"Discriminação / memória de cálculo",w:42,al:"l"},{t:"Unid.",w:7,al:"c"},{t:"Deprec.",w:12,al:"c"},{t:"Qtd.",w:9,al:"r"},{t:"Vl. unitário (R$)",w:14,al:"r"},{t:"Vl. total (R$)",w:16,al:"r"}],
+        nrep.map(function(l){ return [l.disc, l.unid, l.dep, l.qtd, l.vu, (l.total || "").replace(/^R\$\s*/, "")]; }),
+        ["TOTAL 13", tot("bnf_tot_13")]);
+    }
+    if(fontes.length){
+      doc.setFont("helvetica","italic"); doc.setFontSize(7.5); doc.setTextColor(90,100,112);
+      doc.splitTextToSize("Fonte dos valores unitários: " + fontes.join("; ") + " — Anexo 3, Quadros Sintetizados de Preços Unitários de Benfeitorias (RGV).", L).forEach(function(t){ ensure(doc,ctx,10); doc.text(t, ctx.ML, ctx.y + 8); ctx.y += 10; });
+      doc.setTextColor(30,40,55); ctx.y += 4;
+    }
+    // cerca lançada: entram também as tabelas de orçamento de cercas do RGV (Anexo 4, tabelas 60 a 65)
+    if(tabelasUsadas.some(function(k){ return /^anexo4cercas/.test(k); }) || nrep.some(function(l){ return /cerca/i.test(l.disc); })){
+      ["anexo4cercas-019","anexo4cercas-020","anexo4cercas-021"].forEach(function(k){ if(tabelasUsadas.indexOf(k) === -1) tabelasUsadas.push(k); });
+    }
+    tabelasUsadas.sort();
+    if(tabelasUsadas.length && typeof window.BENF_imgSrc === "function"){
+      novaPagina(doc,ctx);
+      secBar(doc,ctx,"TABELAS DE REFERÊNCIA E ORÇAMENTOS (ANEXOS 3 E 4 — RGV)");
+      paragrafo(doc,ctx,"Reprodução das tabelas do Relatório Genérico de Valores (RGV) — preços unitários (Anexo 3) e orçamentos de cercas (Anexo 4) — que fundamentam os valores lançados nos itens 12 e 13 acima.",8);
+      tabelasUsadas.forEach(function(key){
+        const src = window.BENF_imgSrc(key); if(!src) return;
+        inserirImagem(doc, ctx, src, 640); ctx.y += 10;
+      });
+    }
+  }
+
   function desenharFtnCompacto(doc,ctx){
     const E = id => document.getElementById(id), L = ctx.MR-ctx.ML;
     const txt = id => { const e=E(id); return e ? String(e.value!=null && e.tagName!=="SPAN" && e.tagName!=="DIV" ? e.value : e.textContent).trim() : ""; };
@@ -19428,8 +19547,10 @@ window.FOTO_rodapeHTML=rodapeHTML;
     // --- índice simples: o memorial de cálculo e os anexos que acompanham este PDF
     (function(){
       const c = anxCasos(), itens = ["Memorial de Cálculo"];
+      benfIndice().forEach(function(t){ itens.push(t); });
       if(c.tn || c.br || c.bnr) itens.push("Anexo I — Metodologia");
       if(c.tn){ itens.push("Anexo II — Relatório Estatístico"); itens.push("Anexo III — Planilha da Amostra e Mapa de Localização dos Dados de Mercado"); }
+      if(roteiroDados()) itens.push("Anexo " + anxRomanoRoteiro() + " — Roteiro de Acesso");
       subLbl(doc,ctx,"ÍNDICE");
       doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(35,45,60);
       itens.forEach(function(t){ ensure(doc,ctx,14); doc.text("•  " + t, ctx.ML+8, ctx.y+9); ctx.y += 14; });
@@ -19584,6 +19705,7 @@ window.FOTO_rodapeHTML=rodapeHTML;
     doc.setFont("helvetica","bold"); doc.setFontSize(13); doc.setTextColor(192,112,10);
     doc.text("VTN/ha = "+E("av_vtn").textContent, ctx.ML+8, ctx.y+31);
     ctx.y += 46; doc.setTextColor(30,40,55);
+    desenharMemorialBenfeitorias(doc,ctx);
   }
 
   // ftn = true: aba "Avaliação FTN" (PDF "Avaliação da terra nua", só o conteúdo da aba); false: laudo antigo (Obsoleto)
@@ -19969,7 +20091,8 @@ window.FOTO_rodapeHTML=rodapeHTML;
     }
   }
 
-  async function anexoRoteiro(out, procRef){
+  /* roteiroV2 — Anexo de Roteiro de Acesso: layout da aba Utilitários > Roteiro de Acesso (título, descrição, croqui de acesso com QR) */
+  function roteiroDados(){
     const g = function(id){ return document.getElementById(id); };
     const pt = function(q){
       const ids = ["d2_rta_pt"+q, "rta_pt"+q];
@@ -19981,44 +20104,78 @@ window.FOTO_rodapeHTML=rodapeHTML;
     const figs = window.D2_getFigs ? window.D2_getFigs() : {};
     let mapa = figs["roteiro_de_acesso"] || "";
     if(!mapa){ const im = g("rta_mapa_img"), sr = im ? (im.getAttribute("src") || "") : ""; if(/^data:image\//.test(sr)) mapa = sr; }
-    if(!A && !B && !txt && !mapa) return;                                            // cadastro sem roteiro: sem anexo
+    const qi = g("rta_qr_img"), qrSrc = qi ? (qi.getAttribute("src") || "") : "";
+    if(!A && !B && !txt && !mapa) return null;                                       // cadastro sem roteiro: sem anexo
+    return { A:A, B:B, txt:txt, mapa:mapa, qrSrc:/^data:image\//.test(qrSrc) ? qrSrc : "" };
+  }
+  function anxRomanoRoteiro(){
     const c = anxCasos(), n = (c.tn || c.br || c.bnr) ? (c.tn ? 3 : 1) : 0;          // anexos já usados (I; com Terra Nua, I a III)
-    const romano = ["I","II","III","IV","V"][n];
+    return ["I","II","III","IV","V"][n];
+  }
+  // recorta a imagem para preencher a caixa (como "object-fit: cover" do utilitário)
+  function recorteCover(src, w, h){
+    return new Promise(function(res){
+      const im = new Image();
+      im.onload = function(){
+        const k = 2.2, cv = document.createElement("canvas"); cv.width = Math.round(w*k); cv.height = Math.round(h*k);
+        const cx = cv.getContext("2d"), sc = Math.max(cv.width/im.naturalWidth, cv.height/im.naturalHeight), dw = im.naturalWidth*sc, dh = im.naturalHeight*sc;
+        cx.fillStyle = "#fff"; cx.fillRect(0,0,cv.width,cv.height); cx.drawImage(im,(cv.width-dw)/2,(cv.height-dh)/2,dw,dh);
+        res(cv.toDataURL("image/jpeg",0.9));
+      };
+      im.onerror = function(){ res(null); };
+      im.src = src;
+    });
+  }
+  async function anexoRoteiro(out, procRef){
+    const R = roteiroDados(); if(!R) return;
     const {jsPDF} = window.jspdf, doc = new jsPDF({unit:"pt",format:"a4",compress:true}), ctx = makeCtx(doc);
     ctx.rodapePadrao = true; ctx.procRef = procRef;
     novaPagina(doc,ctx);                                                             // capa
     doc.setDrawColor(31,111,192); doc.setLineWidth(1.2); doc.line(ctx.W/2-90, ctx.H/2-34, ctx.W/2+90, ctx.H/2-34);
     doc.setFont("helvetica","bold"); doc.setFontSize(24); doc.setTextColor(23,90,159);
-    doc.text("ANEXO " + romano, ctx.W/2, ctx.H/2-8, {align:"center"});
+    doc.text("ANEXO " + anxRomanoRoteiro(), ctx.W/2, ctx.H/2-8, {align:"center"});
     doc.setFontSize(15); doc.setTextColor(30,40,55);
     doc.text("ROTEIRO DE ACESSO", ctx.W/2, ctx.H/2+20, {align:"center"});
     doc.line(ctx.W/2-90, ctx.H/2+36, ctx.W/2+90, ctx.H/2+36);
-    novaPagina(doc,ctx);                                                             // conteúdo
-    secBar(doc,ctx,"ROTEIRO DE ACESSO");
-    const fc = function(q){ return q ? (q.lat.toFixed(6) + ", " + q.lon.toFixed(6)) : "—"; };
-    subLbl(doc,ctx,"Coordenadas (latitude, longitude — graus decimais)");
-    campo2(doc,ctx,"Ponto A — início", fc(A), "Ponto B — fim", fc(B));
-    if(txt){ subLbl(doc,ctx,"Descrição do percurso"); paragrafo(doc,ctx,txt,9.5); }
-    if(mapa){
-      subLbl(doc,ctx,"Mapa do roteiro de acesso");
-      inserirImagem(doc,ctx,mapa,430);
-      doc.setFont("helvetica","italic"); doc.setFontSize(8); doc.setTextColor(90,100,112);
-      ensure(doc,ctx,12); doc.text("Figura — Roteiro de acesso ao imóvel (Ponto A ao Ponto B)", ctx.W/2, ctx.y, {align:"center"}); ctx.y += 14; doc.setTextColor(30,40,55);
+    novaPagina(doc,ctx);                                                             // folha do roteiro (mesmo desenho do utilitário)
+    const L = ctx.MR - ctx.ML;
+    doc.setFont("helvetica","bold"); doc.setFontSize(16); doc.setTextColor(23,90,159);
+    doc.text("ROTEIRO DE ACESSO", ctx.ML, ctx.y + 14); ctx.y += 28;
+    if(R.txt){
+      doc.setFont("helvetica","bold"); doc.setFontSize(7.5); doc.setTextColor(90,100,112);
+      doc.text("DESCRIÇÃO DO ROTEIRO DE ACESSO", ctx.ML, ctx.y + 7);
+      doc.setDrawColor(211,219,228); doc.setLineWidth(0.5); doc.line(ctx.ML, ctx.y + 11, ctx.MR, ctx.y + 11); ctx.y += 18;
+      doc.setFont("helvetica","normal"); doc.setFontSize(9.5);
+      const lin = doc.splitTextToSize(R.txt, L - 24), hb = lin.length * 13 + 16;
+      doc.setFillColor(250,252,254); doc.setDrawColor(200,210,222); doc.setLineWidth(0.6); doc.roundedRect(ctx.ML, ctx.y, L, hb, 4, 4, "FD");
+      doc.setTextColor(36,52,71); lin.forEach(function(t, k){ doc.text(t, ctx.ML + 12, ctx.y + 17 + k * 13); });
+      ctx.y += hb + 16;
     }
+    let qrUri = R.qrSrc;
     try{
-      const qr = (A && B && window.__MDP_qr) ? await window.__MDP_qr.acesso() : null;
-      if(qr){
-        const bytes = await window.__MDP_qr.png(qr); let bin = ""; for(let i=0;i<bytes.length;i+=8192) bin += String.fromCharCode.apply(null, bytes.subarray(i, i+8192));
-        const uri = "data:image/png;base64," + btoa(bin);
-        ensure(doc,ctx,112);
-        doc.addImage(uri, "PNG", ctx.ML, ctx.y+4, 78, 94, undefined, "FAST");
-        doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(23,90,159);
-        doc.text("Abrir o percurso no celular", ctx.ML+92, ctx.y+30);
-        doc.setFont("helvetica","normal"); doc.setFontSize(8.5); doc.setTextColor(60,70,85);
-        doc.text(doc.splitTextToSize("Aponte a câmera para o QR Code para abrir no Google Maps o mesmo percurso do Ponto A ao Ponto B.", ctx.MR-ctx.ML-100), ctx.ML+92, ctx.y+44);
-        ctx.y += 104; doc.setTextColor(30,40,55);
+      if(!qrUri && R.A && R.B && window.__MDP_qr){
+        const qr = await window.__MDP_qr.acesso();
+        if(qr){ const by = await window.__MDP_qr.png(qr); let bin = ""; for(let i=0;i<by.length;i+=8192) bin += String.fromCharCode.apply(null, by.subarray(i, i+8192)); qrUri = "data:image/png;base64," + btoa(bin); }
       }
     }catch(err){ console.warn("QR do anexo de roteiro:", err); }
+    if(R.mapa){
+      doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(30,40,55);
+      doc.text("CROQUI DE ACESSO À ÁREA ABRANGIDA", ctx.W/2, ctx.y + 8, {align:"center"}); ctx.y += 18;
+      const h = Math.max(200, ctx.MB - ctx.y - 4);                                    // o croqui preenche o resto da folha
+      if(ctx.y + h > ctx.H) ctx.y = ctx.MT;
+      const rec = await recorteCover(R.mapa, L, h);
+      doc.setDrawColor(190,200,214); doc.setLineWidth(0.8);
+      if(rec) doc.addImage(rec, "JPEG", ctx.ML, ctx.y, L, h, undefined, "FAST"); else inserirImagem(doc,ctx,R.mapa,h);
+      doc.rect(ctx.ML, ctx.y, L, h);
+      if(qrUri){
+        const qw = 60, qh = 72, qx = ctx.MR - 14 - qw, qy = ctx.y + h - 14 - qh;
+        doc.setFillColor(255,255,255); doc.rect(qx - 2, qy - 2, qw + 4, qh + 4, "F");
+        try{ doc.addImage(qrUri, /^data:image\/jpe?g/.test(qrUri) ? "JPEG" : "PNG", qx, qy, qw, qh, undefined, "FAST"); }catch(err){ console.warn("QR:", err); }
+      }
+      ctx.y += h;
+    } else if(qrUri){
+      ensure(doc,ctx,90); doc.addImage(qrUri, /^data:image\/jpe?g/.test(qrUri) ? "JPEG" : "PNG", ctx.ML, ctx.y, 60, 72, undefined, "FAST"); ctx.y += 80;
+    }
     doc.deletePage(1);                                                               // a 1ª página (em branco) nasce com o documento
     const ax = await PDFLib.PDFDocument.load(doc.output("arraybuffer"));
     (await out.copyPages(ax, ax.getPageIndices())).forEach(function(pg){ out.addPage(pg); });
@@ -20027,6 +20184,7 @@ window.FOTO_rodapeHTML=rodapeHTML;
   window.AVFTN_buildBytes = async function(){
     return window.AV_comModo("ftn", async function(){
       window.AV_recalcular();
+      try{ if(window.BENF_carregarImgs) await window.BENF_carregarImgs(); }catch(err){}
       const {jsPDF}=window.jspdf, doc=new jsPDF({unit:"pt",format:"a4",compress:true}), ctx=makeCtx(doc);
       desenharFtnCompacto(doc,ctx);
       const yFim = ctx.y;                                      // onde terminou o conteúdo na última página
