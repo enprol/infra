@@ -18228,6 +18228,7 @@ window.FOTO_rodapeHTML=rodapeHTML;
     document.getElementById("av_mem_zona_r").textContent = isFinite(rZona)? fmtBR(rZona,6):"—";
     document.getElementById("av_mem_vila_r").textContent = isFinite(rVila)? fmtBR(rVila,6):"— (escolha a Influência Vila)";
     document.getElementById("av_vtn").textContent = money(vtn);
+    window.__AV_VTN_EXATO = (modoFtn && isFinite(vtn)) ? vtn : NaN;   /* dspExato */
     { const e1 = document.getElementById("av_eq_tela"), e2 = document.getElementById("ia_eq_ftn");
       if(e1) e1.textContent = window.AV_eq("Valor Unitário R$/ha");
       if(e2) e2.textContent = window.AV_eq("Unitário (R$/ha)"); }
@@ -20149,9 +20150,13 @@ function AV_gerarDescSituacao(){
     const fmt2 = n => isFinite(n) ? n.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}) : "—";
     const area = num2(el("av_fd_area") ? el("av_fd_area").value : "");
     txt("ia_dsp_area", isFinite(area) ? area.toLocaleString("pt-BR",{minimumFractionDigits:4,maximumFractionDigits:4}) + " ha" : "—");
+    // fator de precisão: VTN/ha exato (sem arredondar) ÷ unitário médio do SISDEA (2 casas); só se o VTN confere com o médio
+    let fPrec = 1;
+    { const vx = window.__AV_VTN_EXATO, md = num2(el("ia_ic_med") ? el("ia_ic_med").textContent : "");
+      if(isFinite(vx) && isFinite(md) && md > 0 && Math.abs(vx - md) <= 0.01) fPrec = vx / md; }
     [["ia_ic_min","ia_dsp_min"],["ia_ic_med","ia_dsp_med"],["ia_ic_max","ia_dsp_max"],["ia_ca_min","ia_dsp_ca_min"],["ia_ca_med","ia_dsp_ca_med"],["ia_ca_max","ia_dsp_ca_max"]].forEach(p => {
       const u = num2(el(p[0]) ? el(p[0]).textContent : "");
-      txt(p[1], (isFinite(area) && isFinite(u)) ? "R$ " + fmt2(u*area) : "—");
+      txt(p[1], (isFinite(area) && isFinite(u)) ? "R$ " + fmt2(u*fPrec*area) : "—");
     });
     txt("ia_dsp_amp", (el("ia_amplitude") ? el("ia_amplitude").textContent : "") || "—");
     // conferência: o VTN/ha da Memória de Cálculo tem que bater com o valor unitário médio da amostra (mesma área, N.A. e Influência Vila)
