@@ -19556,7 +19556,7 @@ window.FOTO_rodapeHTML=rodapeHTML;
     doc.setDrawColor(211,219,228); doc.setLineWidth(0.4); doc.line(ctx.ML, ctx.y+15, ctx.MR, ctx.y+15);
     ctx.y += 22; doc.setTextColor(30,40,55);
     varTexto("Variável Área do Imóvel (ha)","av_var_area"); varTexto("Variável Nota Agronômica (N.A.)","av_var_na"); varTexto("Variável Influência Vila","av_var_vila");
-    { const vi = window.__AV_VILA_IMG__; if(vi && window.__AV_MODO__ !== "obs"){ inserirImagem(doc,ctx,vi,235); doc.setFont("helvetica","italic"); doc.setFontSize(8); doc.setTextColor(90,100,112); ensure(doc,ctx,12); doc.text("Figura — Área desapropriada e áreas de influência de povoado (Vila)", ctx.W/2, ctx.y, {align:"center"}); ctx.y += 14; doc.setTextColor(30,40,55); } }
+    { const vi = window.__AV_VILA_IMG__; if(vi && window.__AV_MODO__ !== "obs"){ inserirImagem(doc,ctx,vi,470); doc.setFont("helvetica","italic"); doc.setFontSize(8); doc.setTextColor(90,100,112); ensure(doc,ctx,12); doc.text("Figura — Área desapropriada e áreas de influência de povoado (Vila)", ctx.W/2, ctx.y, {align:"center"}); ctx.y += 14; doc.setTextColor(30,40,55); } }
     const rows = [
       ["ÁREA DO IMÓVEL (ha)","e^(-0,6346406128 × ln(Área (ha)))", txt("av_mem_area"), E("av_mem_area_r").textContent],
       ["NOTA AGRONÔMICA (N.A.)","e^(+8,17860439 × N.A.²)", txt("av_mem_na"), E("av_mem_na_r").textContent],
@@ -19969,6 +19969,61 @@ window.FOTO_rodapeHTML=rodapeHTML;
     }
   }
 
+  async function anexoRoteiro(out, procRef){
+    const g = function(id){ return document.getElementById(id); };
+    const pt = function(q){
+      const ids = ["d2_rta_pt"+q, "rta_pt"+q];
+      for(let i=0;i<ids.length;i++){ const e = g(ids[i]), r = (e && e.value && window.RTA_parseCoord) ? window.RTA_parseCoord(e.value) : null; if(r) return r; }
+      return null;
+    };
+    const A = pt("A"), B = pt("B");
+    const txt = String((g("d2_tx_roteiro_de_acesso") && g("d2_tx_roteiro_de_acesso").value) || (g("rta_desc") && g("rta_desc").value) || "").replace(/\*\*/g,"").trim();
+    const figs = window.D2_getFigs ? window.D2_getFigs() : {};
+    let mapa = figs["roteiro_de_acesso"] || "";
+    if(!mapa){ const im = g("rta_mapa_img"), sr = im ? (im.getAttribute("src") || "") : ""; if(/^data:image\//.test(sr)) mapa = sr; }
+    if(!A && !B && !txt && !mapa) return;                                            // cadastro sem roteiro: sem anexo
+    const c = anxCasos(), n = (c.tn || c.br || c.bnr) ? (c.tn ? 3 : 1) : 0;          // anexos já usados (I; com Terra Nua, I a III)
+    const romano = ["I","II","III","IV","V"][n];
+    const {jsPDF} = window.jspdf, doc = new jsPDF({unit:"pt",format:"a4",compress:true}), ctx = makeCtx(doc);
+    ctx.rodapePadrao = true; ctx.procRef = procRef;
+    novaPagina(doc,ctx);                                                             // capa
+    doc.setDrawColor(31,111,192); doc.setLineWidth(1.2); doc.line(ctx.W/2-90, ctx.H/2-34, ctx.W/2+90, ctx.H/2-34);
+    doc.setFont("helvetica","bold"); doc.setFontSize(24); doc.setTextColor(23,90,159);
+    doc.text("ANEXO " + romano, ctx.W/2, ctx.H/2-8, {align:"center"});
+    doc.setFontSize(15); doc.setTextColor(30,40,55);
+    doc.text("ROTEIRO DE ACESSO", ctx.W/2, ctx.H/2+20, {align:"center"});
+    doc.line(ctx.W/2-90, ctx.H/2+36, ctx.W/2+90, ctx.H/2+36);
+    novaPagina(doc,ctx);                                                             // conteúdo
+    secBar(doc,ctx,"ROTEIRO DE ACESSO");
+    const fc = function(q){ return q ? (q.lat.toFixed(6) + ", " + q.lon.toFixed(6)) : "—"; };
+    subLbl(doc,ctx,"Coordenadas (latitude, longitude — graus decimais)");
+    campo2(doc,ctx,"Ponto A — início", fc(A), "Ponto B — fim", fc(B));
+    if(txt){ subLbl(doc,ctx,"Descrição do percurso"); paragrafo(doc,ctx,txt,9.5); }
+    if(mapa){
+      subLbl(doc,ctx,"Mapa do roteiro de acesso");
+      inserirImagem(doc,ctx,mapa,430);
+      doc.setFont("helvetica","italic"); doc.setFontSize(8); doc.setTextColor(90,100,112);
+      ensure(doc,ctx,12); doc.text("Figura — Roteiro de acesso ao imóvel (Ponto A ao Ponto B)", ctx.W/2, ctx.y, {align:"center"}); ctx.y += 14; doc.setTextColor(30,40,55);
+    }
+    try{
+      const qr = (A && B && window.__MDP_qr) ? await window.__MDP_qr.acesso() : null;
+      if(qr){
+        const bytes = await window.__MDP_qr.png(qr); let bin = ""; for(let i=0;i<bytes.length;i+=8192) bin += String.fromCharCode.apply(null, bytes.subarray(i, i+8192));
+        const uri = "data:image/png;base64," + btoa(bin);
+        ensure(doc,ctx,112);
+        doc.addImage(uri, "PNG", ctx.ML, ctx.y+4, 78, 94, undefined, "FAST");
+        doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(23,90,159);
+        doc.text("Abrir o percurso no celular", ctx.ML+92, ctx.y+30);
+        doc.setFont("helvetica","normal"); doc.setFontSize(8.5); doc.setTextColor(60,70,85);
+        doc.text(doc.splitTextToSize("Aponte a câmera para o QR Code para abrir no Google Maps o mesmo percurso do Ponto A ao Ponto B.", ctx.MR-ctx.ML-100), ctx.ML+92, ctx.y+44);
+        ctx.y += 104; doc.setTextColor(30,40,55);
+      }
+    }catch(err){ console.warn("QR do anexo de roteiro:", err); }
+    doc.deletePage(1);                                                               // a 1ª página (em branco) nasce com o documento
+    const ax = await PDFLib.PDFDocument.load(doc.output("arraybuffer"));
+    (await out.copyPages(ax, ax.getPageIndices())).forEach(function(pg){ out.addPage(pg); });
+  }
+
   window.AVFTN_buildBytes = async function(){
     return window.AV_comModo("ftn", async function(){
       window.AV_recalcular();
@@ -19991,6 +20046,8 @@ window.FOTO_rodapeHTML=rodapeHTML;
       }
       try{ await anexosFtn(out, ctx.procRef); }
       catch(err){ console.error("anexos:", err); alert("O memorial foi gerado, mas os anexos (Metodologia / Relatório estatístico) não puderam ser incluídos: " + (err && err.message || err)); }
+      try{ await anexoRoteiro(out, ctx.procRef); }
+      catch(err){ console.error("anexo de roteiro:", err); alert("O memorial foi gerado, mas o anexo de Roteiro de Acesso não pôde ser incluído: " + (err && err.message || err)); }
       return await out.save();
     });
   };
@@ -24710,6 +24767,7 @@ function AV_gerarDescSituacao(){
     var blob = await new Promise(function(res){ cv.toBlob(res, "image/png"); });
     return new Uint8Array(await blob.arrayBuffer());
   }
+  window.__MDP_qr = { acesso: qrAcesso, png: qrPng };   /* roteiroAnexo */
   window.MDP_pdfMemorial = async function(opts){
     if(!G && (analisar().erro)){ alert("Importe/verifique o KML em Técnica › Áreas de Locação antes de gerar o memorial."); return; }
     try{ await prepararP1(); }catch(e){}
@@ -46188,7 +46246,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
 .av-vila-box{ margin:8px 0 6px; padding:10px 12px; border:1px solid #d3dbe4; border-radius:10px; background:#f7f9fc; }
 .av-vila-top{ display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
 .av-vila-st{ font-size:12px; color:#52667a; }
-#av_vila_img{ display:block; width:100%; max-width:920px; margin:8px auto 0; border-radius:6px; border:1px solid #c3ccd6; }
+#av_vila_img{ display:block; width:100%; margin:8px auto 0; border-radius:6px; border:1px solid #c3ccd6; }
 .av-vila-nota{ font-size:12px; margin-top:6px; color:#2c4a6b; }
 .av-vila-nota.dif{ color:#b3261e; font-weight:600; }
 </style>
@@ -46240,19 +46298,19 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
       var img = G("av_vila_img"), nota = G("av_vila_nota");
       if(!area.length){ window.__AV_VILA_IMG__ = null; if(img){ img.hidden = true; img.removeAttribute("src"); } if(nota){ nota.textContent = ""; nota.className = "av-vila-nota"; } st("Aguardando o KML da área desapropriada (Relatório Técnico)…"); return; }
       st("Montando o mapa…");
-      // enquadramento: caixa da área desapropriada + ~1,5 km (raio de influência), proporção ~16:10
+      // enquadramento: caixa da área desapropriada + 5 km em volta (raio de 5 km), proporção 5:4
       var w = 1e9, e = -1e9, s = 1e9, n = -1e9;
       area.forEach(function(r){ r.forEach(function(q){ w = Math.min(w, q[0]); e = Math.max(e, q[0]); s = Math.min(s, q[1]); n = Math.max(n, q[1]); }); });
-      var la0 = (s + n) / 2, dLat = 1500 / 111320, dLon = dLat / Math.cos(la0 * Math.PI / 180);
+      var la0 = (s + n) / 2, dLat = 5000 / 111320, dLon = dLat / Math.cos(la0 * Math.PI / 180);
       w -= dLon; e += dLon; s -= dLat; n += dLat;
       var kx = 111320 * Math.cos(la0 * Math.PI / 180), ky = 110574, mw = (e - w) * kx, mh = (n - s) * ky;
-      if(mw / mh < 1.6){ var ex = (mh * 1.6 - mw) / 2 / kx; w -= ex; e += ex; } else { var ey = (mw / 1.6 - mh) / 2 / ky; s -= ey; n += ey; }
+      if(mw / mh < 1.25){ var ex = (mh * 1.25 - mw) / 2 / kx; w -= ex; e += ex; } else { var ey = (mw / 1.25 - mh) / 2 / ky; s -= ey; n += ey; }
       var vila = window.AVVILA_polys().filter(function(r){
         var a = 1e9, b = -1e9, c = 1e9, d = -1e9;
         r.forEach(function(q){ a = Math.min(a, q[0]); b = Math.max(b, q[0]); c = Math.min(c, q[1]); d = Math.max(d, q[1]); });
         return !(b < w || a > e || d < s || c > n);
       });
-      var z = 18; for(; z >= 10; z--){ if(lonpx(e, z) - lonpx(w, z) <= 1600 && latpx(s, z) - latpx(n, z) <= 1600) break; }
+      var z = 18; for(; z >= 10; z--){ if(lonpx(e, z) - lonpx(w, z) <= 2600 && latpx(s, z) - latpx(n, z) <= 2600) break; }
       var w0 = lonpx(w, z), n0 = latpx(n, z), cw = Math.max(1, Math.round(lonpx(e, z) - w0)), ch = Math.max(1, Math.round(latpx(s, z) - n0));
       var cv = document.createElement("canvas"); cv.width = cw; cv.height = ch; var ctx = cv.getContext("2d");
       ctx.fillStyle = "#2b3a2b"; ctx.fillRect(0, 0, cw, ch);
@@ -46276,7 +46334,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
       // legenda
       var fs = 13 * k, pad = 9 * k, sw = 26 * k, lh = 22 * k;
       ctx.font = "600 " + fs + "px Arial, sans-serif"; ctx.textBaseline = "middle";
-      var itens = [["a", "Área desapropriada"], ["v", "Área de influência de povoado (Vila)"]];
+      var itens = [["a", "Área desapropriada"], ["v", "Área de influência de povoado (Vila) — conforme RGV"]];
       var lw = Math.max.apply(null, itens.map(function(i){ return ctx.measureText(i[1]).width; })) + sw + pad * 3;
       var lx = 12 * k, ly = ch - 12 * k - (lh * itens.length + pad * 2 - lh + 0);
       var lhh = lh * itens.length + pad * 2 - (lh - fs) + 2 * k;
