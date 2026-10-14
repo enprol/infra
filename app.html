@@ -9285,6 +9285,24 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 #panel-desp1-planta .mdp-comp-pal{ outline:14px solid #efe8d4; box-shadow:0 22px 60px rgba(0,0,0,.55), 0 0 0 15px rgba(0,0,0,.16); cursor:grab; }
 #panel-desp1-planta .mdp-comp-pal.v2-arrastando{ cursor:grabbing; }
 #panel-desp1-planta .mdp-comp-esq.cota .mdp-comp-pal{ cursor:crosshair; }
+/* Mesa, etapa 1 (14/10/2026): seleção e arraste no quadro */
+#panel-desp1-planta .mdp-comp-pal.mdp-sel-sobre{ cursor:move; }
+#panel-desp1-planta .mdp-comp-pal.mdp-sel-arrastando{ cursor:grabbing; }
+#panel-desp1-planta .mdp-comp-esq.cota .mdp-comp-pal.mdp-sel-sobre, #panel-desp1-planta .mdp-comp-esq.leader .mdp-comp-pal.mdp-sel-sobre{ cursor:crosshair; }
+#panel-desp1-planta .mdp-sel-ants{ animation:mdpSelAnts .7s linear infinite; }
+@keyframes mdpSelAnts{ to{ stroke-dashoffset:-4.6; } }
+#panel-desp1-planta .mdp-sel-bar{ position:absolute; z-index:6; display:flex; align-items:center; gap:6px; padding:6px 8px; line-height:1.2;
+  background:#10252b; color:#e8f1f3; border:1px solid #2b8fa0; border-radius:10px; box-shadow:0 10px 28px rgba(0,0,0,.45);
+  font:500 12.5px/1.2 system-ui, sans-serif; white-space:nowrap; cursor:default; animation:mdpSelBar .16s cubic-bezier(.2,.8,.2,1); }
+@keyframes mdpSelBar{ from{ opacity:0; transform:translateY(4px); } to{ opacity:1; transform:none; } }
+#panel-desp1-planta .mdp-sel-bar b{ font-weight:700; color:#fff; }
+#panel-desp1-planta .mdp-sel-bar .mdp-sel-dica{ color:#9cb7bd; font-size:11.5px; }
+#panel-desp1-planta .mdp-sel-bar button{ min-height:30px; padding:0 10px; border-radius:7px; border:1px solid #2e5560; background:#173a42; color:#e8f1f3; font:inherit; cursor:pointer; }
+#panel-desp1-planta .mdp-sel-bar button:hover:not(:disabled){ background:#1f4b55; }
+#panel-desp1-planta .mdp-sel-bar button:disabled{ opacity:.45; cursor:default; }
+#panel-desp1-planta .mdp-sel-bar button.perigo{ color:#ffb4a8; border-color:#5a2e2a; background:#2a1a19; }
+#panel-desp1-planta .mdp-sel-bar textarea{ width:190px; min-height:30px; resize:vertical; padding:4px 6px; border-radius:7px; border:1px solid #2e5560; background:#0b1a1f; color:#e8f1f3; font:inherit; white-space:pre-wrap; }
+@media (prefers-reduced-motion: reduce){ #panel-desp1-planta .mdp-sel-ants, #panel-desp1-planta .mdp-sel-bar{ animation:none; } }
 .v2-abrir .mdp-comp-pal{ animation:v2roll .75s cubic-bezier(.2,.8,.2,1); }
 @keyframes v2roll{ from{ clip-path:inset(0 0 100% 0); transform:translateY(-14px); opacity:.25; } to{ clip-path:inset(-20px); transform:none; opacity:1; } }
 .v2-regua{ position:absolute; pointer-events:none; overflow:hidden; z-index:2; }
@@ -9371,7 +9389,8 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
     <button class="vbtn vbtn-ghost" type="button" onclick="MDP_jpgQuadro()" title="Só o quadro do mapa, com as camadas e o enquadramento como estão agora">🖼️ JPG do quadro do mapa</button>
     <button class="vbtn vbtn-ghost" type="button" onclick="MDP_pdfPlantaCom()">📄 PDF — com satélite</button>
     <button class="vbtn vbtn-ghost" type="button" onclick="MDP_pdfPlantaSem()">📄 PDF — sem satélite</button>
-    <button class="vbtn vbtn-ghost" type="button" onclick="MDP_exportarDxf()" title="Desenho em coordenadas UTM, uma camada por elemento. Abre em qualquer CAD; para DWG, salve pelo AutoCAD">📐 Exportar DXF (CAD)</button>
+    <button class="vbtn vbtn-ghost" type="button" onclick="MDP_exportarDxf()" data-cad-dxf title="Desenho em coordenadas UTM, uma camada por elemento. Abre em qualquer CAD; para DWG, salve pelo AutoCAD">📐 Exportar DXF (CAD)</button>
+    <button class="vbtn vbtn-ghost" type="button" onclick="MDP_exportarDxf({dwg:true})" data-cad-dwg style="display:none" title="O mesmo desenho do DXF, já convertido para DWG (AutoCAD 2010) pelo CADCraft desta máquina">📐 Exportar DWG (AutoCAD)</button>
   </div>
 </div>
 
@@ -26931,7 +26950,10 @@ function AV_gerarDescSituacao(){
       var w = Math.max(P.largura(t1, { tam:tam, bold:true }), P.largura(t2, { tam:tam2, bold:true })) + 1.6;
       var dentro = ptEmPoli(cx, cy, pol) && (x1 - x0) > w + 2 && (y1 - y0) > hh + 2;
       var yb = dentro ? cy - hh/2 + h1 : y0 - 3 - h2 - 1;          // dentro quando cabe; senão logo acima do perímetro
+      var man = rotPosDe("a" + a.i);                               // movido à mão na composição (14/10/2026)
+      if(man){ cx = T.x(man.E); yb = T.y(man.N) - hh/2 + h1; }
       if(!noMapa([cx, yb], -2)) return;
+      hitAdd({ tipo:"rot", key:"a" + a.i, cx:cx, cy:yb - h1 + hh/2, w:w, h:hh + .6, ang:0 });
       P.texto(cx, yb, t1, { tam:tam, bold:true, align:"center", cor:"#14425f", halo:true });
       P.texto(cx, yb + 1 + h2, t2, { tam:tam2, bold:true, align:"center", cor:"#14425f", halo:true });
     });
@@ -27041,6 +27063,7 @@ function AV_gerarDescSituacao(){
               if(caixas.some(function(b){ return rotRetCruza(cx, cy, w, hbox + .8, ang, b, .4); })) continue;
               if(fase < 3 && CAIXAS_ESTACA.some(function(b){ return rotRetCruza(cx, cy, w, hbox + .8, ang, b, .6); })) continue;   // só a última tentativa ignora as estacas
               caixas.push(bb);
+              hitAdd({ tipo:"rot", key:"c" + g.segs[0], cx:cx, cy:cy, w:w, h:hbox + .8, ang:ang, esc:escalas[si], larg:Math.max(tot - 1.4, 30) });
               // bloco centrado em (cx,cy), eixo "up" para cima: o nome fica embaixo e o "Expropriado:" logo acima dele
               txtLinhas(P, cx, cy, up, hbox, lns, stp, tz, ang);
               if(pref) P.texto(cx + up[0]*(hz + 1.2 - hbox/2), cy + up[1]*(hz + 1.2 - hbox/2), pref, { tam:tp2, align:"center", rot:ang, cor:"#14425f", halo:true });
@@ -27052,6 +27075,7 @@ function AV_gerarDescSituacao(){
       return posto;
     }
     grupos.forEach(function(g){
+      if(confManual(P, T, g, tam, caixas)) return;       // movido à mão na composição (14/10/2026)
       var tent = [g.segs];
       if(g.segs.length >= G.segs.length){                // um confrontante só em TODO o perímetro: fica no trecho onde foi preenchido (P01 → P02…)
         var cc = conf(), p0i = 0;
@@ -27114,6 +27138,7 @@ function AV_gerarDescSituacao(){
       if(!E || pr.d > meiaPad*2.5) return;               // divisa longe do eixo: não é vizinho de frente
       var q0 = emS(E, pr.s), p0 = pts[0], p1 = pts[pts.length-1], cdx = p1[0]-p0[0], cdy = p1[1]-p0[1], cl = Math.hypot(cdx, cdy);
       if(cl > 1 && Math.abs((cdx*q0.tx + cdy*q0.ty)/cl) > .8) return;   // divisa paralela ao eixo: não atravessa a faixa
+      if(confManual(P, T, g, tam, caixas)){ feitos[g.segs[0]] = true; return; }   // movido à mão na composição (14/10/2026)
       var dir = ((mx - cgx)*q0.tx + (my - cgy)*q0.ty) >= 0 ? 1 : -1;
       var aMax = 0; pts.forEach(function(p){ var a = ((p[0]-q0.x)*q0.tx + (p[1]-q0.y)*q0.ty)*dir; if(a > aMax) aMax = a; });
       var cima = q0.tx >= 0 ? -1 : 1;                   // normal (-ty, tx)*cima aponta para cima na tela (y do papel cresce para baixo)
@@ -27136,6 +27161,7 @@ function AV_gerarDescSituacao(){
             if(caixas.some(function(b){ return caixasSeCruzam(bb, b, .4); })) continue;
             if(CAIXAS_ESTACA.some(function(b){ return rotRetCruza(cx, cy, w, hbox + .8, ang, b, .8); })) continue;
             caixas.push(bb);
+            hitAdd({ tipo:"rot", key:"c" + g.segs[0], cx:cx, cy:cy, w:w, h:hbox + .8, ang:ang, esc:escalas[si], larg:60 });
             txtLinhas(P, cx, cy, up, hbox, lns, stp, tz, ang);
             if(pref) P.texto(cx + up[0]*(hz + 1.2 - hbox/2), cy + up[1]*(hz + 1.2 - hbox/2), pref, { tam:tp2, align:"center", rot:ang, cor:"#14425f", halo:true });
             posto = true;
@@ -27235,13 +27261,37 @@ function AV_gerarDescSituacao(){
      o P01 ou reler o KML nao desloca nada. off = afastamento da linha de cota em mm
      de papel (0 = sobre o alinhamento dos dois pontos). Saem na previa, na prancha,
      no PDF e no JPG do quadro. */
+  /* ---- Mesa, etapa 1 (14/10/2026): rótulos movidos à mão e registro do que foi desenhado ----
+     rotPos guarda, por COORDENADA UTM (como as cotas e leaders), o centro do rótulo que o usuário
+     arrastou na composição: "a<i>" = nome/área do perímetro i, "c<seg>" = nome do confrontante cujo
+     grupo começa no trecho seg (com o ângulo, o corpo e a largura de quebra que tinha quando foi
+     pego). Sem entrada, o rótulo continua no lugar automático. HIT só existe enquanto o quadro da
+     composição é pintado: cada objeto desenhado se registra ali (em mm de papel) para ser clicado. */
+  var HIT = null;
+  function hitAdd(o){ if(HIT) HIT.push(o); }
+  function rotPos(){ var r = extras().rotPos; return (r && typeof r === "object" && !Array.isArray(r)) ? r : {}; }
+  function rotPosDe(k){ var r = rotPos()[k]; return (r && isFinite(r.E) && isFinite(r.N)) ? r : null; }
+  function confManual(P, T, g, tam, caixas){
+    var k = "c" + g.segs[0], r = rotPosDe(k); if(!r) return false;
+    var tz = tam*(+r.esc || 1), hz = tz*.3528*.78, stp = hz*1.35;
+    var lns = quebrar(P, g.nome, +r.larg || 60, { tam:tz, bold:true }), hbox = hz + (lns.length - 1)*stp;
+    var w = Math.max.apply(null, lns.map(function(t){ return P.largura(t, { tam:tz, bold:true }); })) + 1.4;
+    var ang = isFinite(r.ang) ? +r.ang : 0, rr = ang*Math.PI/180, up = [-Math.sin(rr), -Math.cos(rr)];
+    var cx = T.x(r.E), cy = T.y(r.N);
+    if(!noMapa([cx, cy], -1)) return true;                 // fora do quadro: não sai, mas também não volta sozinho ao automático
+    caixas.push(caixaRot(cx, cy, w, hbox + .8, ang));
+    txtLinhas(P, cx, cy, up, hbox, lns, stp, tz, ang);
+    hitAdd({ tipo:"rot", key:k, cx:cx, cy:cy, w:w, h:hbox + .8, ang:ang, esc:+r.esc || 1, larg:+r.larg || 60 });
+    return true;
+  }
+
   function cotasLer(){ var c = extras().cotas; return Array.isArray(c) ? c : []; }
   function cotasGravar(c){ setExtra("cotas", c); }
   window.MDP_cotas = cotasLer;
   function desenharCotas(P, T){ CAMDXF(P, "ENP_COTAS");
     var L = cotasLer(); if(!L.length) return;
     var e = EST("cota");
-    L.forEach(function(c){
+    L.forEach(function(c, ic){
       if(!isFinite(c.aE) || !isFinite(c.aN) || !isFinite(c.bE) || !isFinite(c.bN)) return;
       var A = [T.x(c.aE), T.y(c.aN)], B = [T.x(c.bE), T.y(c.bN)];
       var dx = B[0]-A[0], dy = B[1]-A[1], Lp = Math.hypot(dx, dy); if(Lp < .6) return;
@@ -27261,6 +27311,7 @@ function AV_gerarDescSituacao(){
       var up = [-Math.sin(ang*Math.PI/180), -Math.cos(ang*Math.PI/180)];
       P.texto((A2[0]+B2[0])/2 - up[0]*1.3, (A2[1]+B2[1])/2 - up[1]*1.3, br(m, 2) + " m",
               { tam:TAM.cota, rot:ang, align:"center", cor:e.cor, bold:true, halo:true });
+      hitAdd({ tipo:"cota", i:ic, A2:A2, B2:B2, n:[nx, ny], off:o, tx:(A2[0]+B2[0])/2 - up[0]*2, ty:(A2[1]+B2[1])/2 - up[1]*2 });
     });
   }
 
@@ -27274,7 +27325,7 @@ function AV_gerarDescSituacao(){
   function desenharLeaders(P, T){ CAMDXF(P, "ENP_LEADERS");
     var L = leadersLer(); if(!L.length) return;
     var e = EST("leader"), tam = TAM.leader, lh = tam*.3528*1.28;
-    L.forEach(function(c){
+    L.forEach(function(c, il){
       if(!isFinite(c.aE) || !isFinite(c.aN) || !isFinite(c.bE) || !isFinite(c.bN)) return;
       var A = [T.x(c.aE), T.y(c.aN)], B = [T.x(c.bE), T.y(c.bN)];
       if(!noMapa(A, -1) && !noMapa(B, -1)) return;
@@ -27289,6 +27340,11 @@ function AV_gerarDescSituacao(){
         if(!s) return;
         P.texto(B[0] + lado*(sh + .9), y0 + k*lh, s, { tam:tam, align:(lado === 1 ? "left" : "right"), cor:e.cor, bold:true, halo:true });
       });
+      if(HIT){
+        var lw = Math.max.apply(null, ls.map(function(s){ return s ? P.largura(s, { tam:tam, bold:true }) : 0; })) + sh + .9;
+        var bx0 = lado === 1 ? B[0] : B[0] - lw, by0 = y0 - tam*.3528*.85;
+        hitAdd({ tipo:"leader", i:il, A:A, B:B, box:[bx0, by0, bx0 + lw, y0 + (ls.length - 1)*lh + tam*.3528*.3] });
+      }
     });
   }
 
@@ -28758,7 +28814,9 @@ function AV_gerarDescSituacao(){
     if(cancelado && cancelado()) return null;
     ctx.setTransform(1,0,0,1,0,0); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, cv.width, cv.height);
     ctx.translate(-MAPA.x*s, -MAPA.y*s);
-    desenharFolha(pintorCanvas(ctx, s), T, op, pgQ);          // o quadro da prancha escolhida (a 1ª, se for de tabela)
+    HIT = [];                                                  // registra o que cai no quadro (selecionar / arrastar)
+    try{ desenharFolha(pintorCanvas(ctx, s), T, op, pgQ); }   // o quadro da prancha escolhida (a 1ª, se for de tabela)
+    finally{ COMP.hit = HIT; HIT = null; }
     ctx.setTransform(1,0,0,1,0,0);
     T.folhas = planoFolhas().length;
     return T;
@@ -28794,11 +28852,12 @@ function AV_gerarDescSituacao(){
             : ("quadro do mapa " + br(MAPA.w,0) + " × " + br(MAPA.h,0) + " mm na folha " + FL.nome)) +
           " · escala 1:" + T.esc.toLocaleString("pt-BR") + " · " + G.v.length + " vértices · " + br(G.area_ha,4) + " ha" +
           (T.folhas > 1 ? " · " + T.folhas + " pranchas" : "") +
-          " — arraste para mover · roda = zoom · clique = ponto de referência · Ctrl+K = comandos";
+          " — arraste o vazio para mover o mapa, ou um rótulo, leader ou cota para mover só ele · roda = zoom · Ctrl+K = comandos";
       }
       if(load) load.style.display = "none";
     }catch(e){ console.warn("planta/composição:", e); aviso("Não consegui desenhar: " + (e.message || e)); }
     compCotasLista(); compLeadersLista();
+    if(meu === COMP.tok){ if(COMP.arr && COMP.arr.fim) COMP.arr = null; compSelDesenhar(); }
   }
   /* alterna entre o quadro do mapa (onde se compõe) e a folha montada (como vai imprimir).
      As cotas são marcadas por coordenada na janela do mapa, então só valem na vista do quadro. */
@@ -28857,21 +28916,23 @@ function AV_gerarDescSituacao(){
       ? (COMP.p0 ? "Agora clique onde o TEXTO da leader deve ficar — Esc cancela" : "Clique no ponto que a SETA vai apontar — perto de um vértice ela encaixa nele")
       : (COMP.p0 ? "Agora clique no segundo ponto — Esc cancela" : "Clique no primeiro ponto da cota — perto de um vértice ela encaixa nele"));
   }
+  // 14/10/2026: criar cota/leader com a camada "Cotas" desligada fazia o objeto sumir assim que nascia
+  function compCamadaCotas(){ if(OPC.cotas === false){ OPC.cotas = true; sincronizarBarras(); agendarPreview(60); } }
   function compCotaModo(on){
-    COMP.cota = !!on; COMP.p0 = null; if(on) COMP.leader = false;
+    COMP.cota = !!on; COMP.p0 = null; if(on){ COMP.leader = false; compCamadaCotas(); }
     var esq = $("mdp_comp_esq"), bt = $("mdp_bt_cota"), bl = $("mdp_bt_leader");
     if(esq){ esq.classList.toggle("cota", COMP.cota); esq.classList.toggle("leader", !!COMP.leader); }
     if(bt) bt.classList.toggle("on", COMP.cota);
     if(bl) bl.classList.toggle("on", !!COMP.leader);
-    compSvgLimpar(); compDica(); compCotasLista(); compLeadersLista();
+    compSvgLimpar(); compDica(); compCotasLista(); compLeadersLista(); compSelDesenhar();
   }
   function compLeaderModo(on){
-    COMP.leader = !!on; COMP.p0 = null; if(on) COMP.cota = false;
+    COMP.leader = !!on; COMP.p0 = null; if(on){ COMP.cota = false; compCamadaCotas(); }
     var esq = $("mdp_comp_esq"), bt = $("mdp_bt_cota"), bl = $("mdp_bt_leader");
     if(esq){ esq.classList.toggle("leader", COMP.leader); esq.classList.toggle("cota", !!COMP.cota); }
     if(bl) bl.classList.toggle("on", COMP.leader);
     if(bt) bt.classList.toggle("on", !!COMP.cota);
-    compSvgLimpar(); compDica(); compCotasLista(); compLeadersLista();
+    compSvgLimpar(); compDica(); compCotasLista(); compLeadersLista(); compSelDesenhar();
   }
   /* lista das leaders (consultar / editar o texto / trocar o lado / ir até ela / apagar) */
   function compLeadersLista(){
@@ -28893,7 +28954,7 @@ function AV_gerarDescSituacao(){
     var atual = (L[i].lado === 1 || L[i].lado === -1) ? L[i].lado : (A <= B ? 1 : -1);
     L[i].lado = -atual; leadersGravar(L); leaderMexeu();
   };
-  window.MDP_leaderRemover = function(i){ var L = leadersLer(); if(!L[i]) return; L.splice(i, 1); leadersGravar(L); leaderMexeu(); };
+  window.MDP_leaderRemover = function(i){ var L = leadersLer(); if(!L[i]) return; L.splice(i, 1); COMP.sel = null; leadersGravar(L); leaderMexeu(); };
   window.MDP_leaderIr = function(i){ var L = leadersLer(); if(!L[i]) return; v2CentrarEm({ E:L[i].aE, N:L[i].aN }, null); };
   function compCotasLista(){
     var box = $("mdp_comp_cotas"); if(!box) return;
@@ -28911,12 +28972,190 @@ function AV_gerarDescSituacao(){
   function cotaMexeu(){ compCotasLista(); agendarPreview(120); }
   window.MDP_cotaOff = function(i, d){ var L = cotasLer(); if(!L[i]) return; L[i].off = Math.round(((+L[i].off || 0) + d*1.5)*10)/10; cotasGravar(L); cotaMexeu(); };
   window.MDP_cotaLado = function(i){ var L = cotasLer(); if(!L[i]) return; L[i].off = -(+L[i].off || 0) || -4.5; cotasGravar(L); cotaMexeu(); };
-  window.MDP_cotaRemover = function(i){ var L = cotasLer(); if(!L[i]) return; L.splice(i, 1); cotasGravar(L); cotaMexeu(); };
+  window.MDP_cotaRemover = function(i){ var L = cotasLer(); if(!L[i]) return; L.splice(i, 1); COMP.sel = null; cotasGravar(L); cotaMexeu(); };
+
+  /* ---- Mesa, etapa 1 (14/10/2026): selecionar e arrastar o que está desenhado no quadro ----
+     Clique num rótulo de área, nome de confrontante, leader ou cota: fica selecionado (contorno
+     tracejado + barrinha de ações). Arrastar move — o lugar é guardado por coordenada UTM nos extras
+     (rotPos / leaders / cotas), então vale na prévia, na prancha, no PDF, no JPG e no DXF.
+     Leader: a caixa move o texto; a bolinha laranja move a ponta (encaixa nos vértices).
+     Cota: anda só na perpendicular (afastamento). Arrastar no vazio, Shift ou botão do meio
+     continuam movendo o mapa. Del apaga (leader/cota) ou devolve o rótulo ao lugar automático. */
+  COMP.sel = null; COMP.arr = null; COMP.hit = null;
+  function distSeg(p, a, b){
+    var vx = b[0]-a[0], vy = b[1]-a[1], l2 = vx*vx + vy*vy, t = l2 ? ((p[0]-a[0])*vx + (p[1]-a[1])*vy)/l2 : 0;
+    t = t < 0 ? 0 : (t > 1 ? 1 : t);
+    return Math.hypot(a[0] + t*vx - p[0], a[1] + t*vy - p[1]);
+  }
+  function selMesmo(h, s){ s = s || COMP.sel; return !!s && !!h && s.tipo === h.tipo && (h.tipo === "rot" ? s.key === h.key : s.i === h.i); }
+  function selAtual(){ var H = COMP.hit || []; for(var k = H.length - 1; k >= 0; k--) if(selMesmo(H[k])) return H[k]; return null; }
+  function selHit(mm){
+    var H = COMP.hit || [];
+    for(var k = H.length - 1; k >= 0; k--){                    // o que foi desenhado por último fica por cima
+      var h = H[k];
+      if(h.tipo === "leader"){
+        if(selMesmo(h) && Math.hypot(mm[0] - h.A[0], mm[1] - h.A[1]) <= 2) return { h:h, parte:"ponta" };
+        var b = h.box;
+        if((mm[0] >= b[0] - .8 && mm[0] <= b[2] + .8 && mm[1] >= b[1] - .8 && mm[1] <= b[3] + .8) || distSeg(mm, h.A, h.B) <= 1) return { h:h, parte:"texto" };
+      } else if(h.tipo === "cota"){
+        if(distSeg(mm, h.A2, h.B2) <= 1.6 || Math.hypot(mm[0] - h.tx, mm[1] - h.ty) <= 2.6) return { h:h };
+      } else {
+        var r = h.ang*Math.PI/180, dx = mm[0] - h.cx, dy = mm[1] - h.cy;
+        if(Math.abs(dx*Math.cos(r) - dy*Math.sin(r)) <= h.w/2 + .6 && Math.abs(-dx*Math.sin(r) - dy*Math.cos(r)) <= h.h/2 + .6) return { h:h };
+      }
+    }
+    return null;
+  }
+  function selDesenhoDe(h, a){                                 // contorno da seleção (mm de papel) com o arrasto aplicado
+    var dx = a ? a.dx : 0, dy = a ? a.dy : 0, cor = "#ff8a00", s = "", pts;
+    function f(v){ return v.toFixed(2); }
+    function poli(p, cheio){
+      var d = p.map(function(q){ return f(q[0]) + "," + f(q[1]); }).join(" ");
+      return '<polygon points="' + d + '" fill="' + (cheio ? "rgba(255,138,0,.10)" : "none") + '" stroke="#fff" stroke-width=".9"/>' +
+             '<polygon points="' + d + '" fill="none" stroke="' + cor + '" stroke-width=".42" stroke-dasharray="1.4 .9" class="mdp-sel-ants"/>';
+    }
+    function lin(p, q, w){ return '<line x1="' + f(p[0]) + '" y1="' + f(p[1]) + '" x2="' + f(q[0]) + '" y2="' + f(q[1]) + '" stroke="#fff" stroke-width="' + (w + .5) + '" stroke-linecap="round"/>' +
+                                  '<line x1="' + f(p[0]) + '" y1="' + f(p[1]) + '" x2="' + f(q[0]) + '" y2="' + f(q[1]) + '" stroke="' + cor + '" stroke-width="' + w + '" stroke-linecap="round"/>'; }
+    if(h.tipo === "rot"){
+      var r = h.ang*Math.PI/180, ux = Math.cos(r), uy = -Math.sin(r), vx = -Math.sin(r), vy = -Math.cos(r), cx = h.cx + dx, cy = h.cy + dy, w = h.w/2 + .7, t = h.h/2 + .7;
+      pts = [[-w,-t],[w,-t],[w,t],[-w,t]].map(function(p){ return [cx + ux*p[0] + vx*p[1], cy + uy*p[0] + vy*p[1]]; });
+      s = poli(pts, a && a.moveu);
+    } else if(h.tipo === "leader"){
+      var pon = a && a.parte === "ponta", A = (pon && a.cur) ? a.cur.mm : h.A, m = pon ? [0, 0] : [dx, dy], b = h.box;
+      pts = [[b[0] - .6 + m[0], b[1] - .6 + m[1]], [b[2] + .6 + m[0], b[1] - .6 + m[1]], [b[2] + .6 + m[0], b[3] + .6 + m[1]], [b[0] - .6 + m[0], b[3] + .6 + m[1]]];
+      s = (a && a.moveu ? lin([h.B[0] + m[0], h.B[1] + m[1]], A, .35) : "") + poli(pts, a && a.moveu) +
+          '<circle cx="' + f(A[0]) + '" cy="' + f(A[1]) + '" r="1.15" fill="' + cor + '" stroke="#fff" stroke-width=".45"/>';
+      pts = pts.concat([A]);
+    } else {
+      var d = a ? dx*h.n[0] + dy*h.n[1] : 0, A2 = [h.A2[0] + h.n[0]*d, h.A2[1] + h.n[1]*d], B2 = [h.B2[0] + h.n[0]*d, h.B2[1] + h.n[1]*d];
+      s = lin(A2, B2, .55); pts = [A2, B2];
+    }
+    var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    pts.forEach(function(p){ x0 = Math.min(x0, p[0]); y0 = Math.min(y0, p[1]); x1 = Math.max(x1, p[0]); y1 = Math.max(y1, p[1]); });
+    return { svg:s, caixa:[x0, y0, x1, y1] };
+  }
+  function compSelDesenhar(){
+    var sv = $("mdp_comp_svg"), bar = $("mdp_sel_bar");
+    if(!compAberto() || COMP.cota || COMP.leader) { if(bar) bar.style.display = "none"; return; }   // nos modos de criar, o SVG é da régua
+    var h = COMP.vista === "folha" ? null : selAtual();
+    if(!h){ if(COMP.vista !== "folha" && !COMP.focoTxt) COMP.sel = null; if(sv) sv.innerHTML = ""; if(bar) bar.style.display = "none"; return; }   // focoTxt: leader recém-criada, ainda não pintada
+    var d = selDesenhoDe(h, (COMP.arr && selMesmo(COMP.arr.h)) ? COMP.arr : null);
+    if(sv) sv.innerHTML = d.svg;
+    selBarra(h, d.caixa);
+  }
+  function selBarraHtml(h){
+    var dica = '<span class="mdp-sel-dica">arraste para mover</span>';
+    if(h.tipo === "rot"){
+      var man = !!rotPosDe(h.key);
+      return '<b>' + (h.key.charAt(0) === "a" ? "Rótulo da área" : "Nome do confrontante") + '</b>' + dica +
+        '<button type="button" data-acao="auto"' + (man ? "" : " disabled") + ' title="Volta ao lugar escolhido automaticamente (Del)">↺ Posição automática</button>';
+    }
+    if(h.tipo === "leader"){
+      var c = leadersLer()[h.i] || {};
+      return '<b>Leader</b><textarea rows="2" aria-label="Texto da leader" title="Texto da leader (Enter quebra a linha)">' + esc(c.txt || "") + '</textarea>' +
+        '<button type="button" data-acao="lado" title="Trocar o lado do texto">⇄ Lado</button>' +
+        '<button type="button" data-acao="del" class="perigo" title="Apagar esta leader (Del)">✕ Excluir</button>';
+    }
+    return '<b>Cota</b>' + dica +
+      '<button type="button" data-acao="ladoCota" title="Jogar a cota para o outro lado">⇅ Lado</button>' +
+      '<button type="button" data-acao="del" class="perigo" title="Apagar esta cota (Del)">✕ Excluir</button>';
+  }
+  function selBarra(h, cx){
+    var pal = $("mdp_comp_pal"), cv = $("mdp_comp_cv"); if(!pal || !cv) return;
+    var bar = $("mdp_sel_bar");
+    if(!bar){
+      bar = document.createElement("div"); bar.id = "mdp_sel_bar"; bar.className = "mdp-sel-bar"; pal.appendChild(bar);
+      bar.addEventListener("mousedown", function(ev){ ev.stopPropagation(); });          // clicar na barra não move o mapa
+      bar.addEventListener("keydown", function(ev){ ev.stopPropagation(); });            // Del dentro do texto não apaga a leader
+      bar.addEventListener("input", function(ev){ var s = COMP.sel; if(s && s.tipo === "leader" && ev.target.tagName === "TEXTAREA") window.MDP_leaderTxt(s.i, ev.target.value); });
+      bar.addEventListener("click", function(ev){ var b = ev.target.closest && ev.target.closest("[data-acao]"); if(b && !b.disabled) selAcao(b.getAttribute("data-acao")); });
+    }
+    var chave = h.tipo + ":" + (h.tipo === "rot" ? h.key + ":" + (rotPosDe(h.key) ? 1 : 0) : h.i);
+    var ta = bar.querySelector("textarea"), editando = ta && document.activeElement === ta;
+    if(bar.dataset.chave !== chave && !editando){ bar.dataset.chave = chave; bar.innerHTML = selBarraHtml(h); }
+    bar.style.display = "";
+    var r = cv.getBoundingClientRect(), pr = pal.getBoundingClientRect(), k = r.width/MAPA.w;
+    var x = r.left - pr.left + ((cx[0] + cx[2])/2 - MAPA.x)*k, yT = r.top - pr.top + (cx[1] - MAPA.y)*k, yB = r.top - pr.top + (cx[3] - MAPA.y)*k;
+    var bw = bar.offsetWidth, bh = bar.offsetHeight, top = yT - bh - 12;
+    if(top < 6) top = yB + 12;
+    bar.style.left = Math.max(6, Math.min(pal.clientWidth - bw - 6, x - bw/2)) + "px";
+    bar.style.top = Math.max(6, Math.min(pal.clientHeight - bh - 6, top)) + "px";
+    if(COMP.focoTxt){ COMP.focoTxt = false; var t2 = bar.querySelector("textarea"); if(t2){ t2.focus(); t2.select(); } }
+  }
+  function selAcao(acao){
+    var s = COMP.sel; if(!s) return;
+    if(acao === "auto" && s.tipo === "rot"){ var o = Object.assign({}, rotPos()); delete o[s.key]; setExtra("rotPos", o); agendarPreview(30); return; }
+    if(acao === "lado" && s.tipo === "leader") return window.MDP_leaderLado(s.i);
+    if(acao === "ladoCota" && s.tipo === "cota") return window.MDP_cotaLado(s.i);
+    if(acao === "del"){
+      if(s.tipo === "leader") window.MDP_leaderRemover(s.i);
+      else if(s.tipo === "cota") window.MDP_cotaRemover(s.i);
+      COMP.sel = null; compSelDesenhar();
+    }
+  }
+  function selApagar(){ var s = COMP.sel; if(!s) return; selAcao(s.tipo === "rot" ? "auto" : "del"); }
+  function selGravar(a){
+    var h = a.h, T = COMP.T, r2 = function(v){ return Math.round(v*100)/100; };
+    if(!T){ COMP.arr = null; return; }
+    if(h.tipo === "rot"){
+      var o = Object.assign({}, rotPos()), v = { E:r2(T.E(h.cx + a.dx)), N:r2(T.N(h.cy + a.dy)) };
+      if(h.key.charAt(0) === "c"){ v.ang = r2(h.ang); v.esc = h.esc || 1; v.larg = Math.round((h.larg || 60)*10)/10; }
+      o[h.key] = v; setExtra("rotPos", o); agendarPreview(30); return;
+    }
+    if(h.tipo === "leader"){
+      var L = leadersLer(), c = L[h.i];
+      if(!c || (a.parte === "ponta" && !a.cur)){ COMP.arr = null; compSelDesenhar(); return; }
+      if(a.parte === "ponta"){ c.aE = a.cur.E; c.aN = a.cur.N; }
+      else { c.bE = r2(T.E(h.B[0] + a.dx)); c.bN = r2(T.N(h.B[1] + a.dy)); }
+      leadersGravar(L); leaderMexeu(); return;
+    }
+    var C = cotasLer(), q = C[h.i]; if(!q){ COMP.arr = null; compSelDesenhar(); return; }
+    q.off = Math.round((h.off + a.dx*h.n[0] + a.dy*h.n[1])*10)/10; cotasGravar(C); cotaMexeu();
+  }
+  function compLigarSel(pal){
+    if(pal.__sel) return; pal.__sel = true;
+    // captura: roda antes do arrasto do mapa (v2) e o impede quando o clique pega um objeto
+    pal.addEventListener("mousedown", function(ev){
+      if(ev.button !== 0 || ev.shiftKey || COMP.cota || COMP.leader || COMP.vista === "folha" || !COMP.T) return;
+      if(ev.target.closest && ev.target.closest("#mdp_sel_bar")) return;
+      var mm = compMm(ev); if(!mm) return;
+      var hit = selHit(mm);
+      if(!hit){ if(COMP.sel){ COMP.sel = null; compSelDesenhar(); } return; }   // no vazio segue o arrasto do mapa
+      ev.stopImmediatePropagation(); ev.preventDefault();
+      if(document.activeElement && document.activeElement.blur) document.activeElement.blur();
+      COMP.sel = hit.h.tipo === "rot" ? { tipo:"rot", key:hit.h.key } : { tipo:hit.h.tipo, i:hit.h.i };
+      COMP.arr = { h:hit.h, parte:hit.parte || "", x0:ev.clientX, y0:ev.clientY, mm0:mm, dx:0, dy:0, moveu:false, cur:null, fim:false };
+      compSelDesenhar();
+    }, true);
+    window.addEventListener("mousemove", function(ev){
+      var a = COMP.arr; if(!a || a.fim) return;
+      if(!a.moveu && Math.hypot(ev.clientX - a.x0, ev.clientY - a.y0) < 4) return;
+      a.moveu = true; pal.classList.add("mdp-sel-arrastando");
+      var mm = compMm(ev); if(!mm) return;
+      a.dx = mm[0] - a.mm0[0]; a.dy = mm[1] - a.mm0[1];
+      if(a.parte === "ponta") a.cur = compPonto(ev);
+      compSelDesenhar();
+    });
+    window.addEventListener("mouseup", function(){
+      var a = COMP.arr; if(!a || a.fim) return;
+      pal.classList.remove("mdp-sel-arrastando");
+      if(!a.moveu){ COMP.arr = null; compSelDesenhar(); return; }
+      a.fim = true; selGravar(a);
+    });
+    pal.addEventListener("mousemove", function(ev){             // cursor de "mover" sobre o que dá para pegar
+      if(COMP.arr || COMP.cota || COMP.leader || COMP.vista === "folha" || (typeof V2 !== "undefined" && V2.drag)){ pal.classList.remove("mdp-sel-sobre"); return; }
+      var mm = compMm(ev); pal.classList.toggle("mdp-sel-sobre", !!(mm && selHit(mm)));
+    });
+  }
 
   function compTecla(ev){
-    if(ev.key !== "Escape" || !compAberto()) return;
+    if(!compAberto()) return;
+    var foco = document.activeElement, digitando = !!foco && (/^(INPUT|TEXTAREA|SELECT)$/.test(foco.tagName) || foco.isContentEditable);
+    if((ev.key === "Delete" || ev.key === "Backspace") && COMP.sel && !digitando && !COMP.cota && !COMP.leader){ ev.preventDefault(); selApagar(); return; }
+    if(ev.key !== "Escape") return;
     var e = $("mdp_est_ov");
     if(e && e.style.display !== "none"){ e.style.display = "none"; return; }
+    if(COMP.sel && !COMP.cota && !COMP.leader){ COMP.sel = null; compSelDesenhar(); return; }
     if((COMP.cota || COMP.leader) && COMP.p0){ COMP.p0 = null; compSvgLimpar(); compDica(); return; }
     if(COMP.cota){ compCotaModo(false); return; }
     if(COMP.leader){ compLeaderModo(false); return; }
@@ -28924,6 +29163,7 @@ function AV_gerarDescSituacao(){
   }
   function compFechar(){
     var ov = $("mdp_comp_ov"); if(!ov) return;
+    COMP.sel = null; COMP.arr = null;
     compCotaModo(false); compLeaderModo(false);
     var tab = $("mdp_bloco_tabela");                           // devolve a tabela ao hospedeiro oculto
     if(tab && COMP.tabPai){ COMP.tabPai.insertBefore(tab, COMP.tabProx || null); COMP.tabPai = null; COMP.tabProx = null; }
@@ -29078,7 +29318,8 @@ function AV_gerarDescSituacao(){
             '<button type="button" class="mdp-mini" id="mdp_bt_leader" title="Seta com texto: clique no ponto que a seta aponta e depois onde o texto fica. Fica guardada e sai no PDF">➡️ Leader</button>' +
             '<button type="button" class="mdp-mini" id="mdp_bt_jpg" title="Só o quadro do mapa, exatamente como está aqui">🖼️ Exportar JPG</button>' +
             '<button type="button" class="mdp-mini" id="mdp_bt_pdf" title="A prancha montada: mapa, tabela e carimbo">📄 PDF da prancha</button>' +
-            '<button type="button" class="mdp-mini" id="mdp_bt_dxf" title="Desenho em coordenadas UTM, uma camada por elemento (abre em qualquer CAD; para DWG, salve pelo AutoCAD)">📐 DXF / CAD</button>' +
+            '<button type="button" class="mdp-mini" id="mdp_bt_dxf" data-cad-dxf title="Desenho em coordenadas UTM, uma camada por elemento (abre em qualquer CAD; para DWG, salve pelo AutoCAD)">📐 DXF / CAD</button>' +
+            '<button type="button" class="mdp-mini" id="mdp_bt_dwg" data-cad-dwg style="display:none" title="O mesmo desenho do DXF, já convertido para DWG (AutoCAD 2010) pelo CADCraft desta máquina">📐 DWG</button>' +
             '<button type="button" class="mdp-comp-x" title="Fechar (Esc)">×</button>' +
           '</div>' +
           '<div id="mdp_comp_esc" class="mdp-comp-esc" style="padding:1px 12px 8px;background:#0a1b20;border-bottom:1px solid #16333b;"></div>' +
@@ -29113,6 +29354,8 @@ function AV_gerarDescSituacao(){
       });
       ov.querySelector("#mdp_bt_pdf").addEventListener("click", function(){ window.MDP_pdfPlanta(); });
       ov.querySelector("#mdp_bt_dxf").addEventListener("click", function(){ window.MDP_exportarDxf(); });
+      ov.querySelector("#mdp_bt_dwg").addEventListener("click", function(){ window.MDP_exportarDxf({ dwg:true }); });
+      cadDwgMostrar();
       ov.querySelector("#mdp_bt_jpg").addEventListener("click", function(){ window.MDP_jpgQuadro(); });
       ov.querySelector("#mdp_bt_est").addEventListener("click", function(){ window.MDP_abrirEstilos(); });
       ov.querySelector("#mdp_bt_cota").addEventListener("click", function(){ compCotaModo(!COMP.cota); });
@@ -29122,18 +29365,19 @@ function AV_gerarDescSituacao(){
 
       // marcação das cotas: dois cliques no quadro
       var pal = ov.querySelector("#mdp_comp_pal");
+      compLigarSel(pal);                                       // selecionar e arrastar rótulos, leaders e cotas (14/10/2026)
       pal.addEventListener("click", function(ev){
         if(!(COMP.cota || COMP.leader) || ev.shiftKey || COMP.vista === "folha") return;
         var q = compPonto(ev); if(!q) return;
         if(!COMP.p0){ COMP.p0 = q; compSvg(q, null); compDica(); return; }
         if(Math.hypot(q.E - COMP.p0.E, q.N - COMP.p0.N) < .05){ COMP.p0 = null; compSvgLimpar(); compDica(); return; }
         if(COMP.leader){
+          // 14/10/2026: sem prompt() — a leader nasce com "Texto", já selecionada, com o campo de texto em foco na barrinha
           var q0 = COMP.p0; COMP.p0 = null; compSvgLimpar(); compDica();
-          var tx = window.prompt("Texto da leader (use | para quebrar a linha):", "");
-          if(tx == null || !String(tx).trim()) return;
           var LL = leadersLer();
-          LL.push({ aE:q0.E, aN:q0.N, bE:q.E, bN:q.N, txt:String(tx).replace(/\s*\|\s*/g, "\n").trim() });
-          leadersGravar(LL); leaderMexeu(); return;
+          LL.push({ aE:q0.E, aN:q0.N, bE:q.E, bN:q.N, txt:"Texto" });
+          COMP.sel = { tipo:"leader", i:LL.length - 1 }; COMP.focoTxt = true;
+          leadersGravar(LL); compLeaderModo(false); leaderMexeu(); return;
         }
         var L = cotasLer();
         L.push({ aE:COMP.p0.E, aN:COMP.p0.N, bE:q.E, bN:q.N, na:COMP.p0.nome || "", nb:q.nome || "", off:0 });
@@ -29851,12 +30095,43 @@ function AV_gerarDescSituacao(){
       var c = doCadastro(), sufPer = ANEIS.length > 1 ? (ST.geral ? "_GERAL" : "_AREA-" + (ST.area + 1)) : "";
       var nome = "PLANTA_SITUACAO_INFRA_" + (c.ferrovia || "FTN") + "_CTD-" + (c.ctd || "000") + sufPer + ".dxf";
       var blob = new Blob([txt], { type:"application/dxf" });
+      if(opts.dwg){
+        // DWG: o mesmo DXF, convertido pelo CADCraft do servidor desta máquina (/api/cad/dwg)
+        aviso("convertendo para DWG…");
+        nome = nome.replace(/\.dxf$/i, ".dwg");
+        var rD = await fetch(cadApi() + "/api/cad/dwg?nome=" + encodeURIComponent(nome), { method:"POST", headers:{ "Content-Type":"application/dxf" }, body:blob });
+        if(!rD.ok){ var jD = null; try{ jD = await rD.json(); }catch(_){} throw new Error((jD && jD.erro) || ("HTTP " + rD.status)); }
+        blob = new Blob([await rD.arrayBuffer()], { type:"application/acad" });
+      }
       if(load) load.style.display = "none";
       if(opts.retornar) return { blob:blob, nome:nome };
       if(window.FS_salvar) await window.FS_salvar(blob, nome);
       else { var el = document.createElement("a"); el.href = URL.createObjectURL(blob); el.download = nome; document.body.appendChild(el); el.click(); el.remove(); setTimeout(function(){ URL.revokeObjectURL(el.href); }, 4000); }
-    }catch(er){ console.warn("planta/DXF:", er); aviso("Não consegui gerar o DXF: " + (er.message || er)); }
+    }catch(er){
+      console.warn("planta/" + (opts.dwg ? "DWG" : "DXF") + ":", er);
+      aviso("Não consegui gerar o " + (opts.dwg ? "DWG" : "DXF") + ": " + (er.message || er));
+      if(opts.dwg) alert("Não consegui gerar o DWG: " + (er.message || er) + "\n\nO DXF continua disponível pelo botão “Exportar DXF”.");
+    }
   };
+
+  /* ---- DWG pelo CADCraft: o botão só aparece se o servidor desta máquina tiver o programa ---- */
+  function cadApi(){ return (typeof window.CAD_SERVIDOR_URL === "string" ? window.CAD_SERVIDOR_URL : "").replace(/\/+$/, ""); }
+  var _cadDwg = null;   // promessa: true/false (consultada uma vez por sessão)
+  function cadDwgDisponivel(){
+    if(!_cadDwg) _cadDwg = fetch(cadApi() + "/api/cad/status", { cache:"no-store" })
+      .then(function(r){ return r.ok ? r.json() : {}; })
+      .then(function(j){ return !!(j && j.dwg); })
+      .catch(function(){ return false; });
+    return _cadDwg;
+  }
+  function cadDwgMostrar(){
+    cadDwgDisponivel().then(function(ok){
+      if(!ok) return;
+      Array.prototype.forEach.call(document.querySelectorAll("[data-cad-dwg]"), function(b){ b.style.display = ""; });
+      Array.prototype.forEach.call(document.querySelectorAll("[data-cad-dxf]"), function(b){ b.title = (b.title || "").replace(/[;(]\s*para DWG, salve pelo AutoCAD\)?/, b.id ? ")" : ""); });
+    });
+  }
+  if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", cadDwgMostrar); else cadDwgMostrar();
   window.MDP_pdfPlantaCom = function(){ return window.MDP_pdfPlanta({ sobre:{ satelite:true }, sufixo:"_COM-SATELITE" }); };
   window.MDP_pdfPlantaSem = function(){ return window.MDP_pdfPlanta({ sobre:{ satelite:false, ortofoto:false }, sufixo:"_SEM-SATELITE" }); };
 
