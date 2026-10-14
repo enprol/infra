@@ -19410,7 +19410,7 @@ window.FOTO_rodapeHTML=rodapeHTML;
     const rep = gruposRep.map(function(g){ return { cod:g[0], t:g[1], l:ler(g[0]) }; }).filter(function(g){ return g.l.length; });
     const nrep = ler("13");
     if(!rep.length && !nrep.length) return;
-    const tabelasUsadas = [], fontes = [];
+    const tabelasUsadas = [], fontes = []; let comImgs = false;
     const marca = function(l){
       String(l.img||"").split("|").forEach(function(k){ if(k && tabelasUsadas.indexOf(k) === -1) tabelasUsadas.push(k); });
       if(l.tabela && fontes.indexOf(l.tabela) === -1) fontes.push(l.tabela);
@@ -19505,9 +19505,21 @@ window.FOTO_rodapeHTML=rodapeHTML;
       paragrafo(doc,ctx,"Reprodução das tabelas do Relatório Genérico de Valores (RGV) — preços unitários (Anexo 3) e orçamentos de cercas (Anexo 4) — que fundamentam os valores lançados nos itens 12 e 13 acima.",8);
       tabelasUsadas.forEach(function(key){
         const src = window.BENF_imgSrc(key); if(!src) return;
-        inserirImagem(doc, ctx, src, 640); ctx.y += 10;
+        inserirImagem(doc, ctx, src, 640); ctx.y += 10; comImgs = true;
       });
     }
+    /* resumoBenf — fecha o bloco com os valores totais */
+    const fmtR = function(x){ return "R$ " + x.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}); };
+    const vFd = anxNum((document.getElementById("av_fd_result")||{}).textContent), t12 = rep.length ? anxNum(tot("bnf_tot_12")) : 0, t13 = nrep.length ? anxNum(tot("bnf_tot_13")) : 0;
+    if(comImgs) novaPagina(doc,ctx); else { ensure(doc,ctx,190); ctx.y += 6; }
+    secBar(doc,ctx,"RESUMO DOS VALORES — " + (vFd > 0 ? "TERRA NUA E BENFEITORIAS" : "BENFEITORIAS"));
+    const linhasR = [];
+    if(vFd > 0) linhasR.push(["Terra nua — área desapropriada (VTN/ha × área desapropriada)", fmtR(vFd)]);
+    if(rep.length) linhasR.push(["Benfeitorias reprodutivas (item 12)", fmtR(t12)]);
+    if(nrep.length) linhasR.push(["Benfeitorias não reprodutivas (item 13)", fmtR(t13)]);
+    if(rep.length && nrep.length) linhasR.push(["Sub-total das benfeitorias (12 + 13)", fmtR(t12 + t13)]);
+    tabela([{t:"Discriminação",w:72,al:"l"},{t:"Valor (R$)",w:28,al:"r"}], linhasR,
+      [vFd > 0 ? "VALOR TOTAL (TERRA NUA + BENFEITORIAS)" : "VALOR TOTAL DAS BENFEITORIAS", fmtR(vFd + t12 + t13)]);
   }
 
   function desenharFtnCompacto(doc,ctx){
