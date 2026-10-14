@@ -20194,6 +20194,29 @@ window.FOTO_rodapeHTML=rodapeHTML;
       return dentro ? 0 : best;
     }catch(e){ return null; }
   }
+  /* roteiroQR — geometria da escala gráfica do croqui (mapa automático: viewBox 900×889, escala à direita, base em y≈677, borda direita x=834) */
+  function escalaGeo(src){
+    const padrao = { bar:0.14, right:834/900, top:54/889 };
+    return new Promise(function(res){
+      const im = new Image();
+      im.onload = function(){
+        try{
+          const iw = im.naturalWidth, ih = im.naturalHeight;
+          if(Math.abs(iw/ih - 900/889) > 0.03) return res({ bar:0.14, right:0.96, top:0.04 });   // croqui que não é do mapa automático
+          const k = iw/900, cv = document.createElement("canvas"); cv.width = iw; cv.height = ih;
+          const cx = cv.getContext("2d"); cx.drawImage(im, 0, 0);
+          const y = Math.round((677 + 2.5) * k), x1 = Math.round(834 * k), row = cx.getImageData(0, y, iw, 1).data;
+          const ok = function(x){ const i = x*4, l = 0.299*row[i] + 0.587*row[i+1] + 0.114*row[i+2]; return l < 85 || l > 243; };   // segmentos: preto ou branco puro
+          let x = x1, falhas = 0;
+          while(x > 0 && x1 - x < 190*k){ if(ok(x)) falhas = 0; else if(++falhas > 3*k) break; x--; }
+          const barU = (x1 - x - falhas) / k;
+          res(barU >= 50 && barU <= 175 ? { bar:barU/900, right:834/900, top:54/889 } : padrao);
+        }catch(e){ res(padrao); }
+      };
+      im.onerror = function(){ res(padrao); };
+      im.src = src;
+    });
+  }
   async function anexoRoteiro(out, procRef){
     const R = roteiroDados(); if(!R) return;
     const {jsPDF} = window.jspdf, doc = new jsPDF({unit:"pt",format:"a4",compress:true}), ctx = makeCtx(doc);
@@ -20216,28 +20239,38 @@ window.FOTO_rodapeHTML=rodapeHTML;
         if(qr){ const by = await window.__MDP_qr.png(qr); let bin = ""; for(let i=0;i<by.length;i+=8192) bin += String.fromCharCode.apply(null, by.subarray(i, i+8192)); qrUri = "data:image/png;base64," + btoa(bin); }
       }
     }catch(err){ console.warn("QR do anexo de roteiro:", err); }
-    const qw = 62, qh = 74, wTxt = qrUri ? L - qw - 20 : L, yTop = ctx.y;
-    // descrição em texto corrido (sem caixa), ao lado do QR
+    const qAR = 408 / 340, fmtQr = qrUri && /^data:image\/jpe?g/.test(qrUri) ? "JPEG" : "PNG";
+    // descrição em texto corrido (sem caixa)
     doc.setFont("helvetica","bold"); doc.setFontSize(7.5); doc.setTextColor(90,100,112);
     doc.text("DESCRIÇÃO DO ROTEIRO DE ACESSO", ctx.ML, ctx.y + 7);
-    doc.setDrawColor(211,219,228); doc.setLineWidth(0.5); doc.line(ctx.ML, ctx.y + 11, ctx.ML + wTxt, ctx.y + 11); ctx.y += 20;
+    doc.setDrawColor(211,219,228); doc.setLineWidth(0.5); doc.line(ctx.ML, ctx.y + 11, ctx.MR, ctx.y + 11); ctx.y += 20;
     doc.setFont("helvetica","normal"); doc.setFontSize(9.5); doc.setTextColor(36,52,71);
-    const lin = doc.splitTextToSize(R.txt || "(Roteiro de acesso ainda não preenchido neste cadastro — informe os Pontos A e B em Técnica › Roteiro de Acesso.)", wTxt);
+    const lin = doc.splitTextToSize(R.txt || "(Roteiro de acesso ainda não preenchido neste cadastro — informe os Pontos A e B em Técnica › Roteiro de Acesso.)", L);
     lin.forEach(function(t, k){ doc.text(t, ctx.ML, ctx.y + 9 + k * 13); });
-    let yFim = ctx.y + lin.length * 13 + 4;
-    if(qrUri){
-      try{ doc.addImage(qrUri, /^data:image\/jpe?g/.test(qrUri) ? "JPEG" : "PNG", ctx.MR - qw, yTop, qw, qh, undefined, "FAST"); }catch(err){ console.warn("QR:", err); }
+    ctx.y += lin.length * 13 + 6;
+    if(qrUri && R.mapa){
       const d = distPontoImovel(R.B);
-      const cap = ["Percurso do Ponto A ao Ponto B"].concat(d == null ? [] : [d <= 1 ? "Destino dentro do imóvel" : "Destino a " + Math.round(d) + " m do limite do imóvel"]);
-      doc.setFont("helvetica","normal"); doc.setFontSize(6.5); doc.setTextColor(90,100,112);
-      let cy = yTop + qh + 8; cap.forEach(function(t){ doc.splitTextToSize(t, 110).forEach(function(l){ doc.text(l, ctx.MR, cy, {align:"right"}); cy += 7.5; }); });
-      yFim = Math.max(yFim, cy);
+      doc.setFont("helvetica","italic"); doc.setFontSize(7.5); doc.setTextColor(90,100,112);
+      const nota = "QR Code no canto superior direito do croqui: abre o percurso do Ponto A ao Ponto B no Google Maps"
+        + (d == null ? "." : " — " + (d <= 1 ? "destino dentro do imóvel." : "destino a " + Math.round(d) + " m do limite do imóvel."));
+      doc.splitTextToSize(nota, L).forEach(function(t){ doc.text(t, ctx.ML, ctx.y + 8); ctx.y += 9.5; });
     }
-    ctx.y = yFim + 10;
+    ctx.y += 8;
     if(R.mapa){
       doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(30,40,55);
       doc.text("CROQUI DE ACESSO À ÁREA ABRANGIDA", ctx.W/2, ctx.y + 8, {align:"center"}); ctx.y += 16;
-      inserirImagem(doc, ctx, R.mapa, Math.max(180, ctx.MB - ctx.y - 14));        // inteiro, centralizado e ajustado ao espaço da folha
+      const maxH = Math.max(180, ctx.MB - ctx.y - 14);
+      let iw = 0, ih = 0; try{ const pr = doc.getImageProperties(R.mapa); iw = pr.width; ih = pr.height; }catch(err){}
+      let w = L, h = iw ? w * ih / iw : maxH; if(h > maxH){ h = maxH; w = iw ? h * iw / ih : w; }
+      const x0 = ctx.ML + (L - w) / 2, y0 = ctx.y;
+      inserirImagem(doc, ctx, R.mapa, maxH);                                         // croqui inteiro, centralizado
+      if(qrUri){
+        const g = await escalaGeo(R.mapa), qwid = g.bar * w, qhei = qwid * qAR, qx = x0 + g.right * w - qwid, qy = y0 + g.top * h;
+        doc.setFillColor(255,255,255); doc.rect(qx - 1.5, qy - 1.5, qwid + 3, qhei + 3, "F");   // filete branco: destaca do satélite
+        try{ doc.addImage(qrUri, fmtQr, qx, qy, qwid, qhei, undefined, "FAST"); }catch(err){ console.warn("QR:", err); }
+      }
+    } else if(qrUri){
+      ensure(doc,ctx,90); doc.addImage(qrUri, fmtQr, ctx.ML, ctx.y, 62, 62 * qAR, undefined, "FAST"); ctx.y += 62 * qAR + 8;
     }
     doc.deletePage(1);                                                               // a 1ª página (em branco) nasce com o documento
     const ax = await PDFLib.PDFDocument.load(doc.output("arraybuffer"));
