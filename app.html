@@ -8555,12 +8555,14 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
     <input type="file" accept=".json,.txt,application/json,text/plain" id="campo_file" onchange="CAMPO_importar(this)">
   </label>
   <div class="vactions" style="margin-top:8px;">
+    <button class="vbtn vbtn-ghost vbtn-sm" type="button" onclick="CAMPO_iniciarVazia()" title="Para cadastros sem arquivo .json: abre uma ficha em branco só para acrescentar as fotografias do campo e gerar o mapa de localização">📷 Sem arquivo? Começar só com fotos</button>
     <button class="vbtn vbtn-ghost vbtn-sm" type="button" onclick="CAMPO_limpar()">🗑️ Remover ficha importada</button>
   </div>
 </div>
 
 <div class="vcard" id="campo_vazio">
-  <p class="hint-inline" style="margin:0;">Nenhuma ficha de campo importada neste cadastro ainda. Importe o arquivo acima para ver o conteúdo, gerar os PDFs e alimentar a Ficha de Vistoria.</p>
+  <p class="hint-inline" style="margin:0;">Nenhuma ficha de campo neste cadastro ainda. Importe o arquivo acima para ver o conteúdo, gerar os PDFs e alimentar a Ficha de Vistoria.</p>
+  <p class="hint-inline" style="margin:8px 0 0;">Não há arquivo .json para este cadastro, mas há fotos de campo? <button class="vbtn vbtn-ghost vbtn-sm" type="button" onclick="CAMPO_iniciarVazia()">📷 Começar só com fotos</button> — as imagens entram por tópico e o mapa de localização é gerado pelas coordenadas dos carimbos.</p>
 </div>
 
 <div class="dd-sw" id="campo_modo_sw" role="tablist" aria-label="Forma de edição do relatório de campo" style="display:none">
@@ -31723,6 +31725,7 @@ function AV_gerarDescSituacao(){
     etapa("áreas do Relatório Técnico", function(){ if(pacote.relAreas && window.REL_setAreas) window.REL_setAreas(pacote.relAreas); });
     etapa("tabelas do Relatório Técnico", function(){ if(pacote.relTabelas && window.REL_setTabela){ window.REL_setTabela(1, pacote.relTabelas["1"]||pacote.relTabelas[1]||[]); window.REL_setTabela(2, pacote.relTabelas["2"]||pacote.relTabelas[2]||[]); } });
     etapa("assinaturas", function(){ if(pacote.assinaturas){ window.__ASSIN__=window.__ASSIN__||{}; window.__ASSIN__.fb=pacote.assinaturas.fb||null; window.__ASSIN__.rel=pacote.assinaturas.rel||null; [["fb","fb_ass_img_prev"],["rel","rel_ass_img_prev"]].forEach(function(p){ var im=window.__ASSIN__[p[0]], pv=document.getElementById(p[1]); if(pv){ pv.innerHTML= im?('<img src="'+im+'" style="max-height:64px;border:1px solid #cfd9e4;border-radius:6px;padding:3px;background:#fff;"> <button type="button" class="vbtn vbtn-ghost" style="padding:4px 10px;" onclick="window.__ASSIN__.'+p[0]+'=null;document.getElementById(\''+p[1]+'\').innerHTML=\'\';">remover</button>'):''; } }); } });
+    etapa("assinatura padrão da assistente social", function(){ if(window.FB_sincAssinaturaPadrao) window.FB_sincAssinaturaPadrao(); });
     etapa("campos gerais (Ficha de Vistoria, Relatório Técnico, Parecer e demais abas)", function(){ restaurarCampos(pacote.campos); });
     etapa("conteúdo editado (DESP 2)", function(){ if(window.D2_setDoc) window.D2_setDoc(pacote.d2doc||null); });   // depois das estacas/NA/família para recalcular com tudo
     etapa("opções (botões de rádio) das abas", function(){ restaurarRadios(pacote.radios); });
@@ -32712,8 +32715,35 @@ function AV_gerarDescSituacao(){
       if (pv) pv.innerHTML = '<img src="'+cfg.assinatura+'" style="max-height:64px;border:1px solid #cfd9e4;border-radius:6px;padding:3px;background:#fff;"> <button type="button" class="vbtn vbtn-ghost" style="padding:4px 10px;" onclick="window.__ASSIN__.fb=null;document.getElementById(\'fb_ass_img_prev\').innerHTML=\'\';">remover</button>';
     }
     if (window.FB_preencherLocalData) FB_preencherLocalData();
+    try{ window.FB_sincAssinaturaPadrao(); }catch(e){}
   }
   window.FB_aplicarAssinatura = FB_aplicarAssinatura;
+  /* campoVazio — assinatura padrão (modelo da Ficha de Vistoria) para quem tem rubrica cadastrada em FB_APLICADORES e está na lista abaixo */
+  var FB_ASSIN_FIXA = ["JAYLLA SAMYLLA PEREIRA DOS SANTOS MONTEIRO"];
+  function FB_aplicadorAtual(){
+    var A = window.FB_APLICADORES || {}, v = function(id){ var e = document.getElementById(id); return e ? String(e.value || "").trim().toUpperCase() : ""; };
+    var k = v("fb_aplicador"); if(A[k] || A[(document.getElementById("fb_aplicador") || {}).value]) return (A[k] ? k : (document.getElementById("fb_aplicador") || {}).value);
+    var nome = v("fb_ass_nome"); return Object.keys(A).filter(function(x){ return String(A[x].nome || x).trim().toUpperCase() === nome; })[0] || "";
+  }
+  window.FB_sincAssinaturaPadrao = function(){
+    try{
+      var k = FB_aplicadorAtual(); if(!k || FB_ASSIN_FIXA.indexOf(String(k).toUpperCase()) < 0) return;
+      var cfg = window.FB_APLICADORES[k]; if(!cfg || !cfg.assinatura) return;
+      window.__ASSIN__ = window.__ASSIN__ || { fb:null, rel:null };
+      window.__ASSIN__.fb = cfg.assinatura; window.__ASSIN__.rel = cfg.assinatura;
+      [["fb_ass_img_prev","fb"],["rel_ass_img_prev","rel"]].forEach(function(d){
+        var pv = document.getElementById(d[0]); if(!pv) return;
+        pv.innerHTML = '<img src="' + cfg.assinatura + '" style="max-height:64px;border:1px solid #cfd9e4;border-radius:6px;padding:3px;background:#fff;"> <button type="button" class="vbtn vbtn-ghost" style="padding:4px 10px;" onclick="window.__ASSIN__.' + d[1] + '=null;document.getElementById(\'' + d[0] + '\').innerHTML=\'\';">remover</button>';
+      });
+    }catch(e){ console.warn("assinatura padrão:", e); }
+  };
+  ["FB_gerarPDF","WORD_anexoB","REL_gerarPDF","REL_gerarWord"].forEach(function(fn){
+    document.addEventListener("DOMContentLoaded", function(){
+      var orig = window[fn]; if(typeof orig !== "function" || orig.__assinPadrao) return;
+      var w = function(){ window.FB_sincAssinaturaPadrao(); return orig.apply(this, arguments); }; w.__assinPadrao = true;
+      window[fn] = w;
+    });
+  });
   function FB_extrasSetup(){
     FB_moedaBR(document.getElementById("fb_44_remun"));
     FB_moedaBR(document.getElementById("fb_44_renda"));
@@ -37790,9 +37820,9 @@ window.DRL_gerarPDF=async function(opts){
   function galerias(f){
     var out = [];
     function add(id, t, arr, fixa){ out.push({ id:id, t:t, arr:arr, fixa:!!fixa }); }
-    if((f.fotosImovel||[]).length) add("fotosImovel", "Imóvel — vista geral", f.fotosImovel);
+    if((f.fotosImovel||[]).length || f._semArquivo) add("fotosImovel", "Imóvel — vista geral", f.fotosImovel = f.fotosImovel || []);   /* campoVazio */
     add("fotosAcesso", GAL_FIXAS[0][1], f.fotosAcesso = f.fotosAcesso || [], true);
-    if((f.fotosAreaDesap||[]).length) add("fotosAreaDesap", "Área desapropriada", f.fotosAreaDesap);
+    if((f.fotosAreaDesap||[]).length || f._semArquivo) add("fotosAreaDesap", "Área desapropriada", f.fotosAreaDesap = f.fotosAreaDesap || []);
     add("fotosBenfTotal", GAL_FIXAS[1][1], f.fotosBenfTotal = f.fotosBenfTotal || [], true);
     add("fotosBenfFaixa", GAL_FIXAS[2][1], f.fotosBenfFaixa = f.fotosBenfFaixa || [], true);
     [["reprodutivas","benfeitoria","Benfeitoria reprodutiva "],["pastagem","variedade","Pastagem "],
@@ -38233,6 +38263,15 @@ window.DRL_gerarPDF=async function(opts){
       });
     };
     (window.MG_fichas ? MG_fichas.ler(fr, file) : fr.readAsText(file));
+  };
+  // cadastro sem arquivo de importação: abre uma ficha de campo em branco, só para receber as fotografias (e gerar o mapa de localização delas)
+  window.CAMPO_iniciarVazia = function(){
+    if(CAMPO){ alert("Este cadastro já tem uma ficha de campo. Use “+ Adicionar imagens” em cada tópico."); return; }
+    var v = function(id){ var e = _(id); return e ? String(e.value || "").trim() : ""; }, agora = new Date().toISOString();
+    CAMPO = garantirEstrutura({ _app:"ENPROL-FichaCampo", _v:1, _semArquivo:true, id:"f" + Date.now() + Math.random().toString(36).slice(2, 6), criadaEm:agora,
+      geral:{ processo:v("fb_proc_ctd"), lote:v("fb_proc_lote"), ferrovia:v("fb_proc_ferrovia"), dataVistoria:"" }, campos:{}, tecnico:{} });
+    CAMPO_render(); marcarSujo();
+    alert("Ficha de campo criada, sem arquivo.\n\nAdicione as fotografias em “+ Adicionar imagens” (ou arraste-as) em cada tópico. O mapa de localização lê a coordenada gravada no carimbo de cada foto.");
   };
   window.CAMPO_limpar = function(){
     if(!CAMPO) return;
