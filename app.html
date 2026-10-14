@@ -18632,7 +18632,7 @@ window.FOTO_rodapeHTML=rodapeHTML;
   }
   // sub-rótulo
   function subLbl(doc,ctx,txt){
-    ensure(doc,ctx,16);
+    ensure(doc,ctx, ctx.tituloComConteudo ? 50 : 16);                                // PDF da Avaliação FTN: o título leva junto as primeiras linhas do conteúdo
     doc.setFont("helvetica","bold"); doc.setFontSize(8.5); doc.setTextColor(23,90,159);
     doc.text(txt, ctx.ML, ctx.y+8);
     doc.setDrawColor(211,219,228); doc.setLineWidth(0.4);
@@ -19492,18 +19492,18 @@ window.FOTO_rodapeHTML=rodapeHTML;
         if(ctx.y + h > ctx.MB){ novaPagina(doc,ctx); cab(); doc.setFont("helvetica","normal"); doc.setFontSize(7.5); }
         let x = ctx.ML; doc.setTextColor(35,45,60);
         cel.forEach(function(a, i){
-          doc.rect(x, ctx.y, W[i], h);
           a.forEach(function(t, k){
             const al = cols[i].al;
             doc.text(t, al === "l" ? x + 3 : (al === "r" ? x + W[i] - 3 : x + W[i] / 2), ctx.y + 9 + k * 9, al === "l" ? {} : {align: al === "r" ? "right" : "center"});
           });
           x += W[i];
         });
+        doc.setDrawColor(190,200,212); doc.setLineWidth(0.4); doc.line(ctx.ML, ctx.y + h, ctx.MR, ctx.y + h);   // linha fina inferior, sem laterais
         ctx.y += h;
       });
       if(rodape){
         ensure(doc,ctx,18);
-        doc.setFillColor(238,244,251); doc.rect(ctx.ML, ctx.y, L, 15, "FD");
+        doc.setFillColor(238,244,251); doc.rect(ctx.ML, ctx.y, L, 15, "F");
         doc.setFont("helvetica","bold"); doc.setFontSize(8); doc.setTextColor(23,90,159);
         doc.text(rodape[0], ctx.MR - W[W.length - 1] - 4, ctx.y + 10, {align:"right"});
         doc.text(rodape[1], ctx.MR - 3, ctx.y + 10, {align:"right"});
@@ -19517,7 +19517,7 @@ window.FOTO_rodapeHTML=rodapeHTML;
       secBar(doc,ctx,"MEMORIAL DE CÁLCULO DE BENFEITORIAS REPRODUTIVAS");
       paragrafo(doc,ctx,"Valor Total = Quantidade × Valor Unitário × Depreciação (método de Ross-Heidecke: D = (100 − k) / 100). Quando a depreciação não é numérica (ex.: produtiva, imaturo), o fator aplicado é 1.",8.5);
       rep.forEach(function(g){
-        subLbl(doc,ctx,g.t);
+        if(g.cod !== "121") subLbl(doc,ctx,g.t);                                          // "Culturas Permanentes" não é impresso
         g.l.forEach(marca);
         tabela([{t:"Discriminação",w:31,al:"l"},{t:"Estado / idade",w:14,al:"l"},{t:"Unid.",w:6,al:"c"},{t:"Qtd.",w:8,al:"r"},{t:"Deprec.",w:13,al:"c"},{t:"Vl. unitário (R$)",w:13,al:"r"},{t:"Vl. total (R$)",w:15,al:"r"}],
           g.l.map(function(l){ return [l.disc, l.estado, l.unid, l.qtd, l.dep, l.vu, (l.total || "").replace(/^R\$\s*/, "")]; }),
@@ -19561,6 +19561,7 @@ window.FOTO_rodapeHTML=rodapeHTML;
   function desenharFtnCompacto(doc,ctx){
     const E = id => document.getElementById(id), L = ctx.MR-ctx.ML;
     const txt = id => { const e=E(id); return e ? String(e.value!=null && e.tagName!=="SPAN" && e.tagName!=="DIV" ? e.value : e.textContent).trim() : ""; };
+    ctx.tituloComConteudo = true;
     ctx.rodapePadrao = true;   // rodapé no padrão dos demais relatórios (endereços à esquerda, telefone/e-mail à direita)
     novaPagina(doc,ctx);
 
@@ -19570,24 +19571,29 @@ window.FOTO_rodapeHTML=rodapeHTML;
       const campos = [
         [["Documento","Memorial de Cálculo da avaliação"]],
         [["Processo administrativo", txt("fv_processo") || "—"]],
-        [["Proprietário / ocupante", txt("av_nome") || "—"],["Localidade", txt("av_localidade") || "—"],["Município / UF", mun || "—"]]
+        [["Proprietário / ocupante", txt("av_nome") || "—"],["Município / UF", mun || "—"]]   /* ajustesVisual */
       ];
-      const h = 15 + campos.length*21 - 3, y0 = ctx.y;
+      doc.setFont("helvetica","bold"); doc.setFontSize(8.6);
+      const linhasC = campos.map(function(lin){
+        const fr = lin.length === 2 ? [0.64, 0.36] : lin.map(function(){ return 1/lin.length; });
+        const cel = lin.map(function(c, i){ return { rot:c[0], linhas: doc.splitTextToSize(String(c[1]), (L - 20) * fr[i] - 8), fr:fr[i] }; });
+        return { cel:cel, h: 21 + (Math.max.apply(null, cel.map(function(c){ return c.linhas.length; })) - 1) * 10 };
+      });
+      const h = 12 + linhasC.reduce(function(t, l){ return t + l.h; }, 0), y0 = ctx.y;
       doc.setFillColor(244,248,252); doc.setDrawColor(188,214,240); doc.setLineWidth(0.6);
       doc.roundedRect(ctx.ML, y0, L, h, 3, 3, "FD");
       doc.setFillColor(31,111,192); doc.rect(ctx.ML, y0, 4, h, "F");
       let yy = y0 + 5;
-      campos.forEach(function(lin){
-        const w = (L - 20) / lin.length; let xx = ctx.ML + 12;
-        lin.forEach(function(c){
+      linhasC.forEach(function(lin){
+        let xx = ctx.ML + 12;
+        lin.cel.forEach(function(c){
           doc.setFont("helvetica","bold"); doc.setFontSize(6.3); doc.setTextColor(100,112,128);
-          doc.text(c[0].toUpperCase(), xx, yy + 6);
+          doc.text(c.rot.toUpperCase(), xx, yy + 6);
           doc.setFont("helvetica","bold"); doc.setFontSize(8.6); doc.setTextColor(20,40,70);
-          let v = String(c[1]); while(v.length > 4 && doc.getTextWidth(v) > w - 8) v = v.slice(0, -2);
-          doc.text(v === String(c[1]) ? v : v.trim() + "…", xx, yy + 16);
-          xx += w;
+          c.linhas.forEach(function(t, k){ doc.text(t, xx, yy + 16 + k * 10); });
+          xx += (L - 20) * c.fr;
         });
-        yy += 21;
+        yy += lin.h;
       });
       ctx.y = y0 + h + 10; doc.setTextColor(30,40,55);
     })();
@@ -20265,7 +20271,7 @@ window.FOTO_rodapeHTML=rodapeHTML;
       const x0 = ctx.ML + (L - w) / 2, y0 = ctx.y;
       inserirImagem(doc, ctx, R.mapa, maxH);                                         // croqui inteiro, centralizado
       if(qrUri){
-        const g = await escalaGeo(R.mapa), qwid = g.bar * w, qhei = qwid * qAR, qx = x0 + g.right * w - qwid, qy = y0 + g.top * h;
+        const g = await escalaGeo(R.mapa), qwid = g.bar * w * 0.7, qhei = qwid * qAR, qx = x0 + g.right * w - qwid, qy = y0 + g.top * h;
         doc.setFillColor(255,255,255); doc.rect(qx - 1.5, qy - 1.5, qwid + 3, qhei + 3, "F");   // filete branco: destaca do satélite
         try{ doc.addImage(qrUri, fmtQr, qx, qy, qwid, qhei, undefined, "FAST"); }catch(err){ console.warn("QR:", err); }
       }
@@ -20275,6 +20281,18 @@ window.FOTO_rodapeHTML=rodapeHTML;
     doc.deletePage(1);                                                               // a 1ª página (em branco) nasce com o documento
     const ax = await PDFLib.PDFDocument.load(doc.output("arraybuffer"));
     (await out.copyPages(ax, ax.getPageIndices())).forEach(function(pg){ out.addPage(pg); });
+  }
+
+  /* pagFinalRodape */
+  async function padronizarPaginasFin(out, desde, procRef){
+    const {jsPDF} = window.jspdf, td = new jsPDF({unit:"pt",format:"a4",compress:true}), tc = makeCtx(td);
+    tc.rodapePadrao = true; tc.procRef = procRef; novaPagina(td,tc); td.deletePage(1);   // modelo: só cabeçalho (logos, filete, processo) e rodapé padrão
+    const tpl = await PDFLib.PDFDocument.load(td.output("arraybuffer")), emb = (await out.embedPdf(tpl))[0], rgb = PDFLib.rgb;
+    for(let i = desde; i < out.getPageCount(); i++){
+      const pg = out.getPage(i), W = pg.getWidth(), H = pg.getHeight();
+      pg.drawRectangle({ x:0, y:H-82, width:W, height:82, color:rgb(1,1,1) });          // apaga os logos do gerador antigo
+      pg.drawPage(emb, { x:0, y:0, width:W, height:H });
+    }
   }
 
   window.AVFTN_buildBytes = async function(){
@@ -20296,7 +20314,9 @@ window.FOTO_rodapeHTML=rodapeHTML;
         const emb = await out.embedPage(pf, { left:0, bottom:PH - TOPO - ALT, right:PW, top:PH - TOPO });
         ultima.drawPage(emb, { x:0, y:ultima.getHeight() - yTopo - ALT, width:PW, height:ALT });
       } else {
+        const base0 = out.getPageCount();
         (await out.copyPages(fin, fin.getPageIndices())).forEach(function(pg){ out.addPage(pg); });
+        try{ await padronizarPaginasFin(out, base0, ctx.procRef); }catch(err){ console.warn("cabeçalho/rodapé da página do imóvel avaliando:", err); }
       }
       try{ const pb = await paginasBenfeitorias(ctx.procRef); if(pb) (await out.copyPages(pb, pb.getPageIndices())).forEach(function(pg){ out.addPage(pg); }); }
       catch(err){ console.error("benfeitorias:", err); alert("O memorial foi gerado, mas as benfeitorias não puderam ser incluídas: " + (err && err.message || err)); }
@@ -46581,7 +46601,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
       function trilha(r){ ctx.beginPath(); r.forEach(function(q, i){ var p = P(q); if(i) ctx.lineTo(p[0], p[1]); else ctx.moveTo(p[0], p[1]); }); ctx.closePath(); }
       var k = Math.max(1, cw / 900);   // escala dos traços/letras pelo tamanho da figura
       // influência de povoado: preenchimento vermelho sólido 50% + contorno vermelho pontilhado
-      vila.forEach(function(r){ trilha(r); ctx.fillStyle = "rgba(255,0,0,0.5)"; ctx.fill(); });
+      vila.forEach(function(r){ trilha(r); ctx.fillStyle = "rgba(255,0,0,0.3)"; ctx.fill(); });
       ctx.lineWidth = 2 * k; ctx.strokeStyle = "#ff0000"; ctx.setLineDash([6 * k, 4 * k]);
       vila.forEach(function(r){ trilha(r); ctx.stroke(); });
       ctx.setLineDash([]);
@@ -46601,7 +46621,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
       itens.forEach(function(it, i){
         var yy = ly + pad + lh * i + lh / 2 - 2 * k, xx = lx + pad;
         if(it[0] === "a"){ ctx.fillStyle = "rgba(255,230,0,0.28)"; ctx.fillRect(xx, yy - 7 * k, sw, 14 * k); ctx.lineWidth = 2.6 * k; ctx.strokeStyle = "#e6c800"; ctx.setLineDash([]); ctx.strokeRect(xx, yy - 7 * k, sw, 14 * k); }
-        else { ctx.fillStyle = "rgba(255,0,0,0.5)"; ctx.fillRect(xx, yy - 7 * k, sw, 14 * k); ctx.lineWidth = 2 * k; ctx.strokeStyle = "#ff0000"; ctx.setLineDash([6 * k, 4 * k]); ctx.strokeRect(xx, yy - 7 * k, sw, 14 * k); ctx.setLineDash([]); }
+        else { ctx.fillStyle = "rgba(255,0,0,0.3)"; ctx.fillRect(xx, yy - 7 * k, sw, 14 * k); ctx.lineWidth = 2 * k; ctx.strokeStyle = "#ff0000"; ctx.setLineDash([6 * k, 4 * k]); ctx.strokeRect(xx, yy - 7 * k, sw, 14 * k); ctx.setLineDash([]); }
         ctx.fillStyle = "#1b2733"; ctx.fillText(it[1], xx + sw + pad, yy);
       });
       // barra de escala
