@@ -19392,6 +19392,55 @@ window.FOTO_rodapeHTML=rodapeHTML;
   // glebas por classe, escala de valor da CCU — mais a memória de cálculo (IV) e, em seguida, a tabela do imóvel avaliando.
   // Sem os textos longos das variáveis, sem as tabelas de referência e sem a amostra do SISDEA.
   /* memBenf — Memorial de cálculo das benfeitorias (itens 12 e 13) no PDF da Avaliação FTN */
+  // tabelas do RGV que fundamentam os valores das benfeitorias lançadas (Anexo 3) + orçamentos de cercas (Anexo 4), ordenadas
+  function benfTabelasRGV(){
+    if(typeof window.BNF_lerLinhas !== "function") return [];
+    const keys = []; let cerca = false;
+    ["121","122","123","124","13"].forEach(function(g){
+      window.BNF_lerLinhas(g).filter(function(l){ return l.disc || l.vu; }).forEach(function(l){
+        String(l.img||"").split("|").forEach(function(k){ if(k && keys.indexOf(k) === -1) keys.push(k); });
+        if(g === "13" && /cerca/i.test(l.disc)) cerca = true;
+      });
+    });
+    if(cerca || keys.some(function(k){ return /^anexo4cercas/.test(k); })) ["anexo4cercas-019","anexo4cercas-020","anexo4cercas-021"].forEach(function(k){ if(keys.indexOf(k) === -1) keys.push(k); });
+    return keys.sort();
+  }
+  // numeração em sequência dos anexos que vêm depois de I–III: Orçamentos e Roteiro de Acesso
+  function anxPlano(){
+    const c = anxCasos(), R = ["I","II","III","IV","V","VI"]; let n = (c.tn || c.br || c.bnr) ? (c.tn ? 3 : 1) : 0;
+    const o = {};
+    if(benfTabelasRGV().length) o.orc = R[n++];
+    if(roteiroDados()) o.rot = R[n++];
+    return o;
+  }
+  async function paginasBenfeitorias(procRef){
+    if(!benfIndice().length) return null;
+    const {jsPDF} = window.jspdf, doc = new jsPDF({unit:"pt",format:"a4",compress:true}), ctx = makeCtx(doc);
+    ctx.rodapePadrao = true; ctx.procRef = procRef;
+    desenharMemorialBenfeitorias(doc,ctx);
+    doc.deletePage(1);                                                               // a 1ª página (em branco) nasce com o documento
+    return await PDFLib.PDFDocument.load(doc.output("arraybuffer"));
+  }
+  async function anexoOrcamentos(out, procRef){
+    const keys = benfTabelasRGV(); if(!keys.length || typeof window.BENF_imgSrc !== "function") return;
+    const srcs = keys.map(function(k){ return window.BENF_imgSrc(k); }).filter(Boolean); if(!srcs.length) return;
+    const {jsPDF} = window.jspdf, doc = new jsPDF({unit:"pt",format:"a4",compress:true}), ctx = makeCtx(doc);
+    ctx.rodapePadrao = true; ctx.procRef = procRef;
+    novaPagina(doc,ctx);                                                             // capa
+    doc.setDrawColor(31,111,192); doc.setLineWidth(1.2); doc.line(ctx.W/2-90, ctx.H/2-34, ctx.W/2+90, ctx.H/2-34);
+    doc.setFont("helvetica","bold"); doc.setFontSize(24); doc.setTextColor(23,90,159);
+    doc.text("ANEXO " + (anxPlano().orc || "I"), ctx.W/2, ctx.H/2-8, {align:"center"});
+    doc.setFontSize(15); doc.setTextColor(30,40,55);
+    doc.text("ORÇAMENTOS", ctx.W/2, ctx.H/2+20, {align:"center"});
+    doc.line(ctx.W/2-90, ctx.H/2+36, ctx.W/2+90, ctx.H/2+36);
+    novaPagina(doc,ctx);
+    secBar(doc,ctx,"TABELAS DO RGV — ANEXOS 3 E 4");
+    paragrafo(doc,ctx,"Reprodução das tabelas do Relatório Genérico de Valores (RGV) — preços unitários de benfeitorias (Anexo 3) e orçamentos de cercas (Anexo 4) — que fundamentam os valores do memorial de cálculo das benfeitorias.",8.5);
+    srcs.forEach(function(src){ inserirImagem(doc, ctx, src, 640); ctx.y += 10; });
+    doc.deletePage(1);
+    const ax = await PDFLib.PDFDocument.load(doc.output("arraybuffer"));
+    (await out.copyPages(ax, ax.getPageIndices())).forEach(function(pg){ out.addPage(pg); });
+  }
   function benfIndice(){
     const out = [];
     if(typeof window.BNF_lerLinhas !== "function") return out;
@@ -19399,13 +19448,13 @@ window.FOTO_rodapeHTML=rodapeHTML;
     const rep = tem(["121","122","123","124"]), nrep = tem(["13"]);
     if(rep) out.push("Memorial de Cálculo de Benfeitorias Reprodutivas");
     if(nrep) out.push("Memorial de Cálculo de Benfeitorias Não Reprodutivas");
-    if(rep || nrep) out.push("Tabelas de Referência e Orçamentos do RGV (Anexos 3 e 4)");
+    if(rep || nrep) out.push("Resumo dos Valores");
     return out;
   }
   function desenharMemorialBenfeitorias(doc,ctx){
     if(typeof window.BNF_lerLinhas !== "function") return;
     try{ if(window.BNF_recalc) window.BNF_recalc(); }catch(e){}
-    const gruposRep = [["121","12.1 — Culturas Permanentes"],["122","12.2 — Culturas Temporárias"],["123","12.3 — Pastagem"],["124","12.4 — Extrativismo"]];
+    const gruposRep = [["121","Culturas Permanentes"],["122","Culturas Temporárias"],["123","Pastagem"],["124","Extrativismo"]];
     const ler = function(g){ return window.BNF_lerLinhas(g).filter(function(l){ return l.disc || l.vu; }); };
     const rep = gruposRep.map(function(g){ return { cod:g[0], t:g[1], l:ler(g[0]) }; }).filter(function(g){ return g.l.length; });
     const nrep = ler("13");
@@ -19471,12 +19520,12 @@ window.FOTO_rodapeHTML=rodapeHTML;
         g.l.forEach(marca);
         tabela([{t:"Discriminação",w:31,al:"l"},{t:"Estado / idade",w:14,al:"l"},{t:"Unid.",w:6,al:"c"},{t:"Qtd.",w:8,al:"r"},{t:"Deprec.",w:13,al:"c"},{t:"Vl. unitário (R$)",w:13,al:"r"},{t:"Vl. total (R$)",w:15,al:"r"}],
           g.l.map(function(l){ return [l.disc, l.estado, l.unid, l.qtd, l.dep, l.vu, (l.total || "").replace(/^R\$\s*/, "")]; }),
-          ["TOTAL " + g.t.split(" ")[0], tot("bnf_tot_" + g.cod)]);
+          ["TOTAL — " + g.t.toUpperCase(), tot("bnf_tot_" + g.cod)]);
       });
       if(rep.length > 1 || true){
         ensure(doc,ctx,22);
         doc.setFont("helvetica","bold"); doc.setFontSize(9.5); doc.setTextColor(23,90,159);
-        doc.text("TOTAL 12 (BENFEITORIAS REPRODUTIVAS): " + tot("bnf_tot_12"), ctx.MR, ctx.y + 10, {align:"right"});
+        doc.text("TOTAL DAS BENFEITORIAS REPRODUTIVAS: " + tot("bnf_tot_12"), ctx.MR, ctx.y + 10, {align:"right"});
         ctx.y += 20; doc.setTextColor(30,40,55);
       }
     }
@@ -19487,37 +19536,29 @@ window.FOTO_rodapeHTML=rodapeHTML;
       nrep.forEach(marca);
       tabela([{t:"Discriminação / memória de cálculo",w:42,al:"l"},{t:"Unid.",w:7,al:"c"},{t:"Deprec.",w:12,al:"c"},{t:"Qtd.",w:9,al:"r"},{t:"Vl. unitário (R$)",w:14,al:"r"},{t:"Vl. total (R$)",w:16,al:"r"}],
         nrep.map(function(l){ return [l.disc, l.unid, l.dep, l.qtd, l.vu, (l.total || "").replace(/^R\$\s*/, "")]; }),
-        ["TOTAL 13", tot("bnf_tot_13")]);
+        ["TOTAL DAS BENFEITORIAS NÃO REPRODUTIVAS", tot("bnf_tot_13")]);
     }
     if(fontes.length){
       doc.setFont("helvetica","italic"); doc.setFontSize(7.5); doc.setTextColor(90,100,112);
       doc.splitTextToSize("Fonte dos valores unitários: " + fontes.join("; ") + " — Anexo 3, Quadros Sintetizados de Preços Unitários de Benfeitorias (RGV).", L).forEach(function(t){ ensure(doc,ctx,10); doc.text(t, ctx.ML, ctx.y + 8); ctx.y += 10; });
       doc.setTextColor(30,40,55); ctx.y += 4;
     }
-    // cerca lançada: entram também as tabelas de orçamento de cercas do RGV (Anexo 4, tabelas 60 a 65)
-    if(tabelasUsadas.some(function(k){ return /^anexo4cercas/.test(k); }) || nrep.some(function(l){ return /cerca/i.test(l.disc); })){
-      ["anexo4cercas-019","anexo4cercas-020","anexo4cercas-021"].forEach(function(k){ if(tabelasUsadas.indexOf(k) === -1) tabelasUsadas.push(k); });
-    }
-    tabelasUsadas.sort();
-    if(tabelasUsadas.length && typeof window.BENF_imgSrc === "function"){
-      novaPagina(doc,ctx);
-      secBar(doc,ctx,"TABELAS DE REFERÊNCIA E ORÇAMENTOS (ANEXOS 3 E 4 — RGV)");
-      paragrafo(doc,ctx,"Reprodução das tabelas do Relatório Genérico de Valores (RGV) — preços unitários (Anexo 3) e orçamentos de cercas (Anexo 4) — que fundamentam os valores lançados nos itens 12 e 13 acima.",8);
-      tabelasUsadas.forEach(function(key){
-        const src = window.BENF_imgSrc(key); if(!src) return;
-        inserirImagem(doc, ctx, src, 640); ctx.y += 10; comImgs = true;
-      });
+    /* ordemBenf */
+    if(benfTabelasRGV().length){
+      doc.setFont("helvetica","italic"); doc.setFontSize(7.5); doc.setTextColor(90,100,112);
+      ensure(doc,ctx,12); doc.text("As tabelas do RGV que fundamentam os valores unitários (preços e orçamentos de cercas) estão no Anexo " + (anxPlano().orc || "") + " — Orçamentos.", ctx.ML, ctx.y + 8);
+      ctx.y += 14; doc.setTextColor(30,40,55);
     }
     /* resumoBenf — fecha o bloco com os valores totais */
     const fmtR = function(x){ return "R$ " + x.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}); };
     const vFd = anxNum((document.getElementById("av_fd_result")||{}).textContent), t12 = rep.length ? anxNum(tot("bnf_tot_12")) : 0, t13 = nrep.length ? anxNum(tot("bnf_tot_13")) : 0;
-    if(comImgs) novaPagina(doc,ctx); else { ensure(doc,ctx,190); ctx.y += 6; }
+    ensure(doc,ctx,190); ctx.y += 6;
     secBar(doc,ctx,"RESUMO DOS VALORES — " + (vFd > 0 ? "TERRA NUA E BENFEITORIAS" : "BENFEITORIAS"));
     const linhasR = [];
     if(vFd > 0) linhasR.push(["Terra nua — área desapropriada (VTN/ha × área desapropriada)", fmtR(vFd)]);
-    if(rep.length) linhasR.push(["Benfeitorias reprodutivas (item 12)", fmtR(t12)]);
-    if(nrep.length) linhasR.push(["Benfeitorias não reprodutivas (item 13)", fmtR(t13)]);
-    if(rep.length && nrep.length) linhasR.push(["Sub-total das benfeitorias (12 + 13)", fmtR(t12 + t13)]);
+    if(rep.length) linhasR.push(["Benfeitorias reprodutivas", fmtR(t12)]);
+    if(nrep.length) linhasR.push(["Benfeitorias não reprodutivas", fmtR(t13)]);
+    if(rep.length && nrep.length) linhasR.push(["Sub-total das benfeitorias", fmtR(t12 + t13)]);
     tabela([{t:"Discriminação",w:72,al:"l"},{t:"Valor (R$)",w:28,al:"r"}], linhasR,
       [vFd > 0 ? "VALOR TOTAL (TERRA NUA + BENFEITORIAS)" : "VALOR TOTAL DAS BENFEITORIAS", fmtR(vFd + t12 + t13)]);
   }
@@ -19562,7 +19603,7 @@ window.FOTO_rodapeHTML=rodapeHTML;
       benfIndice().forEach(function(t){ itens.push(t); });
       if(c.tn || c.br || c.bnr) itens.push("Anexo I — Metodologia");
       if(c.tn){ itens.push("Anexo II — Relatório Estatístico"); itens.push("Anexo III — Planilha da Amostra e Mapa de Localização dos Dados de Mercado"); }
-      if(roteiroDados()) itens.push("Anexo " + anxRomanoRoteiro() + " — Roteiro de Acesso");
+      { const pl = anxPlano(); if(pl.orc) itens.push("Anexo " + pl.orc + " — Orçamentos (Tabelas do RGV)"); if(pl.rot) itens.push("Anexo " + pl.rot + " — Roteiro de Acesso"); }
       subLbl(doc,ctx,"ÍNDICE");
       doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(35,45,60);
       itens.forEach(function(t){ ensure(doc,ctx,14); doc.text("•  " + t, ctx.ML+8, ctx.y+9); ctx.y += 14; });
@@ -19717,7 +19758,6 @@ window.FOTO_rodapeHTML=rodapeHTML;
     doc.setFont("helvetica","bold"); doc.setFontSize(13); doc.setTextColor(192,112,10);
     doc.text("VTN/ha = "+E("av_vtn").textContent, ctx.ML+8, ctx.y+31);
     ctx.y += 46; doc.setTextColor(30,40,55);
-    desenharMemorialBenfeitorias(doc,ctx);
   }
 
   // ftn = true: aba "Avaliação FTN" (PDF "Avaliação da terra nua", só o conteúdo da aba); false: laudo antigo (Obsoleto)
@@ -20120,10 +20160,7 @@ window.FOTO_rodapeHTML=rodapeHTML;
     if(!A && !B && !txt && !mapa) return null;                                       // cadastro sem roteiro: sem anexo
     return { A:A, B:B, txt:txt, mapa:mapa, qrSrc:/^data:image\//.test(qrSrc) ? qrSrc : "" };
   }
-  function anxRomanoRoteiro(){
-    const c = anxCasos(), n = (c.tn || c.br || c.bnr) ? (c.tn ? 3 : 1) : 0;          // anexos já usados (I; com Terra Nua, I a III)
-    return ["I","II","III","IV","V"][n];
-  }
+  function anxRomanoRoteiro(){ return anxPlano().rot || "I"; }
   // recorta a imagem para preencher a caixa (como "object-fit: cover" do utilitário)
   function recorteCover(src, w, h){
     return new Promise(function(res){
@@ -20214,8 +20251,12 @@ window.FOTO_rodapeHTML=rodapeHTML;
       } else {
         (await out.copyPages(fin, fin.getPageIndices())).forEach(function(pg){ out.addPage(pg); });
       }
+      try{ const pb = await paginasBenfeitorias(ctx.procRef); if(pb) (await out.copyPages(pb, pb.getPageIndices())).forEach(function(pg){ out.addPage(pg); }); }
+      catch(err){ console.error("benfeitorias:", err); alert("O memorial foi gerado, mas as benfeitorias não puderam ser incluídas: " + (err && err.message || err)); }
       try{ await anexosFtn(out, ctx.procRef); }
       catch(err){ console.error("anexos:", err); alert("O memorial foi gerado, mas os anexos (Metodologia / Relatório estatístico) não puderam ser incluídos: " + (err && err.message || err)); }
+      try{ await anexoOrcamentos(out, ctx.procRef); }
+      catch(err){ console.error("anexo de orçamentos:", err); alert("O memorial foi gerado, mas o anexo de Orçamentos não pôde ser incluído: " + (err && err.message || err)); }
       try{ await anexoRoteiro(out, ctx.procRef); }
       catch(err){ console.error("anexo de roteiro:", err); alert("O memorial foi gerado, mas o anexo de Roteiro de Acesso não pôde ser incluído: " + (err && err.message || err)); }
       return await out.save();
