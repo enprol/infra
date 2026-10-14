@@ -19407,10 +19407,11 @@ window.FOTO_rodapeHTML=rodapeHTML;
   }
   // numeração em sequência dos anexos que vêm depois de I–III: Orçamentos e Roteiro de Acesso
   function anxPlano(){
-    const c = anxCasos(), R = ["I","II","III","IV","V","VI"]; let n = (c.tn || c.br || c.bnr) ? (c.tn ? 3 : 1) : 0;
-    const o = {};
-    if(benfTabelasRGV().length) o.orc = R[n++];
-    if(roteiroDados()) o.rot = R[n++];
+    const c = anxCasos(), R = ["I","II","III","IV","V","VI","VII"]; let n = 0; const o = {};
+    o.rot = R[n++];                                                                  // Roteiro de Acesso: sempre
+    if(benfTabelasRGV().length) o.orc = R[n++];                                      // Orçamentos: com benfeitorias
+    if(c.tn || c.br || c.bnr) o.met = R[n++];                                        // Metodologia
+    if(c.tn){ o.est = R[n++]; o.amo = R[n++]; }                                      // Relatório Estatístico e Planilha da Amostra (só com Terra Nua)
     return o;
   }
   async function paginasBenfeitorias(procRef){
@@ -19520,14 +19521,8 @@ window.FOTO_rodapeHTML=rodapeHTML;
         g.l.forEach(marca);
         tabela([{t:"Discriminação",w:31,al:"l"},{t:"Estado / idade",w:14,al:"l"},{t:"Unid.",w:6,al:"c"},{t:"Qtd.",w:8,al:"r"},{t:"Deprec.",w:13,al:"c"},{t:"Vl. unitário (R$)",w:13,al:"r"},{t:"Vl. total (R$)",w:15,al:"r"}],
           g.l.map(function(l){ return [l.disc, l.estado, l.unid, l.qtd, l.dep, l.vu, (l.total || "").replace(/^R\$\s*/, "")]; }),
-          ["TOTAL — " + g.t.toUpperCase(), tot("bnf_tot_" + g.cod)]);
+          ["TOTAL — " + (/^Culturas/.test(g.t) ? "CULTURAS" : g.t.toUpperCase()), tot("bnf_tot_" + g.cod)]);
       });
-      if(rep.length > 1 || true){
-        ensure(doc,ctx,22);
-        doc.setFont("helvetica","bold"); doc.setFontSize(9.5); doc.setTextColor(23,90,159);
-        doc.text("TOTAL DAS BENFEITORIAS REPRODUTIVAS: " + tot("bnf_tot_12"), ctx.MR, ctx.y + 10, {align:"right"});
-        ctx.y += 20; doc.setTextColor(30,40,55);
-      }
     }
     if(nrep.length){
       if(rep.length) ensure(doc,ctx,120); else novaPagina(doc,ctx);
@@ -19601,9 +19596,12 @@ window.FOTO_rodapeHTML=rodapeHTML;
     (function(){
       const c = anxCasos(), itens = ["Memorial de Cálculo"];
       benfIndice().forEach(function(t){ itens.push(t); });
-      if(c.tn || c.br || c.bnr) itens.push("Anexo I — Metodologia");
-      if(c.tn){ itens.push("Anexo II — Relatório Estatístico"); itens.push("Anexo III — Planilha da Amostra e Mapa de Localização dos Dados de Mercado"); }
-      { const pl = anxPlano(); if(pl.orc) itens.push("Anexo " + pl.orc + " — Orçamentos (Tabelas do RGV)"); if(pl.rot) itens.push("Anexo " + pl.rot + " — Roteiro de Acesso"); }
+      { const pl = anxPlano();
+        if(pl.rot) itens.push("Anexo " + pl.rot + " — Roteiro de Acesso");
+        if(pl.orc) itens.push("Anexo " + pl.orc + " — Orçamentos (Tabelas do RGV)");
+        if(pl.met) itens.push("Anexo " + pl.met + " — Metodologia");
+        if(pl.est) itens.push("Anexo " + pl.est + " — Relatório Estatístico");
+        if(pl.amo) itens.push("Anexo " + pl.amo + " — Planilha da Amostra e Mapa de Localização dos Dados de Mercado"); }
       subLbl(doc,ctx,"ÍNDICE");
       doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(35,45,60);
       itens.forEach(function(t){ ensure(doc,ctx,14); doc.text("•  " + t, ctx.ML+8, ctx.y+9); ctx.y += 14; });
@@ -20111,7 +20109,7 @@ window.FOTO_rodapeHTML=rodapeHTML;
       doc.line(ctx.W/2-90, ctx.H/2+36+(tl.length-1)*19, ctx.W/2+90, ctx.H/2+36+(tl.length-1)*19);
     };
     const plano = [], blocos = anxMetBlocos(c);
-    capa("I", "METODOLOGIA");
+    capa(anxPlano().met, "METODOLOGIA");
     novaPagina(doc,ctx);
     blocos.forEach(function(b, i){
       const h = b.b - b.t;
@@ -20119,7 +20117,7 @@ window.FOTO_rodapeHTML=rodapeHTML;
       plano.push({ pag: doc.internal.getNumberOfPages(), p:b.p, t:b.t, b:b.b, y:ctx.y });
       ctx.y += h + 10;
     });
-    if(c.tn){ capa("II", "RELATÓRIO ESTATÍSTICO"); capa("III", ["PLANILHA DA AMOSTRA E MAPA DE LOCALIZAÇÃO", "DOS DADOS DE MERCADO"]); }
+    if(c.tn){ capa(anxPlano().est, "RELATÓRIO ESTATÍSTICO"); capa(anxPlano().amo, ["PLANILHA DA AMOSTRA E MAPA DE LOCALIZAÇÃO", "DOS DADOS DE MERCADO"]); }
     doc.deletePage(1);                                                               // a 1ª página (em branco) nasce com o documento
     const ax = await PDFLib.PDFDocument.load(doc.output("arraybuffer"));
     const base = out.getPageCount();
@@ -20154,10 +20152,9 @@ window.FOTO_rodapeHTML=rodapeHTML;
     const A = pt("A"), B = pt("B");
     const txt = String((g("d2_tx_roteiro_de_acesso") && g("d2_tx_roteiro_de_acesso").value) || (g("rta_desc") && g("rta_desc").value) || "").replace(/\*\*/g,"").trim();
     const figs = window.D2_getFigs ? window.D2_getFigs() : {};
-    let mapa = figs["roteiro_de_acesso"] || "";
+    let mapa = figs["f1"] || figs["roteiro_de_acesso"] || "";   /* anexosOrdem */
     if(!mapa){ const im = g("rta_mapa_img"), sr = im ? (im.getAttribute("src") || "") : ""; if(/^data:image\//.test(sr)) mapa = sr; }
     const qi = g("rta_qr_img"), qrSrc = qi ? (qi.getAttribute("src") || "") : "";
-    if(!A && !B && !txt && !mapa) return null;                                       // cadastro sem roteiro: sem anexo
     return { A:A, B:B, txt:txt, mapa:mapa, qrSrc:/^data:image\//.test(qrSrc) ? qrSrc : "" };
   }
   function anxRomanoRoteiro(){ return anxPlano().rot || "I"; }
@@ -20200,6 +20197,7 @@ window.FOTO_rodapeHTML=rodapeHTML;
       doc.setTextColor(36,52,71); lin.forEach(function(t, k){ doc.text(t, ctx.ML + 12, ctx.y + 17 + k * 13); });
       ctx.y += hb + 16;
     }
+    if(!R.txt && !R.mapa) paragrafo(doc,ctx,"(Roteiro de acesso ainda não preenchido neste cadastro — informe os Pontos A e B em Técnica › Roteiro de Acesso.)",9.5);
     let qrUri = R.qrSrc;
     try{
       if(!qrUri && R.A && R.B && window.__MDP_qr){
@@ -20253,12 +20251,12 @@ window.FOTO_rodapeHTML=rodapeHTML;
       }
       try{ const pb = await paginasBenfeitorias(ctx.procRef); if(pb) (await out.copyPages(pb, pb.getPageIndices())).forEach(function(pg){ out.addPage(pg); }); }
       catch(err){ console.error("benfeitorias:", err); alert("O memorial foi gerado, mas as benfeitorias não puderam ser incluídas: " + (err && err.message || err)); }
-      try{ await anexosFtn(out, ctx.procRef); }
-      catch(err){ console.error("anexos:", err); alert("O memorial foi gerado, mas os anexos (Metodologia / Relatório estatístico) não puderam ser incluídos: " + (err && err.message || err)); }
-      try{ await anexoOrcamentos(out, ctx.procRef); }
-      catch(err){ console.error("anexo de orçamentos:", err); alert("O memorial foi gerado, mas o anexo de Orçamentos não pôde ser incluído: " + (err && err.message || err)); }
       try{ await anexoRoteiro(out, ctx.procRef); }
       catch(err){ console.error("anexo de roteiro:", err); alert("O memorial foi gerado, mas o anexo de Roteiro de Acesso não pôde ser incluído: " + (err && err.message || err)); }
+      try{ await anexoOrcamentos(out, ctx.procRef); }
+      catch(err){ console.error("anexo de orçamentos:", err); alert("O memorial foi gerado, mas o anexo de Orçamentos não pôde ser incluído: " + (err && err.message || err)); }
+      try{ await anexosFtn(out, ctx.procRef); }
+      catch(err){ console.error("anexos:", err); alert("O memorial foi gerado, mas os anexos (Metodologia / Relatório estatístico) não puderam ser incluídos: " + (err && err.message || err)); }
       return await out.save();
     });
   };
