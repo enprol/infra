@@ -23458,50 +23458,35 @@ function AV_gerarDescSituacao(){
     if(window.ResizeObserver){ new ResizeObserver(function(){ if(mapa) mapa.invalidateSize(); }).observe($('pgmMapa')); }
   }
   /* ---------- Ortofotos do acervo (15/10/2026) ----------
-     O servidor desta máquina junta os .ecw de todos os SPS que caem na janela do mapa (GET /api/ortofoto-mapa) e
-     devolve um PNG transparente já em Web Mercator; a imagem é trocada a cada movimento do mapa. Só a partir do
-     zoom 14 (antes disso a janela é grande demais para recortar do ECW). Sem GDAL com ECW na máquina, avisa. */
-  var ORTO = { on:false, op:1, img:null, seq:0, tm:null };
+     Blocos prontos (WebP, Web Mercator, z14–z19) que a ferramenta ortofoto-blocos.js gera uma vez a partir dos .ecw;
+     o servidor só entrega o arquivo (GET /api/ortofoto-bloco/z/x/y). Igual ao satélite: ao arrastar, só os blocos novos
+     são pedidos, e o que esta máquina já viu sai do cache. Antes de z14 não há blocos (a faixa é estreita demais). */
+  var ORTO = { on:false, op:1, camada:null };
+  var BLOCO_VAZIO = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
   function ortoMsg(t){ var m = $('pgmOrtoMsg'); if(m) m.textContent = t || ''; }
-  function ortoAtualizar(){
-    if(!ORTO.on || !mapa) return;
-    clearTimeout(ORTO.tm);
-    ORTO.tm = setTimeout(async function(){
-      if(mapa.getZoom() < 14){ if(ORTO.img){ mapa.removeLayer(ORTO.img); ORTO.img = null; } ortoMsg('Aproxime o mapa (zoom 14 ou mais) para ver a ortofoto.'); return; }
-      var b = mapa.getBounds(), sz = mapa.getSize(), meu = ++ORTO.seq;
-      var w = Math.min(2048, Math.round(sz.x)), h = Math.min(2048, Math.round(sz.y));
-      var url = '/api/ortofoto-mapa?bbox=' + [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].map(function(v){ return v.toFixed(6); }).join(',') + '&w=' + w + '&h=' + h;
-      ortoMsg('Carregando a ortofoto…');
-      try{
-        var r = await fetch(url);
-        if(meu !== ORTO.seq || !ORTO.on) return;                      // o mapa já mudou: a resposta é de uma janela antiga
-        if(r.status === 204){ if(ORTO.img){ mapa.removeLayer(ORTO.img); ORTO.img = null; } ortoMsg('Sem ortofoto do acervo nesta área.'); return; }
-        if(!r.ok){ var j = null; try{ j = await r.json(); }catch(e){} throw new Error((j && j.erro) || ('HTTP ' + r.status)); }
-        var blob = await r.blob(); if(meu !== ORTO.seq || !ORTO.on) return;
-        var src = URL.createObjectURL(blob);
-        var nova = L.imageOverlay(src, b, { pane:'ortoPane', opacity:ORTO.op, interactive:false });
-        nova.once('load', function(){ if(ORTO.img && ORTO.img !== nova){ var v = ORTO.img; mapa.removeLayer(v); try{ URL.revokeObjectURL(v._url); }catch(e){} } ORTO.img = nova; ortoMsg(''); });
-        nova.addTo(mapa);
-      }catch(e){
-        if(meu !== ORTO.seq) return;
-        ortoMsg(/GDAL|ECW|501/.test(e.message) ? 'Esta máquina não tem o GDAL com o driver ECW (QGIS) — a ortofoto não pode ser montada aqui.' : ('Ortofoto indisponível: ' + e.message));
-      }
-    }, 350);
-  }
+  function ortoAvisoZoom(){ if(ORTO.on) ortoMsg(mapa.getZoom() < 14 ? 'Aproxime o mapa (zoom 14 ou mais) para ver a ortofoto.' : ''); }
   function ligarOrtofoto(){
     var cb = $('pgmOrtoOn'), rng = $('pgmOrtoOp'); if(!cb || cb._ligado) return; cb._ligado = true;
     try{ var t = localStorage.getItem('pgm_ortoTransp'); if(t != null && t !== ''){ rng.value = t; ORTO.op = 1 - (+t)/100; $('pgmOrtoOpV').textContent = t + '%'; } }catch(e){}
     cb.addEventListener('change', function(){
       ORTO.on = this.checked; $('pgmOrtoAj').hidden = !ORTO.on;
-      if(ORTO.on){ ortoAtualizar(); }
-      else { ORTO.seq++; if(ORTO.img){ mapa.removeLayer(ORTO.img); ORTO.img = null; } ortoMsg(''); }
+      if(ORTO.on){
+        if(!ORTO.camada){
+          ORTO.camada = L.tileLayer('/api/ortofoto-bloco/{z}/{x}/{y}', { pane:'ortoPane', minZoom:14, maxNativeZoom:19, maxZoom:21, opacity:ORTO.op,
+            errorTileUrl:BLOCO_VAZIO, keepBuffer:4, updateWhenZooming:false, attribution:'Ortofotos do acervo (FTN)' });
+        }
+        ORTO.camada.setOpacity(ORTO.op); ORTO.camada.addTo(mapa); ortoAvisoZoom();
+        fetch('/api/ortofoto-bloco/indice').then(function(r){ return r.json(); }).then(function(ix){
+          var k = Object.keys(ix || {}); if(!k.length) ortoMsg('As ortofotos ainda não foram preparadas para o mapa (ferramenta ortofoto-blocos).');
+        }).catch(function(){});
+      } else { if(ORTO.camada) mapa.removeLayer(ORTO.camada); ortoMsg(''); }
     });
     rng.addEventListener('input', function(){
       ORTO.op = 1 - (+this.value)/100; $('pgmOrtoOpV').textContent = this.value + '%';
-      if(ORTO.img) ORTO.img.setOpacity(ORTO.op);
+      if(ORTO.camada) ORTO.camada.setOpacity(ORTO.op);
       try{ localStorage.setItem('pgm_ortoTransp', this.value); }catch(e){}
     });
-    mapa.on('moveend', ortoAtualizar);
+    mapa.on('zoomend', ortoAvisoZoom);
   }
   function ligarControlesDem(){
     var box = $('pgmDemBox');
@@ -49447,9 +49432,9 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.15-18';
+window.APP_VERSAO = '2026.10.15-19';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
-window.SERVIDOR_RECOMENDADO = '2026.10.15-18';
+window.SERVIDOR_RECOMENDADO = '2026.10.15-19';
 (function(){
   var SEM_VERSAO = '0000.00.00-0';
   var LEGADO_LAYOUT = '2026.10.07-0';   // servidor que já tem layout_antigo no health, mas ainda sem número de versão
