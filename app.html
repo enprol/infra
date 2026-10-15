@@ -25044,12 +25044,15 @@ function AV_gerarDescSituacao(){
     if(!G) return;
     var el = $("fb_area_desap"); if(!el) return;
     var novo = br((ANEIS.length > 1 && aneisUtm().length > 1) ? somaAreasHa() : G.area_ha, 4);   // vários perímetros: o TOTAL desapropriado
-    if(String(el.value||"").trim() === novo) return;
+    if(extras().area_desap_manual && String(el.value||"").trim()){ if(window.TEC_selarAreaDesap) window.TEC_selarAreaDesap(novo); return; }   // 15/10/2026: valor digitado na Técnica vale no lugar do KML
+    if(String(el.value||"").trim() === novo){ if(window.TEC_selarAreaDesap) window.TEC_selarAreaDesap(novo); return; }
     el.value = novo;
     el.dispatchEvent(new Event("input", {bubbles:true}));
     el.dispatchEvent(new Event("change", {bubbles:true}));
     try{ if(window.CAD_marcarSujo) window.CAD_marcarSujo(); }catch(e){}
+    if(window.TEC_selarAreaDesap) window.TEC_selarAreaDesap(novo);
   }
+  window.MDP_areaDesapKml = function(){ if(!G) return ""; return br((ANEIS.length > 1 && aneisUtm().length > 1) ? somaAreasHa() : G.area_ha, 4); };
   window.MDP_geo = function(){ return G; };
   window.MDP_analisar = function(){ return analisar(); };
 
@@ -25558,7 +25561,7 @@ function AV_gerarDescSituacao(){
       y += 2;
       if(qrM){
         // QR do percurso à direita do texto (quadro preto com "SCAN ME"), como no modelo aprovado
-        var qW = 34, qH = qW*1.2, qX = W - mR - qW;
+        var qW = 27.2, qH = qW*1.2, qX = W - mR - qW;   // 15/10/2026: QR 20% menor (era 34 mm)
         garantir(qH + 4);
         var qY = y - 3.6, pgQ = pdf.internal.getNumberOfPages(), n = qrM.getModuleCount();
         pdf.setFillColor(0,0,0); pdf.roundedRect(qX, qY, qW, qH, 2.4, 2.4, "F");
@@ -25572,7 +25575,24 @@ function AV_gerarDescSituacao(){
         pdf.setTextColor(255,255,255); pdf.setFont("helvetica","bold"); pdf.setFontSize(qW*0.36);
         pdf.text("SCAN ME", qX + qW/2, qY + pd + inn + (qH - pd - inn)/2 + 1.3, {align:"center"});
         pdf.setTextColor(0,0,0); pdf.setFont("helvetica","normal");
-        par("LOCALIZAÇÃO E ACESSO: " + b.cad.acesso.toUpperCase(), {just:true, larg: RW - qW - 5});
+        // texto justificado nas duas margens: estreito ao lado do QR, largura cheia depois dele (palavra a palavra)
+        (function(){
+          pdf.setFont("helvetica","normal"); pdf.setFontSize(8.6);
+          var palavras = ("LOCALIZAÇÃO E ACESSO: " + b.cad.acesso.toUpperCase()).split(/\s+/).filter(Boolean), lin = [], bx = qY + qH + 1;
+          var largDe = function(yy){ return (yy < bx && pdf.internal.getNumberOfPages() === pgQ) ? RW - qW - 5 : RW; };
+          var emite = function(ws, ultima){
+            garantir(5);
+            var L = largDe(y), tw = ws.reduce(function(s, w){ return s + pdf.getTextWidth(w); }, 0), gaps = ws.length - 1;
+            var esp = (!ultima && gaps > 0) ? (L - tw) / gaps : pdf.getTextWidth(" "), x = mL;
+            ws.forEach(function(w){ pdf.text(w, x, y); x += pdf.getTextWidth(w) + esp; });
+            y += 4.1;
+          };
+          palavras.forEach(function(w){
+            var teste = lin.concat([w]).join(" ");
+            if(lin.length && pdf.getTextWidth(teste) > largDe(y)){ emite(lin, false); lin = [w]; } else lin.push(w);
+          });
+          if(lin.length) emite(lin, true);
+        })();
         if(pdf.internal.getNumberOfPages() === pgQ) y = Math.max(y, qY + qH + 3);
       } else par("LOCALIZAÇÃO E ACESSO: " + b.cad.acesso.toUpperCase(), {just:true});
     }
@@ -25639,7 +25659,7 @@ function AV_gerarDescSituacao(){
       var kidsAc = [];
       try{
         var qrW = await qrAcesso();
-        if(qrW) kidsAc.push(new D.ImageRun({ data:await qrPng(qrW), type:"png", transformation:{ width:128, height:154 },
+        if(qrW) kidsAc.push(new D.ImageRun({ data:await qrPng(qrW), type:"png", transformation:{ width:102, height:123 },
           floating:{ horizontalPosition:{ relative:D.HorizontalPositionRelativeFrom.MARGIN, align:D.HorizontalPositionAlign.RIGHT },
                      verticalPosition:{ relative:D.VerticalPositionRelativeFrom.PARAGRAPH, offset:0 },
                      wrap:{ type:D.TextWrappingType.SQUARE, side:D.TextWrappingSide.LEFT }, margins:{ left:114300, bottom:57150 } } }));
@@ -40447,7 +40467,7 @@ window.DRL_gerarPDF=async function(opts){
     L.control.scale({ imperial:false }).addTo(LMAP);
     LMAP.on("focus click", function(){ LMAP.scrollWheelZoom.enable(); });
     LMAP.on("blur", function(){ LMAP.scrollWheelZoom.disable(); });
-    if(window.SOLOS){ try{ var _sc = SOLOS.controleLeaflet(LMAP, { posicao:"topright" }); SOLOS.carregarMeta().then(function(){ _sc.aplicar(); }, function(){}); }catch(e){} }   // solos (EMBRAPA)
+    // 15/10/2026: a camada "Classificação dos solos" saiu do mapa de localização das fotografias (fica nos mapas do DESP 2 / memorial)
     var grupos = agruparPontos(pontosFotos(f)), lim = [];
     grupos.forEach(function(g){
       var n0 = Math.min.apply(null, g.pts.map(function(q){ return q.n; }));
@@ -47432,6 +47452,9 @@ window.MG_motion={abertura:abertura,cadastro:cadastro,fichas:fichas};
 #panel-desp1-tecnica .tec-areas-ha .vfield{ flex:1 1 150px; min-width:140px; }
 #panel-desp1-tecnica .tec-areas-ha .vfield.tec-calc label::after{ content:" · calculado"; font-weight:600; color:#2B7A57; text-transform:none; letter-spacing:0; }
 .tec-areas-dica{ margin:4px 0 10px !important; }
+
+/* 15/10/2026: os campos do carimbo/observacoes ficam so na Mesa de Desenho (o hospedeiro oculto da Tecnica nao deve aparecer: .vrow{display:flex} anulava o [hidden]) */
+#mdp_campos_car[hidden], #mdp_obs[hidden]{ display:none !important; }
 </style>
 <script id="lote3-areas-js">
 /* Lote 3 (13/10/2026): espelhos de Área total / Área total ocupada (Assistência Social) na Técnica e cálculo dos
@@ -47504,10 +47527,43 @@ window.MG_motion={abertura:abertura,cadastro:cadastro,fichas:fichas};
     });
   }
 
+  /* ---- Área Desap.: automática (KML) ou editada à mão (selo, como o KM inicial/final) ---- */
+  function manualDesap(){ try{ var o = JSON.parse(($("mdp_extras") || {}).value || "{}") || {}; return !!o.area_desap_manual; }catch(e){ return false; } }
+  function selarDesap(kml){
+    var e = $(CAMPOS.desap), f = e && e.closest(".vfield"), l = f && f.querySelector("label"); if(!l) return;
+    var s = $("tec_desap_selo");
+    if(!s){ s = document.createElement("span"); s.id = "tec_desap_selo"; s.style.cssText = "margin-left:6px;text-transform:none;letter-spacing:0;"; l.appendChild(s); }
+    kml = kml || (window.MDP_areaDesapKml ? window.MDP_areaDesapKml() : "");
+    var man = manualDesap() && String(e.value || "").trim();
+    if(man){
+      s.innerHTML = '<span class="rel-km-selo man" title="Valor digitado: vale na planta, memorial, carimbo e relatórios no lugar do KML">editado</span>' +
+        (kml ? ' <button type="button" class="rel-km-usar" id="tec_desap_usar" title="Volta à área calculada pelo KML (' + kml + ' ha)">↺ usar KML</button>' : "");
+      var b = $("tec_desap_usar"); if(b) b.onclick = function(){ usarKmlDesap(); };
+    } else if(kml){
+      s.innerHTML = '<span class="rel-km-selo auto" title="Calculada pelo KML da área desapropriada">automático (KML)</span>';
+    } else { s.innerHTML = ""; }
+  }
+  window.TEC_selarAreaDesap = selarDesap;
+  function usarKmlDesap(){
+    var kml = window.MDP_areaDesapKml ? window.MDP_areaDesapKml() : "";
+    if(window.MDP_setEx) window.MDP_setEx("area_desap_manual", false);
+    if(kml) setar($(CAMPOS.desap), kml);
+    sujo(); selarDesap(kml);
+  }
+  function ligarDesap(){
+    var e = $(CAMPOS.desap); if(!e || e._man) return; e._man = true;
+    e.addEventListener("input", function(ev){
+      if(ocupado || window.__CAD_RESTAURANDO || !ev.isTrusted) return;      // só o que a pessoa digita; o KML dispara evento sintético
+      var vazio = !String(e.value || "").trim();
+      if(window.MDP_setEx) window.MDP_setEx("area_desap_manual", !vazio);
+      selarDesap();
+    });
+  }
+
   /* ---- liga e reage à Técnica / ao KML ---- */
-  function aoMostrarTecnica(){ puxar(); foto(); marcar(); if(window.REL_kmAgendar) window.REL_kmAgendar(150); }
+  function aoMostrarTecnica(){ puxar(); foto(); marcar(); selarDesap(); if(window.REL_kmAgendar) window.REL_kmAgendar(150); }
   function ligar(){
-    ligarEspelhos(); ligarRem(); puxar(); foto();
+    ligarEspelhos(); ligarRem(); ligarDesap(); puxar(); foto(); selarDesap();
     var k = $("rel_kml_dados");
     if(k && !k._l3){ k._l3 = true; ["input", "change"].forEach(function(t){ k.addEventListener(t, function(){ if(window.REL_kmAgendar) window.REL_kmAgendar(500); }); }); }
     var p = $("panel-desp1-tecnica");
@@ -48931,7 +48987,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.15-3';
+window.APP_VERSAO = '2026.10.15-4';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.15-3';
 (function(){
