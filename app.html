@@ -45623,6 +45623,12 @@ window.__ANX_EST_B64__ = "JVBERi0xLjYKJeLjz9MKNSAwIG9iago8PAovTGVuZ3RoIDI0Cj4+Cn
     h.innerHTML = '<div class="pgv-card" style="--i:0"><span class="rot">Cadastros</span><b class="big" id="pgvN">0</b><div class="pgv-split" id="pgvSps"></div></div>' +
       '<div class="pgv-card" style="--i:1;--glow:rgba(229,72,77,.14)"><span class="rot">Andamento por etapa · clique para ver o que falta</span><div class="pgv-et" id="pgvEt"></div></div>' +
       '<div class="pgv-card pgv-val" style="--i:2;--glow:rgba(233,161,0,.18)"><span class="rot">Desapropriação</span><b class="big" id="pgvValor">R$ 0</b><div class="lin"><span>Área <b id="pgvHa">0</b> ha</span><span>Terra nua <b id="pgvTn">—</b></span><span>Benfeitorias <b id="pgvBf">—</b></span></div></div>';
+    var rec = false; try{ rec = localStorage.getItem('pgvRecolhido') === '1'; }catch(e){}
+    var tog = document.createElement('button'); tog.type = 'button'; tog.className = 'pgv-tog'; tog.id = 'pgvTog';
+    function aplicar(){ h.classList.toggle('pgv-recolhido', rec); tog.setAttribute('aria-expanded', rec ? 'false' : 'true'); tog.innerHTML = (rec ? '▸' : '▾') + ' Resumo (Cadastros · Andamento por etapa · Desapropriação)'; tog.title = rec ? 'Mostrar os cards de resumo' : 'Recolher os cards para liberar espaço na tela'; }
+    tog.onclick = function(){ rec = !rec; try{ localStorage.setItem('pgvRecolhido', rec ? '1' : '0'); }catch(e){} aplicar(); };
+    aplicar();
+    bar.parentNode.insertBefore(tog, bar);
     bar.parentNode.insertBefore(h, bar);
   }
   function atualizar(){
@@ -45785,7 +45791,11 @@ body.modo-painel > .app-header{
 /* ---------- KPIs ---------- */
 #painelGeral .pgv-hero{ gap:10px; margin:12px 0; }
 /* Gráficos abertos: a coluna da tabela fica estreita e o painel lateral já mostra esses números */
-#painelGeral.pgg-aberto .pgv-hero{ display:none; }
+#painelGeral.pgg-aberto .pgv-hero, #painelGeral.pgg-aberto .pgv-tog{ display:none; }
+#painelGeral .pgv-hero.pgv-recolhido{ display:none; }
+#painelGeral .pgv-tog{ display:block; margin:8px 0 0; padding:4px 10px; border:1px solid var(--gl-line, #d3e2f3); border-radius:8px; background:transparent; color:var(--gl-mut, #42596a); font:600 11.5px/1.2 var(--gl-font, inherit); cursor:pointer; }
+#painelGeral .pgv-tog:hover{ color:var(--gl-ink, #0a4d7c); }
+@media (max-width:900px){ #painelGeral .pgv-tog{ display:none; } }
 @media (max-width:900px){ #painelGeral .pgv-hero{ display:none; } }   /* tela estreita: a tabela fica com a altura; os números estão em Gráficos */
 #painelGeral .pgv-card{
   background:var(--gl-surf); border:1px solid var(--gl-line); border-radius:var(--gl-r-l); box-shadow:var(--gl-sh-1);
