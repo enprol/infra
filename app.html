@@ -10135,7 +10135,21 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
       font-size:12.5px; color:var(--azul-esc); background:#eaf2fb; border:1px solid #cfe0f0;
       border-radius:8px; padding:8px 13px; margin:0 0 18px; font-weight:600;
     }
-  </style>
+  
+    /* 15/10/2026: check list do Parecer — nº do item (o que o fiscal cita) e documentos anexados por item */
+    #panel-desp1-parecer table.par-grid .c-num{width:42px; text-align:center; font-weight:700; color:var(--azul-esc); font-size:12px; white-space:nowrap;}
+    #panel-desp1-parecer table.par-grid .c-docs{width:190px; vertical-align:top;}
+    #panel-desp1-parecer .par-doc{display:flex; align-items:center; gap:2px; margin:0 0 4px;}
+    #panel-desp1-parecer .par-doc-ver{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:left; font-size:11.5px; padding:3px 6px; border:1px solid var(--borda-forte); border-radius:5px; background:#f6f9fc; color:var(--azul-esc); cursor:pointer;}
+    #panel-desp1-parecer .par-doc-ver:hover{border-color:var(--azul);}
+    #panel-desp1-parecer .par-doc-x{border:0; background:none; color:#a33; font-size:15px; line-height:1; padding:2px 5px; cursor:pointer;}
+    #panel-desp1-parecer .par-doc-add{display:inline-block; font-size:11.5px; font-weight:600; color:var(--azul); border:1px dashed var(--azul); border-radius:5px; padding:3px 8px; cursor:pointer;}
+    #panel-desp1-parecer .par-doc-add:hover{background:#eaf2fb;}
+    #panel-desp1-parecer .par-doc-add input{display:none;}
+    #panel-desp1-parecer table.par-grid{min-width:900px;}
+    #panel-desp1-parecer table.par-grid .c-obs{min-width:190px;}
+    #panel-desp1-parecer table.par-grid .c-docs{width:175px; min-width:175px;}
+</style>
   <style>
   /* =====================================================================
      Técnica (DESP-1) — camada visual moderna: campos, selects, botões,
@@ -36607,23 +36621,90 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     CHECKLIST_TABS.forEach(function(tab,n){
       var titId="par_ck_tit_"+n;
       h+='<h4 id="'+titId+'" class="par-ck-titulo">'+esc(tab.titulo)+'</h4>';
-      h+='<div class="par-grid-wrap"><table class="par-grid" aria-labelledby="'+titId+'"><thead><tr><th class="c-crit" scope="col">Item</th>'+
+      h+='<div class="par-grid-wrap"><table class="par-grid" aria-labelledby="'+titId+'"><thead><tr><th class="c-num" scope="col">Nº</th><th class="c-crit" scope="col">Item</th>'+
         cols.map(function(c){ return '<th class="c-resp" scope="col">'+esc(c)+'</th>'; }).join("")+
-        '<th class="c-obs" scope="col">Observações</th></tr></thead><tbody>';
+        '<th class="c-obs" scope="col">Observações</th><th class="c-docs" scope="col">Documentos</th></tr></thead><tbody>';
       tabelasPAR[n].forEach(function(lin,i){
         var obsId="par_ck_obs_"+n+"_"+i;
-        h+='<tr><td class="c-crit">'+esc(lin.crit)+'</td>';
+        h+='<tr><td class="c-num">'+numItem(n,i)+'</td><td class="c-crit">'+esc(lin.crit)+'</td>';
         cols.forEach(function(c){
           var on=(lin.resp===c);
           var cls="par-mk"+(on?" on":"")+(on&&c==="Não"?" nao":"")+(on&&c==="Não Aplicável"?" na":"");
           h+='<td class="c-resp"><button type="button" class="'+cls+'" onclick="PAR_marcar('+n+','+i+',\''+c+'\')" aria-pressed="'+(on?"true":"false")+'" aria-label="'+esc(c)+' — '+esc(lin.crit)+'">'+(on?"X":"")+'</button></td>';
         });
-        h+='<td class="c-obs"><textarea rows="2" id="'+obsId+'" aria-label="Observações — '+esc(lin.crit)+'" placeholder="Observações" oninput="PAR_setObs('+n+','+i+',this.value)">'+esc(lin.obs)+'</textarea></td></tr>';
+        h+='<td class="c-obs"><textarea rows="2" id="'+obsId+'" aria-label="Observações — '+esc(lin.crit)+'" placeholder="Observações" oninput="PAR_setObs('+n+','+i+',this.value)">'+esc(lin.obs)+'</textarea></td>';
+        // documentos anexados ao item (PDF ou imagem): saem no fim do parecer, em "Anexos – Checklist Documental"
+        h+='<td class="c-docs">'+(lin.docs||[]).map(function(d,k){
+          return '<span class="par-doc"><button type="button" class="par-doc-ver" onclick="PAR_verDoc('+n+','+i+','+k+')" title="Abrir '+esc(d.nome)+'">'+(docEhPdf(d)?"PDF":"IMG")+' · '+esc(d.nome)+'</button>'+
+                 '<button type="button" class="par-doc-x" onclick="PAR_remDoc('+n+','+i+','+k+')" aria-label="Remover '+esc(d.nome)+'">×</button></span>';
+        }).join("")+
+          '<label class="par-doc-add">+ Anexar<input type="file" multiple accept=".pdf,application/pdf,image/*" onchange="PAR_addDocs('+n+','+i+',this)" aria-label="Anexar documentos — item '+numItem(n,i)+'"></label></td></tr>';
       });
       h+="</tbody></table></div>";
     });
     host.innerHTML=h;
   }
+  // numeração do item no check list (igual ao modelo aprovado: 1.1, 1.2 … 6.14) — é a que o fiscal cita
+  function numItem(n,i){ return (n+1)+"."+(i+1); }
+  window.PAR_numItem=numItem;
+
+  /* ---- documentos anexados aos itens do check list (15/10/2026) ----
+     Cada item guarda lin.docs = [{nome, src}] dentro do próprio check list (chave parChecklist do cadastro).
+     src é data URL. O PDF viaja como "data:image/pdf;base64,…" DE PROPÓSITO: o servidor de cadastros (todas
+     as versões) tira do JSON qualquer "data:image/<tipo>" e grava como arquivo <hash>.<tipo> na pasta do
+     cadastro, devolvendo do mesmo jeito ao abrir — assim o PDF não incha o cadastro.json e funciona em
+     máquinas com servidor antigo. Quem usa o PDF olha o conteúdo (base64 começando com "JVBER" = %PDF). */
+  function docB64(d){ var s=String(d&&d.src||""); var p=s.indexOf(","); return p>=0 ? s.slice(p+1) : ""; }
+  function docEhPdf(d){ var s=String(d&&d.src||""); return /^data:(application|image)\/pdf/i.test(s) || docB64(d).slice(0,5)==="JVBER"; }
+  function docBytes(d){ var b=atob(docB64(d)), u=new Uint8Array(b.length); for(var i=0;i<b.length;i++) u[i]=b.charCodeAt(i); return u; }
+  window.PAR_docEhPdf=docEhPdf; window.PAR_docBytes=docBytes;
+  function lerArquivo(f){ return new Promise(function(res,rej){ var r=new FileReader(); r.onload=function(){ res(r.result); }; r.onerror=function(){ rej(r.error); }; r.readAsDataURL(f); }); }
+  // imagem muito grande (foto de celular): reduz para no máx. 2200 px no maior lado, em JPEG
+  function reduzirImagem(src){
+    return new Promise(function(res){
+      var im=new Image();
+      im.onload=function(){
+        var M=2200, w=im.naturalWidth, h=im.naturalHeight, f=Math.min(1, M/Math.max(w,h));
+        if(f>=1 && src.length<2500000){ res(src); return; }
+        var c=document.createElement("canvas"); c.width=Math.round(w*f); c.height=Math.round(h*f);
+        var x=c.getContext("2d"); x.fillStyle="#fff"; x.fillRect(0,0,c.width,c.height); x.drawImage(im,0,0,c.width,c.height);
+        res(c.toDataURL("image/jpeg",0.86));
+      };
+      im.onerror=function(){ res(src); };
+      im.src=src;
+    });
+  }
+  function marcarSujo(){ try{ if(window.CAD_marcarSujo) window.CAD_marcarSujo(); }catch(e){} }
+  window.PAR_addDocs=async function(n,i,inp){
+    var lin=tabelasPAR[n]&&tabelasPAR[n][i]; if(!lin||!inp||!inp.files) return;
+    var fs=Array.prototype.slice.call(inp.files); inp.value="";
+    if(!lin.docs) lin.docs=[];
+    var recus=[];
+    for(var k=0;k<fs.length;k++){
+      var f=fs[k], ehPdf=/pdf$/i.test(f.type)||/\.pdf$/i.test(f.name), ehImg=/^image\//i.test(f.type);
+      if(!ehPdf && !ehImg){ recus.push(f.name+" (tipo não aceito)"); continue; }
+      if(f.size>25*1024*1024){ recus.push(f.name+" (maior que 25 MB)"); continue; }
+      try{
+        var src=await lerArquivo(f);
+        if(ehPdf) src="data:image/pdf;base64,"+src.slice(src.indexOf(",")+1);
+        else src=await reduzirImagem(src);
+        lin.docs.push({ nome:f.name, src:src });
+      }catch(e){ recus.push(f.name+" (não consegui ler)"); }
+    }
+    renderChecklist(); marcarSujo();
+    if(recus.length) alert("Não anexados:\n• "+recus.join("\n• "));
+  };
+  window.PAR_remDoc=function(n,i,k){
+    var lin=tabelasPAR[n]&&tabelasPAR[n][i]; if(!lin||!lin.docs||!lin.docs[k]) return;
+    if(!confirm("Remover \""+lin.docs[k].nome+"\" do item "+numItem(n,i)+"?")) return;
+    lin.docs.splice(k,1); renderChecklist(); marcarSujo();
+  };
+  window.PAR_verDoc=function(n,i,k){
+    var lin=tabelasPAR[n]&&tabelasPAR[n][i], d=lin&&lin.docs&&lin.docs[k]; if(!d) return;
+    var tipo=docEhPdf(d) ? "application/pdf" : ((/^data:([^;]+);/.exec(d.src)||[])[1]||"image/jpeg");
+    var url=URL.createObjectURL(new Blob([docBytes(d)],{type:tipo}));
+    window.open(url,"_blank"); setTimeout(function(){ URL.revokeObjectURL(url); }, 120000);
+  };
   window.PAR_marcar=function(n,i,c){
     if(!tabelasPAR[n]||!tabelasPAR[n][i]) return;
     tabelasPAR[n][i].resp = (tabelasPAR[n][i].resp===c) ? "" : c;
@@ -36640,7 +36721,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     Object.keys(obj).forEach(function(n){
       if(!tabelasPAR[n] || !Array.isArray(obj[n])) return;
       obj[n].forEach(function(lin,i){
-        if(tabelasPAR[n][i] && lin){ tabelasPAR[n][i].resp=lin.resp||""; tabelasPAR[n][i].obs=lin.obs||""; }
+        if(tabelasPAR[n][i] && lin){ tabelasPAR[n][i].resp=lin.resp||""; tabelasPAR[n][i].obs=lin.obs||""; tabelasPAR[n][i].docs=Array.isArray(lin.docs)?lin.docs.filter(function(d){ return d && d.src; }):[]; }
       });
     });
     renderChecklist();
@@ -37128,34 +37209,38 @@ window.UFOTO_rodapeHTML=rodapeHTML;
       yc+=LH0*0.55; pdf.setTextColor(0,0,0);
     }
 
-    function desenharChecklist(rotulo, arr){
+    function desenharChecklist(rotulo, arr, n){
       if(!arr||!arr.length) return;
       ensure(12); pdf.setFont(FONT,"bold"); pdf.setFontSize(9.8); pdf.setTextColor(0,0,0);
       var capLs=pdf.splitTextToSize(rotulo, cw);
       capLs.forEach(function(l){ ensure(4.8); pdf.text(l, mL, yc); yc+=4.8; }); yc+=1.4;
-      var wResp=15, nResp=3, wObs=38;
-      var wCrit=cw-wResp*nResp-wObs;
+      var wNum=10, wResp=15, nResp=3, wObs=38;                 // 15/10/2026: coluna Nº (1.1, 1.2…) — o fiscal cita o item por ela
+      var wCrit=cw-wNum-wResp*nResp-wObs;
       var cabs=["Sim","Não","Não Aplic."];
       function cabecalho(){
         var hh=7;
         pdf.setFillColor(218,232,246); pdf.rect(mL,yc,cw,hh,'F');
         pdf.setFont(FONT,"bold"); pdf.setFontSize(7.6); pdf.setTextColor(20,41,74);
-        pdf.text("Item", mL+2.5, yc+4.6);
-        var x=mL+wCrit;
+        pdf.text("Nº", mL+wNum/2, yc+4.6, {align:"center"});
+        pdf.text("Item", mL+wNum+2.5, yc+4.6);
+        var x=mL+wNum+wCrit;
         cabs.forEach(function(c){ pdf.text(c, x+wResp/2, yc+4.6, {align:"center"}); x+=wResp; });
         pdf.text("Observações", x+2.5, yc+4.6);
         pdf.setDrawColor(31,111,192); pdf.setLineWidth(0.6); pdf.line(mL,yc+hh,mL+cw,yc+hh);
         yc+=hh;
       }
       ensure(6+10); cabecalho(); var ri=0;
-      arr.forEach(function(lin){
+      arr.forEach(function(lin, i){
         pdf.setFont(FONT,"normal"); pdf.setFontSize(7.6); pdf.setTextColor(0,0,0);
         var critLs=pdf.splitTextToSize(lin.crit||"", wCrit-3);
-        var obsLs=pdf.splitTextToSize(lin.obs||"", wObs-3);
+        var obsTxt=(lin.obs||"") + ((lin.docs&&lin.docs.length) ? ((lin.obs?" ":"")+"(Anexo – item "+numItem(n,i)+")") : "");
+        var obsLs=pdf.splitTextToSize(obsTxt, wObs-3);
         var rowH=Math.max(critLs.length, obsLs.length, 1)*3.5+3;
         if(yc+rowH>botY){ rod(); nova(); cabecalho(); pdf.setFont(FONT,"normal"); pdf.setFontSize(7.6); pdf.setTextColor(0,0,0); }
         if(ri%2===1){ pdf.setFillColor(250,252,254); pdf.rect(mL,yc,cw,rowH,'F'); }
         var x=mL;
+        pdf.setFont(FONT,"bold"); pdf.setTextColor(20,41,74); pdf.text(numItem(n,i), x+wNum/2, yc+3.4, {align:"center"}); x+=wNum;
+        pdf.setFont(FONT,"normal");
         pdf.setTextColor(40,51,63); pdf.text(critLs, x+2.5, yc+3.4); x+=wCrit;
         var resp=lin.resp||"";
         var marca={"Sim":0,"Não":1,"Não Aplicável":2};
@@ -37338,7 +37423,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
       else if(id==="sec3"){ tituloSec(tp); imagens(id); }
       else if(id==="checklist"){
         subt(tp.head);
-        CHECKLIST_TABS.forEach(function(tab,n){ desenharChecklist(tab.titulo, tabelasPAR[n]||[]); });
+        CHECKLIST_TABS.forEach(function(tab,n){ desenharChecklist(tab.titulo, tabelasPAR[n]||[], n); });
         imagens(id);
       }
       else if(id==="par_analise_doc"){ if(pf(id) || imgsDe(id).length){ subt(tp.head); parRica(pf(id)); imagens(id); } }
@@ -37348,8 +37433,119 @@ window.UFOTO_rodapeHTML=rodapeHTML;
       else { subt(tp.head); parRica(pf(id)); imagens(id); }   // titularidade, objetivo, levantamento, regularidade, impeditivos
     });
 
+    /* ---------- ANEXOS – CHECKLIST DOCUMENTAL (15/10/2026) ----------
+       Depois do fecho: índice documental (só os itens com arquivo anexado, na ordem do check list) e, para
+       cada item, uma folha de abertura seguida dos documentos (imagem = uma página com cabeçalho; PDF = as
+       páginas do próprio arquivo, inseridas depois pelo pdf-lib e carimbadas com o item e o nº da página). */
+    var INF=new Map();   // dados de montagem de cada documento (fora do objeto salvo no cadastro)
+    var ANX_INS=[];   // { depoisDe: nº de páginas do jsPDF quando o PDF entra, bytes, item, nome, pg0 }
+    async function anexosChecklist(){
+      var itens=[];
+      CHECKLIST_TABS.forEach(function(tab,n){ (tabelasPAR[n]||[]).forEach(function(lin,i){ if(lin.docs&&lin.docs.length) itens.push({ num:numItem(n,i), crit:lin.crit, docs:lin.docs }); }); });
+      if(!itens.length) return;
+      // páginas de cada documento (PDF: lê o arquivo; imagem: 1; PDF ilegível: 1 folha de aviso)
+      for(var a=0;a<itens.length;a++){
+        for(var b=0;b<itens[a].docs.length;b++){
+          var d=itens[a].docs[b], inf={ pdf:docEhPdf(d), n:1, bytes:null, erro:"" };
+          if(inf.pdf){
+            try{ inf.bytes=docBytes(d); var pd=await PDFLib.PDFDocument.load(inf.bytes,{ignoreEncryption:true}); inf.n=Math.max(1,pd.getPageCount()); }
+            catch(e){ inf.erro="não foi possível incorporar este PDF (arquivo protegido ou corrompido)"; inf.n=1; inf.bytes=null; }
+          }
+          INF.set(d,inf);
+        }
+      }
+      rod(); nova();
+      pdf.setFont(FONT,"bold"); pdf.setFontSize(13); pdf.setTextColor(20,40,70);
+      pdf.text("ANEXOS – CHECKLIST DOCUMENTAL", mL, yc); yc+=2.6;
+      pdf.setDrawColor(70,70,70); pdf.setLineWidth(0.3); pdf.line(mL,yc,W-mR,yc); yc+=7;
+      pdf.setFont(FONT,"bold"); pdf.setFontSize(10.5); pdf.setTextColor(0,0,0); pdf.text("Índice documental", mL, yc); yc+=5.5;
+      // linhas do índice: uma por documento
+      var wN=12, wP=16, wD=58, wI=cw-wN-wD-wP, linhas=[];
+      pdf.setFont(FONT,"normal"); pdf.setFontSize(8);
+      itens.forEach(function(it){ it.docs.forEach(function(d,k){
+        var iL=k===0 ? pdf.splitTextToSize(it.crit||"", wI-3) : [""], dL=pdf.splitTextToSize(d.nome||"documento", wD-3);
+        linhas.push({ it:it, d:d, primeira:k===0, iL:iL, dL:dL, h:Math.max(iL.length,dL.length,1)*3.6+2.6 });
+      }); });
+      // simula onde o índice termina para saber em que página começa cada documento
+      var ys=yc+7, pgIdx=PG;
+      linhas.forEach(function(l){ if(ys+l.h>botY){ pgIdx++; ys=topY+7; } ys+=l.h; });
+      var pgAt=pgIdx;
+      itens.forEach(function(it){ pgAt++; it.pgAbre=pgAt; it.docs.forEach(function(d){ INF.get(d).pg=pgAt+1; pgAt+=INF.get(d).n; }); });
+      function cabIdx(){
+        var hh=7; pdf.setFillColor(218,232,246); pdf.rect(mL,yc,cw,hh,'F');
+        pdf.setFont(FONT,"bold"); pdf.setFontSize(7.6); pdf.setTextColor(20,41,74);
+        pdf.text("Nº", mL+wN/2, yc+4.6, {align:"center"}); pdf.text("Item do check list", mL+wN+2.5, yc+4.6);
+        pdf.text("Documento", mL+wN+wI+2.5, yc+4.6); pdf.text("Página", mL+cw-wP/2, yc+4.6, {align:"center"});
+        pdf.setDrawColor(31,111,192); pdf.setLineWidth(0.6); pdf.line(mL,yc+hh,mL+cw,yc+hh); yc+=hh;
+      }
+      cabIdx();
+      linhas.forEach(function(l,ri){
+        if(yc+l.h>botY){ rod(); nova(); cabIdx(); }
+        if(ri%2===1){ pdf.setFillColor(250,252,254); pdf.rect(mL,yc,cw,l.h,'F'); }
+        pdf.setFont(FONT,"bold"); pdf.setFontSize(8); pdf.setTextColor(20,41,74);
+        if(l.primeira) pdf.text(l.it.num, mL+wN/2, yc+3.6, {align:"center"});
+        pdf.setFont(FONT,"normal"); pdf.setTextColor(40,51,63);
+        pdf.text(l.iL, mL+wN+2.5, yc+3.6);
+        pdf.text(l.dL, mL+wN+wI+2.5, yc+3.6);
+        pdf.text(String(INF.get(l.d).pg), mL+cw-wP/2, yc+3.6, {align:"center"});
+        pdf.setDrawColor(237,241,245); pdf.setLineWidth(0.2); pdf.line(mL, yc+l.h, mL+cw, yc+l.h);
+        yc+=l.h;
+      });
+      // folhas de abertura + documentos
+      itens.forEach(function(it){
+        rod(); nova();
+        var yA=topY+70;
+        pdf.setDrawColor(31,111,192); pdf.setLineWidth(0.6); pdf.line(W/2-35, yA-12, W/2+35, yA-12);
+        pdf.setFont(FONT,"bold"); pdf.setFontSize(20); pdf.setTextColor(20,40,70);
+        pdf.text("ANEXO – ITEM "+it.num, W/2, yA, {align:"center"}); yA+=9;
+        pdf.setFont(FONT,"normal"); pdf.setFontSize(11); pdf.setTextColor(40,51,63);
+        pdf.splitTextToSize(it.crit||"", cw-30).forEach(function(l){ pdf.text(l, W/2, yA, {align:"center"}); yA+=5.4; });
+        pdf.line(W/2-35, yA+2, W/2+35, yA+2); yA+=12;
+        pdf.setFontSize(9); pdf.setTextColor(90,100,112);
+        it.docs.forEach(function(d,k){ pdf.text((k+1)+". "+(d.nome||"documento")+"  —  pág. "+INF.get(d).pg, W/2, yA, {align:"center"}); yA+=5; });
+        it.docs.forEach(function(d){
+          var inf=INF.get(d);
+          if(inf.pdf && inf.bytes){
+            ANX_INS.push({ depoisDe:pdf.internal.getNumberOfPages(), bytes:inf.bytes, item:it.num, nome:d.nome, pg0:inf.pg });
+            PG+=inf.n;                                   // os cabeçalhos seguintes continuam a numeração certa
+            return;
+          }
+          rod(); nova();
+          pdf.setFont(FONT,"bold"); pdf.setFontSize(9); pdf.setTextColor(20,41,74);
+          pdf.text("Anexo – item "+it.num+" · "+pdf.splitTextToSize(d.nome||"documento", cw-40)[0], mL, yc); yc+=5;
+          if(inf.pdf){ pdf.setFont(FONT,"italic"); pdf.setTextColor(160,40,30); pdf.text("Documento PDF: "+inf.erro+".", mL, yc+6); return; }
+          try{
+            var pr=pdf.getImageProperties(d.src), aw=cw, ah=botY-yc-2, r=Math.min(aw/pr.width, ah/pr.height);
+            var iw=pr.width*r, ih=pr.height*r, fmt=/^data:image\/png/i.test(d.src)?"PNG":"JPEG";
+            pdf.addImage(d.src, fmt, mL+(cw-iw)/2, yc, iw, ih);
+          }catch(e){ pdf.setFont(FONT,"italic"); pdf.setTextColor(160,40,30); pdf.text("Não foi possível incorporar esta imagem.", mL, yc+6); }
+        });
+      });
+    }
+    try{ await anexosChecklist(); }catch(e){ console.error("anexos do check list:", e); alert("O parecer foi gerado, mas os anexos do check list não puderam ser incluídos: "+(e&&e.message||e)); ANX_INS=[]; }
+
     rod();
     var blob=pdf.output("blob");
+    if(ANX_INS.length && window.PDFLib){
+      // junta: páginas do jsPDF na ordem, com as páginas de cada PDF anexado logo depois da página em que foi chamado
+      var base=await PDFLib.PDFDocument.load(await blob.arrayBuffer()), outD=await PDFLib.PDFDocument.create();
+      var fonteA=await outD.embedFont(PDFLib.StandardFonts.Helvetica), nJs=base.getPageCount();
+      for(var pj=0; pj<nJs; pj++){
+        (await outD.copyPages(base,[pj])).forEach(function(p){ outD.addPage(p); });
+        for(var q=0; q<ANX_INS.length; q++){
+          var ins=ANX_INS[q]; if(ins.depoisDe!==pj+1) continue;
+          var src=await PDFLib.PDFDocument.load(ins.bytes,{ignoreEncryption:true});
+          var pgs=await outD.copyPages(src, src.getPageIndices());
+          pgs.forEach(function(p,k){
+            outD.addPage(p);
+            var sz=p.getSize(), txt="Anexo – item "+ins.item+" · "+String(ins.nome||"").slice(0,70)+"   ·   Página | "+(ins.pg0+k);
+            try{ p.drawText(txt,{ x:28, y:sz.height-16, size:7, font:fonteA, color:PDFLib.rgb(0.35,0.35,0.35) }); }
+            catch(e){ try{ p.drawText("Anexo - item "+ins.item+"   Pagina | "+(ins.pg0+k),{ x:28, y:sz.height-16, size:7, font:fonteA, color:PDFLib.rgb(0.35,0.35,0.35) }); }catch(e2){} }
+          });
+        }
+      }
+      blob=new Blob([await outD.save()],{type:"application/pdf"});
+    }
     var nome="Parecer_Regularizacao_Fundiaria_"+(window.__CTDsuf?window.__CTDsuf():"CTD 000")+".pdf";
     if(opts&&opts.retornar) return {blob:blob, nome:nome};
     if(window.FS_salvar){ await window.FS_salvar(blob, nome); }
@@ -49140,7 +49336,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.15-15';
+window.APP_VERSAO = '2026.10.15-16';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.15-3';
 (function(){
