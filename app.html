@@ -19069,6 +19069,62 @@ window.FOTO_rodapeHTML=rodapeHTML;
     doc.text(mesAno, BARRA/2, H-114, {align:"center"});
   }
 
+  // ---------- CAPA DO MEMORIAL DE CÁLCULO (15/10/2026) ----------
+  // Mesmo desenho e mesmos textos das capas do DESP 1 / DESP 2: ferrovia, lote, processo, EXPROPRIADO, LOCAÇÃO + áreas e contrato justificado
+  function desenharCapaMemorial(doc,ctx){
+    const {W,H}=ctx, BARRA=184, ML=BARRA+18, MR=W-40, cx=(BARRA+W)/2, LARG=MR-ML;
+    const cm = window.CAPA_comum ? window.CAPA_comum() : { ferrovia:"", lote:"", processo:"", expropriado:"", contrato:"", areas:[] };
+    doc.setFillColor(60,90,130); doc.rect(0,0,BARRA,H,"F");
+    const LI=window.__LOGO_INFRA__, LE=window.__LOGO_ENPROL__, logoH=34, logoW=118, gap=22, lx=cx-(logoW*2+gap)/2;
+    if(LI){ try{ doc.addImage(LI,"JPEG",lx,34,logoW,logoH); }catch(e){} }
+    if(LE){ try{ doc.addImage(LE,"JPEG",lx+logoW+gap,34,logoW,logoH); }catch(e){} }
+    let y=128;
+    doc.setTextColor(20,40,70); doc.setFont("helvetica","bold"); doc.setFontSize(21);
+    doc.text("INFRA S.A.", cx, y, {align:"center"}); y+=20;
+    doc.setFontSize(8.6);
+    ["DIREM - DIRETORIA DE EMPREENDIMENTOS","SUGAT – SUPERINTENDÊNCIA DE GESTÃO AMBIENTAL E TERRITORIAL","GEDAF – GERÊNCIA DE DESAPROPRIAÇÃO E ASSUNTOS FUNDIÁRIOS"].forEach(function(l){ doc.text(l, cx, y, {align:"center"}); y+=12; });
+    doc.setDrawColor(20,40,70); doc.setLineWidth(0.8); doc.line(ML, y-4, MR, y-4); y+=52;
+    doc.setFontSize(19);
+    ["MEMORIAL DE CÁLCULO","DE TERRA NUA E BENFEITORIAS"].forEach(function(l){ doc.text(l, cx, y, {align:"center"}); y+=24; });
+    y+=18; doc.setFontSize(13); doc.setTextColor(40,40,40); doc.text("DESP-3", cx, y, {align:"center"}); y+=44;
+    doc.setFont("helvetica","normal"); doc.setFontSize(12);
+    doc.splitTextToSize(cm.ferrovia || "FERROVIA", LARG-12).forEach(function(l){ doc.text(l, cx, y, {align:"center"}); y+=18; });
+    y+=10; doc.setFont("helvetica","bold");
+    if(cm.lote){ doc.text("FTN (Lote: "+cm.lote+")", cx, y, {align:"center"}); y+=44; }
+    const proc = cm.processo || val("fv_processo");
+    doc.setFontSize(11);
+    if(proc){
+      doc.text("Processo administrativo:", cx, y, {align:"center"}); y+=17;
+      doc.setFont("helvetica","normal");
+      doc.splitTextToSize(proc, LARG-12).forEach(function(l){ doc.text(l, cx, y, {align:"center"}); y+=15; });
+      y+=24;
+    }
+    doc.setFontSize(10);
+    const expro = cm.expropriado || val("av_nome") || val("fv_nome");
+    if(expro){ doc.setFont("helvetica","normal"); doc.splitTextToSize("EXPROPRIADO: "+expro, LARG-12).forEach(function(l){ doc.text(l, cx, y, {align:"center"}); y+=14; }); y+=8; }
+    doc.setFont("helvetica","bold");
+    let areas = cm.areas;
+    if(!areas.length) areas = estacas().map(function(e){ return "KM "+(e.ini||"___")+" ao KM "+(e.fim||"___")+(e.tipo?(" ("+e.tipo+")"):""); });
+    if(areas.length){
+      doc.text("LOCAÇÃO:", cx, y, {align:"center"}); y+=14;
+      areas.forEach(function(a,i){ doc.splitTextToSize("ÁREA "+(i+1)+": "+a, LARG-12).forEach(function(l){ doc.text(l, cx, y, {align:"center"}); y+=14; }); });
+    }
+    // contrato: caixa invisível no canto inferior direito, margens justificadas (última linha à esquerda)
+    const contrato = "Contrato nº "+(cm.contrato || "037/2024")+" – Cujo objeto é a prestação de serviços especializados de engenharia consultiva para a execução das atividades de desapropriação, ocupação temporária ou constituição de servidão administrativa de imóveis, gestão fundiária e regularização de passivos de desapropriação.";
+    doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.setTextColor(40,40,40);
+    const cw=205, cX=MR-cw, cl=doc.splitTextToSize(contrato, cw); let cy=H-150;
+    cl.forEach(function(l,i){ if(i<cl.length-1) justificarLinha(doc, l, cX, cy, cw); else doc.text(l, cX, cy); cy+=10.5; });
+    doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(18);
+    doc.text("DESP-3", BARRA/2, H-135, {align:"center"});
+    let mesAno="";
+    const md=val("av_data_ass");
+    const M=["JANEIRO","FEVEREIRO","MARÇO","ABRIL","MAIO","JUNHO","JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"];
+    if(md){ const d=new Date(md+"T00:00:00"); mesAno=M[d.getMonth()]+"/"+d.getFullYear(); }
+    else { const d=new Date(); mesAno=M[d.getMonth()]+"/"+d.getFullYear(); }
+    doc.text(mesAno, BARRA/2, H-114, {align:"center"});
+    doc.setTextColor(0,0,0);
+  }
+
   // ---------- FICHA DE VISTORIA ----------
   function desenharFicha(doc,ctx){
     novaPagina(doc,ctx);
@@ -20551,7 +20607,15 @@ window.FOTO_rodapeHTML=rodapeHTML;
         try{ if(window.BENF_carregarImgs) await window.BENF_carregarImgs(); }catch(err){}
         const out = await PDFLib.PDFDocument.create(), procRef = val("fv_processo");
         if(opts.memorial !== false){
-          const {jsPDF}=window.jspdf, doc=new jsPDF({unit:"pt",format:"a4",compress:true}), ctx=makeCtx(doc);
+          const {jsPDF}=window.jspdf;
+          if(opts.capaMemorial !== false){                      // capa do memorial (15/10/2026)
+            try{
+              const dc=new jsPDF({unit:"pt",format:"a4",compress:true}), cc=makeCtx(dc);
+              desenharCapaMemorial(dc,cc);
+              await juntar(out, await PDFLib.PDFDocument.load(dc.output("arraybuffer")));
+            }catch(err){ console.warn("capa do memorial:", err); }
+          }
+          const doc=new jsPDF({unit:"pt",format:"a4",compress:true}), ctx=makeCtx(doc);
           desenharFtnCompacto(doc,ctx);
           const yFim = ctx.y;                                    // onde terminou o conteúdo na última página
           doc.deletePage(1);                                     // a 1ª página (em branco) nasce com o documento
@@ -35345,6 +35409,11 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     if(!a || (!a.ini && !a.fim)) return "";
     return "KM "+(a.ini||"___")+" ao KM "+(a.fim||"___")+(a.tipo?(" ("+a.tipo+")"):"");
   }
+  // 15/10/2026: dados comuns das capas (DESP 1, DESP 2 e Memorial de Cálculo) — a capa do DESP 1 é a referência
+  window.CAPA_comum=function(){
+    return { ferrovia:(g("rel_ferrovia")||"").toUpperCase(), lote:g("rel_lote"), processo:g("rel_processo"), expropriado:g("rel_expropriado"),
+             contrato:g("rel_contrato"), areas:areas.map(areaTexto).filter(x=>(x||"").trim()) };
+  };
 
   // ---- Auto-fill da 1.9 ----
   const MAP={ // data-rel-from  ->  id na 1.9
@@ -35612,8 +35681,9 @@ window.UFOTO_rodapeHTML=rodapeHTML;
       rightKids.push(cc([R(g("rel_processo"),{size:22})],{spacing:{after:600}}));
     }
     if(g("rel_expropriado")) rightKids.push(cc([R("EXPROPRIADO: "+g("rel_expropriado"),{size:20})],{spacing:{after:220}}));
-    areasArr.forEach((a,i)=>rightKids.push(cc([R((i===0?"LOCAÇÃO: ":"")+"ÁREA "+(i+1)+": "+a,{bold:true,size:20})],{spacing:{after:120}})));
-    if(g("rel_contrato")) rightKids.push(new Paragraph({alignment:AlignmentType.RIGHT,spacing:{before:1500},children:[R("Contrato nº "+g("rel_contrato")+" – Cujo objeto é a prestação de serviços especializados de engenharia consultiva para a execução das atividades de desapropriação, ocupação temporária ou constituição de servidão administrativa de imóveis, gestão fundiária e regularização de passivos de desapropriação.",{size:15})]}));
+    if(areasArr.length) rightKids.push(cc([R("LOCAÇÃO:",{bold:true,size:20})],{spacing:{after:80}}));
+    areasArr.forEach((a,i)=>rightKids.push(cc([R("ÁREA "+(i+1)+": "+a,{bold:true,size:20})],{spacing:{after:120}})));
+    if(g("rel_contrato")) rightKids.push(new Paragraph({alignment:AlignmentType.JUSTIFIED,indent:{left:3969},spacing:{before:1500},children:[R("Contrato nº "+g("rel_contrato")+" – Cujo objeto é a prestação de serviços especializados de engenharia consultiva para a execução das atividades de desapropriação, ocupação temporária ou constituição de servidão administrativa de imóveis, gestão fundiária e regularização de passivos de desapropriação.",{size:15})]}));
     const leftCell=new TableCell({shading:{type:ShadingType.CLEAR,fill:BLUE,color:"auto"},verticalAlign:VerticalAlign.BOTTOM,margins:{top:100,bottom:800,left:160,right:80},borders:noBorders,children:[ new Paragraph({children:[R("DESP-1",{bold:true,color:"FFFFFF",size:28})]}), new Paragraph({children:[R((mesano||"").toUpperCase(),{bold:true,color:"FFFFFF",size:28})]}) ]});
     const rightCell=new TableCell({verticalAlign:VerticalAlign.TOP,margins:{top:180,bottom:200,left:220,right:220},borders:noBorders,children:rightKids});
     const CWfull=11906; const capaC0=Math.round(CWfull*0.22); const capaCols=[capaC0, CWfull-capaC0];
@@ -35818,13 +35888,14 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     if(g("rel_expropriado")){ pdf.text("EXPROPRIADO: "+g("rel_expropriado"), cxC, y, {align:"center"}); y+=8; }
     pdf.setFont("helvetica","bold");
     const A=areas.map(areaTexto).filter(x=>(x||"").trim());
-    A.forEach((a,i)=>{ pdf.text((i===0?"LOCAÇÃO: ":"")+"ÁREA "+(i+1)+": "+a, cxC, y, {align:"center"}); y+=5; });
+    if(A.length){ pdf.text("LOCAÇÃO:", cxC, y, {align:"center"}); y+=5; }
+    A.forEach((a,i)=>{ pdf.text("ÁREA "+(i+1)+": "+a, cxC, y, {align:"center"}); y+=5; });
     // texto do contrato no canto inferior direito
     if(g("rel_contrato")){
       const ct="Contrato nº "+g("rel_contrato")+" – Cujo objeto é a prestação de serviços especializados de engenharia consultiva para a execução das atividades de desapropriação, ocupação temporária ou constituição de servidão administrativa de imóveis, gestão fundiária e regularização de passivos de desapropriação.";
       pdf.setFont("helvetica","normal"); pdf.setFontSize(7.5); pdf.setTextColor(40,40,40);
-      const ctLs=pdf.splitTextToSize(ct, 78);
-      let cy=250; ctLs.forEach(l=>{ pdf.text(l, W-mR-78, cy); cy+=3.2; });
+      const ctW=78, ctX=W-mR-ctW, ctLs=pdf.splitTextToSize(ct, ctW);   // caixa invisível: margens justificadas, última linha à esquerda
+      let cy=250; ctLs.forEach((l,i)=>{ if(i<ctLs.length-1 && window.justificarLinha) window.justificarLinha(pdf, l, ctX, cy, ctW); else pdf.text(l, ctX, cy); cy+=3.2; });
     }
     // DESP-1 + data dentro da faixa azul (branco)
     pdf.setFont("helvetica","bold"); pdf.setFontSize(14); pdf.setTextColor(255,255,255);
@@ -43651,7 +43722,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       y+=6;
       pdf.setFontSize(13); pdf.setTextColor(40,40,40); pdf.text("DESP-2", cxC, y, {align:"center"}); y+=16;
       pdf.setFontSize(12); pdf.setFont("helvetica","normal");
-      const ferroTxt=(C("ferrovia")||"FERROVIA").toUpperCase();
+      const ferroTxt=((window.CAPA_comum&&window.CAPA_comum().ferrovia)||C("ferrovia")||"FERROVIA").toUpperCase();   // 15/10/2026: texto da capa do DESP 1
       const ferroLs=pdf.splitTextToSize(ferroTxt, W-cxL-mR-6);
       ferroLs.forEach(function(l){ pdf.text(l, cxC, y, {align:"center"}); y+=6.5; });
       y+=6;
@@ -43667,14 +43738,15 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       _procLsD2.forEach(function(l){ pdf.text(l, cxC, y, {align:"center"}); y+=5.4; });
       y+=8;
       pdf.setFontSize(10);
-      if(C("proprietario")){ pdf.text("PROPRIETÁRIO: "+C("proprietario"), cxC, y, {align:"center"}); y+=8; }
-      // Posseiro (23/09/2026, pedido do usuário): quando o ocupante identificado no
-      // item 1.3 da Ficha de Vistoria não é o(a) proprietário(a), esse ocupante é
-      // quem detém a posse — mostra o nome dele(a) logo abaixo do proprietário.
-      const _posseiroNomeD2=gid("fb_ocup_e_prop")==="2 - Não" ? gid("fb_inf_nome") : "";
-      if(_posseiroNomeD2){ pdf.text("POSSEIRO: "+_posseiroNomeD2, cxC, y, {align:"center"}); y+=8; }
+      // 15/10/2026: EXPROPRIADO e LOCAÇÃO iguais à capa do DESP 1 (o proprietário/posseiro vem do mesmo campo do Relatório)
+      const _cm=window.CAPA_comum?window.CAPA_comum():{areas:[],expropriado:""};
+      const _expro=_cm.expropriado||C("proprietario");
+      if(_expro){ pdf.text("EXPROPRIADO: "+_expro, cxC, y, {align:"center"}); y+=8; }
       pdf.setFont("helvetica","bold");
-      if(C("km")){ pdf.text("TRECHO: "+C("km"), cxC, y, {align:"center"}); y+=5; }
+      if(_cm.areas.length){
+        pdf.text("LOCAÇÃO:", cxC, y, {align:"center"}); y+=5;
+        _cm.areas.forEach(function(a,i){ pdf.text("ÁREA "+(i+1)+": "+a, cxC, y, {align:"center"}); y+=5; });
+      } else if(C("km")){ pdf.text("LOCAÇÃO:", cxC, y, {align:"center"}); y+=5; pdf.text(C("km"), cxC, y, {align:"center"}); y+=5; }
       if(C("contrato")){
         const ct="Contrato nº "+C("contrato")+" – Cujo objeto é a prestação de serviços especializados de engenharia consultiva para a execução das atividades de desapropriação, ocupação temporária ou constituição de servidão administrativa de imóveis, gestão fundiária e regularização de passivos de desapropriação.";
         pdf.setFont("helvetica","normal"); pdf.setFontSize(7.5); pdf.setTextColor(40,40,40);
@@ -44190,13 +44262,14 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     capa.push(new Paragraph({alignment:AlignmentType.CENTER, spacing:{after:1000}, border:{bottom:{style:BorderStyle.SINGLE,size:8,color:NAVY,space:4}}, children:[R("GEDAF – GERÊNCIA DE DESAPROPRIAÇÃO E ASSUNTOS FUNDIÁRIOS",{bold:true,size:18,color:NAVY})]}));
     capa.push(cc([R("RELATÓRIO DE ANÁLISE DE IMPACTO E TRANSPOSIÇÃO DA FAIXA DE DOMÍNIO",{bold:true,color:NAVY,size:38})],{after:240}));
     capa.push(cc([R("DESP-2",{bold:true,color:"282828",size:26})],{after:600}));
-    capa.push(cc([R((C("ferrovia")||"FERROVIA").toUpperCase(),{size:24})],{after:240}));
+    const _cmW=window.CAPA_comum?window.CAPA_comum():{areas:[],expropriado:"",ferrovia:""};
+    capa.push(cc([R((_cmW.ferrovia||C("ferrovia")||"FERROVIA").toUpperCase(),{size:24})],{after:240}));
     if(C("trecho")) capa.push(cc([R(_sigla+" (Lote: "+C("trecho")+")",{bold:true,size:24})],{after:500}));
     capa.push(cc([R("Processo administrativo:",{bold:true,size:22})],{after:60}));
     capa.push(cc([R(procCapa(),{size:22})],{after:400}));
-    if(C("proprietario")) capa.push(cc([R("PROPRIETÁRIO: "+C("proprietario"),{size:20})],{after:160}));
-    if(_posseiro) capa.push(cc([R("POSSEIRO: "+_posseiro,{size:20})],{after:160}));
-    if(C("km")) capa.push(cc([R("TRECHO: "+C("km"),{bold:true,size:20})],{after:160}));
+    if(_cmW.expropriado||C("proprietario")) capa.push(cc([R("EXPROPRIADO: "+(_cmW.expropriado||C("proprietario")),{size:20})],{after:160}));
+    if(_cmW.areas.length){ capa.push(cc([R("LOCAÇÃO:",{bold:true,size:20})],{after:80})); _cmW.areas.forEach(function(a,i){ capa.push(cc([R("ÁREA "+(i+1)+": "+a,{bold:true,size:20})],{after:120})); }); }
+    else if(C("km")){ capa.push(cc([R("LOCAÇÃO:",{bold:true,size:20})],{after:80})); capa.push(cc([R(C("km"),{bold:true,size:20})],{after:160})); }
     if(C("contrato")) capa.push(new Paragraph({alignment:AlignmentType.JUSTIFIED, indent:{left:mm(70)}, spacing:{before:900}, children:[R("Contrato nº "+C("contrato")+" – Cujo objeto é a prestação de serviços especializados de engenharia consultiva para a execução das atividades de desapropriação, ocupação temporária ou constituição de servidão administrativa de imóveis, gestão fundiária e regularização de passivos de desapropriação.",{size:15})]}));
     const faixa=new TableCell({shading:{type:ShadingType.CLEAR,fill:"3C5A82",color:"auto"}, verticalAlign:VerticalAlign.BOTTOM, margins:{top:100,bottom:900,left:160,right:80}, borders:noB,
       children:[ new Paragraph({alignment:AlignmentType.CENTER, children:[R("DESP-2",{bold:true,color:"FFFFFF",size:28})]}), new Paragraph({alignment:AlignmentType.CENTER, children:[R(dataCapa,{bold:true,color:"FFFFFF",size:26})]}) ]});
@@ -49002,7 +49075,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.15-6';
+window.APP_VERSAO = '2026.10.15-7';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.15-3';
 (function(){
