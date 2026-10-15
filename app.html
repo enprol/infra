@@ -48793,6 +48793,141 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
 
 </script>
 <!--SOLOS:FIM-->
+<!--APPVER:INICIO-->
+<script>
+/* APPVER:INICIO */
+/* Versão do app e do servidor (protocolo P3, 15/10/2026).
+   APP_VERSAO .............. regravada pelo servidor-cadastros/versao.js a cada publicação.
+   SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
+                             '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
+   SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
+window.APP_VERSAO = '2026.10.15-1';
+window.SERVIDOR_MINIMO = '2026.10.07-0';
+window.SERVIDOR_RECOMENDADO = '2026.10.15-1';
+(function(){
+  var SEM_VERSAO = '0000.00.00-0';
+  var LEGADO_LAYOUT = '2026.10.07-0';   // servidor que já tem layout_antigo no health, mas ainda sem número de versão
+  var estado = { servidor: null, maquina: null, nivel: 'desconhecido', versaoServidor: null, texto: '' };
+
+  function num(v){ var m = /^(\d{4})\.(\d{2})\.(\d{2})-(\d+)$/.exec(String(v || '')); return m ? [+m[1], +m[2], +m[3], +m[4]] : [0, 0, 0, 0]; }
+  function comparar(a, b){ var x = num(a), y = num(b); for(var i = 0; i < 4; i++){ if(x[i] !== y[i]) return x[i] < y[i] ? -1 : 1; } return 0; }
+  function versaoDoServidor(h){
+    if(h && h.servidor && h.servidor.versao) return h.servidor.versao;
+    if(h && Object.prototype.hasOwnProperty.call(h, 'layout_antigo')) return LEGADO_LAYOUT;
+    return SEM_VERSAO;
+  }
+  // devolve { nivel: 'ok' | 'aviso' | 'bloqueado', versao, maquina }
+  function avaliar(h){
+    var v = versaoDoServidor(h), maq = (h && h.servidor && h.servidor.maquina) || null;
+    var nivel = 'ok';
+    if(comparar(v, window.SERVIDOR_MINIMO) < 0) nivel = 'bloqueado';
+    else if(comparar(v, window.SERVIDOR_RECOMENDADO) < 0) nivel = 'aviso';
+    return { nivel: nivel, versao: v, maquina: maq };
+  }
+
+  var MSG_BLOQ = 'O servidor desta máquina é anterior à reorganização das pastas (versão ' + '%V%' + ') e salvaria os cadastros na pasta errada. ' +
+    'As gravações estão BLOQUEADAS nesta máquina. Peça ao suporte para rodar o instalar.bat do servidor-cadastros-INSTALADOR.zip (pasta INSTALADOR da base) e recarregue.';
+
+  function msgBloqueio(){ return MSG_BLOQ.replace('%V%', estado.versaoServidor === SEM_VERSAO ? 'sem número' : estado.versaoServidor); }
+
+  /* ---------- interface ---------- */
+  function css(){
+    if(document.getElementById('appver-css')) return;
+    var s = document.createElement('style'); s.id = 'appver-css';
+    s.textContent =
+      '#appver-selo{position:fixed;left:8px;bottom:6px;z-index:2147482000;font:600 10px/1 "Segoe UI",system-ui,sans-serif;color:#243447;opacity:.55;background:rgba(255,255,255,.75);padding:3px 6px;border-radius:6px;cursor:pointer;user-select:none}' +
+      '#appver-selo:hover{opacity:1}' +
+      '#appver-faixa{position:fixed;left:0;right:0;top:0;z-index:2147483000;background:#b3261e;color:#fff;font:600 13px/1.35 "Segoe UI",system-ui,sans-serif;padding:7px 14px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.3)}' +
+      '#appver-aviso{position:fixed;right:12px;bottom:12px;z-index:2147482500;max-width:340px;background:#fff8e1;color:#5d4200;border:1px solid #f0c24b;border-radius:10px;font:500 12px/1.4 "Segoe UI",system-ui,sans-serif;padding:9px 30px 9px 12px;box-shadow:0 4px 14px rgba(0,0,0,.18)}' +
+      '#appver-aviso button{position:absolute;right:6px;top:4px;border:0;background:transparent;font-size:16px;line-height:1;cursor:pointer;color:#5d4200}' +
+      '@media print{#appver-selo,#appver-faixa,#appver-aviso{display:none!important}}';
+    document.head.appendChild(s);
+  }
+  function el(id, tag){
+    var e = document.getElementById(id);
+    if(!e){ e = document.createElement(tag || 'div'); e.id = id; document.body.appendChild(e); }
+    return e;
+  }
+  function detalhes(){
+    return 'App: ' + window.APP_VERSAO + '\n' +
+      'Servidor desta máquina: ' + (estado.servidor ? (estado.versaoServidor === SEM_VERSAO ? 'sem número de versão (antigo)' : estado.versaoServidor) + (estado.maquina ? ' · ' + estado.maquina : '') : 'não respondeu') + '\n' +
+      'Servidor recomendado: ' + window.SERVIDOR_RECOMENDADO + ' · mínimo para gravar: ' + window.SERVIDOR_MINIMO +
+      (estado.nivel === 'bloqueado' ? '\n\n' + msgBloqueio() : '');
+  }
+  function desenhar(){
+    if(!document.body) return;
+    css();
+    var selo = el('appver-selo');
+    selo.textContent = 'v' + window.APP_VERSAO;
+    selo.title = 'Clique para ver as versões do app e do servidor';
+    selo.onclick = function(){ alert(detalhes()); };
+    var f = document.getElementById('appver-faixa'), a = document.getElementById('appver-aviso');
+    if(estado.nivel === 'bloqueado'){
+      f = el('appver-faixa'); f.textContent = '⚠ ' + msgBloqueio();
+      if(a) a.remove();
+    } else {
+      if(f) f.remove();
+      var dispensado = false; try{ dispensado = sessionStorage.getItem('appver_aviso') === estado.versaoServidor; }catch(e){}
+      if(estado.nivel === 'aviso' && !dispensado){
+        a = el('appver-aviso');
+        a.innerHTML = '';
+        var t = document.createElement('span');
+        t.textContent = 'Há uma versão mais nova do servidor (' + window.SERVIDOR_RECOMENDADO + '). Esta máquina roda ' +
+          (estado.versaoServidor === LEGADO_LAYOUT ? 'uma versão sem número' : estado.versaoServidor) + '. Reinstale quando puder (instalar.bat).';
+        var b = document.createElement('button'); b.type = 'button'; b.textContent = '×'; b.title = 'Dispensar nesta sessão';
+        b.onclick = function(){ try{ sessionStorage.setItem('appver_aviso', estado.versaoServidor); }catch(e){} a.remove(); };
+        a.appendChild(t); a.appendChild(b);
+      } else if(a){ a.remove(); }
+    }
+  }
+
+  /* ---------- verificação ---------- */
+  function baseUrl(){ return (typeof window.CAD_SERVIDOR_URL === 'string' ? window.CAD_SERVIDOR_URL : '').replace(/\/+$/, ''); }
+  function verificar(){
+    return fetch(baseUrl() + '/api/health', { cache: 'no-store' }).then(function(r){ return r.ok ? r.json() : null; }).then(function(h){
+      if(!h){ return; }
+      var r = avaliar(h);
+      estado.servidor = h; estado.maquina = r.maquina; estado.versaoServidor = r.versao; estado.nivel = r.nivel;
+      desenhar();
+    }).catch(function(){ /* sem servidor (app aberto fora dele): o resto do app já trata; fica só o selo */ desenhar(); });
+  }
+
+  /* ---------- bloqueio das gravações (só com servidor abaixo do mínimo) ---------- */
+  var fetchOriginal = window.fetch;
+  if(typeof fetchOriginal === 'function'){
+    window.fetch = function(url, opt){
+      try{
+        var metodo = String((opt && opt.method) || (url && url.method) || 'GET').toUpperCase();
+        var u = typeof url === 'string' ? url : (url && url.url) || '';
+        if(estado.nivel === 'bloqueado' && metodo !== 'GET' && metodo !== 'HEAD' && u.indexOf('/api/') >= 0){
+          var corpo = JSON.stringify({ erro: msgBloqueio(), servidor_desatualizado: true });
+          return Promise.resolve(new Response(corpo, { status: 503, headers: { 'Content-Type': 'application/json' } }));
+        }
+      }catch(e){ /* na dúvida, deixa passar */ }
+      return fetchOriginal.apply(this, arguments);
+    };
+  }
+  function envolverSalvar(){
+    var orig = window.CAD_salvarNuvem;
+    if(typeof orig !== 'function' || orig.__appver) return;
+    var novo = function(){
+      if(estado.nivel === 'bloqueado'){ alert(msgBloqueio()); return Promise.resolve(); }
+      return orig.apply(this, arguments);
+    };
+    novo.__appver = true;
+    window.CAD_salvarNuvem = novo;
+  }
+
+  window.APPVER = { avaliar: avaliar, comparar: comparar, estado: estado, verificar: verificar };
+  function iniciar(){
+    desenhar(); envolverSalvar(); verificar();
+    setInterval(verificar, 10 * 60 * 1000);
+    window.addEventListener('focus', function(){ verificar(); });
+  }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar); else iniciar();
+})();
+</script>
+<!--APPVER:FIM-->
 </body>
 
 
