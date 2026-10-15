@@ -9331,7 +9331,16 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 #panel-desp1-planta .mdp-sel-bar textarea{ width:190px; min-height:30px; resize:vertical; padding:4px 6px; border-radius:7px; border:1px solid #2e5560; background:#0b1a1f; color:#e8f1f3; font:inherit; white-space:pre-wrap; }
 @media (prefers-reduced-motion: reduce){ #panel-desp1-planta .mdp-sel-ants, #panel-desp1-planta .mdp-sel-bar{ animation:none; } }
 /* Mesa, etapa 2 (14/10/2026): menu Exportar + anel de prontidão */
-.mz-exp-wrap{ display:inline-flex; align-items:center; gap:6px; }
+/* 15/10/2026: .v2-wrap (display:block) vencia o inline-flex daqui e o "N erros" e o Exportar ficavam colados e desalinhados.
+   Agora o grupo é um flex de verdade, com folga entre os dois e a mesma altura dos outros botões da barra. */
+.mz-exp-wrap, .v2-wrap.mz-exp-wrap{ display:inline-flex; align-items:center; gap:10px; margin-left:4px; }
+#panel-desp1-planta .mdp-comp-top .mz-exp-wrap > .mdp-mini{ display:inline-flex; align-items:center; justify-content:center; gap:6px; height:28px; padding:0 12px; line-height:1; box-sizing:border-box; }
+#panel-desp1-planta .mdp-comp-top .mz-exp-wrap .mz-pront svg{ width:15px; height:15px; flex:none; }
+/* barra de cima da Mesa: todos os botões e seletores com a mesma altura e alinhados pelo centro */
+#panel-desp1-planta .mdp-comp-top .mdp-mini{ display:inline-flex; align-items:center; gap:6px; height:28px; padding-top:0; padding-bottom:0; box-sizing:border-box; line-height:1; }
+#panel-desp1-planta .mdp-comp-top .v2-wrap{ display:inline-flex; align-items:center; gap:6px; }
+#panel-desp1-planta .mdp-comp-top .mdp-sel{ height:28px; box-sizing:border-box; }
+#panel-desp1-planta .mdp-comp-top .v2-wrap.mz-exp-wrap{ gap:10px; margin-left:4px; }
 .mz-pront{ display:inline-flex; align-items:center; gap:7px; }
 #panel-desp1-planta .mz-pront[data-est="ok"]{ color:#159a3c; } #panel-desp1-planta .mz-pront[data-est="aviso"]{ color:#b56c00; } #panel-desp1-planta .mz-pront[data-est="erro"]{ color:#c0392b; }
 #panel-desp1-planta .mdp-comp-top .mz-pront[data-est="ok"]{ color:#6fd39a; } #panel-desp1-planta .mdp-comp-top .mz-pront[data-est="aviso"]{ color:#ffb86b; } #panel-desp1-planta .mdp-comp-top .mz-pront[data-est="erro"]{ color:#ff8a7a; }
@@ -9380,6 +9389,9 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 .v2-it em{ font-style:normal; font-weight:500; font-size:11px; color:#7a8797; }
 .v2-it.novo{ color:#175a9f; }
 .v2-it2{ display:flex; align-items:center; } .v2-it2 .v2-it{ flex:1; }
+.v2-itl{ display:flex; align-items:center; gap:2px; } .v2-itl .v2-it{ flex:1; }
+.v2-itx{ flex:none; width:28px; height:28px; border:0; border-radius:8px; background:none; color:#9aa7b5; cursor:pointer; font:600 12px/1 inherit; }
+.v2-itx:hover, .v2-itx:focus-visible{ background:#fde8e6; color:#c0392b; outline:none; }
 .v2-del{ border:0; background:none; color:#b5382a; cursor:pointer; padding:6px 9px; border-radius:6px; } .v2-del:hover{ background:#fdecec; }
 .v2-vazio{ padding:10px; font-size:12px; color:#7a8797; font-style:italic; }
 .v2-sem-tab .mdp-comp-dir, .v2-sem-tab .mdp-comp-arr{ display:none !important; }
@@ -24691,15 +24703,22 @@ function AV_gerarDescSituacao(){
     });
     return out;
   }
+  /* 15/10/2026: conf() era recalculado a CADA trecho (kmManual, kmDe…) — com 168 vértices a aba Planta levava ~2,7 s
+     (tabela 1,4 s + memorial 1,1 s). Agora o resultado é guardado enquanto os dados e o perímetro forem os mesmos; quem
+     chama recebe sempre uma CÓPIA, porque alguns chamadores alteram o objeto antes de gravar (setConf). */
+  var CONF_MEMO = { k:null, v:null };
   function conf(){
     var o = confBruto();
     if(confLegado(o)){ if(G) sincronizarG(); return o; }   // formato antigo: numeração do P01 gravado
     if(!G) return {};
+    var chave = JSON.stringify(o) + "#" + chaveG();
+    if(CONF_MEMO.k === chave) return JSON.parse(CONF_MEMO.v);
     var n = G.v.length, idx = {};
     for(var i = 0; i < n; i++){
       var s = confAchar(o, kSeg(G.v[i], G.v[(i+1)%n])), v = confAchar(o, "v:" + kPt(G.v[i]));
       if(s || (v && v.km != null)) idx[i] = Object.assign({}, s || {}, (v && v.km != null) ? { km:v.km } : {});
     }
+    CONF_MEMO.k = chave; CONF_MEMO.v = JSON.stringify(idx);
     return idx;
   }
   function setConf(idx){ gravarConfBruto(confParaCoord(idx)); }
@@ -25065,6 +25084,13 @@ function AV_gerarDescSituacao(){
     var v0 = G.v[0];
     N("Inicia-se a descrição deste perímetro no vértice "); B(v0.nome);
     var kmA0 = kmAtual(), TXT_KM = (kmA0 && kmA0.doEixo === false) ? ", em perpendicular ao KM=" : ", no KM=";   // 13/10/2026
+    // 15/10/2026: o que não muda de trecho para trecho é calculado UMA vez (era refeito a cada kmDe: ~1,1 s com 168 vértices)
+    var cfM = conf(), eixM = eixoIniFim(), relM = relKm(anelAtivo());
+    var kmDe = function(i){
+      var man = (cfM[i] && cfM[i].km) ? String(cfM[i].km).trim() : ""; if(man) return man;
+      if(relM && eixM){ var rv = (i === eixM.ini) ? (relM.ini || "") : ((i === eixM.fim && eixM.fim !== eixM.ini) ? (relM.fim || "") : ""); if(rv) return rv; }
+      return (eixM && (i === eixM.ini || i === eixM.fim) && eixM.km.v[i].ch != null) ? kmTxt(eixM.km.v[i].ch) : "";
+    };
     var km0 = kmDe(0); if(km0){ N(TXT_KM); B(km0); }
     N(", de coordenadas N "); B(br(v0.N,3) + "m"); N(" e E "); B(br(v0.E,3) + "m"); N("; ");
     G.segs.forEach(function(s, i){
@@ -25434,16 +25460,22 @@ function AV_gerarDescSituacao(){
   var COBRE = false;                                                 // true: carimbo e tabela (fundo branco) ficam POR CIMA do mapa
   var CAR  = { x:6, y:235, w:408, h:56 };
   var KC = 1, KV = 1;                                                // fatores do carimbo (horizontal / vertical)
+  // medidas do quadro do mapa / tabela de um formato, SEM mexer no estado (o plano de pranchas precisa delas por prancha)
+  function geomFmt(id){
+    var f = FORMATOS[id] || FORMATOS.a3, m = 6, tabw = 100, carh = 62;
+    var mw = f.W - m*2 - tabw - 2, mh = f.H - m*2 - carh - 2;
+    return { mw:mw, mh:mh, tabh:Math.min(mh, 227), tabw:tabw };
+  }
   function aplicarFormato(id){
-    var f = FORMATOS[id] || FORMATOS.a3;
+    var f = FORMATOS[id] || FORMATOS.a3, gF = geomFmt(id);
     FL.id = FORMATOS[id] ? id : "a3"; FL.nome = f.nome; FL.W = f.W; FL.H = f.H;
     FL.m = 6;                                                        // 13/10/2026: margem da borda = a do A3 em todos os formatos
     CAR.h  = 62;                                                     // 13/10/2026: carimbo e tabela com as MEDIDAS do A3 em qualquer formato — só o quadro da planta cresce
     TAB.w  = 100;
     var ext = (FL.id === "a3x" || FL.id === "a2x");                  // estendidos: o quadro OBSERVAÇÃO se alonga (largura do carimbo do A3 estendido)
     MAPA.x = FL.m; MAPA.y = FL.m;
-    MAPA.w = FL.W - FL.m*2 - TAB.w - 2;
-    MAPA.h = FL.H - FL.m*2 - CAR.h - 2;
+    MAPA.w = gF.mw;
+    MAPA.h = gF.mh;
     CAR.w  = Math.min(FL.W - FL.m*2, ext ? 618 : 408);
     CAR.x  = FL.W - FL.m - CAR.w; CAR.y = FL.m + MAPA.h + 2;         // carimbo no canto inferior direito
     TAB.h  = Math.min(MAPA.h, 227);                                  // tabela com a altura do A3, encostada acima do carimbo
@@ -27541,14 +27573,22 @@ function AV_gerarDescSituacao(){
     return y + h;
   }
 
+  /* Datum e zona UTM juntos, na mesma linha e colados (15/10/2026: antes um ficava na esquerda e o outro na
+     borda direita do painel — lados opostos da prancha). Se não couberem, a fonte diminui. */
+  function datumZona(P, x, y, wMax, tam){
+    var t1 = "DATUM DE REFERÊNCIA: SIRGAS 2000", t2 = "ZONA UTM: " + G.fuso + G.letra, gap = 5, t = tam;
+    while(t > 3.6 && P.largura(t1, { tam:t }) + gap + P.largura(t2, { tam:t }) > wMax) t -= .1;
+    P.texto(x, y, t1, { tam:t });
+    P.texto(x + P.largura(t1, { tam:t }) + gap, y, t2, { tam:t });
+  }
+
   /* folha de continuação: a área da planta vira tabela em várias colunas */
   function painelTabelaLarga(P, T, pg){ CAMDXF(P, "ENP_TABELA");
     var x = MAPA.x, y = MAPA.y, w = MAPA.w + 2 + TAB.w, h = MAPA.h;
     P.ret(x, y, w, h, { peso:.3 });
     var yy = y + 6.4;
     P.texto(x + w/2, yy, "TABELA DE DISTÂNCIA, COORDENADAS E AZIMUTES — CONTINUAÇÃO", { tam:7.6, bold:true, align:"center" }); yy += 5.2;
-    P.texto(x + 3, yy, "DATUM DE REFERÊNCIA: SIRGAS 2000", { tam:5.6 });
-    P.texto(x + w - 3, yy, "ZONA UTM: " + G.fuso + G.letra, { tam:5.6, align:"right" }); yy += 3;
+    datumZona(P, x + 3, yy, w - 6, 5.6); yy += 3;
     var hDisp = y + h - 4 - yy, capCol = capacidadeTabela(hDisp);
     // só abre as colunas necessárias: poucas linhas não devem virar 12 colunas ralas
     var nc = Math.max(1, Math.min(pg.cols || 1, Math.ceil((pg.ate - pg.de)/capCol)));
@@ -27566,36 +27606,56 @@ function AV_gerarDescSituacao(){
 
   /* Quantas folhas a descrição precisa: a 1ª leva a planta + o que couber na
      coluna da direita; o resto vai para folhas só de tabela, numeradas sozinhas. */
-  function planoFolhas(){
+  /* ---- formato POR PRANCHA (15/10/2026) ----
+     O formato escolhido em "Formato da prancha" vale para a prancha 1 (a do mapa) e para todas as que não tiverem
+     o próprio; uma prancha de continuação (só tabela) pode ter outro — ex.: A3 estendido na 1/2 e A3 comum na 2/2.
+     Guardado em extras().formatos = { geral|a0|a1…: { "<nº da prancha>": "a3" } } (só as que diferem do padrão).
+     Cada prancha leva em pg.fmt o formato com que é planejada, desenhada, exportada (PDF, DXF) e numerada. */
+  function fmtOverride(n){
+    var o = extras().formatos, k = escKey();
+    var f = (o && typeof o === "object" && o[k] && o[k][n]) || null;
+    return (f && FORMATOS[f]) ? f : null;
+  }
+  function fmtFolha(n){ return fmtOverride(n) || OPC.formato; }
+  function planoFolhas(){                              // sempre calculado com o formato-padrão aplicado; o formato em uso é restaurado
+    var ant = FL.id; aplicarFormato(OPC.formato);
+    try{ return planoFolhasBase(); } finally{ aplicarFormato(ant); }
+  }
+  // capacidade de uma prancha só de tabela, no formato dela: nº de colunas e de linhas
+  function capContinuacao(fid){
+    var g = geomFmt(fid), wL = g.mw + 2 + g.tabw, hL = g.mh - 18;
+    var nc = Math.max(1, Math.floor((wL - 6 + 5)/67));
+    return { nc:nc, cap:capacidadeTabela(hL)*nc };
+  }
+  function planoFolhasBase(){
     var total = geralAtivo() ? 0 : G.segs.length;      // planta geral: sem tabela de vértices
-    var pm = planoMapa();
+    var pm = planoMapa(), base = OPC.formato;
     if(pm && pm.tiles){
-      // área extensa: uma prancha por quadro do mapa e, no fim, só as tabelas
-      var M = pm.tiles.length, wL2 = MAPA.w + 2 + TAB.w, hL2 = MAPA.h - 18;
-      var nc2 = Math.max(1, Math.floor((wL2 - 6 + 5)/67)), capT = capacidadeTabela(hL2)*nc2, nTab = Math.ceil(total/capT), fp = [], pos2 = 0;
-      for(var i = 0; i < M; i++) fp.push({ n:i + 1, total:M + nTab, mapa:true, k:i, kTotal:M, centro:[pm.tiles[i].cx, pm.tiles[i].cy], tiles:pm.tiles, esc:pm.esc, wm:pm.wm, hm:pm.hm, de:0, ate:0 });
-      for(var k = 0; k < nTab; k++){
-        var ate2 = Math.min(total, pos2 + capT);
-        fp.push({ n:M + 1 + k, total:M + nTab, de:pos2, ate:ate2, cols:nc2, tabelaFim:true, kTotal:M });
-        pos2 = ate2;
+      // área extensa: uma prancha por quadro do mapa (todas no formato-padrão: os quadros têm o tamanho dele) e, no fim, só as tabelas
+      var M = pm.tiles.length, fp = [], pos2 = 0, kk = 0;
+      for(var i = 0; i < M; i++) fp.push({ n:i + 1, total:0, mapa:true, k:i, kTotal:M, centro:[pm.tiles[i].cx, pm.tiles[i].cy], tiles:pm.tiles, esc:pm.esc, wm:pm.wm, hm:pm.hm, de:0, ate:0, fmt:base });
+      while(pos2 < total && kk < 400){
+        var nT = M + 1 + kk, fT = fmtFolha(nT), cT = capContinuacao(fT), ate2 = Math.min(total, pos2 + cT.cap);
+        fp.push({ n:nT, total:0, de:pos2, ate:ate2, cols:cT.nc, tabelaFim:true, kTotal:M, fmt:fT });
+        pos2 = ate2; kk++;
       }
+      fp.forEach(function(p){ p.total = fp.length; });
       return fp;
     }
     var hP1 = TAB.h - 12.8 - 47;
     var cap1 = capacidadeTabela(hP1);
-    if(total <= cap1) return [{ n:1, total:1, de:0, ate:total }];
-    var wL = MAPA.w + 2 + TAB.w, hL = MAPA.h - 18;
-    var nc = Math.max(1, Math.floor((wL - 6 + 5)/67));
-    var capC = capacidadeTabela(hL)*nc;
-    var nCont = Math.ceil((total - cap1)/capC), pos = cap1;
-    var fs = [{ n:1, total:1 + nCont, de:0, ate:cap1 }];
-    for(var k = 0; k < nCont; k++){
-      var ate = Math.min(total, pos + capC);
-      fs.push({ n:2 + k, total:1 + nCont, de:pos, ate:ate, cols:nc });
-      pos = ate;
+    if(total <= cap1) return [{ n:1, total:1, de:0, ate:total, fmt:base }];
+    var pos = cap1, fs = [{ n:1, total:0, de:0, ate:cap1, fmt:base }], k = 0;
+    while(pos < total && k < 400){
+      var nC = 2 + k, fC = fmtFolha(nC), cC = capContinuacao(fC), ate = Math.min(total, pos + cC.cap);
+      fs.push({ n:nC, total:0, de:pos, ate:ate, cols:cC.nc, fmt:fC });
+      pos = ate; k++;
     }
+    fs.forEach(function(p){ p.total = fs.length; });
     return fs;
   }
+  // formato ao desenhar/exportar uma prancha: troca FL/MAPA/TAB/CAR para os dela (o plano já foi calculado com o padrão)
+  function aplicarFmtPg(pg){ aplicarFormato((pg && pg.fmt) || OPC.formato); }
   window.MDP_planoFolhas = planoFolhas;
   /* Numeração das pranchas (05/10/2026): "Folha n/total" conta TODAS — com mais de um perímetro entram a planta geral
      e a de cada área, nessa ordem (a mesma dos PDFs de "todas"). Cada uma tem a própria escala e pode virar várias
@@ -28190,8 +28250,7 @@ function AV_gerarDescSituacao(){
       P.ret(TAB.x, TAB.y, TAB.w, TAB.h, { peso:.3, fill:(COBRE ? "#ffffff" : null) });
       var y = TAB.y + 5.8;
       P.texto(TAB.x + TAB.w/2, y, geral ? "RESUMO DAS ÁREAS A DESAPROPRIAR" : "TABELA DE DISTÂNCIA, COORDENADAS E AZIMUTES", { tam:6.4, bold:true, align:"center" }); y += 4.6;
-      P.texto(TAB.x + 2, y, "DATUM DE REFERÊNCIA: SIRGAS 2000", { tam:5.3 });
-      P.texto(TAB.x + TAB.w - 2, y, "ZONA UTM: " + G.fuso + G.letra, { tam:5.3, align:"right" }); y += 2.4;
+      datumZona(P, TAB.x + 2, y, TAB.w - 4, 5.3); y += 2.4;
       // Colunas: distância e coordenadas ficaram mais estreitas para alargar a janela da planta.
       var larg = TAB.w - 4;
       if(pg.mapa){
@@ -28454,6 +28513,8 @@ function AV_gerarDescSituacao(){
     var dataImpR = dataImpressao(), assinK = null;
     DESENHISTAS.forEach(function(d){ if(d.nome === ex.desenhista) assinK = d.k; });
     var assinImg = assinK && op && op.assin && op.assin[assinK];
+    // 15/10/2026: o responsável técnico (Antônio Célito) assina com a imagem da assinatura, não com o nome em texto
+    var assinCel = /C[ÉE]LITO/i.test(c.resp || "") && op && op.assin && op.assin.celito;
     [["Desenhista:", ex.desenhista || "", "", ex.data_desenho || dataImpR],
      ["Res. Técnico:", c.resp || "", "ENGº AGRÔNOMO - CREA 351993 V/MG", dataImpR],
      ["Aprovação:", ex.aprovacao || "", "", ""]].forEach(function(b, i){
@@ -28467,6 +28528,12 @@ function AV_gerarDescSituacao(){
         if(ah > amax){ ah = amax; aw = ah*assinImg.w/assinImg.h; }
         P.img({ el:assinImg.el, url:assinImg.url }, cm - aw/2, lin - ah + .8, aw, ah);
         var n0 = caber(P, b[1], wN, 5.6, true, 3.8); P.texto(cm, lin + 3.2, n0.txt, { tam:n0.tam, bold:true, align:"center" });
+      }
+      else if(b[1] && i === 1 && assinCel){
+        // assinatura do responsável técnico: a imagem substitui o nome; cargo e CREA ficam abaixo da linha
+        var cw2 = wN*.98, ch2 = cw2*assinCel.h/assinCel.w, cmx = hB - 8.2;
+        if(ch2 > cmx){ ch2 = cmx; cw2 = ch2*assinCel.w/assinCel.h; }
+        P.img({ el:assinCel.el, url:assinCel.url }, cm - cw2/2, lin - ch2 + 1.2, cw2, ch2);
       }
       else if(b[1]){ var n = caber(P, b[1], wN, 6.3, true, 4.4); P.texto(cm, lin - 1.4, n.txt, { tam:n.tam, bold:true, align:"center" }); }
       if(b[2]){ var g = caber(P, b[2], wN, 5, false, 3.8);   P.texto(cm, lin + 3.2, g.txt, { tam:g.tam, align:"center" }); }
@@ -28619,18 +28686,36 @@ function AV_gerarDescSituacao(){
   function sincronizarFolhas(n){
     Array.prototype.forEach.call(document.querySelectorAll("[data-opc-folha]"), function(s){
       s.style.display = n > 1 ? "" : "none";
-      if(n > 1 && s.options.length !== n){
-        s.innerHTML = "";
-        var pl = planoFolhas();
-        for(var i = 0; i < n; i++){ var o = document.createElement("option"); o.value = i; o.textContent = (pl[i] && pl[i].mapa ? ("Quadro " + (pl[i].k+1) + "/" + pl[i].kTotal) : (pl[i] && pl[i].tabelaFim ? "Tabelas" : "Prancha")) + " · folha " + (i+1) + "/" + n; s.appendChild(o); }
+      if(n > 1){
+        var pl = planoFolhas(), tx = [];
+        for(var i = 0; i < n; i++) tx.push((pl[i] && pl[i].mapa ? ("Quadro " + (pl[i].k+1) + "/" + pl[i].kTotal) : (pl[i] && pl[i].tabelaFim ? "Tabelas" : "Prancha")) + " · folha " + (i+1) + "/" + n + " · " + ((pl[i] && FORMATOS[pl[i].fmt]) ? FORMATOS[pl[i].fmt].nome : ""));
+        if(s.__tx !== tx.join("|")){                      // o formato de cada prancha aparece na lista (muda quando o usuário troca)
+          s.__tx = tx.join("|"); s.innerHTML = "";
+          tx.forEach(function(t, i){ var o = document.createElement("option"); o.value = i; o.textContent = t; s.appendChild(o); });
+        }
       }
       s.value = String(OPC.folha || 0);
+    });
+  }
+  // a prancha cujo formato o seletor muda agora: só uma prancha de continuação (só tabela) mostrada na vista Prancha; senão null (= formato-padrão)
+  function fmtAlvo(){
+    if(!G || typeof COMP === "undefined" || COMP.vista !== "folha" || !compAberto()) return null;
+    var pl = planoFolhas(), pg = pl[OPC.folha];
+    return (pg && pg.n > 1 && !pg.mapa) ? pg : null;
+  }
+  function sincronizarFmt(){
+    var al = null; try{ al = fmtAlvo(); }catch(e){}
+    var id = al ? (al.fmt || OPC.formato) : (OPC.formato || "a3");
+    Array.prototype.forEach.call(document.querySelectorAll("[data-opc-fmt]"), function(s){
+      s.value = id;
+      s.title = al ? ("Formato SÓ da prancha " + al.n + "/" + al.total + " — as outras ficam como estão") : "Formato da prancha 1 (mapa) e das demais que não tiverem o próprio. Para uma prancha de tabela ter outro, vá à vista Prancha e escolha a folha.";
+      s.classList.toggle("mz-fmt-folha", !!al);
     });
   }
   function sincronizarBarras(){
     Array.prototype.forEach.call(document.querySelectorAll("[data-opc]"), function(cb){ cb.checked = !!OPC[cb.getAttribute("data-opc")]; });
     Array.prototype.forEach.call(document.querySelectorAll("[data-opc-esc]"), function(s){ s.value = String(OPC.escala || 0); });
-    Array.prototype.forEach.call(document.querySelectorAll("[data-opc-fmt]"), function(s){ s.value = OPC.formato || "a3"; });
+    sincronizarFmt();
     Array.prototype.forEach.call(document.querySelectorAll("[data-opc-quadro]"), function(s){ s.value = quadroDxfAtivo() ? "dxf" : "auto"; var rm = s.querySelector('option[value="rm"]'); if(rm) rm.hidden = rm.disabled = !dxfTexto(); });
     Array.prototype.forEach.call(document.querySelectorAll("[data-opc-dxf]"), function(b){ var nm = gv("mdp_dxf_nome"); b.style.display = quadroDxfAtivo() ? "" : "none"; b.textContent = dxfTexto() ? ("📐 " + (nm.length > 26 ? nm.slice(0, 24) + "…" : nm || "DXF") + " · " + dxfResumo()) : "📐 Escolher DXF…"; b.title = dxfTexto() ? ("DXF sobre o mapa: " + nm + " — clique para trocar") : "Escolher o DXF (UTM SIRGAS 2000) que vai por cima do mapa"; });
     Array.prototype.forEach.call(document.querySelectorAll("[data-opc-area]"), function(s){
@@ -28650,7 +28735,18 @@ function AV_gerarDescSituacao(){
       if(t.hasAttribute("data-opc")){ OPC[t.getAttribute("data-opc")] = t.checked; CACHE_SAT.chave = ""; sincronizarBarras(); agendarPreview(60); }
       else if(t.hasAttribute("data-opc-esc")){ OPC.escala = parseInt(t.value, 10) || 0; gravarEscala(OPC.escala); sincronizarBarras(); agendarPreview(60); }
       else if(t.hasAttribute("data-opc-area")){ if(t.value === "g") window.MDP_usarGeral(); else window.MDP_usarArea(parseInt(t.value, 10) || 0); }
-      else if(t.hasAttribute("data-opc-fmt")){ OPC.formato = t.value; OPC.folha = 0; setExtra("formato", t.value); CACHE_SAT.chave = ""; aplicarFormato(t.value); sincronizarBarras(); agendarPreview(60); }
+      else if(t.hasAttribute("data-opc-fmt")){
+        var alvoF = fmtAlvo();
+        if(alvoF){
+          // prancha de continuação (só tabela) escolhida na vista Prancha: o formato vale SÓ para ela
+          var ovF = Object.assign({}, (extras().formatos && typeof extras().formatos === "object") ? extras().formatos : {}), kF = escKey(), mF = Object.assign({}, ovF[kF] || {});
+          if(t.value === OPC.formato) delete mF[alvoF.n]; else mF[alvoF.n] = t.value;
+          if(Object.keys(mF).length) ovF[kF] = mF; else delete ovF[kF];
+          setExtra("formatos", ovF);
+          var plN = planoFolhas(); if(OPC.folha >= plN.length) OPC.folha = Math.max(0, plN.length - 1);
+          aplicarFormato(OPC.formato); sincronizarBarras(); agendarPreview(60);
+        } else { OPC.formato = t.value; OPC.folha = 0; setExtra("formato", t.value); CACHE_SAT.chave = ""; aplicarFormato(t.value); sincronizarBarras(); agendarPreview(60); }
+      }
       else if(t.hasAttribute("data-opc-folha")){ OPC.folha = parseInt(t.value, 10) || 0; agendarPreview(30); }
       else if(t.hasAttribute("data-opc-quadro")){
         if(t.value === "rm"){ if(confirm("Remover o DXF inserido? O quadro fica só com o mapa automático.")){ var el = $("mdp_dxf_dados"), nm = $("mdp_dxf_nome"); el.value = ""; el.dispatchEvent(new Event("input", {bubbles:true})); if(nm){ nm.value = ""; nm.dispatchEvent(new Event("input", {bubbles:true})); } DXFQ.k = ""; setExtra("quadro_fonte", "auto"); } }
@@ -28704,6 +28800,7 @@ function AV_gerarDescSituacao(){
     LOGOS.assin = {};                                         // assinaturas dos desenhistas (PNG transparente)
     var AS = window.__ASSIN_DESENHISTA__ || {};
     for(var ka in AS){ try{ var ima = await carregarImg(AS[ka].src); LOGOS.assin[ka] = { el:ima, url:AS[ka].src, w:ima.naturalWidth, h:ima.naturalHeight }; }catch(e){} }
+    if(window.__ASSINATURA_CELITO__){ try{ var imc = await carregarImg(window.__ASSINATURA_CELITO__); LOGOS.assin.celito = { el:imc, url:window.__ASSINATURA_CELITO__, w:imc.naturalWidth, h:imc.naturalHeight }; }catch(e){} }
     return LOGOS;
   }
   function kmAtual(){ return (CTX.pronto && CTX.km && CTX.chave.indexOf(chaveG() + "|") === 0) ? CTX.km : null; }
@@ -28763,6 +28860,7 @@ function AV_gerarDescSituacao(){
     if(OPC.folha >= plano.length) OPC.folha = 0;
     var pgAtual = plano[OPC.folha] || plano[0];
     var T = enquadrarPg(pgAtual);
+    aplicarFmtPg(pgAtual);                                       // formato da prancha mostrada (pode diferir do padrão)
     var dpr = Math.min(2, window.devicePixelRatio || 1);
     var s = (larguraCss/FL.W) * dpr;
     cv.width = Math.round(FL.W*s); cv.height = Math.round(FL.H*s);
@@ -28883,6 +28981,7 @@ function AV_gerarDescSituacao(){
     aviso(folha ? "montando a prancha…" : "desenhando o quadro…");
     try{
       aplicarFormato(OPC.formato);
+      if(folha){ var plC = planoFolhas(); aplicarFmtPg(plC[OPC.folha] || plC[0]); }   // na vista Prancha, o tamanho é o da prancha escolhida
       var lx = folha ? FL.W : MAPA.w, ly = folha ? FL.H : MAPA.h;
       var cx = esq.clientWidth - 64, cy = esq.clientHeight - 64;
       var larg = Math.max(240, Math.min(cx, cy*lx/ly));
@@ -28893,7 +28992,7 @@ function AV_gerarDescSituacao(){
       if(T){
         COMP.T = T;
         ligarArrasto(cv, lx);
-        sincronizarFolhas(T.folhas);
+        sincronizarFolhas(T.folhas); sincronizarFmt();
         var svg = $("mdp_comp_svg");
         if(svg) svg.setAttribute("viewBox", MAPA.x + " " + MAPA.y + " " + MAPA.w + " " + MAPA.h);
         var e = $("mdp_comp_esc");
@@ -29458,6 +29557,9 @@ function AV_gerarDescSituacao(){
       ($("mdp_aba_vert") || dir).appendChild(tab);
     }
     sincronizarBarras(); renderTabela();
+    // 15/10/2026: a Mesa (trilho, gavetas, doca) é montada AGORA, no mesmo instante em que o modal aparece —
+    // antes ela só entrava depois do desenho do mapa e o layout antigo piscava durante essa espera.
+    try{ if(window.MDP_aoMostrar) window.MDP_aoMostrar(); }catch(e){ console.warn("Mesa (abertura):", e); }
     await compPintar();
   };
   window.MDP_abrirPlanta = function(){ return window.MDP_abrirComposicao(); };   // nome antigo
@@ -29639,15 +29741,15 @@ function AV_gerarDescSituacao(){
     var Pp = pintorPdf(pdf);
     for(var i = 0; i < plano.length; i++){
       var pg = plano[i];
+      aplicarFormato(OPC.formato);                                 // enquadramento e preparo no formato-padrão…
+      var Ti = pg.mapa ? enquadrarPg(pg) : T;                      // cada quadro tem o seu satélite/ortofoto, projeto e camadas
+      var opi = (pg.mapa && i) ? await preparar(Ti, 200, aviso, opts.sobre) : op;
+      aplicarFmtPg(pg);                                            // …e a folha no formato da própria prancha (15/10/2026)
       if(i) pdf.addPage([FL.W, FL.H], FL.W >= FL.H ? "landscape" : "portrait");
       if(plano.length > 1) aviso("gerando o PDF… prancha " + (i+1) + "/" + plano.length);
-      if(pg.mapa){
-        var Ti = enquadrarPg(pg);                                  // cada quadro tem o seu satélite/ortofoto, projeto e camadas
-        desenharFolha(Pp, Ti, i ? await preparar(Ti, 200, aviso, opts.sobre) : op, pg);
-      } else {
-        desenharFolha(Pp, T, op, pg);
-      }
+      desenharFolha(Pp, Ti, opi, pg);
     }
+    aplicarFormato(OPC.formato);
     var c = doCadastro();
     var sufPer = ANEIS.length > 1 ? (ST.geral ? "_GERAL" : "_AREA-" + (ST.area + 1)) : "";
     var nome = "PLANTA_SITUACAO_INFRA_" + (c.ferrovia||"FTN") + "_CTD-" + (c.ctd||"000") + sufPer + (opts.sufixo || "") + ".pdf";
@@ -30136,9 +30238,12 @@ function AV_gerarDescSituacao(){
       var op0 = await preparar(T0, 96, aviso, sobre);
       var D = dxfDoc(), NF = op0.folhas || { off:0, total:plano.length };
       for(var i = 0; i < plano.length; i++){
-        var pg = plano[i], T = pg.mapa ? enquadrarPg(pg) : T0;
+        var pg = plano[i];
+        aplicarFormato(OPC.formato);                                 // enquadramento e preparo no formato-padrão; a folha, no da prancha (15/10/2026)
+        var T = pg.mapa ? enquadrarPg(pg) : T0;
         if(plano.length > 1) aviso("montando o DXF… prancha " + (i + 1) + "/" + plano.length);
         var op = (pg.mapa && i) ? await preparar(T, 96, aviso, sobre) : op0;
+        aplicarFmtPg(pg);
         var nfo = NF.off + (pg.n || i + 1), nomeF = "FOLHA " + String(nfo).padStart(2, "0") + " de " + String(NF.total || plano.length).padStart(2, "0");
         var papel = { "A3":"ISO_full_bleed_A3_(420.00_x_297.00_MM)", "A2":"ISO_full_bleed_A2_(594.00_x_420.00_MM)",
                       "A1":"ISO_full_bleed_A1_(841.00_x_594.00_MM)", "A0":"ISO_full_bleed_A0_(1189.00_x_841.00_MM)" }[String(FL.nome).toUpperCase()]
@@ -30147,6 +30252,7 @@ function AV_gerarDescSituacao(){
         desenharFolha(pintorDxf(D, folha, T, { i:op.logoI, e:op.logoE }), T, op, pg);
         D.fecharFolha(folha);
       }
+      aplicarFormato(OPC.formato);
       var txt = D.texto_();
       var c = doCadastro(), sufPer = ANEIS.length > 1 ? (ST.geral ? "_GERAL" : "_AREA-" + (ST.area + 1)) : "";
       var nome = "PLANTA_SITUACAO_INFRA_" + (c.ferrovia || "FTN") + "_CTD-" + (c.ctd || "000") + sufPer + ".dxf";
@@ -30274,7 +30380,13 @@ function AV_gerarDescSituacao(){
   }
   window.MDP_setEx = function(k, v){ setExtra(k, v); if(/^lim_/.test(k)) renderTabela(); if(k === "expropriado_fonte") renderCampos(); renderMemorial(); agendarPreview(1000); };
   window.MDP_limparLim = function(){ ["lim_n","lim_s","lim_l","lim_o"].forEach(function(k){ setExtra(k, ""); }); renderCampos(); renderTabela(); };
-  window.MDP_setObs = function(i, v){ var o = extras().obs || []; o[i] = v; setExtra("obs", o); };
+  window.MDP_setObs = function(i, v){
+    var o = extras().obs || []; o[i] = v; setExtra("obs", o);
+    // a mesma observação aparece na tabela do painel e na gaveta da Mesa: mantém as cópias iguais sem tirar o foco de quem digita
+    Array.prototype.forEach.call(document.querySelectorAll('input[data-obsi="' + i + '"]'), function(el){ if(el !== document.activeElement && el.value !== v) el.value = v; });
+    renderObsAuto();
+    agendarPreview(700);
+  };
   /* ---- lista de opções do confrontante: CTDs já cadastrados no mesmo SPS + áreas remanescentes ---- */
   var LISTA_CONF = { sps:null, itens:[], carregando:false };
   var REMANESCENTES = ["Área remanescente"];   // uma só opção: sai com o nome do proprietário/posseiro do cadastro
@@ -30462,6 +30574,7 @@ function AV_gerarDescSituacao(){
       '<th title="Divisa na faixa de domínio (a distância sai em vermelho na tabela da planta)">FD</th><th>Vért.</th><th>Vért.</th><th>Azimute</th><th>Dist. (m)</th><th>N (m)</th><th>E (m)</th><th>KM no eixo</th><th>KM no memorial</th><th>Tipo de divisa</th><th>Matrícula</th><th>Confrontante</th>' +
       '</tr></thead><tbody>';
     var nomeDiv = {}; DIVISAS.forEach(function(d){ nomeDiv[d[0]] = d[1]; });
+    var eixT = eixoIniFim();                                   // 15/10/2026: uma vez só (era refeito a cada linha da tabela)
     G.segs.forEach(function(s, i){
       var a = G.v[s.de], b = G.v[s.para];
       var kj = ",\'" + kSeg(a, b) + "\'";
@@ -30471,7 +30584,8 @@ function AV_gerarDescSituacao(){
       h += '<tr><td class="mdp-fd-td">' + '<label class="mdp-fd' + (fdOn ? ' on' : '') + (fdExpl ? '' : ' auto') + '" title="Marque se esta divisa confronta com a FAIXA DE DOMÍNIO — a distância sai em vermelho na tabela da planta' + (fdExpl ? '' : ' (marcação automática pelo nome do confrontante)') + '"><input type="checkbox"' + (fdOn ? ' checked' : '') + ' onchange="MDP_fd(' + i + ',this.checked' + kj + ')"><span>FD</span></label></td><td><b>' + a.nome + '</b></td><td>' + b.nome + '</td><td class="mdp-c">' + dms(s.az) + '</td>' +
         '<td class="mdp-r"' + (fdOn ? ' style="color:#d32f2f;font-weight:700" title="Divisa na faixa de domínio"' : ' style="color:' + EST("area").cor + ';font-weight:700" title="Contorno da área a desapropriar"') + '>' + br(s.dist,2) + '</td><td class="mdp-r">' + br(a.N,3) + '</td><td class="mdp-r">' + br(a.E,3) + '</td>' +
         '<td class="mdp-kmauto" title="' + (kv ? ('Distância ao eixo: ' + br(Math.abs(kv.off),1) + ' m') : '') + '">' + (kv ? (kmTxt(kv.ch) + (kv.noLim ? '<i title="toca o limite da faixa de domínio">●</i>' : '')) : '—') + '</td>' +
-        (function(){ var man = kmManual(s.de), au = kmAuto(s.de);
+        (function(){ var man = (c[s.de] && c[s.de].km) ? String(c[s.de].km).trim() : "",
+                          au = (eixT && (s.de === eixT.ini || s.de === eixT.fim) && eixT.km.v[s.de].ch != null) ? kmTxt(eixT.km.v[s.de].ch) : "";
           return '<td><input type="text" value="' + esc(man || au) + '"' + (!man && au ? ' class="mdp-kmauto-in"' : '') + ' placeholder="—" style="min-width:110px" title="' + (au ? 'Vértice sobre o eixo da ferrovia — KM calculado (sai no memorial). Pode editar.' : 'Só os vértices inicial e final sobre o eixo levam KM no memorial') + '" oninput="MDP_confIn(' + s.de + ',\'km\',this.value' + kj + ')"></td>'; })() +
         '<td><select' + (ownD ? '' : ' class="mdp-herd"') + ' onchange="MDP_conf(' + i + ',\'d\',this.value' + kj + ')"><option value=""' + (ownD ? '' : ' selected') + '>' + (i === 0 && !ownD ? '(padrão) ' : '↑ ') + esc(nomeDiv[dv[i]] || "") + '</option>' +
           DIVISAS.map(function(d){ return '<option value="' + d[0] + '"' + (ownD === d[0] ? ' selected' : '') + '>' + esc(d[1]) + '</option>'; }).join("") + '</select></td>' +
@@ -30493,17 +30607,19 @@ function AV_gerarDescSituacao(){
     if(window.scrollX !== pX || window.scrollY !== pY) window.scrollTo(pX, pY);
   }
   function renderMemorial(){
-    var box = $("mdp_mem_prev"); if(!box) return;
-    box.innerHTML = G ? memorialPartes().map(function(p){
+    var box = $("mdp_mem_prev"), bz = $("mz_mem"); if(!box && !bz) return;
+    var h = G ? memorialPartes().map(function(p){
       return p.b ? ("<b>" + esc(p.t) + "</b>") : esc(p.t);
     }).join("") : "";
+    if(box) box.innerHTML = h;
+    if(bz) bz.innerHTML = h || '<span style="color:#7a8797">Insira o KML da área desapropriada para gerar o memorial.</span>';   // Mesa: a mesma prévia, com os negritos
   }
   function renderCampos(){
-    var a = $("mdp_campos_mem"), b = $("mdp_campos_car"), o = $("mdp_obs");
-    if(a){
+    var a = $("mdp_campos_mem"), b = $("mdp_campos_car"), o = $("mdp_obs"), a2 = $("mz_campos_mem"), lm2 = $("mz_campos_lim"), o2 = $("mz_obs");
+    if(a || a2){
       var c = doCadastro(), ex = extras();
       var vem = function(rot, v, onde){ return '<div class="vfield grow"><label>' + esc(rot) + ' <span class="hint-auto">' + esc(onde) + '</span></label><input type="text" class="bloqueado" readonly value="' + esc(v || "—") + '"></div>'; };
-      a.innerHTML =
+      var hMem =
           vem("Denominação do imóvel interceptado", c.denominacao, "1.4 Propriedade › Identificação")
         + '<div class="vfield grow"><label>Expropriado no documento</label><select onchange="MDP_setEx(\'expropriado_fonte\',this.value)">'
           + '<option value="prop"' + ((ex.expropriado_fonte||"prop") === "prop" ? " selected" : "") + '>Proprietário(a) — 1.3</option>'
@@ -30516,17 +30632,31 @@ function AV_gerarDescSituacao(){
         + vem("Área total (ha)", c.areaTotal, "1.4 Propriedade")
         + vem("Área desapropriada (ha)", c.areaDesap, "calculada do KML → Técnica")
         + CAMPOS_EX.map(function(f){ return inputEx(f[0], f[1], f[3]); }).join("");
+      if(a) a.innerHTML = hMem;
+      if(a2) a2.innerHTML = hMem;                              // Mesa, gaveta Memorial › Dados: os mesmos campos
     }
-    var lm = $("mdp_campos_lim");
-    if(lm) lm.innerHTML = CAMPOS_LIM.map(function(f){ return inputEx(f[0], f[1], f[3]); }).join("");
+    var lm = $("mdp_campos_lim"), hLim = CAMPOS_LIM.map(function(f){ return inputEx(f[0], f[1], f[3]); }).join("");
+    if(lm) lm.innerHTML = hLim;
+    if(lm2) lm2.innerHTML = hLim;
     if(b) b.innerHTML = camposCarimbo();
     var pc = $("mdp_aba_car"); if(pc && !pc.hidden) renderCarimboPainel();
-    if(o){
+    if(o || o2){
       var obs = extras().obs || [];
-      o.innerHTML = [0,1,2,3,4,5].map(function(i){
-        return '<div class="vfield grow"><label>Observação ' + String(i+1).padStart(2,"0") + '</label><input type="text" value="' + esc(obs[i]||"") + '" placeholder="Ex.: CERCA 7.F.F (2,00mX2,00m)= 94,52m" oninput="MDP_setObs(' + i + ',this.value)"></div>';
+      var hObs = [0,1,2,3,4,5].map(function(i){
+        return '<div class="vfield grow"><label>Observação ' + String(i+1).padStart(2,"0") + '</label><input type="text" data-obsi="' + i + '" value="' + esc(obs[i]||"") + '" placeholder="Ex.: CERCA 7.F.F (2,00mX2,00m)= 94,52m" oninput="MDP_setObs(' + i + ',this.value)"></div>';
       }).join("");
+      if(o) o.innerHTML = hObs;
+      if(o2) o2.innerHTML = hObs;
     }
+    renderObsAuto();
+  }
+  // as benfeitorias da Técnica que entram sozinhas no quadro OBSERVAÇÃO do carimbo, numeradas depois das anotações livres
+  function renderObsAuto(){
+    var oa = $("mz_obs_auto"); if(!oa) return;
+    var bn = obsBenfeitorias(), nLivres = (extras().obs || []).filter(Boolean).length;
+    oa.innerHTML = bn.length ? ('<ol class="mz-obs-auto">' + bn.map(function(x, k){
+      return '<li><b>' + String(nLivres + k + 1).padStart(2, "0") + '</b><span>' + esc(x.desc) + (x.qtd ? ' <strong>— ' + esc(x.qtd) + (x.unid ? ' ' + esc(x.unid) : '') + '</strong>' : '') + '</span><em>' + (x.cat === "R" ? "reprodutiva" : "não reprodutiva") + '</em></li>';
+    }).join("") + '</ol>') : '<p class="mz-gav-s">Nenhuma benfeitoria lançada na Técnica (itens 12 e 13) — elas entram aqui sozinhas.</p>';
   }
   function renderTudo(){
     renderResumo(); renderTabela(); renderMemorial(); renderDatalist(); renderCamadas(); carregarConfrontantes();
@@ -30716,7 +30846,7 @@ function AV_gerarDescSituacao(){
     var agora = Date.now();
     if(agora - V2.snapT > 700 || !V2.undo.length){ V2.undo.push(v2Estado()); if(V2.undo.length > 60) V2.undo.shift(); V2.redo = []; }
     V2.snapT = agora;
-    clearTimeout(V2.verT); V2.verT = setTimeout(function(){ v2VerSalvar("Automática", true); }, 60000);
+    // 15/10/2026: não existe mais versão automática — só as que o usuário salva no botão "Salvar versão" (máx. 3)
   }
   var _setExtra0 = setExtra; setExtra = function(k, v){ v2Antes(); return _setExtra0(k, v); };
   var _gravarConf0 = gravarConfBruto; gravarConfBruto = function(o){ v2Antes(); return _gravarConf0(o); };
@@ -30739,21 +30869,21 @@ function AV_gerarDescSituacao(){
 
   /* ---------- versões da prancha (localStorage, por cadastro) ---------- */
   function v2VerKey(){ var c = doCadastro(); return "mdp_versoes_v1_" + (c.ctd || "x") + "_" + (spsAtual() || ""); }
-  function v2VerLer(){ try{ return JSON.parse(localStorage.getItem(v2VerKey()) || "[]") || []; }catch(e){ return []; } }
-  function v2VerGravar(l){ try{ localStorage.setItem(v2VerKey(), JSON.stringify(l)); return true; }catch(e){ v2Toast("sem espaço para guardar versões neste navegador"); return false; } }
-  function v2VerSalvar(nome, auto){
+  var VER_MAX = 3;                                           // 15/10/2026: no máximo 3 versões, todas salvas pelo usuário
+  // as automáticas que versões anteriores do app guardaram são ignoradas (e somem no próximo "Salvar versão")
+  function v2VerLer(){ try{ return (JSON.parse(localStorage.getItem(v2VerKey()) || "[]") || []).filter(function(x){ return x && !x.a; }).slice(0, VER_MAX); }catch(e){ return []; } }
+  function v2VerGravar(l){ try{ localStorage.setItem(v2VerKey(), JSON.stringify(l.slice(0, VER_MAX))); return true; }catch(e){ v2Toast("sem espaço para guardar versões neste navegador"); return false; } }
+  function v2VerSalvar(nome){
     if(!G) return false;
     var l = v2VerLer(), est = [gv("mdp_extras"), gv("mdp_confront")];
     if(l.length && JSON.stringify(l[0].e) === JSON.stringify(est)) return false;
-    l.unshift({ t:Date.now(), n:nome || "Versão", a:!!auto, e:est });
-    var man = 0, aut = 0;
-    l = l.filter(function(x){ if(x.a){ aut++; return aut <= 8; } man++; return man <= 20; });
-    return v2VerGravar(l);
+    l.unshift({ t:Date.now(), n:nome || "Versão", e:est });
+    return v2VerGravar(l);                                   // v2VerGravar corta em VER_MAX: a mais antiga sai
   }
+  function v2VerExcluir(i){ var l = v2VerLer(); if(!l[i]) return; l.splice(i, 1); v2VerGravar(l); }
   function v2VerRestaurar(i){
     var l = v2VerLer(), x = l[i]; if(!x) return;
-    v2VerSalvar("Antes de restaurar", true);
-    v2Antes(); v2Aplicar(x.e); v2Toast("versão restaurada: " + x.n);
+    v2Antes(); v2Aplicar(x.e); v2Toast("versão restaurada: " + x.n + " (Ctrl+Z desfaz)");
   }
 
   /* ---------- trilha de entrega (topo da aba) ---------- */
@@ -31047,11 +31177,11 @@ function AV_gerarDescSituacao(){
 
   /* ---------- versões: menu ---------- */
   function v2VerMenu(){
-    var l = v2VerLer(), h = '<div class="v2-pop-t">Versões desta prancha</div><button type="button" class="v2-it novo" data-ver="novo">＋ Salvar versão agora…</button>';
-    if(!l.length) h += '<div class="v2-vazio">Ainda não há versões. As automáticas aparecem depois de 1 minuto de edição.</div>';
+    var l = v2VerLer(), h = '<div class="v2-pop-t">Versões desta prancha · ' + l.length + '/' + VER_MAX + '</div><button type="button" class="v2-it novo" data-ver="novo">＋ Salvar versão agora…</button>';
+    if(!l.length) h += '<div class="v2-vazio">Nenhuma versão salva. O sistema não salva sozinho: use “Salvar versão” quando quiser guardar um ponto (até ' + VER_MAX + ').</div>';
     l.forEach(function(x, i){
       var d = new Date(x.t), hm = d.toLocaleDateString("pt-BR") + " " + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
-      h += '<button type="button" class="v2-it" data-ver="' + i + '"><b>' + esc(x.n) + '</b><em>' + hm + (x.a ? " · auto" : "") + '</em></button>';
+      h += '<div class="v2-itl"><button type="button" class="v2-it" data-ver="' + i + '"><b>' + esc(x.n) + '</b><em>' + hm + '</em></button><button type="button" class="v2-itx" data-verdel="' + i + '" title="Excluir esta versão" aria-label="Excluir a versão ' + esc(x.n) + '">✕</button></div>';
     });
     return h;
   }
@@ -31362,8 +31492,10 @@ function AV_gerarDescSituacao(){
     ov.classList.toggle("v2-sem-tab"); compRedesenhar(80);
   }
   function v2SalvarVersaoUI(){
+    var l = v2VerLer();
+    if(l.length >= VER_MAX && !confirm("Já existem " + VER_MAX + " versões salvas. Salvar esta apaga a mais antiga (“" + l[l.length - 1].n + "”).\n\nContinuar?")) return;
     var n = prompt("Nome da versão:", "Versão " + new Date().toLocaleDateString("pt-BR")); if(n === null) return;
-    if(v2VerSalvar(n || "Versão", false)) v2Toast("versão salva"); else v2Toast("sem mudanças desde a última versão");
+    if(v2VerSalvar(n || "Versão")) v2Toast("versão salva"); else v2Toast("sem mudanças desde a última versão");
   }
 
   /* ---------- montagem na abertura da sala ---------- */
@@ -31469,10 +31601,13 @@ function AV_gerarDescSituacao(){
         var nome = k.slice(4); v2RecAplicar(k.indexOf("pad:") === 0 ? V2_RECEITAS[nome] : v2RecLer()[nome]); v2Toast("receita aplicada: " + nome);
       });
       var wrapV = document.createElement("div"); wrapV.className = "v2-wrap";
-      wrapV.innerHTML = '<button type="button" class="mdp-mini" id="v2_bt_ver">🕘 Versões ▾</button><div class="v2-pop" id="v2_pop_ver" hidden></div>';
+      wrapV.innerHTML = '<button type="button" class="mdp-mini" id="v2_bt_versalvar" title="Guarda um ponto de restauração desta prancha (máx. 3; nada é salvo automaticamente)">💾 Salvar versão</button> <button type="button" class="mdp-mini" id="v2_bt_ver">🕘 Versões ▾</button><div class="v2-pop" id="v2_pop_ver" hidden></div>';
       var popV = wrapV.querySelector("#v2_pop_ver");
+      wrapV.querySelector("#v2_bt_versalvar").addEventListener("click", function(ev){ ev.stopPropagation(); v2SalvarVersaoUI(); });
       v2Popover(wrapV.querySelector("#v2_bt_ver"), popV, function(){ popV.innerHTML = v2VerMenu(); });
       popV.addEventListener("click", function(ev){
+        var bx = ev.target.closest("[data-verdel]");
+        if(bx){ ev.stopPropagation(); if(confirm("Excluir esta versão?")){ v2VerExcluir(+bx.dataset.verdel); popV.innerHTML = v2VerMenu(); } return; }
         var b = ev.target.closest("[data-ver]"); if(!b) return; popV.hidden = true;
         if(b.dataset.ver === "novo"){ v2SalvarVersaoUI(); return; }
         if(confirm("Restaurar esta versão? A configuração atual é guardada antes.")) v2VerRestaurar(+b.dataset.ver);
@@ -31497,7 +31632,7 @@ function AV_gerarDescSituacao(){
       var hud = document.createElement("div"); hud.id = "v2_hud"; hud.className = "v2-hud"; esq.appendChild(hud);
       var sc = document.createElement("div"); sc.id = "v2_escala"; sc.className = "v2-escala"; esq.appendChild(sc);
       v2LigarPal(pal);
-      if(dir){ dir.style.flexBasis = "42%"; compRedesenhar(60); }
+      if(dir){ dir.style.flexBasis = "42%"; if(!COMP.abrindo) compRedesenhar(60); }   // na abertura o 1º desenho já vem logo a seguir (MDP_aoMostrar)
       // linha da tabela → trecho no mapa
       dir.addEventListener("mouseover", function(ev){
         var tr = ev.target.closest && ev.target.closest("#mdp_tabela tbody tr"); if(!tr) return;
@@ -31548,11 +31683,36 @@ function AV_gerarDescSituacao(){
       '<div class="mz-cam-lista"></div><div class="mz-gav-sub">Sobreposição CAD (DXF)</div><div class="mz-cam-dxf"></div>' +
       '<button type="button" class="vbtn vbtn-ghost vbtn-sm mz-cam-quadro">🎨 Abrir o Quadro de camadas</button>');
     gC.id = "mz_gav_camadas"; gC.hidden = true;
-    var gM = mesaEl("div", "mz-gav", '<div class="mz-gav-t">Memorial descritivo</div><p class="mz-gav-s">Sai do desenho e da tabela de vértices, ao vivo. Os dados do imóvel e os limites ficam na aba Planta › 4.</p>' +
-      '<div class="mz-mem" id="mz_mem"></div><div class="mz-gav-acoes"><button type="button" class="vbtn vbtn-sm" data-mzmem="pdf">Memorial — PDF</button><button type="button" class="vbtn vbtn-ghost vbtn-sm" data-mzmem="word">Memorial — Word</button></div>');
+    // 15/10/2026: a prévia agora é a mesma de fora da Mesa (com os negritos), os dados de preenchimento ganharam a aba "Dados"
+    // (os mesmos campos do tópico 4 da aba Planta) e o PDF pode ser visto antes de salvar.
+    var gM = mesaEl("div", "mz-gav", '<div class="mz-gav-t">Memorial descritivo</div>' +
+      '<div class="mz-abas" role="tablist" aria-label="Memorial"><button type="button" role="tab" class="on" aria-selected="true" data-mzmt="previa">Prévia</button><button type="button" role="tab" aria-selected="false" data-mzmt="dados">Dados</button></div>' +
+      '<div class="mz-mt" data-mzpane="previa"><p class="mz-gav-s">Sai do desenho e da tabela de vértices, ao vivo — o texto é o mesmo do PDF e do Word, com os destaques em negrito.</p>' +
+        '<div class="mdp-prev mz-memprev" id="mz_mem"></div></div>' +
+      '<div class="mz-mt" data-mzpane="dados" hidden><p class="mz-gav-s">Os mesmos campos do tópico 4 da aba Planta: o que você mudar aqui muda lá, e a prévia ao lado acompanha.</p>' +
+        '<div class="mz-gav-sub">Dados do imóvel</div><div class="vrow" id="mz_campos_mem"></div>' +
+        '<div class="mz-gav-sub">Limites e confrontações <span class="hint-auto" style="font-weight:400;text-transform:none;letter-spacing:0">em branco = calculado pelos azimutes</span></div><div class="vrow" id="mz_campos_lim"></div>' +
+        '<div class="mz-gav-acoes" style="margin-top:2px"><button type="button" class="vbtn vbtn-ghost vbtn-sm" data-mzmem="lim">↻ Voltar ao cálculo automático</button></div>' +
+        '<div class="mz-gav-sub">Observações da planta</div><p class="mz-gav-s" style="margin-bottom:8px">São as mesmas do quadro OBSERVAÇÃO do carimbo: as anotações abaixo e as benfeitorias lançadas na Técnica (itens 12 e 13), numeradas.</p>' +
+        '<div class="vrow" id="mz_obs"></div><div id="mz_obs_auto"></div></div>' +
+      '<div class="mz-gav-acoes"><button type="button" class="vbtn vbtn-sm" data-mzmem="ver" title="Gera o PDF e mostra aqui, sem salvar">👁 Visualizar PDF</button><button type="button" class="vbtn vbtn-ghost vbtn-sm" data-mzmem="pdf">Memorial — PDF</button><button type="button" class="vbtn vbtn-ghost vbtn-sm" data-mzmem="word">Memorial — Word</button></div>');
     gM.id = "mz_gav_memorial"; gM.hidden = true;
     dir.insertBefore(gM, dir.firstChild); dir.insertBefore(gC, dir.firstChild); dir.insertBefore(gF, dir.firstChild);
-    gM.addEventListener("click", function(ev){ var b = ev.target.closest && ev.target.closest("[data-mzmem]"); if(!b) return; if(b.getAttribute("data-mzmem") === "pdf") window.MDP_pdfMemorial(); else window.MDP_wordMemorial(); });
+    gM.addEventListener("click", function(ev){
+      var t = ev.target.closest && ev.target.closest("[data-mzmt]");
+      if(t){
+        var qual = t.getAttribute("data-mzmt");
+        Array.prototype.forEach.call(gM.querySelectorAll("[data-mzmt]"), function(x){ var on = x === t; x.classList.toggle("on", on); x.setAttribute("aria-selected", on ? "true" : "false"); });
+        Array.prototype.forEach.call(gM.querySelectorAll("[data-mzpane]"), function(p){ p.hidden = (p.getAttribute("data-mzpane") !== qual); });
+        return;
+      }
+      var b = ev.target.closest && ev.target.closest("[data-mzmem]"); if(!b) return;
+      var a = b.getAttribute("data-mzmem");
+      if(a === "pdf") window.MDP_pdfMemorial();
+      else if(a === "word") window.MDP_wordMemorial();
+      else if(a === "ver") mesaMemPdfVer();
+      else if(a === "lim") window.MDP_limparLim();
+    });
     // camadas: as caixas do popover e o DXF mudam de lugar (os eventos deles são delegados no documento)
     var lista = gC.querySelector(".mz-cam-lista"), popC = $("v2_pop_cam");
     if(popC) Array.prototype.slice.call(popC.querySelectorAll(".mdp-chk")).forEach(function(c){ lista.appendChild(c); });
@@ -31617,11 +31777,35 @@ function AV_gerarDescSituacao(){
       return '<li class="' + (r[2] ? "tem" : "") + '"><span class="mz-tri-tag" data-ext="' + r[0] + '">' + r[0].toUpperCase() + '</span><span class="mz-fo-p">' + esc(r[1]) + '</span><span class="mz-fo-n" title="' + esc(r[2]) + '">' + (r[2] ? esc(r[2]) : "—") + '</span></li>';
     }).join("");
   }
-  function mesaMemorial(){
-    var b = $("mz_mem"); if(!b) return;
-    var t = ""; try{ t = G ? memorialTexto() : ""; }catch(e){ t = ""; }
-    b.textContent = t || "Insira o KML da área desapropriada para gerar o memorial.";
+  function mesaMemorial(){ renderMemorial(); renderCampos(); }
+  // visualização do PDF do memorial dentro da Mesa (gera o mesmo PDF do botão "Memorial — PDF", mas só mostra)
+  async function mesaMemPdfVer(){
+    if(!G){ v2Toast("Insira o KML da área desapropriada para gerar o memorial."); return; }
+    var ov = v2Modal("mz_pdf_ov", "📄 Memorial descritivo — visualização do PDF",
+      '<p class="v2-p" id="mz_pdf_t" style="padding:14px 18px;margin:0">gerando o PDF…</p><iframe class="mz-pdf-fr" id="mz_pdf_fr" title="Memorial descritivo em PDF" hidden></iframe>',
+      '<button type="button" class="vbtn vbtn-ghost" data-v2x>Fechar</button><button type="button" class="vbtn" id="mz_pdf_salvar" disabled>Salvar PDF…</button>', true);
+    ov.querySelector(".v2-box").classList.add("mz-pdf-box");
+    var url = null, rm = ov.remove.bind(ov);
+    ov.remove = function(){ if(url){ try{ URL.revokeObjectURL(url); }catch(e){} url = null; } rm(); };
+    try{
+      var r = await window.MDP_pdfMemorial({ retornar:true });
+      if(!ov.isConnected) return;                                          // fechou enquanto gerava
+      if(!r || !r.blob) throw new Error("o PDF não foi gerado");
+      url = URL.createObjectURL(r.blob);
+      var fr = ov.querySelector("#mz_pdf_fr"), tx = ov.querySelector("#mz_pdf_t"), sv = ov.querySelector("#mz_pdf_salvar");
+      fr.src = url; fr.hidden = false; if(tx) tx.remove();
+      sv.disabled = false; sv.onclick = function(){ if(window.FS_salvar) window.FS_salvar(r.blob, r.nome); };
+    }catch(e){
+      console.warn("Mesa/visualizar PDF do memorial:", e);
+      var t2 = ov.querySelector("#mz_pdf_t"); if(t2) t2.textContent = "Não consegui gerar o PDF: " + (e.message || e);
+    }
   }
+  // chamado pela abertura original, logo depois de o modal ser mostrado e ANTES do desenho do mapa
+  window.MDP_aoMostrar = function(){
+    COMP.abrindo = true;
+    try{ v2NaAbertura(); mesaMontar(); }
+    finally{ COMP.abrindo = false; }
+  };
   var _abrirComp1 = window.MDP_abrirComposicao;
   window.MDP_abrirComposicao = async function(){ var r = await _abrirComp1.apply(this, arguments); try{ mesaMontar(); }catch(e){ console.warn("Mesa:", e); } return r; };
   window.MDP_abrirPlanta = function(){ return window.MDP_abrirComposicao(); };
@@ -47168,6 +47352,20 @@ window.MG_motion={abertura:abertura,cadastro:cadastro,fichas:fichas};
 #panel-desp1-planta .mz-fo-n{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-family:ui-monospace,Consolas,monospace; font-size:11.5px; }
 #panel-desp1-planta .mz-mem{ max-height:52vh; overflow:auto; padding:14px 16px; border:1px solid #e6ecf2; border-radius:10px; background:#fbfaf6; color:#1b2a2e;
   font:13px/1.65 Georgia,"Times New Roman",serif; white-space:pre-line; }
+#panel-desp1-planta .mz-memprev{ max-height:56vh; }
+#panel-desp1-planta #mz_gav_memorial > .mz-gav-acoes{ position:sticky; bottom:-1px; margin:14px -2px 0; padding:10px 2px; background:#fff; border-top:1px solid #e6ecf2; z-index:2; }
+#panel-desp1-planta .mz-abas{ display:inline-flex; gap:2px; padding:3px; margin:4px 0 12px; border-radius:999px; background:#eef2f6; border:1px solid #dde5ee; }
+#panel-desp1-planta .mz-abas button{ min-height:30px; padding:0 18px; border:0; border-radius:999px; background:none; color:#5a6b7c; font:600 12.5px "Segoe UI",sans-serif; cursor:pointer; transition:background .16s, color .16s; }
+#panel-desp1-planta .mz-abas button.on{ background:#1F6FC0; color:#fff; }
+#panel-desp1-planta .mz-abas button:focus-visible{ outline:2px solid #1F6FC0; outline-offset:2px; }
+#panel-desp1-planta .mz-mt[hidden]{ display:none; }
+#panel-desp1-planta .mz-obs-auto{ list-style:none; margin:6px 0 0; padding:0; display:grid; gap:6px; }
+#panel-desp1-planta .mz-obs-auto li{ display:grid; grid-template-columns:30px 1fr auto; gap:10px; align-items:baseline; padding:7px 10px; border:1px solid #E1E6EC; border-radius:8px; background:#FAFBFC; font-size:13px; color:#243447; }
+#panel-desp1-planta .mz-obs-auto li b{ font:800 11px ui-monospace,Consolas,monospace; color:#c8791a; }
+#panel-desp1-planta .mz-obs-auto li em{ font-style:normal; font-size:11px; color:#55616F; white-space:nowrap; }
+.v2-box.mz-pdf-box{ width:min(1040px,96vw); height:92vh; max-height:92vh; }
+.mz-pdf-box .v2-corpo{ display:flex; flex-direction:column; padding:0; overflow:hidden; }
+.mz-pdf-fr{ flex:1; width:100%; border:0; background:#525659; }
 #panel-desp1-planta .mz-doca{ position:absolute; left:50%; bottom:14px; transform:translateX(-50%); z-index:7; display:flex; align-items:center; gap:4px; padding:6px;
   border-radius:14px; background:rgba(12,30,36,.94); border:1px solid #23515b; box-shadow:0 16px 36px rgba(0,0,0,.45); }
 #panel-desp1-planta .mz-doca .mdp-mini{ min-height:36px; }
