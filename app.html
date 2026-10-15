@@ -48500,6 +48500,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
       </div>
       <div class="mtec-resumo" id="mtec_resumo" aria-live="polite"></div>
       <button type="button" class="mtec-btn" id="mtec_cancelar">Cancelar</button>
+      <button type="button" class="mtec-btn" id="mtec_ver" title="Gera os itens marcados e abre o PDF numa nova aba, na ordem em que serão impressos, sem baixar">Visualizar PDF</button>
       <button type="button" class="mtec-btn pri" id="mtec_ir">Gerar e baixar</button>
     </div>
   </div>
@@ -48556,7 +48557,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     var m = marcados(), n1 = m.filter(function(it){ return P1.indexOf(it) >= 0; }).length, n2 = m.length - n1;
     var zip = (document.querySelector('input[name="mtec_fmt"]:checked') || {}).value === "zip";
     $("mtec_resumo").innerHTML = m.length ? ("<b>" + m.length + "</b> item(ns) — Parte I: " + n1 + " · Parte II: " + n2 + (zip ? " · um PDF por item" : " · em um PDF só")) : "Marque ao menos um item.";
-    $("mtec_ir").disabled = !m.length || gerando;
+    $("mtec_ir").disabled = !m.length || gerando; if($("mtec_ver")) $("mtec_ver").disabled = !m.length || gerando;
   }
   function chip(k, cls, txt){ var c = document.querySelector('#mtec_corpo [data-st="' + k + '"]'); if(!c) return; c.hidden = !cls; c.className = "mtec-chip " + (cls || ""); c.textContent = txt || ""; }
   function abrir(){
@@ -48573,12 +48574,14 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
   function sufixo(){ try{ return window.__CTDsuf ? window.__CTDsuf() : ""; }catch(e){ return ""; } }
   function bytesDe(x){ return x instanceof Uint8Array ? Promise.resolve(x) : x.arrayBuffer().then(function(b){ return new Uint8Array(b); }); }
 
-  async function gerar(){
+  async function gerar(modo){
     var m = marcados(); if(!m.length || gerando) return;
-    var zip = (document.querySelector('input[name="mtec_fmt"]:checked') || {}).value === "zip";
+    var ver = (modo === "ver"), aba = null;
+    if(ver){ try{ aba = window.open("", "_blank"); if(aba) aba.document.write("<title>Visualizar PDF</title><p style=\"font:14px sans-serif;padding:24px\">Gerando o PDF… aguarde.</p>"); }catch(e){ aba = null; } }   // abre já no clique (senão o navegador bloqueia o pop-up)
+    var zip = !ver && (document.querySelector('input[name="mtec_fmt"]:checked') || {}).value === "zip";
     var anxSel = {}; ANX.forEach(function(a){ anxSel[a.k] = !!sel[a.k]; });
     var num = numeracao(), feitos = [], falhas = [];
-    gerando = true; $("mtec_ov").querySelector(".mtec-box").classList.add("gerando"); $("mtec_ir").disabled = true; $("mtec_cancelar").disabled = true;
+    gerando = true; $("mtec_ov").querySelector(".mtec-box").classList.add("gerando"); $("mtec_ir").disabled = true; if($("mtec_ver")) $("mtec_ver").disabled = true; $("mtec_cancelar").disabled = true;
     Array.prototype.forEach.call(document.querySelectorAll("#mtec_corpo input"), function(c){ c.disabled = true; });
     var loadOrig = window.ENP_loading; window.ENP_loading = function(){};               // o modal mostra o andamento; sem a tela de "carregando" por cima
     try{
@@ -48595,7 +48598,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
           feitos.push({ it:it, parte:parte, rot:rot, bytes:bytes }); chip(it.k, "ok", "pronto");
         } else { falhas.push(it.t); chip(it.k, "er", "não gerado"); }
       }
-      if(!feitos.length){ $("mtec_resumo").innerHTML = "Nada foi gerado. Confira se os itens marcados estão preenchidos."; return; }
+      if(!feitos.length){ $("mtec_resumo").innerHTML = "Nada foi gerado. Confira se os itens marcados estão preenchidos."; if(aba){ try{ aba.close(); }catch(e){} } return; }
       $("mtec_bar").style.width = "92%"; $("mtec_resumo").textContent = zip ? "Compactando…" : "Juntando em um PDF…";
       var base = "Material_Tecnico_" + (sufixo() || "cadastro").replace(/\s+/g, "_");
       var blob, nome;
@@ -48617,6 +48620,13 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
         blob = new Blob([await out.save()], { type:"application/pdf" }); nome = base + ".pdf";
       }
       $("mtec_bar").style.width = "100%";
+      if(ver){
+        var url = URL.createObjectURL(blob);
+        if(aba){ aba.location.href = url; } else { window.open(url, "_blank"); }
+        $("mtec_resumo").innerHTML = "<b>Visualização aberta em nova aba</b> — " + feitos.length + " item(ns), na ordem de impressão." + (falhas.length ? '<br><span style="color:var(--gl-err,#AE3F38)">Não gerado(s): ' + esc(falhas.join("; ")) + "</span>" : "");
+        setTimeout(function(){ URL.revokeObjectURL(url); }, 600000);
+        return;
+      }
       if(window.FS_salvar) await window.FS_salvar(blob, nome);
       else { var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = nome; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function(){ URL.revokeObjectURL(a.href); }, 5000); }
       $("mtec_resumo").innerHTML = "<b>" + esc(nome) + "</b> — " + feitos.length + " item(ns)" + (falhas.length ? '<br><span style="color:var(--gl-err,#AE3F38)">Não gerado(s): ' + esc(falhas.join("; ")) + "</span>" : "");
@@ -48626,9 +48636,9 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     }finally{
       window.ENP_loading = loadOrig;
       gerando = false; $("mtec_ov").querySelector(".mtec-box").classList.remove("gerando");
-      $("mtec_cancelar").disabled = false; $("mtec_cancelar").textContent = "Fechar"; $("mtec_ir").textContent = "Gerar de novo";
+      $("mtec_cancelar").disabled = false; $("mtec_cancelar").textContent = "Fechar"; if(!ver) $("mtec_ir").textContent = "Gerar de novo";
       Array.prototype.forEach.call(document.querySelectorAll("#mtec_corpo .mtec-item:not(.off) input"), function(c){ c.disabled = false; });
-      $("mtec_ir").disabled = !marcados().length;
+      $("mtec_ir").disabled = !marcados().length; if($("mtec_ver")) $("mtec_ver").disabled = !marcados().length;
       setTimeout(function(){ $("mtec_bar").style.width = "0"; }, 1200);
     }
   }
@@ -48642,6 +48652,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     var t = ev.target; if(!t || !t.closest) return;
     if(t.id === "mtec_ov" || t.closest("#mtec_x") || t.closest("#mtec_cancelar")){ fechar(); return; }
     if(t.closest("#mtec_ir")){ gerar(); return; }
+    if(t.closest("#mtec_ver")){ gerar("ver"); return; }
     var b = t.closest("[data-todos]"); if(!b || gerando) return;
     var lista = b.getAttribute("data-todos") === "1" ? P1 : [MEM].concat(ANX);
     var algum = lista.some(function(it){ var c = document.querySelector('#mtec_corpo input[data-k="' + it.k + '"]'); return c && !c.disabled && !c.checked; });
@@ -48991,7 +49002,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.15-5';
+window.APP_VERSAO = '2026.10.15-6';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.15-3';
 (function(){
