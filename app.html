@@ -5995,11 +5995,19 @@ body.ativ-pesquisa{ overflow:hidden; }
           <div class="pgm-l"><span>Imagem de fundo</span></div>
           <select id="pgmBase" aria-label="Imagem de fundo do mapa">
             <option value="esri">Satélite Esri</option>
+            <option value="esri-hib">Satélite Esri híbrido (ruas e nomes)</option>
             <option value="google">Satélite Google Maps</option>
+            <option value="google-hib">Satélite Google híbrido (ruas e nomes)</option>
             <option value="nenhum">Sem imagem</option>
           </select>
           <div class="pgm-l"><span>Transparência do satélite</span><b id="pgmSatOpV">0%</b></div>
           <input type="range" id="pgmSatOp" min="0" max="90" value="0" aria-label="Transparência do satélite">
+        </div>
+        <label class="pgm-lin"><input type="checkbox" id="pgmOrtoOn"> Ortofotos do acervo (SPS)</label>
+        <div class="pgm-dem-ajustes" id="pgmOrtoAj" hidden>
+          <div class="pgm-l"><span>Transparência</span><b id="pgmOrtoOpV">0%</b></div>
+          <input type="range" id="pgmOrtoOp" min="0" max="90" value="0" aria-label="Transparência da ortofoto">
+          <div class="pgm-l" id="pgmOrtoMsg" style="font-weight:400;font-size:11px;color:#5b6b7b"></div>
         </div>
         <label class="pgm-lin"><input type="checkbox" id="pgmDemOn"> DEM (relevo)</label>
         <div class="pgm-dem-ajustes" id="pgmDemAj" hidden>
@@ -10149,6 +10157,9 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
     #panel-desp1-parecer table.par-grid{min-width:900px;}
     #panel-desp1-parecer table.par-grid .c-obs{min-width:190px;}
     #panel-desp1-parecer table.par-grid .c-docs{width:175px; min-width:175px;}
+    /* 15/10/2026: escolha "com/sem anexos do check list" na barra do Parecer */
+    #panel-desp1-parecer .par-anx-pdf{display:inline-flex; align-items:center; gap:6px; font-size:12.5px; font-weight:600; color:var(--azul-esc); padding:6px 10px; border:1px dashed #b7c2ce; border-radius:8px; cursor:pointer; background:#fbfdff;}
+    #panel-desp1-parecer .par-anx-pdf small{font-weight:400; color:#5b6b7b;}
 </style>
   <style>
   /* =====================================================================
@@ -23369,7 +23380,7 @@ function AV_gerarDescSituacao(){
     mapa.attributionControl.setPrefix('<a href="https://leafletjs.com" target="_blank" rel="noopener">Leaflet</a>');
     window.__pgmMapa = mapa;   // gancho para testes/diagnóstico
     // Ordem (baixo→alto): base · pubPane(drenagem/mineração/UC) · CAR · SIGEF · projeto revisado · faixa+eixo · cadastros
-    [['demPane',250,true],['curvasPane',270,true],['pubPane',285,true],
+    [['ortoPane',240,true],['rotBasePane',395,true],['demPane',250,true],['curvasPane',270,true],['pubPane',285,true],
      ['carPane',290,false],['incraPane',295,false],
      ['projPoli',300,true],['projLin',310,true],['projEst',320,true],['projTxt',390,true],
      ['fixosPane',380,true],['cadPane',420,false]].forEach(function(d){
@@ -23405,34 +23416,92 @@ function AV_gerarDescSituacao(){
     var satEsri = L.tileLayer(ESRI + 'World_Imagery/MapServer/tile/{z}/{y}/{x}', {maxNativeZoom:18, maxZoom:21, attribution:ATTR_ESRI, className:'tiles-sat'});
     // Google Maps — satélite puro (lyrs=s; o híbrido seria lyrs=y)
     var satGoogle = L.tileLayer('https://mt{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {subdomains:'0123', maxNativeZoom:20, maxZoom:21, attribution:'Imagens © Google', className:'tiles-sat'});
-    var baseAtiva = null, satOp = 1, baseSel = 'esri';
+    // 15/10/2026: híbridos (satélite + ruas e nomes de lugares). Google: lyrs=y já vem com os rótulos. Esri: o satélite
+    // + as camadas de referência (limites/lugares e transportes) num pane acima dos KMLs, sem capturar clique.
+    var satGoogleHib = L.tileLayer('https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {subdomains:'0123', maxNativeZoom:20, maxZoom:21, attribution:'Imagens e mapa © Google', className:'tiles-sat'});
+    var satEsriHibBase = L.tileLayer(ESRI + 'World_Imagery/MapServer/tile/{z}/{y}/{x}', {maxNativeZoom:18, maxZoom:21, attribution:ATTR_ESRI, className:'tiles-sat'});
+    var esriRotulos = L.layerGroup([
+      L.tileLayer(ESRI + 'Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}', {maxNativeZoom:18, maxZoom:21, pane:'rotBasePane'}),
+      L.tileLayer(ESRI + 'Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {maxNativeZoom:18, maxZoom:21, pane:'rotBasePane'})
+    ]);
+    var baseAtiva = null, rotAtivo = null, satOp = 1, baseSel = 'esri';
     try{ var bs = localStorage.getItem('pgm_base'), so = localStorage.getItem('pgm_satTransp'); if(bs) baseSel = bs; if(so != null && so !== '') satOp = 1 - (+so)/100; }catch(e){}
     function trocarBase(v){
       baseSel = v;
       if(baseAtiva){ mapa.removeLayer(baseAtiva); baseAtiva = null; }
-      var l = v === 'google' ? satGoogle : (v === 'nenhum' ? null : satEsri);
+      if(rotAtivo){ mapa.removeLayer(rotAtivo); rotAtivo = null; }
+      var l = ({ google:satGoogle, 'google-hib':satGoogleHib, 'esri-hib':satEsriHibBase, nenhum:null })[v];
+      if(l === undefined) l = satEsri;
       if(l){ l.setOpacity(satOp); l.addTo(mapa); l.bringToBack && l.bringToBack(); baseAtiva = l; }
+      if(v === 'esri-hib'){ esriRotulos.addTo(mapa); rotAtivo = esriRotulos; }
       try{ localStorage.setItem('pgm_base', v); }catch(e){}
     }
-    [satEsri, satGoogle].forEach(function(l){
+    [satEsri, satGoogle, satGoogleHib, satEsriHibBase].forEach(function(l){
       l.on('tileload', function(){ ok++; if(ok === 1) msg(''); });
       l.on('tileerror', function(){ err++; if(err > 6 && !ok) msg('Sem imagens de satélite: sem internet ou o servidor de mapas está bloqueado nesta rede. Os KMLs continuam desenhados.'); });
     });
     var selB = $('pgmBase'), rngS = $('pgmSatOp');
-    if(selB){ if(!/^(esri|google|nenhum)$/.test(baseSel)) baseSel = 'esri'; selB.value = baseSel; selB.onchange = function(){ trocarBase(this.value); }; }
+    if(selB){ if(!/^(esri|esri-hib|google|google-hib|nenhum)$/.test(baseSel)) baseSel = 'esri'; selB.value = baseSel; selB.onchange = function(){ trocarBase(this.value); }; }
     if(rngS){
       rngS.value = Math.round((1 - satOp)*100); $('pgmSatOpV').textContent = rngS.value + '%';
       rngS.oninput = function(){
         satOp = 1 - (+this.value)/100; $('pgmSatOpV').textContent = this.value + '%';
-        satEsri.setOpacity(satOp); satGoogle.setOpacity(satOp);
+        satEsri.setOpacity(satOp); satGoogle.setOpacity(satOp); satGoogleHib.setOpacity(satOp); satEsriHibBase.setOpacity(satOp);
         try{ localStorage.setItem('pgm_satTransp', this.value); }catch(e){}
       };
     }
     trocarBase(baseSel);
+    ligarOrtofoto();
     if(window.SOLOS){ try{ SOLOS.camada = SOLOS.criarCamada(mapa, {pane:'pubPane'}); SOLOS.carregarMeta().then(function(){ SOLOS.camada.aplicar(); }, function(){}); }catch(e){} }   // solos (EMBRAPA)
     ligarControlesDem();
     montarV2();
     if(window.ResizeObserver){ new ResizeObserver(function(){ if(mapa) mapa.invalidateSize(); }).observe($('pgmMapa')); }
+  }
+  /* ---------- Ortofotos do acervo (15/10/2026) ----------
+     O servidor desta máquina junta os .ecw de todos os SPS que caem na janela do mapa (GET /api/ortofoto-mapa) e
+     devolve um PNG transparente já em Web Mercator; a imagem é trocada a cada movimento do mapa. Só a partir do
+     zoom 14 (antes disso a janela é grande demais para recortar do ECW). Sem GDAL com ECW na máquina, avisa. */
+  var ORTO = { on:false, op:1, img:null, seq:0, tm:null };
+  function ortoMsg(t){ var m = $('pgmOrtoMsg'); if(m) m.textContent = t || ''; }
+  function ortoAtualizar(){
+    if(!ORTO.on || !mapa) return;
+    clearTimeout(ORTO.tm);
+    ORTO.tm = setTimeout(async function(){
+      if(mapa.getZoom() < 14){ if(ORTO.img){ mapa.removeLayer(ORTO.img); ORTO.img = null; } ortoMsg('Aproxime o mapa (zoom 14 ou mais) para ver a ortofoto.'); return; }
+      var b = mapa.getBounds(), sz = mapa.getSize(), meu = ++ORTO.seq;
+      var w = Math.min(2048, Math.round(sz.x)), h = Math.min(2048, Math.round(sz.y));
+      var url = '/api/ortofoto-mapa?bbox=' + [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].map(function(v){ return v.toFixed(6); }).join(',') + '&w=' + w + '&h=' + h;
+      ortoMsg('Carregando a ortofoto…');
+      try{
+        var r = await fetch(url);
+        if(meu !== ORTO.seq || !ORTO.on) return;                      // o mapa já mudou: a resposta é de uma janela antiga
+        if(r.status === 204){ if(ORTO.img){ mapa.removeLayer(ORTO.img); ORTO.img = null; } ortoMsg('Sem ortofoto do acervo nesta área.'); return; }
+        if(!r.ok){ var j = null; try{ j = await r.json(); }catch(e){} throw new Error((j && j.erro) || ('HTTP ' + r.status)); }
+        var blob = await r.blob(); if(meu !== ORTO.seq || !ORTO.on) return;
+        var src = URL.createObjectURL(blob);
+        var nova = L.imageOverlay(src, b, { pane:'ortoPane', opacity:ORTO.op, interactive:false });
+        nova.once('load', function(){ if(ORTO.img && ORTO.img !== nova){ var v = ORTO.img; mapa.removeLayer(v); try{ URL.revokeObjectURL(v._url); }catch(e){} } ORTO.img = nova; ortoMsg(''); });
+        nova.addTo(mapa);
+      }catch(e){
+        if(meu !== ORTO.seq) return;
+        ortoMsg(/GDAL|ECW|501/.test(e.message) ? 'Esta máquina não tem o GDAL com o driver ECW (QGIS) — a ortofoto não pode ser montada aqui.' : ('Ortofoto indisponível: ' + e.message));
+      }
+    }, 350);
+  }
+  function ligarOrtofoto(){
+    var cb = $('pgmOrtoOn'), rng = $('pgmOrtoOp'); if(!cb || cb._ligado) return; cb._ligado = true;
+    try{ var t = localStorage.getItem('pgm_ortoTransp'); if(t != null && t !== ''){ rng.value = t; ORTO.op = 1 - (+t)/100; $('pgmOrtoOpV').textContent = t + '%'; } }catch(e){}
+    cb.addEventListener('change', function(){
+      ORTO.on = this.checked; $('pgmOrtoAj').hidden = !ORTO.on;
+      if(ORTO.on){ ortoAtualizar(); }
+      else { ORTO.seq++; if(ORTO.img){ mapa.removeLayer(ORTO.img); ORTO.img = null; } ortoMsg(''); }
+    });
+    rng.addEventListener('input', function(){
+      ORTO.op = 1 - (+this.value)/100; $('pgmOrtoOpV').textContent = this.value + '%';
+      if(ORTO.img) ORTO.img.setOpacity(ORTO.op);
+      try{ localStorage.setItem('pgm_ortoTransp', this.value); }catch(e){}
+    });
+    mapa.on('moveend', ortoAtualizar);
   }
   function ligarControlesDem(){
     var box = $('pgmDemBox');
@@ -24802,6 +24871,10 @@ function AV_gerarDescSituacao(){
 
   /* ---------------- números ---------------- */
   function br(n, d){ return (n==null||!isFinite(n)) ? "" : Number(n).toLocaleString("pt-BR",{minimumFractionDigits:d,maximumFractionDigits:d}); }
+  // arredondamentos "oficiais" (15/10/2026): coordenada no milímetro, área e distância no centímetro / cm² —
+  // os números impressos são os mesmos usados nas contas (tabela, memorial, carimbo e totais fecham na calculadora)
+  function mm3(v){ return Math.round(v*1000)/1000; }
+  function cm2(v){ return Math.round(v*100)/100; }
   var UNI = ["","um","dois","três","quatro","cinco","seis","sete","oito","nove","dez","onze","doze","treze","quatorze","quinze","dezesseis","dezessete","dezoito","dezenove"];
   var DEZ = ["","","vinte","trinta","quarenta","cinquenta","sessenta","setenta","oitenta","noventa"];
   var CEN = ["","cento","duzentos","trezentos","quatrocentos","quinhentos","seiscentos","setecentos","oitocentos","novecentos"];
@@ -24975,11 +25048,11 @@ function AV_gerarDescSituacao(){
       var pts = a.pts.slice();
       while(pts.length > 1 && Math.abs(pts[0][0]-pts[pts.length-1][0]) < 1e-9 && Math.abs(pts[0][1]-pts[pts.length-1][1]) < 1e-9) pts.pop();
       if(pts.length < 3) return;
-      var uv = pts.map(function(p){ var u = utm(p[0], p[1], G.fuso); return { E:u.E, N:u.N }; });
+      var uv = pts.map(function(p){ var u = utm(p[0], p[1], G.fuso); return { E:mm3(u.E), N:mm3(u.N) }; });
       var s2 = 0, per = 0, n = uv.length;
       for(var i = 0; i < n; i++){ var j = (i+1)%n; s2 += uv[i].E*uv[j].N - uv[j].E*uv[i].N; per += Math.round(Math.hypot(uv[j].E-uv[i].E, uv[j].N-uv[i].N)*100)/100; }   // perímetro = soma das distâncias a 2 casas (fecha com a tabela)
       // 13/10/2026: a área oficial é a do plano UTM (a do AutoCAD); a elipsoidal fica em area_elip_m2 (referência)
-      l.push({ i:idx, nome:a.nome || "", v:uv, area_m2:Math.abs(s2/2), area_plano_m2:Math.abs(s2/2), area_elip_m2:areaElip(pts), perim:per });
+      l.push({ i:idx, nome:a.nome || "", v:uv, area_m2:cm2(Math.abs(s2/2)), area_plano_m2:cm2(Math.abs(s2/2)), area_elip_m2:areaElip(pts), perim:cm2(per) });
     });
     _AC = { k:k, l:l }; return l;
   }
@@ -24990,8 +25063,10 @@ function AV_gerarDescSituacao(){
     contornos().forEach(function(c){ c.forEach(function(p){ if(p.E < x0) x0 = p.E; if(p.E > x1) x1 = p.E; if(p.N < y0) y0 = p.N; if(p.N > y1) y1 = p.N; }); });
     return [x0, x1, y0, y1];
   }
-  function somaAreasHa(){ return aneisUtm().reduce(function(s, a){ return s + a.area_m2; }, 0)/10000; }
-  function somaPerim(){ return aneisUtm().reduce(function(s, a){ return s + a.perim; }, 0); }
+  // 15/10/2026: totais = soma dos valores IMPRESSOS de cada área (ha com 4 casas, m² e perímetro com 2) — fecham na calculadora
+  function somaAreasHa(){ return aneisUtm().reduce(function(s, a){ return s + Math.round(a.area_m2/10000*1e4)/1e4; }, 0); }
+  function somaAreasM2(){ return cm2(aneisUtm().reduce(function(s, a){ return s + a.area_m2; }, 0)); }
+  function somaPerim(){ return cm2(aneisUtm().reduce(function(s, a){ return s + a.perim; }, 0)); }
   function escKey(){ return (ST.geral && ANEIS.length > 1) ? "geral" : "a" + ST.area; }
   function escLer(){
     var ex = extras(), o = ex.escalas, k = escKey();
@@ -25136,7 +25211,9 @@ function AV_gerarDescSituacao(){
     }
 
     var fuso = fusoDe(pts[0][0]);
-    var uv = pts.map(function(p){ var u = utm(p[0], p[1], fuso); return { lon:p[0], lat:p[1], E:u.E, N:u.N }; });
+    // 15/10/2026: coordenada fixada no milímetro (3 casas, o que a tabela e o memorial mostram) ANTES de qualquer conta —
+    // distâncias, azimutes, área e perímetro saem dos números impressos: quem refizer na calculadora chega no mesmo valor
+    var uv = pts.map(function(p){ var u = utm(p[0], p[1], fuso); return { lon:p[0], lat:p[1], E:mm3(u.E), N:mm3(u.N) }; });
     // área com sinal (no plano UTM): positivo = anti-horário
     var s2 = 0;
     for(var i = 0; i < uv.length; i++){ var j = (i+1)%uv.length; s2 += uv[i].E*uv[j].N - uv[j].E*uv[i].N; }
@@ -25162,7 +25239,7 @@ function AV_gerarDescSituacao(){
       perim += Math.round(d*100)/100;   // soma das distâncias a 2 casas (fecha com a tabela)
       segs.push({ i:k, de:k, para:(k+1)%n, az:az, dist:d });
     }
-    var areaPlano = Math.abs(s2/2), areaElipM2 = areaElip(uv), area = areaPlano;   // 13/10/2026: área oficial = plano UTM (AutoCAD); a elipsoidal fica em area_elip_m2
+    var areaPlano = cm2(Math.abs(s2/2)), areaElipM2 = areaElip(uv), area = areaPlano;   // 13/10/2026: área oficial = plano UTM (AutoCAD); a elipsoidal fica em area_elip_m2 · 15/10: m² com 2 casas, como impresso
     var cx = 0, cy = 0; uv.forEach(function(p){ cx += p.E; cy += p.N; }); cx /= n; cy /= n;
     G = {
       v: uv.map(function(p, k){ return { nome:"P" + String(k + 1 + deslocV).padStart(2,"0"), lon:p.lon, lat:p.lat, E:p.E, N:p.N }; }),
@@ -25460,7 +25537,14 @@ function AV_gerarDescSituacao(){
       if(relM && eixM){ var rv = (i === eixM.ini) ? (relM.ini || "") : ((i === eixM.fim && eixM.fim !== eixM.ini) ? (relM.fim || "") : ""); if(rv) return rv; }
       return (eixM && (i === eixM.ini || i === eixM.fim) && eixM.km.v[i].ch != null) ? kmTxt(eixM.km.v[i].ch) : "";
     };
-    var km0 = kmDe(0); if(km0){ N(TXT_KM); B(km0); }
+    // 15/10/2026: decidido VÉRTICE A VÉRTICE — sobre o eixo (afastamento <= 1 m) "no KM="; fora dele (o perímetro
+    // não toca o eixo ali) "em perpendicular ao KM=". Sem a quilometragem calculada, vale a regra do perímetro inteiro.
+    var txtKm = function(i){
+      var kv = eixM && eixM.km && eixM.km.v && eixM.km.v[i];
+      if(kv && kv.ch != null && isFinite(kv.off)) return Math.abs(kv.off) <= 1 ? ", no KM=" : ", em perpendicular ao KM=";
+      return TXT_KM;
+    };
+    var km0 = kmDe(0); if(km0){ N(txtKm(0)); B(km0); }
     N(", de coordenadas N "); B(br(v0.N,3) + "m"); N(" e E "); B(br(v0.E,3) + "m"); N("; ");
     G.segs.forEach(function(s, i){
       var b = G.v[s.para], nome = cs[i] || "";
@@ -25471,7 +25555,7 @@ function AV_gerarDescSituacao(){
       N("com azimute de "); B(dms(s.az));
       N(" por uma distância de "); B(br(s.dist,2) + "m");
       N("  até o vértice "); B(b.nome);
-      if(km && !fim){ N(TXT_KM); B(km); }
+      if(km && !fim){ N(txtKm(s.para)); B(km); }
       if(fim){ N(", "); return; }
       N(", de coordenadas N "); B(br(b.N,3) + "m"); N(" e E "); B(br(b.E,3) + "m"); N("; ");
     });
@@ -26388,6 +26472,7 @@ function AV_gerarDescSituacao(){
   /* ---- quilometragem: projeção perpendicular dos vértices no eixo (estacas do projeto revisado) ---- */
   var COTA_FAIXA_ATIVA = false;   // 08/10/2026: cota de 40/80 m da faixa de domínio e o texto "FAIXA DE DOMÍNIO" retirados por ora
   function kmTxt(ch){
+    ch = Math.round(ch*100)/100;                                 // 15/10/2026: arredonda antes (999,996 m virava "+1000,00")
     var km = Math.floor(ch/1000 + 1e-9), m = ch - km*1000;
     var s = m.toFixed(2).replace(".", ","); if(s.length < 6) s = "0".repeat(6 - s.length) + s;
     return km + "+" + s;
@@ -26527,7 +26612,7 @@ function AV_gerarDescSituacao(){
   function kmTotais(){
     var L = kmPorAnel(); if(!L) return null;
     var ini = Math.min.apply(null, L.map(function(x){ return x.km.ini; })), fim = Math.max.apply(null, L.map(function(x){ return x.km.fim; }));
-    return { L:L, ini:ini, fim:fim, soma:L.reduce(function(s, x){ return s + x.km.ext; }, 0), span:fim - ini };
+    return { L:L, ini:ini, fim:fim, soma:cm2(L.reduce(function(s, x){ return s + (cm2(x.km.fim) - cm2(x.km.ini)); }, 0)), span:fim - ini };
   }
   // contexto (projeto + faixa + KM) do cadastro aberto; recalculado quando o polígono muda
   var CTX = { chave:"", proj:null, fixo:null, km:null, pronto:false };
@@ -28806,7 +28891,7 @@ function AV_gerarDescSituacao(){
       kt.L.forEach(function(x){
         var a = x.km.ini, b = x.km.fim, m = relKm(x.i);
         if(m){ var mi = kmNumTxt(m.ini), mf = kmNumTxt(m.fim); if(isFinite(mi)) a = mi; if(isFinite(mf)) b = mf; }
-        gi = Math.min(gi, a); gf = Math.max(gf, b); soma += Math.max(0, b - a);
+        gi = Math.min(gi, a); gf = Math.max(gf, b); soma += Math.max(0, cm2(b) - cm2(a));   // diferença dos KM impressos
       });
       return "KM=" + kmTxt(gi) + " ao KM=" + kmTxt(gf) + " = " + br(soma, 2) + "m";
     }
@@ -28816,9 +28901,9 @@ function AV_gerarDescSituacao(){
       var mi = kmNumTxt(m.ini), mf = kmNumTxt(m.fim);
       var ti = m.ini || (km ? kmTxt(km.ini) : "___"), tf = m.fim || (km ? kmTxt(km.fim) : "___");
       var a2 = isFinite(mi) ? mi : (km ? km.ini : NaN), b2 = isFinite(mf) ? mf : (km ? km.fim : NaN);
-      return "KM=" + ti + " ao KM=" + tf + (isFinite(a2) && isFinite(b2) ? (" = " + br(b2 - a2, 2) + "m") : "");
+      return "KM=" + ti + " ao KM=" + tf + (isFinite(a2) && isFinite(b2) ? (" = " + br(cm2(b2) - cm2(a2), 2) + "m") : "");
     }
-    return km ? ("KM=" + kmTxt(km.ini) + " ao KM=" + kmTxt(km.fim) + " = " + br(km.ext, 2) + "m") : "";
+    return km ? ("KM=" + kmTxt(km.ini) + " ao KM=" + kmTxt(km.fim) + " = " + br(cm2(km.fim) - cm2(km.ini), 2) + "m") : "";
   }
   function autoCarimbo(c){
     return { trecho:trechoAuto(c), segmento:segmentoAuto(), area_total_prop:haTxt(c.areaTotal),
@@ -30896,7 +30981,7 @@ function AV_gerarDescSituacao(){
     var geralR = geralAtivo(), LA = aneisUtm();
     var nums = geralR ? [
       ["Áreas", LA.length], ["Vértices (total)", LA.reduce(function(s, a){ return s + a.v.length; }, 0)], ["Perímetro total", br(somaPerim(),2) + " m"],
-      ["Área total (plano UTM · memorial)", br(somaAreasHa(),4) + " ha"], ["Área total (plano UTM)", br(somaAreasHa()*10000,2) + " m²"],
+      ["Área total (plano UTM · memorial)", br(somaAreasHa(),4) + " ha"], ["Área total (plano UTM)", br(somaAreasM2(),2) + " m²"],
       ["Área total elipsoidal · referência", br(aneisUtm().reduce(function(s, a){ return s + a.area_elip_m2; }, 0)/10000,4) + " ha"],
       ["Datum", "SIRGAS 2000"], ["Projeção", "UTM " + G.fuso + G.letra + " · MC " + G.mc + "°"]
     ] : [
@@ -36658,6 +36743,29 @@ window.UFOTO_rodapeHTML=rodapeHTML;
   function docEhPdf(d){ var s=String(d&&d.src||""); return /^data:(application|image)\/pdf/i.test(s) || docB64(d).slice(0,5)==="JVBER"; }
   function docBytes(d){ var b=atob(docB64(d)), u=new Uint8Array(b.length); for(var i=0;i<b.length;i++) u[i]=b.charCodeAt(i); return u; }
   window.PAR_docEhPdf=docEhPdf; window.PAR_docBytes=docBytes;
+  /* Escolha "com ou sem o tópico Anexos – Checklist Documental" no PDF (15/10/2026): uma caixa na barra do Parecer
+     (ao lado de Pré-visualizar / Gerar PDF). Vale para a pré-visualização, o Gerar PDF, o menu Download e o
+     Material técnico. Fica lembrada nesta máquina; padrão = incluir. */
+  var ANX_PDF_KEY="par_anexos_no_pdf";
+  window.PAR_anexosNoPdf=function(){ try{ return localStorage.getItem(ANX_PDF_KEY)!=="0"; }catch(e){ return true; } };
+  function contarDocs(){ var n=0; Object.keys(tabelasPAR).forEach(function(k){ (tabelasPAR[k]||[]).forEach(function(l){ n+=(l.docs||[]).length; }); }); return n; }
+  function atualizarCaixaAnexos(){
+    var lb=document.getElementById("par_anx_pdf_lb"); if(!lb) return;
+    var n=contarDocs(); lb.querySelector("small").textContent = n ? (" ("+n+" documento"+(n>1?"s":"")+")") : " (nenhum documento anexado)";
+  }
+  function montarCaixaAnexos(){
+    var ac=document.querySelector("#panel-desp1-parecer .rel-pad-acoes");
+    if(!ac){ setTimeout(montarCaixaAnexos, 600); return; }
+    if(document.getElementById("par_anx_pdf")) return;
+    var lb=document.createElement("label"); lb.id="par_anx_pdf_lb"; lb.className="par-anx-pdf";
+    lb.title="Marcado: o PDF termina com o índice e os documentos anexados aos itens do check list. Desmarcado: o PDF sai só com o parecer.";
+    lb.innerHTML='<input type="checkbox" id="par_anx_pdf"> Incluir anexos do check list<small></small>';
+    ac.appendChild(lb);
+    var cb=document.getElementById("par_anx_pdf"); cb.checked=window.PAR_anexosNoPdf();
+    cb.addEventListener("change", function(){ try{ localStorage.setItem(ANX_PDF_KEY, this.checked?"1":"0"); }catch(e){} });
+    atualizarCaixaAnexos();
+  }
+  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", montarCaixaAnexos); else setTimeout(montarCaixaAnexos, 0);
   function lerArquivo(f){ return new Promise(function(res,rej){ var r=new FileReader(); r.onload=function(){ res(r.result); }; r.onerror=function(){ rej(r.error); }; r.readAsDataURL(f); }); }
   // imagem muito grande (foto de celular): reduz para no máx. 2200 px no maior lado, em JPEG
   function reduzirImagem(src){
@@ -36691,13 +36799,13 @@ window.UFOTO_rodapeHTML=rodapeHTML;
         lin.docs.push({ nome:f.name, src:src });
       }catch(e){ recus.push(f.name+" (não consegui ler)"); }
     }
-    renderChecklist(); marcarSujo();
+    renderChecklist(); marcarSujo(); atualizarCaixaAnexos();
     if(recus.length) alert("Não anexados:\n• "+recus.join("\n• "));
   };
   window.PAR_remDoc=function(n,i,k){
     var lin=tabelasPAR[n]&&tabelasPAR[n][i]; if(!lin||!lin.docs||!lin.docs[k]) return;
     if(!confirm("Remover \""+lin.docs[k].nome+"\" do item "+numItem(n,i)+"?")) return;
-    lin.docs.splice(k,1); renderChecklist(); marcarSujo();
+    lin.docs.splice(k,1); renderChecklist(); marcarSujo(); atualizarCaixaAnexos();
   };
   window.PAR_verDoc=function(n,i,k){
     var lin=tabelasPAR[n]&&tabelasPAR[n][i], d=lin&&lin.docs&&lin.docs[k]; if(!d) return;
@@ -36726,6 +36834,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     });
     renderChecklist();
     atualizarPendencias();
+    atualizarCaixaAnexos();
   };
 
   // ---- Pendências (geradas a partir dos itens marcados "Não" + pendências avulsas) ----
@@ -37522,7 +37631,9 @@ window.UFOTO_rodapeHTML=rodapeHTML;
         });
       });
     }
-    try{ await anexosChecklist(); }catch(e){ console.error("anexos do check list:", e); alert("O parecer foi gerado, mas os anexos do check list não puderam ser incluídos: "+(e&&e.message||e)); ANX_INS=[]; }
+    // 15/10/2026: com ou sem o tópico dos anexos — opts.anexos (true/false) manda; sem ele, vale a escolha da tela ("Incluir anexos do check list")
+    var _comAnexos = (opts && opts.anexos !== undefined) ? !!opts.anexos : window.PAR_anexosNoPdf();
+    if(_comAnexos) try{ await anexosChecklist(); }catch(e){ console.error("anexos do check list:", e); alert("O parecer foi gerado, mas os anexos do check list não puderam ser incluídos: "+(e&&e.message||e)); ANX_INS=[]; }
 
     rod();
     var blob=pdf.output("blob");
@@ -49336,9 +49447,9 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.15-17';
+window.APP_VERSAO = '2026.10.15-18';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
-window.SERVIDOR_RECOMENDADO = '2026.10.15-17';
+window.SERVIDOR_RECOMENDADO = '2026.10.15-18';
 (function(){
   var SEM_VERSAO = '0000.00.00-0';
   var LEGADO_LAYOUT = '2026.10.07-0';   // servidor que já tem layout_antigo no health, mas ainda sem número de versão
