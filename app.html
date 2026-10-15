@@ -18797,7 +18797,38 @@ window.FOTO_rodapeHTML=rodapeHTML;
     const ML=42, MR=W-42, MT=74, MB=H-62;
     return {W,H,ML,MR,MT,MB, y:MT, procRef: val("fv_processo")};
   }
+  // 15/10/2026: moldura do Memorial de Cálculo e do anexo Roteiro de Acesso = mesma dos relatórios DESP-1/DESP-2
+  // (margens 30/20 mm, logos de 8 mm a 13 mm do topo, linha de identificação, régua a 25 mm, rodapé Times 6 pt)
+  const MM = 72/25.4;
+  const REL_END=["Av. Des. Moreira, n° 1300, T. Norte, Conj. 1016/1021, Aldeota, 60.170-002, Fortaleza-CE","Rua Irmã Ambrosina, nº 249, Conj 03 e 04, Centro, 61.760-405, Eusébio-CE","Rua Araguari, nº 358, Conj.1903/1904, Barro Preto, 30.190-110, Belo Horizonte-MG","Rua Des. Mário da Silva Nunes, nº 120, Sala 201, Enseada do Suá, 29.050-240, Vitória-ES","Rua Avertano Rocha, n°192, Campina, 66.023-120, Belém-PA"];
+  const REL_TEL=["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 31) 3253-5500","(+55 27) 3029-5540","(+55 94) 3346-8994"];
+  function ctxRel(doc, procRef, titulo, pg0){
+    const c = makeCtx(doc);
+    c.padraoRel = true; c.rodapePadrao = true; c.procRef = procRef || c.procRef;
+    c.ML = 30*MM; c.MR = c.W - 20*MM; c.MT = 30*MM; c.MB = c.H - 29*MM; c.y = c.MT;
+    c.relTitulo = titulo || ""; c.pg = pg0 || 0;
+    return c;
+  }
+  function headerRel(doc,ctx){
+    const {W,ML,MR}=ctx; ctx.pg = (ctx.pg||0) + 1;
+    const LI=window.__LOGO_INFRA__, LE=window.__LOGO_ENPROL__, h=8*MM;
+    const logo=function(src,aEsq){ if(!src) return; try{ const pr=doc.getImageProperties(src), w=h*(pr.width/pr.height); doc.addImage(src,"JPEG", aEsq?ML:MR-w, 13*MM, w, h); }catch(e){} };
+    logo(LI,true); logo(LE,false);
+    doc.setFont("helvetica","normal"); doc.setFontSize(7); doc.setTextColor(90,90,90);
+    const idt = ctx.relTitulo + (ctx.procRef ? (": " + ctx.procRef) : "");
+    doc.text(doc.splitTextToSize(idt, MR-ML-70)[0] || "", ML, 23*MM);
+    doc.text("Página | " + ctx.pg, MR, 23*MM, {align:"right"});
+    doc.setDrawColor(31,111,192); doc.setLineWidth(0.5); doc.line(ML, 25*MM, MR, 25*MM);
+  }
+  function footerRel(doc,ctx){
+    const {H,ML,MR}=ctx, yl = H - 26*MM;
+    doc.setDrawColor(31,111,192); doc.setLineWidth(0.4); doc.line(ML, yl, MR, yl);
+    doc.setFont("times","normal"); doc.setFontSize(6); doc.setTextColor(90,100,115);
+    let yy = yl + 3.2*MM;
+    for(let i=0;i<REL_END.length;i++){ doc.text(REL_END[i], ML, yy); doc.text(REL_TEL[i], MR-33*MM, yy, {align:"right"}); doc.text("comercial@enprol.com.br", MR, yy, {align:"right"}); yy += 2.8*MM; }
+  }
   function header(doc,ctx){
+    if(ctx.padraoRel){ headerRel(doc,ctx); return; }
     const {W,ML,MR}=ctx;
     const LI=window.__LOGO_INFRA__, LE=window.__LOGO_ENPROL__;
     if(LI){ try{ doc.addImage(LI,"JPEG",ML,26,86,24);}catch(e){} }
@@ -18814,6 +18845,7 @@ window.FOTO_rodapeHTML=rodapeHTML;
     doc.text(ctx.procRef, MR, 66, {align:"right"});
   }
   function footer(doc,ctx){
+    if(ctx.padraoRel){ footerRel(doc,ctx); return; }
     const {W,H,ML,MR}=ctx;
     if(ctx.rodapePadrao){
       // padrão dos demais relatórios (Parecer, DESP-1, DESP-2): filete azul + endereço de cada escritório à esquerda e telefone/e-mail à direita
@@ -19726,10 +19758,9 @@ window.FOTO_rodapeHTML=rodapeHTML;
     return PDFLib.PDFDocument.load(doc.output("arraybuffer"));
   }
   async function juntar(out, pdf, idx){ (await out.copyPages(pdf, idx || pdf.getPageIndices())).forEach(function(pg){ out.addPage(pg); }); }
-  async function paginasBenfeitorias(procRef){
+  async function paginasBenfeitorias(procRef, pg0){
     if(!benfIndice().length) return null;
-    const {jsPDF} = window.jspdf, doc = new jsPDF({unit:"pt",format:"a4",compress:true}), ctx = makeCtx(doc);
-    ctx.rodapePadrao = true; ctx.procRef = procRef;
+    const {jsPDF} = window.jspdf, doc = new jsPDF({unit:"pt",format:"a4",compress:true}), ctx = ctxRel(doc, procRef, "DESP-3 (Memorial de Cálculo de Terra Nua e Benfeitorias)", pg0 || 0);
     desenharMemorialBenfeitorias(doc,ctx);
     doc.deletePage(1);                                                               // a 1ª página (em branco) nasce com o documento
     return await PDFLib.PDFDocument.load(doc.output("arraybuffer"));
@@ -20529,8 +20560,7 @@ window.FOTO_rodapeHTML=rodapeHTML;
   }
   async function anexoRoteiro(out, procRef){
     const R = roteiroDados(); if(!R) return;
-    const {jsPDF} = window.jspdf, doc = new jsPDF({unit:"pt",format:"a4",compress:true}), ctx = makeCtx(doc);
-    ctx.rodapePadrao = true; ctx.procRef = procRef;
+    const {jsPDF} = window.jspdf, doc = new jsPDF({unit:"pt",format:"a4",compress:true}), ctx = ctxRel(doc, procRef, "DESP-3 (Anexo — Roteiro de Acesso)", 0);
     novaPagina(doc,ctx);                                                             // capa
     doc.setDrawColor(31,111,192); doc.setLineWidth(1.2); doc.line(ctx.W/2-90, ctx.H/2-34, ctx.W/2+90, ctx.H/2-34);
     doc.setFont("helvetica","bold"); doc.setFontSize(24); doc.setTextColor(23,90,159);
@@ -20588,15 +20618,24 @@ window.FOTO_rodapeHTML=rodapeHTML;
   }
 
   /* pagFinalRodape */
-  async function padronizarPaginasFin(out, desde, procRef){
-    const {jsPDF} = window.jspdf, td = new jsPDF({unit:"pt",format:"a4",compress:true}), tc = makeCtx(td);
-    tc.rodapePadrao = true; tc.procRef = procRef; novaPagina(td,tc); td.deletePage(1);   // modelo: só cabeçalho (logos, filete, processo) e rodapé padrão
-    const tpl = await PDFLib.PDFDocument.load(td.output("arraybuffer")), emb = (await out.embedPdf(tpl))[0], rgb = PDFLib.rgb;
-    for(let i = desde; i < out.getPageCount(); i++){
-      const pg = out.getPage(i), W = pg.getWidth(), H = pg.getHeight();
-      pg.drawRectangle({ x:0, y:H-82, width:W, height:82, color:rgb(1,1,1) });          // apaga os logos do gerador antigo
-      pg.drawPage(emb, { x:0, y:0, width:W, height:H });
+  // as páginas do "imóvel avaliando" vêm de outro gerador (margens de 42 pt): refaz a moldura no padrão DESP-1/2 e
+  // reduz o corpo da página para caber nas margens novas
+  async function padronizarPaginasFin(out, desde, procRef, pgOffset){
+    const {jsPDF} = window.jspdf, rgb = PDFLib.rgb;
+    const n0 = out.getPageCount();
+    for(let i = desde; i < n0; i++){
+      const old = out.getPage(i), W = old.getWidth(), H = old.getHeight();
+      const td = new jsPDF({unit:"pt",format:"a4",compress:true}), tc = ctxRel(td, procRef, "DESP-3 (Memorial de Cálculo de Terra Nua e Benfeitorias)", (pgOffset||0) + (i - desde));
+      novaPagina(td,tc); td.deletePage(1);
+      const tpl = await PDFLib.PDFDocument.load(td.output("arraybuffer")), embT = (await out.embedPdf(tpl))[0];
+      const bottom = H - 62 /*rodapé antigo*/ , top = H - 82;
+      const embB = await out.embedPage(old, { left:0, bottom:62, right:W, top:H-82 });
+      const sc = (tc.MR - tc.ML) / (W - 84), hh = (H - 82 - 62) * sc;
+      const np = out.addPage([W, H]);                          // nova página no fim; as antigas saem depois
+      np.drawPage(embT, { x:0, y:0, width:W, height:H });
+      np.drawPage(embB, { x: tc.ML - 42*sc, y: H - tc.MT - hh, width: W*sc, height: hh });
     }
+    for(let i = desde; i < n0; i++) out.removePage(desde);
   }
 
   // opts: { sel:{rot,pla,orc,met,est,amo} (o que entra/numera), memorial:false (sem o memorial), so:"rot"|... (só aquele anexo; "nenhum" = só o memorial) }
@@ -20617,7 +20656,7 @@ window.FOTO_rodapeHTML=rodapeHTML;
               await juntar(out, await PDFLib.PDFDocument.load(dc.output("arraybuffer")));
             }catch(err){ console.warn("capa do memorial:", err); }
           }
-          const doc=new jsPDF({unit:"pt",format:"a4",compress:true}), ctx=makeCtx(doc);
+          const doc=new jsPDF({unit:"pt",format:"a4",compress:true}), ctx=ctxRel(doc, procRef, "DESP-3 (Memorial de Cálculo de Terra Nua e Benfeitorias)", 0);
           desenharFtnCompacto(doc,ctx);
           const yFim = ctx.y;                                    // onde terminou o conteúdo na última página
           doc.deletePage(1);                                     // a 1ª página (em branco) nasce com o documento
@@ -20627,15 +20666,16 @@ window.FOTO_rodapeHTML=rodapeHTML;
           // a tabela "Imóvel avaliando" vem na mesma página da memória de cálculo, se couber (recorte da página dela, sem os logos)
           const pf = fin.getPage(0), PW = pf.getWidth(), PH = pf.getHeight(), TOPO = 84, ALT = 316;
           const ultima = out.getPage(out.getPageCount() - 1), yTopo = yFim + 16;
-          if(fin.getPageCount() === 1 && yTopo + ALT <= ctx.MB){
+          const scF = (ctx.MR - ctx.ML) / (PW - 84), altF = ALT * scF;     // tabela reduzida às margens do memorial
+          if(fin.getPageCount() === 1 && yTopo + altF <= ctx.MB){
             const emb = await out.embedPage(pf, { left:0, bottom:PH - TOPO - ALT, right:PW, top:PH - TOPO });
-            ultima.drawPage(emb, { x:0, y:ultima.getHeight() - yTopo - ALT, width:PW, height:ALT });
+            ultima.drawPage(emb, { x: ctx.ML - 42*scF, y:ultima.getHeight() - yTopo - altF, width:PW*scF, height:altF });
           } else {
             const base0 = out.getPageCount();
             await juntar(out, fin);
-            try{ await padronizarPaginasFin(out, base0, procRef); }catch(err){ console.warn("cabeçalho/rodapé da página do imóvel avaliando:", err); }
+            try{ await padronizarPaginasFin(out, base0, procRef, base0 - (opts.capaMemorial !== false ? 1 : 0)); }catch(err){ console.warn("cabeçalho/rodapé da página do imóvel avaliando:", err); }
           }
-          try{ const pb = await paginasBenfeitorias(procRef); if(pb) await juntar(out, pb); }
+          try{ const pb = await paginasBenfeitorias(procRef, out.getPageCount() - (opts.capaMemorial !== false ? 1 : 0)); if(pb) await juntar(out, pb); }
           catch(err){ console.error("benfeitorias:", err); alert("O memorial foi gerado, mas as benfeitorias não puderam ser incluídas: " + (err && err.message || err)); }
         }
         const FN = { rot:anexoRoteiro, pla:anexoPla, orc:anexoOrcamentos, met:anexoMet, est:anexoEst, amo:anexoAmo }, pl = anxPlano();
@@ -49079,7 +49119,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.15-10';
+window.APP_VERSAO = '2026.10.15-11';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.15-3';
 (function(){
