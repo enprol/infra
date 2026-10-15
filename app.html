@@ -36949,33 +36949,35 @@ window.UFOTO_rodapeHTML=rodapeHTML;
       pdf.addFileToVFS("Carlito-bi.ttf",CF.bolditalic); pdf.addFont("Carlito-bi.ttf","Carlito","bolditalic");
       FONT="Carlito";
     } }catch(e){}
-    var W=210,H=297,mL=25,mR=20,mT=14,mB=10,cw=W-mL-mR;
+    var W=210,H=297,mL=30,mR=20,mT=14,mB=10,cw=W-mL-mR;   // 15/10/2026: margens, cabeçalho e rodapé iguais aos do DESP-1 / DESP-2
     var LI=window.__LOGO_INFRA__, LE=window.__LOGO_ENPROL__;
     function carregar(s){ return new Promise(function(r){ if(!s){r(null);return;} var im=new Image(); im.onload=function(){r(im);}; im.onerror=function(){r(null);}; im.src=s; }); }
     var imgI=await carregar(LI), imgE=await carregar(LE);
 
     var PG=0, yc=0;
-    var topY=29, botY=H-34;
+    var topY=30, botY=H-mB-16-3;
     var PAR_END=["Av. Des. Moreira, nº 1300, T. Norte, Conj. 1016/1021, Aldeota, 60.170-002, Fortaleza-CE","Rua Idelfonso Freire, nº 106, Sala 202, Centro, 56.506-520, Arcoverde-PE","Rua Pedro Batista Ferreira, nº 278, Centro, 76.500-000, Santa Terezinha de Goiás-GO","Rua Nilo Peçanha, nº 25, 1º Andar, Sala 07, Centro, 47.640-000, Santa Maria da Vitória-BA","Rua Irmã Ambrosina, nº 249, Conj 03 e 04, Centro, 61.760-405, Eusébio-CE","Rua dos Timbiras, nº 2213, Conj.1206/1209, Lourdes, 30.140-069, Belo Horizonte-MG"];
     var PAR_TEL=["(+55 85) 3289-6363   comercial@enprol.com.br","(+55 85) 3289-6363   comercial@enprol.com.br","(+55 85) 3289-6363   comercial@enprol.com.br","(+55 85) 3289-6363   comercial@enprol.com.br","(+55 85) 3289-6363   comercial@enprol.com.br","(+55 31) 3253-5500   comercial@enprol.com.br"];
     function cab(){
       PG++;
-      if(imgI){ try{ var w=8*(imgI.width/imgI.height); pdf.addImage(imgI,"JPEG",mL,7,w,8); }catch(e){} }
-      if(imgE){ try{ var w2=8*(imgE.width/imgE.height); pdf.addImage(imgE,"JPEG",W-mR-w2,7,w2,8); }catch(e){} }
+      if(imgI){ try{ var w=8*(imgI.width/imgI.height); pdf.addImage(imgI,"JPEG",mL,13,w,8); }catch(e){} }
+      if(imgE){ try{ var w2=8*(imgE.width/imgE.height); pdf.addImage(imgE,"JPEG",W-mR-w2,13,w2,8); }catch(e){} }
       pdf.setFont(FONT,"normal"); pdf.setFontSize(7); pdf.setTextColor(90,90,90);
       var sei=pf("par_sei");
       var docId="Parecer para Regularização Fundiária e Documental — DESP-1"+(pf("par_processo")?(" ("+pf("par_processo")+")"):"")+(sei?(" — SEI nº "+sei):"");
       var ls=pdf.splitTextToSize(docId, cw-25);
-      pdf.text(ls[0]||"", mL, 19);
-      pdf.text("Página | "+PG, W-mR, 19, {align:"right"});
-      pdf.setDrawColor(31,111,192); pdf.setLineWidth(0.5); pdf.line(mL,21,W-mR,21);
+      pdf.text(ls[0]||"", mL, 23);
+      pdf.text("Página | "+PG, W-mR, 23, {align:"right"});
+      pdf.setDrawColor(31,111,192); pdf.setLineWidth(0.5); pdf.line(mL,25,W-mR,25);
     }
-    function rod(){
-      var yl=H-28;
-      pdf.setDrawColor(31,111,192); pdf.setLineWidth(0.6); pdf.line(mL,yl,W-mR,yl);
-      pdf.setFont(FONT,"normal"); pdf.setFontSize(6); pdf.setTextColor(90,107,124);
-      var yy=yl+3.4;
-      for(var i=0;i<PAR_END.length;i++){ pdf.text(PAR_END[i], mL, yy); pdf.text(PAR_TEL[i], W-mR, yy, {align:"right"}); yy+=3; }
+    var PAR_END2=["Av. Des. Moreira, n° 1300, T. Norte, Conj. 1016/1021, Aldeota, 60.170-002, Fortaleza-CE","Rua Irmã Ambrosina, nº 249, Conj 03 e 04, Centro, 61.760-405, Eusébio-CE","Rua Araguari, nº 358, Conj.1903/1904, Barro Preto, 30.190-110, Belo Horizonte-MG","Rua Des. Mário da Silva Nunes, nº 120, Sala 201, Enseada do Suá, 29.050-240, Vitória-ES","Rua Avertano Rocha, n°192, Campina, 66.023-120, Belém-PA"];
+    var PAR_TEL2=["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 31) 3253-5500","(+55 27) 3029-5540","(+55 94) 3346-8994"];
+    function rod(){   // mesmo rodapé do DESP-1 / DESP-2
+      var yl=H-mB-16;
+      pdf.setDrawColor(31,111,192); pdf.setLineWidth(0.4); pdf.line(mL,yl,W-mR,yl);
+      pdf.setFont("times","normal"); pdf.setFontSize(6); pdf.setTextColor(90,100,115);
+      var yy=yl+3.2;
+      for(var i=0;i<PAR_END2.length;i++){ pdf.text(PAR_END2[i], mL, yy); pdf.text(PAR_TEL2[i], W-mR-33, yy, {align:"right"}); pdf.text("comercial@enprol.com.br", W-mR, yy, {align:"right"}); yy+=2.8; }
     }
     function nova(){ pdf.addPage(); cab(); yc=topY; }
     function ensure(h){ if(yc+h>botY){ rod(); nova(); } }
@@ -49077,7 +49079,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.15-9';
+window.APP_VERSAO = '2026.10.15-10';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.15-3';
 (function(){
