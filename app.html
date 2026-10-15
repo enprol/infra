@@ -23053,6 +23053,7 @@ function AV_gerarDescSituacao(){
       };
     }
     trocarBase(baseSel);
+    if(window.SOLOS){ try{ SOLOS.camada = SOLOS.criarCamada(mapa, {pane:'pubPane'}); SOLOS.carregarMeta().then(function(){ SOLOS.camada.aplicar(); }, function(){}); }catch(e){} }   // solos (EMBRAPA)
     ligarControlesDem();
     montarV2();
     if(window.ResizeObserver){ new ResizeObserver(function(){ if(mapa) mapa.invalidateSize(); }).observe($('pgmMapa')); }
@@ -23231,10 +23232,12 @@ function AV_gerarDescSituacao(){
     h += htmlProjetos(spsLista);
     h += htmlIncra();
     h += htmlPublicas();
+    if(window.SOLOS) h += SOLOS.htmlControle({classe:'pgm-pub-box'});   // Classificação dos solos (EMBRAPA): ordem · subordem · legenda
     var host = $('pgmCamadas'); host.innerHTML = h;
     ligarEventosProj(host);
     ligarEventosIncra(host);
     ligarEventosPub(host);
+    if(window.SOLOS) SOLOS.ligar(host);
     Array.prototype.forEach.call(host.querySelectorAll('input[data-cam]'), function(cb){
       cb.addEventListener('change', function(){
         if(cb.dataset.cam === 'cad'){ visCad = cb.checked; if(visCad) grupoCad.addTo(mapa); else mapa.removeLayer(grupoCad); }
@@ -25732,7 +25735,7 @@ function AV_gerarDescSituacao(){
     for(var tx = t0x; tx <= t1x; tx++) for(var ty = t0y; ty <= t1y; ty++) lista.push([tx,ty]);
     if(lista.length > 240){
       // janela grande (ex.: 1:10.000): em vez de ficar sem satélite, desce um nível de zoom (a imagem fica menos nítida, mas aparece)
-      if(z > 12){ console.warn("planta/satélite: " + lista.length + " tiles no zoom " + z + " — tentando o zoom " + (z - 1)); return rasterSatelite(T, dpi, aoAndar, { box:B, z:z - 1 }); }
+      if(z > 12){ console.warn("planta/satélite: " + lista.length + " tiles no zoom " + z + " — tentando o zoom " + (z - 1)); return rasterSatelite(T, dpi, aoAndar, { box:B, z:z - 1, solos:opt && opt.solos }); }
       console.warn("planta/satélite: " + lista.length + " tiles — demais, pulei"); return null;
     }
     ctx.setTransform(a, b, c, dd, e, f);
@@ -25749,6 +25752,8 @@ function AV_gerarDescSituacao(){
         if(aoAndar) aoAndar(feitos, lista.length);
       }));
     }
+    SOLOS_USADOS = [];
+    if(opt && opt.solos && window.SOLOS){ try{ var rsS = await SOLOS.pintarAfim(ctx, { z:z, M:[a, b, c, dd, e, f], cantos:cantos, modo:opt.solos, alpha:.6 }); SOLOS_USADOS = rsS.usados || []; }catch(er){} }   // solos (EMBRAPA) por cima do satélite
     ctx.setTransform(1,0,0,1,0,0);
     if(erros >= lista.length){ console.warn("planta/satélite: nenhum tile carregou (" + erros + ")"); return null; }
     try{ return cv.toDataURL("image/jpeg", .88); }catch(e){ console.warn("planta/satélite: canvas bloqueado (CORS):", e.message); return null; }
@@ -28239,6 +28244,18 @@ function AV_gerarDescSituacao(){
       var nx = MAPA.x + MAPA.w - 11, ny = MAPA.y + 19;
       P.poli([[nx, ny-9],[nx-2.8, ny+2.6],[nx, ny+.4],[nx+2.8, ny+2.6]], { cor:"#111", peso:.2, fill:"#111" });
       P.texto(nx, ny + 8, "N", { tam:9, bold:true, align:"center" });
+      // chave dos solos (EMBRAPA): classes presentes no mapa, canto superior esquerdo
+      if(op.solos && op.solosUsados && op.solosUsados.length && window.SOLOS){
+        var sl = op.solosUsados.slice(0, 18), sx = MAPA.x + 3, sy = MAPA.y + 3, sw = 80, lh = 4.3;
+        P.ret(sx, sy, sw, 6.2 + sl.length*lh + (op.solosUsados.length > 18 ? lh : 0), { peso:.15, fill:"#ffffff", opacFill:.88 });
+        P.texto(sx + 2, sy + 4.1, "SOLOS (EMBRAPA) — " + SOLOS.rotuloModo(op.solos).toUpperCase(), { tam:4.4, bold:true });
+        sl.forEach(function(u, i){
+          var yy = sy + 6.2 + i*lh;
+          P.ret(sx + 2, yy - 1.1, 6, 3, { peso:.12, fill:u.cor });
+          P.texto(sx + 9.5, yy + 1.2, u.rotulo.length > 38 ? u.rotulo.slice(0, 37) + "…" : u.rotulo, { tam:3.9 });
+        });
+        if(op.solosUsados.length > 18) P.texto(sx + 2, sy + 6.2 + 18*lh + 1.2, "+ " + (op.solosUsados.length - 18) + " classe(s) no mapa", { tam:3.7, cor:"#4a5a6a" });
+      }
     })();
 
     /* ---------- painel da direita: logotipos + tabela de coordenadas ---------- */
@@ -28658,8 +28675,9 @@ function AV_gerarDescSituacao(){
   /* =======================================================================
      PRÉ-VISUALIZAÇÃO NO PAINEL + JANELA DA PLANTA + PDF A3
      ======================================================================= */
-  var OPC = { satelite:false, ortofoto:false, projeto:false, fixo:true, extras:false, ambiental:true, malha:true, vertices:true, rotulos:true, medidas:false, confMapa:true, cotas:false, perimTotal:true, escala:0, formato:"a3", folha:0 };
+  var OPC = { satelite:false, ortofoto:false, solos:"", projeto:false, fixo:true, extras:false, ambiental:true, malha:true, vertices:true, rotulos:true, medidas:false, confMapa:true, cotas:false, perimTotal:true, escala:0, formato:"a3", folha:0 };
   var CACHE_SAT = { chave:"", url:null };
+  var SOLOS_USADOS = [];     // classes de solo desenhadas no último raster (para a chave dentro do mapa)
   var BARRA = [["satelite","Satélite","Imagem de satélite (Esri World Imagery)"], ["ortofoto","Ortofoto","Recorte da ortofoto do acervo (servidor) — precisa do GDAL com driver ECW"],
                ["projeto","Projeto revisado","Camadas do projeto revisado (aterro, corte, ferrovia, rodovia, estacas…)"], ["perimTotal","Perímetro do imóvel","Contorno total do imóvel (KML Área total), como limite de propriedade sem cerca"], ["fixo","Faixa e eixo","Faixa de domínio (verde) e eixo (laranja) do SPS, com as cotas de 40/80 m"],
                ["extras","Camadas extras","Camadas enviadas em GeoPackage/KML"],
@@ -28669,6 +28687,7 @@ function AV_gerarDescSituacao(){
                ["cotas","Cotas","Cotas de distância marcadas à mão na sala de composição"]];
   function barraHtml(){
     return BARRA.map(function(b){ return '<label class="mdp-chk" title="' + esc(b[2]) + '"><input type="checkbox" data-opc="' + b[0] + '"' + (OPC[b[0]] ? " checked" : "") + '> ' + b[1] + '</label>'; }).join("") +
+      (window.SOLOS ? '<label class="mdp-chk" title="Classificação dos solos (IBGE/EMBRAPA 1:250.000) sobre o satélite, com chave das classes dentro do mapa"><span>Solos (EMBRAPA)</span><select class="mdp-sel" data-opc-solos aria-label="Classificação dos solos"><option value="">não mostrar</option><option value="ordem">Ordem</option><option value="subordem">Subordem</option><option value="legenda">Legenda</option></select></label>' : '') +
       '<select class="mdp-sel" data-opc-area title="Perímetro da planta (geral ou cada área)" style="display:none;margin-right:6px;"></select>' +
       '<select class="mdp-sel" data-opc-quadro title="Adicionar um DXF por cima do mapa automático" aria-label="DXF complementar no quadro da planta"><option value="auto">DXF: não adicionar</option><option value="dxf">DXF: adicionar ao mapa</option><option value="rm">Remover o DXF inserido</option></select>' +
       '<button type="button" class="mdp-mini" data-opc-dxf title="Escolher o DXF (UTM SIRGAS 2000) que vai por cima do mapa" style="margin-right:6px;">📐 DXF…</button>' +
@@ -28713,6 +28732,7 @@ function AV_gerarDescSituacao(){
   function sincronizarBarras(){
     Array.prototype.forEach.call(document.querySelectorAll("[data-opc]"), function(cb){ cb.checked = !!OPC[cb.getAttribute("data-opc")]; });
     Array.prototype.forEach.call(document.querySelectorAll("[data-opc-esc]"), function(s){ s.value = String(OPC.escala || 0); });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-opc-solos]"), function(s){ s.value = OPC.solos || ""; });
     sincronizarFmt();
     Array.prototype.forEach.call(document.querySelectorAll("[data-opc-quadro]"), function(s){ s.value = quadroDxfAtivo() ? "dxf" : "auto"; var rm = s.querySelector('option[value="rm"]'); if(rm) rm.hidden = rm.disabled = !dxfTexto(); });
     Array.prototype.forEach.call(document.querySelectorAll("[data-opc-dxf]"), function(b){ var nm = gv("mdp_dxf_nome"); b.style.display = quadroDxfAtivo() ? "" : "none"; b.textContent = dxfTexto() ? ("📐 " + (nm.length > 26 ? nm.slice(0, 24) + "…" : nm || "DXF") + " · " + dxfResumo()) : "📐 Escolher DXF…"; b.title = dxfTexto() ? ("DXF sobre o mapa: " + nm + " — clique para trocar") : "Escolher o DXF (UTM SIRGAS 2000) que vai por cima do mapa"; });
@@ -28731,6 +28751,7 @@ function AV_gerarDescSituacao(){
     document.addEventListener("change", function(ev){
       var t = ev.target; if(!t || !t.getAttribute) return;
       if(t.hasAttribute("data-opc")){ OPC[t.getAttribute("data-opc")] = t.checked; CACHE_SAT.chave = ""; sincronizarBarras(); agendarPreview(60); }
+      else if(t.hasAttribute("data-opc-solos")){ OPC.solos = t.value || ""; if(OPC.solos){ OPC.satelite = true; OPC.ortofoto = false; } CACHE_SAT.chave = ""; sincronizarBarras(); agendarPreview(60); }
       else if(t.hasAttribute("data-opc-esc")){ OPC.escala = parseInt(t.value, 10) || 0; gravarEscala(OPC.escala); sincronizarBarras(); agendarPreview(60); }
       else if(t.hasAttribute("data-opc-area")){ if(t.value === "g") window.MDP_usarGeral(); else window.MDP_usarArea(parseInt(t.value, 10) || 0); }
       else if(t.hasAttribute("data-opc-fmt")){
@@ -28805,6 +28826,7 @@ function AV_gerarDescSituacao(){
 
   async function preparar(T, dpi, aviso, sobre){
     var op = Object.assign({}, OPC, sobre || {});
+    if(op.solos && window.SOLOS){ op.ortofoto = false; op.satelite = true; } else op.solos = "";   // solos vão sobre o satélite (a ortofoto cobriria a camada)
     op.limGeo = limGeo(T);
     if(aviso) aviso("Carregando projeto, faixa de domínio e logotipos…");
     await carregarContexto(); ancorarP1NoEixo();
@@ -28836,14 +28858,15 @@ function AV_gerarDescSituacao(){
       }
     }
     if(op.satelite && !op.rasterSat){
-      var k = chaveSat(T) + "|" + dpi;
-      if(CACHE_SAT.chave === k && CACHE_SAT.url){ op.rasterSat = CACHE_SAT.url; op.rasterSatEl = CACHE_SAT.el; }
+      var k = chaveSat(T) + "|" + dpi + "|" + (op.solos || "");
+      if(CACHE_SAT.chave === k && CACHE_SAT.url){ op.rasterSat = CACHE_SAT.url; op.rasterSatEl = CACHE_SAT.el; op.solosUsados = CACHE_SAT.solos || []; }
       else {
         if(aviso) aviso("Baixando as imagens de satélite…");
-        op.rasterSat = await rasterSatelite(T, dpi, function(f,t){ if(aviso) aviso("Baixando as imagens de satélite… " + f + "/" + t); });
+        op.rasterSat = await rasterSatelite(T, dpi, function(f,t){ if(aviso) aviso("Baixando as imagens de satélite… " + f + "/" + t); }, op.solos ? { solos:op.solos } : null);
         if(op.rasterSat){
           try{ op.rasterSatEl = await carregarImg(op.rasterSat); }catch(e){ op.rasterSatEl = null; }
-          CACHE_SAT.chave = k; CACHE_SAT.url = op.rasterSat; CACHE_SAT.el = op.rasterSatEl;
+          op.solosUsados = op.solos ? SOLOS_USADOS.slice() : [];
+          CACHE_SAT.chave = k; CACHE_SAT.url = op.rasterSat; CACHE_SAT.el = op.rasterSatEl; CACHE_SAT.solos = op.solosUsados;
         }
         else if(aviso) aviso("Não consegui baixar o satélite (sem internet?) — a planta sai sem imagem.");
       }
@@ -28881,7 +28904,7 @@ function AV_gerarDescSituacao(){
     aplicarFormato(OPC.formato);
     var T = enquadrar({ escala:OPC.escala });
     var dpi = o.dpi || 200, s = dpi/25.4, transp = (o.transp == null ? 70 : o.transp);
-    var op = await preparar(T, dpi, o.aviso, { semCotaFaixa:true, semConf:true, satelite:true, ortofoto:false, figura:true, opacSat:Math.max(0, Math.min(1, 1 - transp/100)) });
+    var op = await preparar(T, dpi, o.aviso, { semCotaFaixa:true, semConf:true, satelite:true, ortofoto:false, solos:"", figura:true, opacSat:Math.max(0, Math.min(1, 1 - transp/100)) });
     var cv = document.createElement("canvas"); cv.width = Math.round(MAPA.w*s); cv.height = Math.round(MAPA.h*s);
     var ctx = cv.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, cv.width, cv.height);
     ctx.translate(-MAPA.x*s, -MAPA.y*s);     // o resto da folha cai fora do canvas
@@ -40183,6 +40206,7 @@ window.DRL_gerarPDF=async function(opts){
     L.control.scale({ imperial:false }).addTo(LMAP);
     LMAP.on("focus click", function(){ LMAP.scrollWheelZoom.enable(); });
     LMAP.on("blur", function(){ LMAP.scrollWheelZoom.disable(); });
+    if(window.SOLOS){ try{ var _sc = SOLOS.controleLeaflet(LMAP, { posicao:"topright" }); SOLOS.carregarMeta().then(function(){ _sc.aplicar(); }, function(){}); }catch(e){} }   // solos (EMBRAPA)
     var grupos = agruparPontos(pontosFotos(f)), lim = [];
     grupos.forEach(function(g){
       var n0 = Math.min.apply(null, g.pts.map(function(q){ return q.n; }));
@@ -42390,7 +42414,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
   }
   function d2carregarImg(src){ return new Promise(function(res,rej){ var i=new Image(); i.crossOrigin='anonymous'; i.onload=function(){res(i);}; i.onerror=function(){rej(new Error('tile'));}; i.src=src; }); }
   // compõe satélite Esri para a bbox lon/lat -> {url,cw,ch,w0,n0,z}
-  async function d2satelite(bb){
+  async function d2satelite(bb, solos){
     var ESRI='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/';
     var z=18;
     for(; z>=10; z--){ var w=d2lonpx(bb.e,z)-d2lonpx(bb.w,z), h=d2latpx(bb.s,z)-d2latpx(bb.n,z); if(w<=1600&&h<=1600) break; }
@@ -42400,7 +42424,9 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     var tx0=Math.floor(w0/256),tx1=Math.floor(w1/256),ty0=Math.floor(n0/256),ty1=Math.floor(n1/256), jobs=[];
     for(var tx=tx0;tx<=tx1;tx++) for(var ty=ty0;ty<=ty1;ty++){ (function(tx,ty){ jobs.push(d2carregarImg(ESRI+z+'/'+ty+'/'+tx).then(function(im){ ctx.drawImage(im,Math.round(tx*256-w0),Math.round(ty*256-n0)); }).catch(function(){})); })(tx,ty); }
     await Promise.all(jobs);
-    return { url:cv.toDataURL('image/jpeg',0.9), cw:cw, ch:ch, w0:w0, n0:n0, z:z };
+    var solosUsados=[];
+    if(solos && window.SOLOS){ try{ var rs=await SOLOS.pintarMosaico(ctx,{ z:z, w0:w0, n0:n0, cw:cw, ch:ch, modo:solos, alpha:.62 }); solosUsados=rs.usados||[]; }catch(e){} }   // solos (EMBRAPA) por cima do satélite
+    return { url:cv.toDataURL('image/jpeg',0.9), cw:cw, ch:ch, w0:w0, n0:n0, z:z, solosUsados:solosUsados };
   }
   // SPS do cadastro (do texto "Resultado (Processo administrativo)" ou dos campos)
   function d2sps(){
@@ -42984,6 +43010,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     }
     h+= fld('Base do mapa', sel('d2map_base',[['orto','Ortofoto do acervo + satélite'],['sat','Satélite Esri']],D2MAP_TXT.base||'orto'))
       + fld('Transparência da imagem', sel('d2map_transp',[[0,'0% (opaca)'],[25,'25%'],[50,'50%'],[75,'75%'],[100,'100% (sem imagem)']],D2MAP_TXT.transp==null?25:D2MAP_TXT.transp))
+      + (window.SOLOS ? fld('Classificação dos solos (EMBRAPA)', sel('d2map_solos',[['','Não mostrar'],['ordem','Ordem'],['subordem','Subordem'],['legenda','Legenda']],D2MAP_TXT.solos||'')) : '')
       + fld('Mapa de localização (PE)', sel('d2map_loclado',[['esq','Lado esquerdo'],['dir','Lado direito']],D2MAP_TXT.locLado||'esq'))
       + (rot ? '' : d2camsHtml(fid, regra))
       + (fxA ? '<div class="d2m-f d2m-full"><label>Estilo só desta figura <span style="text-transform:none;letter-spacing:0;font-weight:500">— as outras continuam com o quadro de camadas do servidor</span></label><div id="d2fx_est">'+d2fxEstHtml(fxA)+'</div></div>' : '')
@@ -43004,6 +43031,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       D2MAP_TXT.base=v('d2map_base')||'orto';
       D2MAP_TXT.transp=parseInt(v('d2map_transp'),10); if(isNaN(D2MAP_TXT.transp)) D2MAP_TXT.transp=25;
       D2MAP_TXT.locLado=v('d2map_loclado')||'esq';
+      D2MAP_TXT.solos=window.SOLOS?(v('d2map_solos')||''):'';
       st('Lendo camadas do imóvel…');
       var need={};
       if(rot){ (regra.cams||[]).forEach(function(c){ need[c]=true; }); }
@@ -43098,10 +43126,11 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       // Figura 2B: os códigos SIGEF/CAR interceptados NÃO vão para a legenda (decisão do usuário,
       // 29/09/2026 — geraria retrabalho); só os símbolos "Parcela SIGEF / Feição CAR (intercepta)".
       var basePref=D2MAP_TXT.base||'orto';
+      if(D2MAP_TXT.solos){ if(basePref==='orto') falhou.push('ortofoto (com solos a base é o satélite Esri)'); basePref='sat'; }
       var base=null;
       if(basePref==='orto'){ var sps=d2sps(); if(sps){ st('Baixando ortofoto (SPS '+sps+')…'); try{ base=await d2ortofoto(bb,sps); }catch(e){ falhou.push('ortofoto (usando satélite)'); } } else falhou.push('ortofoto (SPS não identificado — usando satélite)'); }
       if(base && base.mode==='orto'){ st('Baixando satélite (base de fundo)…'); try{ var satB=await d2satelite(bb); base.satUrl=satB.url; }catch(e){} }
-      if(!base){ st('Baixando satélite (Esri)…'); try{ var sat=await d2satelite(bb); base={mode:'sat',sat:sat,url:sat.url}; }catch(e){ st('Falha ao baixar a base: '+(e&&e.message||e)); return; } }
+      if(!base){ st('Baixando satélite (Esri)…'); try{ var sat=await d2satelite(bb, D2MAP_TXT.solos); base={mode:'sat',sat:sat,url:sat.url}; if(D2MAP_TXT.solos && sat.solosUsados && sat.solosUsados.length){ sat.solosUsados.forEach(function(u){ legend.push({nome:'Solo: '+(u.rotulo.length>30?u.rotulo.slice(0,29)+'…':u.rotulo),tipo:'fill',cor:u.cor}); }); } }catch(e){ st('Falha ao baixar a base: '+(e&&e.message||e)); return; } }
       st('Compondo o mapa…');
       var culRot=(d2base(fid)==='f3c')?d2culturasAreas().filter(function(c){ return c.lon!=null; }):[];
       var _volta2=d2estTrocar(fid), svg;                       // figura extra: estilo só dela (desenho)
@@ -48321,6 +48350,335 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
   window.MTEC_abrir = abrir;
 })();
 </script>
+<!--SOLOS:INI-->
+<script>
+/* ===== Camada "Classificação dos solos" (IBGE/EMBRAPA, pedologia 1:250 mil, versão 2026) =====
+   Uma camada, três visualizações agrupadas sob o mesmo nome: Ordem · Subordem · Legenda.
+   Os tiles vêm do servidor local (/api/solos/<z>/<x>/<y>, pacote gerado por ferramentas-solos/gerar-tiles-solos.mjs);
+   as cores são as da simbologia QGIS entregue (pedo_ordem / pedo_subordem / pedo_legenda3).
+   API (window.SOLOS):
+     SOLOS.criarCamada(mapa, {pane})      camada Leaflet (GridLayer em canvas); .setModo('ordem'|'subordem'|'legenda'|null), .setOpacidade(0..1)
+     SOLOS.htmlControle(opc) / SOLOS.ligar(host, camada)   caixa "Classificação dos solos" com as 3 visualizações + legenda
+     SOLOS.controleLeaflet(mapa, opc)     o mesmo, como controle flutuante dentro do mapa (visualizadores sem painel lateral)
+     SOLOS.pintarMosaico(ctx, opc)        desenha num canvas (mapas compostos: Planta, DESP-2, Marcos, relatórios)
+   Estado (modo/transparência) é compartilhado entre os visualizadores e lembrado no navegador. */
+(function(){
+  "use strict";
+  var MODOS = [ ["ordem", "Ordem"], ["subordem", "Subordem"], ["legenda", "Legenda"] ];
+  var CAMPO = { ordem:"o", subordem:"s", legenda:"l" };
+  var NOME = "Classificação dos solos";
+  var BASE = "/api/solos";
+  var meta = null, metaP = null, pal = null;
+  var estado = { modo:null, op:.75 };
+  try{ var m0 = localStorage.getItem("solos_modo"), o0 = localStorage.getItem("solos_op"); if(/^(ordem|subordem|legenda)$/.test(m0)) estado.modo = m0; if(o0 != null && o0 !== "" && isFinite(+o0)) estado.op = Math.max(.1, Math.min(1, +o0)); }catch(e){}
+  function guardar(){ try{ localStorage.setItem("solos_modo", estado.modo || ""); localStorage.setItem("solos_op", String(estado.op)); }catch(e){} }
+  var ouvintes = [];
+  function avisar(){ ouvintes.slice().forEach(function(f){ try{ f(); }catch(e){} }); }
+  function esc(t){ return String(t == null ? "" : t).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
+
+  /* ---------- meta + paletas ---------- */
+  function carregarMeta(){
+    if(meta) return Promise.resolve(meta);
+    if(metaP) return metaP;
+    metaP = fetch(BASE + "/meta").then(function(r){
+      if(!r.ok) return r.json().catch(function(){ return {}; }).then(function(j){ throw new Error(j.erro || ("HTTP " + r.status)); });
+      return r.json();
+    }).then(function(j){
+      meta = j; pal = {};
+      MODOS.forEach(function(mo){
+        var p = (j.paletas || {})[mo[0]] || { grupos:[] }, mp = {};
+        p.grupos.forEach(function(g){ g.itens.forEach(function(it){ mp[it.valor] = it.cor; }); });
+        pal[mo[0]] = mp;
+      });
+      return meta;
+    }).catch(function(e){ metaP = null; throw e; });
+    return metaP;
+  }
+  function corDe(modo, a){ var at = meta.attrs[a]; return at ? (pal[modo][at[CAMPO[modo]]] || null) : null; }
+
+  /* ---------- tiles ---------- */
+  var cacheT = new Map();                          // "z/x/y" -> Promise<tile|null>; tile = {f:[{a, r:[Int32Array]}], g:{modo:[{cor,path}]}}
+  function decod(j){
+    return { g:{}, f:j.map(function(ft){
+      return { a:ft[0], r:ft[1].map(function(d){ var o = new Int32Array(d.length), x = 0, y = 0; for(var i = 0; i < d.length; i += 2){ x += d[i]; y += d[i+1]; o[i] = x; o[i+1] = y; } return o; }) };
+    }) };
+  }
+  function pegarTile(z, x, y){
+    var k = z + "/" + x + "/" + y;
+    var h = cacheT.get(k);
+    if(h){ cacheT.delete(k); cacheT.set(k, h); return h; }
+    h = fetch(BASE + "/" + k).then(function(r){
+      if(r.status === 204) return null;
+      if(!r.ok) throw new Error("HTTP " + r.status);
+      return r.json().then(decod);
+    }).catch(function(){ cacheT.delete(k); return null; });
+    cacheT.set(k, h);
+    if(cacheT.size > 160){ cacheT.delete(cacheT.keys().next().value); }
+    return h;
+  }
+  function grupos(t, modo){
+    if(t.g[modo]) return t.g[modo];
+    var por = {}, ord = [];
+    t.f.forEach(function(ft){
+      var c = corDe(modo, ft.a); if(!c) return;
+      var g = por[c]; if(!g){ g = por[c] = { cor:c, path:new Path2D() }; ord.push(g); }
+      ft.r.forEach(function(r){ g.path.moveTo(r[0], r[1]); for(var i = 2; i < r.length; i += 2) g.path.lineTo(r[i], r[i+1]); g.path.closePath(); });
+    });
+    return (t.g[modo] = ord);
+  }
+  // desenha o tile 'tl' com a matriz m = [a,b,c,d,e,f] (padrão do canvas: unidade do tile -> pixel); 'esc' = pixels por unidade do tile
+  function pintarTileM(ctx, tl, modo, m, esc, alpha){
+    ctx.save();
+    ctx.setTransform(m[0], m[1], m[2], m[3], m[4], m[5]);
+    ctx.globalAlpha = alpha;
+    ctx.lineJoin = "round"; ctx.lineWidth = Math.max(.35, 0.7 / esc);   // contorno da mesma cor: tapa as frestas entre polígonos vizinhos
+    grupos(tl, modo).forEach(function(g){ ctx.fillStyle = g.cor; ctx.strokeStyle = g.cor; ctx.fill(g.path, "evenodd"); ctx.stroke(g.path); });
+    ctx.restore();
+  }
+  function pintarTile(ctx, tl, modo, k, dx, dy, alpha){ pintarTileM(ctx, tl, modo, [k, 0, 0, k, dx, dy], k, alpha); }
+
+  /* ---------- camada Leaflet ---------- */
+  function criarCamada(mapa, opc){
+    opc = opc || {};
+    var L = window.L; if(!L) throw new Error("Leaflet não carregado");
+    var C = L.GridLayer.extend({
+      createTile: function(c, pronto){
+        var cv = document.createElement("canvas"), tam = this.getTileSize(), dpr = Math.min(2, window.devicePixelRatio || 1);
+        cv.width = tam.x * dpr; cv.height = tam.y * dpr;
+        var modo = estado.modo;
+        if(!modo || !meta){ setTimeout(function(){ pronto(null, cv); }, 0); return cv; }
+        var zs = Math.min(c.z, meta.zmax), d = c.z - zs, ex = meta.extent;
+        var sx = c.x >> d, sy = c.y >> d, k = tam.x * dpr * Math.pow(2, d) / ex;
+        var ox = (c.x - (sx << d)) * ex / Math.pow(2, d), oy = (c.y - (sy << d)) * ex / Math.pow(2, d);
+        pegarTile(zs, sx, sy).then(function(tl){
+          if(tl) pintarTile(cv.getContext("2d"), tl, modo, k, -ox * k, -oy * k, 1);
+          pronto(null, cv);
+        });
+        return cv;
+      }
+    });
+    var cam = new C({ pane:opc.pane || "overlayPane", minZoom:meta ? meta.zmin : 4, maxZoom:21, opacity:1, attribution:"Solos: IBGE/EMBRAPA 1:250.000 (2026)", className:"solos-tiles", updateWhenIdle:true, keepBuffer:1 });
+    var api = {
+      layer:cam, mapa:mapa,
+      aplicar: function(){
+        if(estado.modo){
+          if(!mapa.hasLayer(cam)) cam.addTo(mapa);
+          cam.redraw();
+          cam.setOpacity(estado.op);
+        } else if(mapa.hasLayer(cam)) mapa.removeLayer(cam);
+      },
+      destruir: function(){ var i = ouvintes.indexOf(api._ouv); if(i >= 0) ouvintes.splice(i, 1); if(mapa.hasLayer(cam)) mapa.removeLayer(cam); mapa.off("click", api._clique); }
+    };
+    // a transparência vai na camada (os tiles em si ficam opacos): o slider responde sem refazer nada
+    api._ouv = function(){
+      var ct = mapa.getContainer && mapa.getContainer();
+      if(!ct || !document.body.contains(ct)){ api.destruir(); return; }   // o visualizador foi refeito/fechado (ex.: mapa do relatório redesenhado)
+      api.aplicar();
+    };
+    ouvintes.push(api._ouv);
+    // clique: identifica a classe sob o ponto (só quando o clique não foi numa feição interativa de outra camada)
+    api._clique = function(e){
+      if(!estado.modo || !meta) return;
+      var oe = e.originalEvent, t = oe && oe.target;
+      if(t && t.closest && t.closest(".leaflet-interactive, .leaflet-marker-icon, .leaflet-popup, .leaflet-control")) return;
+      identificar(e.latlng.lat, e.latlng.lng, mapa.getZoom()).then(function(at){
+        if(!at) return;
+        L.popup({ maxWidth:320 }).setLatLng(e.latlng).setContent(popupHtml(at)).openOn(mapa);
+      });
+    };
+    mapa.on("click", api._clique);
+    if(meta && estado.modo) api.aplicar();
+    return api;
+  }
+
+  function popupHtml(at){
+    var lin = function(r, v){ v = String(v == null ? "" : v).replace(/\s+/g, " ").trim(); return v ? '<div style="margin-top:2px"><span style="opacity:.65">' + r + ':</span> ' + esc(v) + '</div>' : ""; };
+    var cor = pal && pal.legenda[at.l];
+    return '<div style="font:12.5px/1.35 system-ui,sans-serif;min-width:200px;max-height:260px;overflow:auto"><div style="font-weight:700;margin-bottom:3px">'
+      + (cor ? '<span style="display:inline-block;width:11px;height:11px;border-radius:2px;background:' + cor + ';margin-right:6px;vertical-align:-1px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.25)"></span>' : "")
+      + esc(at.l || at.s || at.o || "Sem classificação") + '</div>'
+      + lin("Ordem", at.o) + lin("Subordem", at.s) + lin("Unidade", at.u) + lin("Componentes", at.c) + lin("Textura", at.t) + lin("Relevo", at.r)
+      + '<div style="margin-top:5px;opacity:.55;font-size:10.5px">IBGE/EMBRAPA · Pedologia 1:250.000 (2026)</div></div>';
+  }
+
+  /* ---------- identificar ---------- */
+  function noPoligono(x, y, r){
+    var dentro = false;
+    for(var i = 0, j = r.length - 2; i < r.length; j = i, i += 2){
+      var xi = r[i], yi = r[i+1], xj = r[j], yj = r[j+1];
+      if(((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) dentro = !dentro;
+    }
+    return dentro;
+  }
+  function identificar(lat, lon, z){
+    return carregarMeta().then(function(){
+      var zs = Math.max(meta.zmin, Math.min(meta.zmax, Math.round(z || meta.zmax)));
+      var n = Math.pow(2, zs), s = Math.sin(lat * Math.PI / 180);
+      var fx = (lon + 180) / 360 * n, fy = (0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * n;
+      var tx = Math.floor(fx), ty = Math.floor(fy), ex = meta.extent;
+      return pegarTile(zs, tx, ty).then(function(tl){
+        if(!tl) return null;
+        var px = (fx - tx) * ex, py = (fy - ty) * ex;
+        for(var i = 0; i < tl.f.length; i++){
+          var ft = tl.f[i], par = 0;
+          for(var k = 0; k < ft.r.length; k++) if(noPoligono(px, py, ft.r[k])) par ^= 1;   // par/ímpar: buracos contam
+          if(par) return meta.attrs[ft.a];
+        }
+        return null;
+      });
+    }).catch(function(){ return null; });
+  }
+
+  /* ---------- painel de controle (3 visualizações + legenda) ---------- */
+  function legendaHtml(modo){
+    var p = meta && meta.paletas && meta.paletas[modo]; if(!p) return "";
+    var h = "";
+    p.grupos.forEach(function(g){
+      if(g.titulo) h += '<div class="solos-gt">' + esc(g.titulo) + '</div>';
+      g.itens.forEach(function(it){ h += '<div class="solos-li"><i style="background:' + it.cor + '"></i><span>' + esc(it.rotulo) + '</span></div>'; });
+    });
+    return h;
+  }
+  var CSS_OK = false;
+  function css(){
+    if(CSS_OK) return; CSS_OK = true;
+    var s = document.createElement("style");
+    s.textContent = ".solos-box label{display:flex;align-items:center;gap:6px;cursor:pointer}"
+      + ".solos-sub{margin:2px 0 0 0;padding:0}.solos-sub label{padding:2px 0}"
+      + ".solos-op{display:flex;align-items:center;gap:8px;margin:6px 0 2px;font-size:11.5px;opacity:.85}.solos-op input{flex:1;min-width:60px}"
+      + ".solos-leg{max-height:230px;overflow:auto;margin-top:6px;padding:6px 7px;border-radius:7px;background:rgba(127,127,127,.12);font-size:11px;line-height:1.3}"
+      + ".solos-gt{font-weight:700;margin:6px 0 2px;letter-spacing:.02em;opacity:.9}.solos-gt:first-child{margin-top:0}"
+      + ".solos-li{display:flex;gap:6px;align-items:flex-start;padding:1px 0}.solos-li i{flex:0 0 12px;height:12px;border-radius:2px;margin-top:1px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.28)}"
+      + ".solos-n{display:inline-block;margin-left:4px;padding:0 7px;border-radius:9px;font-size:10.5px;font-weight:600;background:rgba(127,127,127,.25);color:inherit;vertical-align:1px}.solos-nota{margin-top:6px;font-size:10.5px;opacity:.65}.solos-erro{margin-top:6px;font-size:11.5px;color:#d9534f}"
+      + ".solos-ctl{background:rgba(255,255,255,.95);color:#1d2a32;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,.28);padding:8px 10px;max-width:270px;font:12.5px/1.35 system-ui,sans-serif}"
+      + ".solos-ctl summary{cursor:pointer;font-weight:700}";
+    document.head.appendChild(s);
+  }
+  function htmlControle(opc){
+    css(); opc = opc || {};
+    var nome = opc.nome || NOME + " — EMBRAPA", n = estado.modo ? ' <span class="solos-n">' + esc(rotuloModo(estado.modo)) + '</span>' : "";
+    var h = '<details class="solos-box ' + esc(opc.classe || "") + '"' + (estado.modo || opc.aberto ? " open" : "") + '><summary>' + esc(nome) + n + '</summary><div class="solos-sub">';
+    MODOS.forEach(function(mo){ h += '<label><input type="checkbox" data-solos="' + mo[0] + '"' + (estado.modo === mo[0] ? " checked" : "") + '> ' + mo[1] + '</label>'; });
+    h += '</div><div class="solos-op"><span>Transparência</span><input type="range" min="0" max="90" step="5" data-solos-op value="' + Math.round((1 - estado.op) * 100) + '"><span data-solos-opv>' + Math.round((1 - estado.op) * 100) + '%</span></div>';
+    h += '<div class="solos-corpo">' + (estado.modo && meta ? '<div class="solos-leg">' + legendaHtml(estado.modo) + '</div>' : "") + '</div>';
+    h += '<div class="solos-nota">Fonte: IBGE / EMBRAPA — pedologia 1:250.000, versão 2026. Clique no mapa para ver a classe do ponto.</div></details>';
+    return h;
+  }
+  function rotuloModo(m){ for(var i = 0; i < MODOS.length; i++) if(MODOS[i][0] === m) return MODOS[i][1]; return m; }
+  // liga os eventos do trecho gerado por htmlControle dentro de 'host'
+  function ligar(host, camada){
+    var det = host.querySelector("details.solos-box"); if(!det) return;
+    var cbs = det.querySelectorAll("input[data-solos]"), rng = det.querySelector("input[data-solos-op]"), rv = det.querySelector("[data-solos-opv]"), corpo = det.querySelector(".solos-corpo");
+    function atualizar(){
+      Array.prototype.forEach.call(cbs, function(c){ c.checked = (estado.modo === c.getAttribute("data-solos")); });
+      var sm = det.querySelector("summary"); if(sm) sm.innerHTML = esc(det.getAttribute("data-nome") || (NOME + " — EMBRAPA")) + (estado.modo ? ' <span class="solos-n">' + esc(rotuloModo(estado.modo)) + '</span>' : "");
+      if(corpo) corpo.innerHTML = (estado.modo && meta) ? '<div class="solos-leg">' + legendaHtml(estado.modo) + '</div>' : "";
+    }
+    var sm0 = det.querySelector("summary"); if(sm0) det.setAttribute("data-nome", sm0.textContent.replace(/\s*(Ordem|Subordem|Legenda)\s*$/, ""));
+    Array.prototype.forEach.call(cbs, function(c){
+      c.addEventListener("change", function(){
+        var m = c.getAttribute("data-solos");
+        estado.modo = c.checked ? m : null; guardar();
+        if(!estado.modo){ atualizar(); avisar(); return; }
+        carregarMeta().then(function(){ atualizar(); avisar(); }).catch(function(e){
+          estado.modo = null; atualizar();
+          if(corpo) corpo.innerHTML = '<div class="solos-erro">Camada indisponível: ' + esc(e.message) + '</div>';
+        });
+      });
+    });
+    if(rng) rng.addEventListener("input", function(){
+      estado.op = 1 - (+rng.value) / 100; if(rv) rv.textContent = rng.value + "%"; guardar();
+      avisar();
+    });
+    if(estado.modo && !meta) carregarMeta().then(function(){ atualizar(); avisar(); }).catch(function(){ estado.modo = null; atualizar(); });
+    // outro visualizador (ou outro trecho) mudou o estado: espelha aqui
+    var f = function(){ if(!document.body.contains(det)){ var i = ouvintes.indexOf(f); if(i >= 0) ouvintes.splice(i, 1); return; } atualizar(); if(rng){ rng.value = Math.round((1 - estado.op) * 100); if(rv) rv.textContent = rng.value + "%"; } };
+    ouvintes.push(f);
+  }
+  // controle flutuante dentro do mapa Leaflet (visualizadores sem painel lateral)
+  function controleLeaflet(mapa, opc){
+    var L = window.L; css(); opc = opc || {};
+    var C = L.Control.extend({
+      onAdd: function(){
+        var div = L.DomUtil.create("div", "solos-ctl");
+        div.innerHTML = htmlControle({ classe:"", nome:opc.nome });
+        L.DomEvent.disableClickPropagation(div); L.DomEvent.disableScrollPropagation(div);
+        ligar(div, null);
+        return div;
+      }
+    });
+    var ctl = new C({ position:opc.posicao || "topleft" }).addTo(mapa);
+    var cam = criarCamada(mapa, { pane:opc.pane });
+    cam.controle = ctl;
+    return cam;
+  }
+
+  /* ---------- mapas compostos: desenha sobre um canvas em afim WebMercator ----------
+     opc: z (zoom do mosaico: 256·2^z px de mundo), w0/n0 (pixel global do canto superior esquerdo), cw/ch (tamanho do canvas),
+          modo (padrão: o do estado), alpha (padrão: 1). Devolve Promise<{usados:[{rotulo,cor}], desenhou:boolean}>. */
+  function pintarMosaico(ctx, opc){
+    var modo = opc.modo || estado.modo; if(!modo) return Promise.resolve({ usados:[], desenhou:false });
+    return carregarMeta().then(function(){
+      var z = opc.z, zs = Math.max(meta.zmin, Math.min(meta.zmax, z)), ex = meta.extent;
+      var tam = 256 * Math.pow(2, z - zs);                    // lado do tile-fonte, em px do mosaico
+      var k = tam / ex, tx0 = Math.floor(opc.w0 / tam), tx1 = Math.floor((opc.w0 + opc.cw) / tam), ty0 = Math.floor(opc.n0 / tam), ty1 = Math.floor((opc.n0 + opc.ch) / tam);
+      var N = Math.pow(2, zs), jobs = [], usados = {}, ordem = [];
+      for(var ty = Math.max(0, ty0); ty <= Math.min(N - 1, ty1); ty++) for(var tx = Math.max(0, tx0); tx <= Math.min(N - 1, tx1); tx++){
+        (function(tx, ty){ jobs.push(pegarTile(zs, tx, ty).then(function(tl){ return { tl:tl, tx:tx, ty:ty }; })); })(tx, ty);
+      }
+      return Promise.all(jobs).then(function(lista){
+        var alg = false;
+        lista.forEach(function(q){
+          if(!q.tl) return; alg = true;
+          pintarTile(ctx, q.tl, modo, k, q.tx * tam - opc.w0, q.ty * tam - opc.n0, opc.alpha == null ? 1 : opc.alpha);
+          q.tl.f.forEach(function(ft){ var at = meta.attrs[ft.a], v = at && at[CAMPO[modo]]; if(v && pal[modo][v] && !usados[v]){ usados[v] = 1; ordem.push({ valor:v, cor:pal[modo][v] }); } });
+        });
+        // rótulos na ordem da simbologia
+        var rot = {}; meta.paletas[modo].grupos.forEach(function(g){ g.itens.forEach(function(it){ rot[it.valor] = it.rotulo; }); });
+        var seq = []; meta.paletas[modo].grupos.forEach(function(g){ g.itens.forEach(function(it){ if(usados[it.valor]) seq.push({ rotulo:it.rotulo, cor:it.cor }); }); });
+        return { usados:seq, desenhou:alg };
+      });
+    }).catch(function(){ return { usados:[], desenhou:false }; });
+  }
+
+  /* Planta (afim): M = [a,b,c,d,e,f] leva o pixel global do mosaico (256·2^z px de mundo) ao pixel do canvas, como ctx.setTransform.
+     cantos = [[X,Y],...] pixels globais cobertos. Devolve Promise<{usados, desenhou}> (usados = classes presentes, na ordem da simbologia). */
+  function pintarAfim(ctx, opc){
+    var modo = opc.modo || estado.modo; if(!modo) return Promise.resolve({ usados:[], desenhou:false });
+    return carregarMeta().then(function(){
+      var z = opc.z, zs = Math.max(meta.zmin, Math.min(meta.zmax, z)), ex = meta.extent, M = opc.M;
+      var tam = 256 * Math.pow(2, z - zs), s = tam / ex, N = Math.pow(2, zs);
+      var xs = opc.cantos.map(function(p){ return p[0]; }), ys = opc.cantos.map(function(p){ return p[1]; });
+      var tx0 = Math.floor(Math.min.apply(null, xs) / tam), tx1 = Math.floor(Math.max.apply(null, xs) / tam), ty0 = Math.floor(Math.min.apply(null, ys) / tam), ty1 = Math.floor(Math.max.apply(null, ys) / tam);
+      var jobs = [], usados = {};
+      for(var ty = Math.max(0, ty0); ty <= Math.min(N - 1, ty1); ty++) for(var tx = Math.max(0, tx0); tx <= Math.min(N - 1, tx1); tx++){
+        (function(tx, ty){ jobs.push(pegarTile(zs, tx, ty).then(function(tl){ return { tl:tl, tx:tx, ty:ty }; })); })(tx, ty);
+      }
+      return Promise.all(jobs).then(function(lista){
+        var alg = false, esc = s * Math.sqrt(Math.abs(M[0] * M[3] - M[1] * M[2]));
+        lista.forEach(function(q){
+          if(!q.tl) return; alg = true;
+          var Tx = q.tx * tam, Ty = q.ty * tam;
+          pintarTileM(ctx, q.tl, modo, [M[0] * s, M[1] * s, M[2] * s, M[3] * s, M[0] * Tx + M[2] * Ty + M[4], M[1] * Tx + M[3] * Ty + M[5]], esc, opc.alpha == null ? 1 : opc.alpha);
+          q.tl.f.forEach(function(ft){ var at = meta.attrs[ft.a], v = at && at[CAMPO[modo]]; if(v && pal[modo][v]) usados[v] = 1; });
+        });
+        var seq = []; meta.paletas[modo].grupos.forEach(function(g){ g.itens.forEach(function(it){ if(usados[it.valor]) seq.push({ rotulo:it.rotulo, cor:it.cor }); }); });
+        return { usados:seq, desenhou:alg };
+      });
+    }).catch(function(){ return { usados:[], desenhou:false }; });
+  }
+
+  window.SOLOS = {
+    NOME:NOME, MODOS:MODOS, estado:estado,
+    carregarMeta:carregarMeta, criarCamada:criarCamada, htmlControle:htmlControle, ligar:ligar, controleLeaflet:controleLeaflet,
+    pintarMosaico:pintarMosaico, pintarAfim:pintarAfim, identificar:identificar, rotuloModo:rotuloModo,
+    ativo:function(){ return estado.modo; },
+    onMudar:function(f){ ouvintes.push(f); }
+  };
+})();
+
+</script>
+<!--SOLOS:FIM-->
 </body>
 
 
