@@ -9483,20 +9483,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
   <div id="mdp_cam_lista" style="margin-top:16px;"></div>
 </div>
 
-<h2 class="vsec">4 · Memorial descritivo</h2>
-<div class="vcard">
-  <div class="vsub">Dados do imóvel</div>
-  <div class="vrow" id="mdp_campos_mem"></div>
-  <div class="vsub">Limites e confrontações <span class="hint-auto" style="font-weight:400">deixe em branco para usar o cálculo pelos azimutes</span></div>
-  <div class="vrow" id="mdp_campos_lim"></div>
-  <div class="vactions" style="margin-top:2px;"><button class="vbtn vbtn-ghost vbtn-sm" type="button" onclick="MDP_limparLim()">↻ Voltar ao cálculo automático</button></div>
-  <div class="vsub">Prévia da descrição do perímetro</div>
-  <div class="mdp-prev" id="mdp_mem_prev"></div>
-  <div class="vactions">
-    <button class="vbtn" type="button" onclick="MDP_pdfMemorial()">📄 PDF — Memorial descritivo</button>
-    <button class="vbtn vbtn-ghost" type="button" onclick="MDP_wordMemorial()">📝 Word — Memorial descritivo</button>
-  </div>
-</div>
+<!-- 15/10/2026: o tópico "4 · Memorial descritivo" saiu daqui; a prévia, os dados (aba Dados), o PDF e o Word ficam na gaveta Memorial da Mesa de Desenho. -->
 
 <!-- Mesa, etapa 2 (14/10/2026): a seção "5 · Carimbo da planta" só levava de volta à composição; o acesso
      agora é o botão "▤ Carimbo" do tópico 1. Os dois hospedeiros ocultos abaixo continuam (o carimbo os usa). -->
@@ -25136,6 +25123,8 @@ function AV_gerarDescSituacao(){
     };
   }
 
+  // imagem da assinatura do responsável técnico (Antônio Célito), se for ele quem assina
+  function assinaturaResp(c){ return (/C[ÉE]LITO/i.test((c && c.resp) || "") && window.__ASSINATURA_CELITO__) ? window.__ASSINATURA_CELITO__ : null; }
   /* ---------------- PDF do memorial (A4, cabeçalho/rodapé aprovados) ---------------- */
   var END = ["Av. Des. Moreira, nº 1300, T. Norte, Conj. 1016/1021, Aldeota, 60.170-002, Fortaleza-CE","Rua Idelfonso Freire, nº 106, Sala 202, Centro, 56.506-520, Arcoverde-PE","Rua Pedro Batista Ferreira, nº 278, Centro, 76.500-000, Santa Terezinha de Goiás-GO","Rua Nilo Peçanha, nº 25, 1º Andar, Sala 07, Centro, 47.640-000, Santa Maria da Vitória-BA","Rua Irmã Ambrosina, nº 249, Conj 03 e 04, Centro, 61.760-405, Eusébio-CE","Rua dos Timbiras, nº 2213, Conj.1206/1209, Lourdes, 30.140-069, Belo Horizonte-MG"];
   var TEL = ["(+55 85) 3289-6363   comercial@enprol.com.br","(+55 85) 3289-6363   comercial@enprol.com.br","(+55 85) 3289-6363   comercial@enprol.com.br","(+55 85) 3289-6363   comercial@enprol.com.br","(+55 85) 3289-6363   comercial@enprol.com.br","(+55 31) 3253-5500   comercial@enprol.com.br"];
@@ -25370,6 +25359,8 @@ function AV_gerarDescSituacao(){
     b.fim.forEach(function(d){ rot(d[0], d[1]); });
 
     garantir(34); y += 16;
+    var imgAss = assinaturaResp(c);                          // 15/10/2026: a assinatura (imagem) do responsável técnico sobre a linha
+    if(imgAss){ try{ var wA = 62, hA = wA*144/1208; pdf.addImage(imgAss, "PNG", W/2 - wA/2, y - hA + 1.2, wA, hA); }catch(e){ console.warn("assinatura no memorial (PDF):", e); } }
     pdf.setDrawColor(0,0,0); pdf.setLineWidth(.3); pdf.line(W/2-38, y, W/2+38, y); y += 4.4;
     pdf.setFont("helvetica","normal"); pdf.setFontSize(8.6);
     pdf.text(c.resp, W/2, y, {align:"center"}); y += 4;
@@ -25426,7 +25417,14 @@ function AV_gerarDescSituacao(){
     K.push(lin([R("iv.  "), R("DESCRIÇÃO DA ÁREA OBJETO DO PROCESSO " + c.processo, {bold:true})], {after:80}));
     K.push(lin(memorialPartes().map(function(p){ return R(p.t, {bold:p.b}); }), {al:AL.JUSTIFIED, after:180}));
     b.fim.forEach(function(d){ rotW(d[0], d[1]); });
-    K.push(lin([R(" ")], {after:600}));
+    var imgAssW = assinaturaResp(c);
+    if(imgAssW){
+      try{
+        var bin = atob(imgAssW.split(",")[1]), u8 = new Uint8Array(bin.length); for(var iA = 0; iA < bin.length; iA++) u8[iA] = bin.charCodeAt(iA);
+        K.push(lin([R(" ")], {after:300}));
+        K.push(lin([new D.ImageRun({ data:u8, type:"png", transformation:{ width:232, height:28 } })], {al:AL.CENTER}));
+      }catch(e){ console.warn("assinatura no memorial (Word):", e); K.push(lin([R(" ")], {after:600})); }
+    } else K.push(lin([R(" ")], {after:600}));
     K.push(lin([R("______________________________________")], {al:AL.CENTER}));
     K.push(lin([R(c.resp)], {al:AL.CENTER}));
     K.push(lin([R(c.respCargo)], {al:AL.CENTER}));
@@ -30612,7 +30610,18 @@ function AV_gerarDescSituacao(){
       return p.b ? ("<b>" + esc(p.t) + "</b>") : esc(p.t);
     }).join("") : "";
     if(box) box.innerHTML = h;
-    if(bz) bz.innerHTML = h || '<span style="color:#7a8797">Insira o KML da área desapropriada para gerar o memorial.</span>';   // Mesa: a mesma prévia, com os negritos
+    if(bz){
+      // Mesa: a mesma prévia, com os negritos — e o fecho como sai no PDF/Word: campos do imóvel preenchidos + assinatura
+      var fim = "";
+      if(G){
+        var bl = blocos(), c0 = bl.cad;
+        bl.fim.forEach(function(d){ if(d[1] !== "" && d[1] != null) fim += '<div>' + esc(d[0]) + ': ' + esc(d[1]) + '</div>'; });
+        var ia = assinaturaResp(c0);
+        fim = '<div class="mz-fim">' + fim + '</div><div class="mz-assin">' + (ia ? '<img src="' + ia + '" alt="Assinatura de ' + esc(c0.resp) + '">' : '<span class="mz-assin-v"></span>') +
+          '<div class="mz-assin-l"></div><b>' + esc(c0.resp) + '</b><div>' + esc(c0.respCargo) + '</div><div>' + esc(c0.respCrea) + '</div></div>';
+      }
+      bz.innerHTML = h ? (h + fim) : '<span style="color:#7a8797">Insira o KML da área desapropriada para gerar o memorial.</span>';
+    }
   }
   function renderCampos(){
     var a = $("mdp_campos_mem"), b = $("mdp_campos_car"), o = $("mdp_obs"), a2 = $("mz_campos_mem"), lm2 = $("mz_campos_lim"), o2 = $("mz_obs");
@@ -31689,12 +31698,11 @@ function AV_gerarDescSituacao(){
       '<div class="mz-abas" role="tablist" aria-label="Memorial"><button type="button" role="tab" class="on" aria-selected="true" data-mzmt="previa">Prévia</button><button type="button" role="tab" aria-selected="false" data-mzmt="dados">Dados</button></div>' +
       '<div class="mz-mt" data-mzpane="previa"><p class="mz-gav-s">Sai do desenho e da tabela de vértices, ao vivo — o texto é o mesmo do PDF e do Word, com os destaques em negrito.</p>' +
         '<div class="mdp-prev mz-memprev" id="mz_mem"></div></div>' +
-      '<div class="mz-mt" data-mzpane="dados" hidden><p class="mz-gav-s">Os mesmos campos do tópico 4 da aba Planta: o que você mudar aqui muda lá, e a prévia ao lado acompanha.</p>' +
+      '<div class="mz-mt" data-mzpane="dados" hidden><p class="mz-gav-s">Dados do imóvel e limites do memorial. O que sai no fim do memorial (utilização, benfeitorias, escritura, registro…) é preenchido aqui, e a Prévia acompanha.</p>' +
         '<div class="mz-gav-sub">Dados do imóvel</div><div class="vrow" id="mz_campos_mem"></div>' +
         '<div class="mz-gav-sub">Limites e confrontações <span class="hint-auto" style="font-weight:400;text-transform:none;letter-spacing:0">em branco = calculado pelos azimutes</span></div><div class="vrow" id="mz_campos_lim"></div>' +
         '<div class="mz-gav-acoes" style="margin-top:2px"><button type="button" class="vbtn vbtn-ghost vbtn-sm" data-mzmem="lim">↻ Voltar ao cálculo automático</button></div>' +
-        '<div class="mz-gav-sub">Observações da planta</div><p class="mz-gav-s" style="margin-bottom:8px">São as mesmas do quadro OBSERVAÇÃO do carimbo: as anotações abaixo e as benfeitorias lançadas na Técnica (itens 12 e 13), numeradas.</p>' +
-        '<div class="vrow" id="mz_obs"></div><div id="mz_obs_auto"></div></div>' +
+        '</div>' +
       '<div class="mz-gav-acoes"><button type="button" class="vbtn vbtn-sm" data-mzmem="ver" title="Gera o PDF e mostra aqui, sem salvar">👁 Visualizar PDF</button><button type="button" class="vbtn vbtn-ghost vbtn-sm" data-mzmem="pdf">Memorial — PDF</button><button type="button" class="vbtn vbtn-ghost vbtn-sm" data-mzmem="word">Memorial — Word</button></div>');
     gM.id = "mz_gav_memorial"; gM.hidden = true;
     dir.insertBefore(gM, dir.firstChild); dir.insertBefore(gC, dir.firstChild); dir.insertBefore(gF, dir.firstChild);
@@ -47353,6 +47361,11 @@ window.MG_motion={abertura:abertura,cadastro:cadastro,fichas:fichas};
 #panel-desp1-planta .mz-mem{ max-height:52vh; overflow:auto; padding:14px 16px; border:1px solid #e6ecf2; border-radius:10px; background:#fbfaf6; color:#1b2a2e;
   font:13px/1.65 Georgia,"Times New Roman",serif; white-space:pre-line; }
 #panel-desp1-planta .mz-memprev{ max-height:56vh; }
+#panel-desp1-planta .mz-memprev .mz-fim{ margin-top:22px; text-align:left; line-height:1.55; }
+#panel-desp1-planta .mz-memprev .mz-assin{ margin:34px auto 6px; text-align:center; max-width:360px; line-height:1.5; }
+#panel-desp1-planta .mz-memprev .mz-assin img{ display:block; width:78%; max-width:290px; height:auto; margin:0 auto -6px; }
+#panel-desp1-planta .mz-memprev .mz-assin .mz-assin-v{ display:block; height:34px; }
+#panel-desp1-planta .mz-memprev .mz-assin .mz-assin-l{ border-top:1px solid #243447; width:86%; margin:0 auto 6px; }
 #panel-desp1-planta #mz_gav_memorial > .mz-gav-acoes{ position:sticky; bottom:-1px; margin:14px -2px 0; padding:10px 2px; background:#fff; border-top:1px solid #e6ecf2; z-index:2; }
 #panel-desp1-planta .mz-abas{ display:inline-flex; gap:2px; padding:3px; margin:4px 0 12px; border-radius:999px; background:#eef2f6; border:1px solid #dde5ee; }
 #panel-desp1-planta .mz-abas button{ min-height:30px; padding:0 18px; border:0; border-radius:999px; background:none; color:#5a6b7c; font:600 12.5px "Segoe UI",sans-serif; cursor:pointer; transition:background .16s, color .16s; }
