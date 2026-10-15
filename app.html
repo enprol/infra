@@ -20698,25 +20698,37 @@ window.FOTO_rodapeHTML=rodapeHTML;
   window.AVFTN_disponiveis = function(){ try{ return anxDisponiveis(); }catch(e){ return { rot:true }; } };
   window.AVFTN_anexosOrdem = function(){ return ANX_ORDEM.map(function(x){ return { k:x.k, t:x.t }; }); };
   // folha de rosto de uma parte do material técnico (PDF de uma página)
-  window.AVFTN_folhaRosto = function(parte, titulo, itens){
+  // capa única do material técnico (15/10/2026): CTD/SPS no título, sumário numerado por DESP.
+  // grupos = [{ n:1, t:"DESP 1", itens:["Ficha …", …] }, …]
+  window.AVFTN_folhaRosto = function(grupos){
     const {jsPDF} = window.jspdf, doc = new jsPDF({unit:"pt",format:"a4",compress:true}), ctx = makeCtx(doc);
     ctx.rodapePadrao = true; novaPagina(doc,ctx);
-    const cx = ctx.W/2, L = ctx.MR - ctx.ML; let y = 196;
+    const cx = ctx.W/2, L = ctx.MR - ctx.ML; let y = 170;
+    // título = identificação do cadastro (ex.: "CTD 001 - SPS-04 – PE")
+    const proc = val("fv_processo"), m = /CTD[ ]*[0-9]+[ ]*[-–][ ]*SPS-?[ ]*[0-9]+[ ]*[-–][ ]*[A-Z]{2}/i.exec(proc);
+    let ident = m ? m[0].replace(/[ ]+/g," ").toUpperCase() : "";
+    if(!ident){ const at = window.__CAD_ATUAL || {}; ident = (at.ctd ? String(at.ctd).split(" - ")[0] : (val("fb_proc_ctd") ? "CTD " + val("fb_proc_ctd") : "MATERIAL TÉCNICO")).toUpperCase(); }
     doc.setFont("helvetica","bold"); doc.setFontSize(8); doc.setTextColor(122,133,148);
     doc.text("MATERIAL TÉCNICO DO CADASTRO", cx, y, {align:"center", charSpace:1.4});
-    y += 58; doc.setFontSize(50); doc.setTextColor(27,58,92); doc.text("PARTE " + parte, cx, y, {align:"center"});
-    y += 32; doc.setFontSize(14.5); doc.setTextColor(30,40,55); doc.text(String(titulo).toUpperCase(), cx, y, {align:"center", charSpace:0.6});
-    y += 20; doc.setDrawColor(31,111,192); doc.setLineWidth(1.4); doc.line(cx-48, y, cx+48, y);
-    y += 40;
-    const x0 = cx - 175, wl = 330;
-    (itens || []).forEach(function(t, i){
-      const lin = doc.splitTextToSize(String(t), wl);
-      doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(31,111,192);
-      doc.text(String(i + 1).padStart(2, "0"), x0, y);
-      doc.setFont("helvetica","normal"); doc.setFontSize(10.5); doc.setTextColor(36,52,71);
-      lin.forEach(function(l, k){ doc.text(l, x0 + 26, y + k * 14); });
-      y += lin.length * 14 + 9;
-      doc.setDrawColor(226,231,238); doc.setLineWidth(0.4); doc.line(x0 + 26, y - 6, x0 + 26 + wl, y - 6);
+    let fs = 40; doc.setFontSize(fs); while(fs > 18 && doc.getTextWidth(ident) > L - 20){ fs -= 1; doc.setFontSize(fs); }
+    y += 54; doc.setTextColor(27,58,92); doc.text(ident, cx, y, {align:"center"});
+    y += 30; doc.setFontSize(14.5); doc.setTextColor(30,40,55);
+    doc.text("RELATÓRIOS E PEÇAS TÉCNICAS", cx, y, {align:"center", charSpace:0.6});
+    y += 52;
+    const x0 = cx - 185, wl = 330;
+    (grupos || []).forEach(function(g){
+      if(!(g.itens && g.itens.length)) return;
+      doc.setFont("helvetica","bold"); doc.setFontSize(12); doc.setTextColor(27,58,92);
+      doc.text(g.n + "   " + g.t, x0, y); y += 20;
+      g.itens.forEach(function(t, k){
+        const lin = doc.splitTextToSize(String(t), wl);
+        doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(31,111,192);
+        doc.text(g.n + "." + (k + 1), x0 + 8, y);
+        doc.setFont("helvetica","normal"); doc.setFontSize(10.5); doc.setTextColor(36,52,71);
+        lin.forEach(function(l, q){ doc.text(l, x0 + 40, y + q * 14); });
+        y += lin.length * 14 + 6;
+      });
+      y += 12;
     });
     const yb = ctx.MB - 84, mun = [val("av_municipio"), val("av_uf")].filter(Boolean).join("/");
     doc.setFillColor(244,248,252); doc.setDrawColor(188,214,240); doc.setLineWidth(0.6); doc.roundedRect(ctx.ML, yb, L, 70, 3, 3, "FD");
@@ -48613,7 +48625,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     <div class="mtec-corpo" id="mtec_corpo"></div>
     <div class="mtec-pe">
       <div class="mtec-fmt" role="radiogroup" aria-label="Formato do download">
-        <label><input type="radio" name="mtec_fmt" value="pdf" checked><span>PDF único<small>com folha de rosto por parte</small></span></label>
+        <label><input type="radio" name="mtec_fmt" value="pdf" checked><span>PDF único<small>com capa única e sumário</small></span></label>
         <label><input type="radio" name="mtec_fmt" value="zip"><span>Arquivo ZIP<small>cada item em um PDF</small></span></label>
       </div>
       <div class="mtec-resumo" id="mtec_resumo" aria-live="polite"></div>
@@ -48726,14 +48738,18 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
         blob = await window.ZIP_build(ent); nome = base + ".zip";
       } else {
         var out = await PDFLib.PDFDocument.create();
-        for(var pt = 1; pt <= 2; pt++){
-          var desta = feitos.filter(function(f){ return f.parte === pt; }); if(!desta.length) continue;
-          var rosto = window.AVFTN_folhaRosto(pt === 1 ? "I" : "II", pt === 1 ? "Relatórios e peças técnicas" : "Avaliação e anexos", desta.map(function(f){ return f.rot; }));
-          var lista = [rosto].concat(desta.map(function(f){ return f.bytes; }));
-          for(var j = 0; j < lista.length; j++){
-            var src = await PDFLib.PDFDocument.load(lista[j], { ignoreEncryption:true });
-            (await out.copyPages(src, src.getPageIndices())).forEach(function(pg){ out.addPage(pg); });
-          }
+        // capa única (a numeração é o tipo de produto e NÃO muda quando um grupo não é selecionado): 1 DESP 1 (ficha, relatório socioeconômico, jurídico) · 2 DESP 2 · 3 DESP 3 (memorial + anexos incluídos)
+        var d1 = feitos.filter(function(f){ return f.it.k === "fb" || f.it.k === "rel" || f.it.k === "par"; }),
+            d2 = feitos.filter(function(f){ return f.it.k === "d2"; }),
+            d3 = feitos.filter(function(f){ return f.parte === 2; });
+        var grupos = [];
+        if(d1.length) grupos.push({ n:1, t:"DESP 1", itens:d1.map(function(f){ return f.rot; }) });
+        if(d2.length) grupos.push({ n:2, t:"DESP 2", itens:d2.map(function(f){ return f.rot; }) });
+        if(d3.length) grupos.push({ n:3, t:"DESP 3", itens:d3.map(function(f){ return f.rot; }) });
+        var lista = [window.AVFTN_folhaRosto(grupos)].concat(d1.concat(d2, d3).map(function(f){ return f.bytes; }));
+        for(var j = 0; j < lista.length; j++){
+          var src = await PDFLib.PDFDocument.load(lista[j], { ignoreEncryption:true });
+          (await out.copyPages(src, src.getPageIndices())).forEach(function(pg){ out.addPage(pg); });
         }
         blob = new Blob([await out.save()], { type:"application/pdf" }); nome = base + ".pdf";
       }
@@ -49120,7 +49136,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.15-12';
+window.APP_VERSAO = '2026.10.15-13';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.15-3';
 (function(){
