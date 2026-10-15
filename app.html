@@ -19071,58 +19071,60 @@ window.FOTO_rodapeHTML=rodapeHTML;
 
   // ---------- CAPA DO MEMORIAL DE CÁLCULO (15/10/2026) ----------
   // Mesmo desenho e mesmos textos das capas do DESP 1 / DESP 2: ferrovia, lote, processo, EXPROPRIADO, LOCAÇÃO + áreas e contrato justificado
-  function desenharCapaMemorial(doc,ctx){
-    const {W,H}=ctx, BARRA=184, ML=BARRA+18, MR=W-40, cx=(BARRA+W)/2, LARG=MR-ML;
+  function desenharCapaMemorial(pdf){
+    // doc em MILÍMETROS: as medidas são as da capa do DESP 1 / DESP 2 (faixa de 45 mm, logos de 15 mm de altura)
+    const W=210, H=297, mR=20, faixaW=45, cxL=faixaW+8, cxC=cxL+(W-cxL-mR)/2, mT=14, LARG=W-cxL-mR-6;
     const cm = window.CAPA_comum ? window.CAPA_comum() : { ferrovia:"", lote:"", processo:"", expropriado:"", contrato:"", areas:[] };
-    doc.setFillColor(60,90,130); doc.rect(0,0,BARRA,H,"F");
-    const LI=window.__LOGO_INFRA__, LE=window.__LOGO_ENPROL__, logoH=34, logoW=118, gap=22, lx=cx-(logoW*2+gap)/2;
-    if(LI){ try{ doc.addImage(LI,"JPEG",lx,34,logoW,logoH); }catch(e){} }
-    if(LE){ try{ doc.addImage(LE,"JPEG",lx+logoW+gap,34,logoW,logoH); }catch(e){} }
-    let y=128;
-    doc.setTextColor(20,40,70); doc.setFont("helvetica","bold"); doc.setFontSize(21);
-    doc.text("INFRA S.A.", cx, y, {align:"center"}); y+=20;
-    doc.setFontSize(8.6);
-    ["DIREM - DIRETORIA DE EMPREENDIMENTOS","SUGAT – SUPERINTENDÊNCIA DE GESTÃO AMBIENTAL E TERRITORIAL","GEDAF – GERÊNCIA DE DESAPROPRIAÇÃO E ASSUNTOS FUNDIÁRIOS"].forEach(function(l){ doc.text(l, cx, y, {align:"center"}); y+=12; });
-    doc.setDrawColor(20,40,70); doc.setLineWidth(0.8); doc.line(ML, y-4, MR, y-4); y+=52;
-    doc.setFontSize(19);
-    ["MEMORIAL DE CÁLCULO","DE TERRA NUA E BENFEITORIAS"].forEach(function(l){ doc.text(l, cx, y, {align:"center"}); y+=24; });
-    y+=18; doc.setFontSize(13); doc.setTextColor(40,40,40); doc.text("DESP-3", cx, y, {align:"center"}); y+=44;
-    doc.setFont("helvetica","normal"); doc.setFontSize(12);
-    doc.splitTextToSize(cm.ferrovia || "FERROVIA", LARG-12).forEach(function(l){ doc.text(l, cx, y, {align:"center"}); y+=18; });
-    y+=10; doc.setFont("helvetica","bold");
-    if(cm.lote){ doc.text("FTN (Lote: "+cm.lote+")", cx, y, {align:"center"}); y+=44; }
+    pdf.setFillColor(60,90,130); pdf.rect(0,0,faixaW,H,"F");
+    const LI=window.__LOGO_INFRA__, LE=window.__LOGO_ENPROL__;
+    const logo=function(src, aEsq){ if(!src) return; try{ const pr=pdf.getImageProperties(src), w=15*(pr.width/pr.height); pdf.addImage(src,"JPEG", aEsq?cxL:W-mR-w, mT, w, 15); }catch(e){} };
+    logo(LI,true); logo(LE,false);
+    let y=48;
+    pdf.setFont("helvetica","bold"); pdf.setFontSize(15); pdf.setTextColor(20,40,70);
+    pdf.text("INFRA S.A.", cxC, y, {align:"center"}); y+=7;
+    pdf.setFontSize(9);
+    pdf.text("DIREM - DIRETORIA DE EMPREENDIMENTOS", cxC, y, {align:"center"}); y+=4.5;
+    pdf.text("SUGAT – SUPERINTENDÊNCIA DE GESTÃO AMBIENTAL E TERRITORIAL", cxC, y, {align:"center"}); y+=4.5;
+    pdf.text("GEDAF – GERÊNCIA DE DESAPROPRIAÇÃO E ASSUNTOS FUNDIÁRIOS", cxC, y, {align:"center"});
+    pdf.setDrawColor(20,40,70); pdf.setLineWidth(0.4); pdf.line(cxL, y+3, W-mR, y+3); y+=26;
+    pdf.setFontSize(19);
+    pdf.splitTextToSize("MEMORIAL DE CÁLCULO DE TERRA NUA E BENFEITORIAS", LARG).forEach(function(l){ pdf.text(l, cxC, y, {align:"center"}); y+=8; });
+    y+=6;
+    pdf.setFontSize(13); pdf.setTextColor(40,40,40); pdf.text("DESP-3", cxC, y, {align:"center"}); y+=16;
+    pdf.setFontSize(12); pdf.setFont("helvetica","normal");
+    pdf.splitTextToSize((cm.ferrovia||"FERROVIA").toUpperCase(), LARG).forEach(function(l){ pdf.text(l, cxC, y, {align:"center"}); y+=6.5; });
+    y+=6; pdf.setFont("helvetica","bold");
+    if(cm.lote){ pdf.text("FTN (Lote: "+cm.lote+")", cxC, y, {align:"center"}); y+=16; }
     const proc = cm.processo || val("fv_processo");
-    doc.setFontSize(11);
+    pdf.setFontSize(11);
     if(proc){
-      doc.text("Processo administrativo:", cx, y, {align:"center"}); y+=17;
-      doc.setFont("helvetica","normal");
-      doc.splitTextToSize(proc, LARG-12).forEach(function(l){ doc.text(l, cx, y, {align:"center"}); y+=15; });
-      y+=24;
+      pdf.setFont("helvetica","bold"); pdf.text("Processo administrativo:", cxC, y, {align:"center"}); y+=6;
+      pdf.setFont("helvetica","normal");
+      pdf.splitTextToSize(proc, LARG).forEach(function(l){ pdf.text(l, cxC, y, {align:"center"}); y+=5.4; });
+      y+=8;
     }
-    doc.setFontSize(10);
+    pdf.setFontSize(10);
     const expro = cm.expropriado || val("av_nome") || val("fv_nome");
-    if(expro){ doc.setFont("helvetica","normal"); doc.splitTextToSize("EXPROPRIADO: "+expro, LARG-12).forEach(function(l){ doc.text(l, cx, y, {align:"center"}); y+=14; }); y+=8; }
-    doc.setFont("helvetica","bold");
+    if(expro){ pdf.setFont("helvetica","normal"); pdf.text("EXPROPRIADO: "+expro, cxC, y, {align:"center"}); y+=8; }
+    pdf.setFont("helvetica","bold");
     let areas = cm.areas;
     if(!areas.length) areas = estacas().map(function(e){ return "KM "+(e.ini||"___")+" ao KM "+(e.fim||"___")+(e.tipo?(" ("+e.tipo+")"):""); });
     if(areas.length){
-      doc.text("LOCAÇÃO:", cx, y, {align:"center"}); y+=14;
-      areas.forEach(function(a,i){ doc.splitTextToSize("ÁREA "+(i+1)+": "+a, LARG-12).forEach(function(l){ doc.text(l, cx, y, {align:"center"}); y+=14; }); });
+      pdf.text("LOCAÇÃO:", cxC, y, {align:"center"}); y+=5;
+      areas.forEach(function(a,i){ pdf.text("ÁREA "+(i+1)+": "+a, cxC, y, {align:"center"}); y+=5; });
     }
     // contrato: caixa invisível no canto inferior direito, margens justificadas (última linha à esquerda)
-    const contrato = "Contrato nº "+(cm.contrato || "037/2024")+" – Cujo objeto é a prestação de serviços especializados de engenharia consultiva para a execução das atividades de desapropriação, ocupação temporária ou constituição de servidão administrativa de imóveis, gestão fundiária e regularização de passivos de desapropriação.";
-    doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.setTextColor(40,40,40);
-    const cw=205, cX=MR-cw, cl=doc.splitTextToSize(contrato, cw); let cy=H-150;
-    cl.forEach(function(l,i){ if(i<cl.length-1) justificarLinha(doc, l, cX, cy, cw); else doc.text(l, cX, cy); cy+=10.5; });
-    doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(18);
-    doc.text("DESP-3", BARRA/2, H-135, {align:"center"});
-    let mesAno="";
-    const md=val("av_data_ass");
-    const M=["JANEIRO","FEVEREIRO","MARÇO","ABRIL","MAIO","JUNHO","JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"];
-    if(md){ const d=new Date(md+"T00:00:00"); mesAno=M[d.getMonth()]+"/"+d.getFullYear(); }
-    else { const d=new Date(); mesAno=M[d.getMonth()]+"/"+d.getFullYear(); }
-    doc.text(mesAno, BARRA/2, H-114, {align:"center"});
-    doc.setTextColor(0,0,0);
+    const ct = "Contrato nº "+(cm.contrato || "037/2024")+" – Cujo objeto é a prestação de serviços especializados de engenharia consultiva para a execução das atividades de desapropriação, ocupação temporária ou constituição de servidão administrativa de imóveis, gestão fundiária e regularização de passivos de desapropriação.";
+    pdf.setFont("helvetica","normal"); pdf.setFontSize(7.5); pdf.setTextColor(40,40,40);
+    const ctW=78, ctX=W-mR-ctW, ctLs=pdf.splitTextToSize(ct, ctW); let cy=250;
+    ctLs.forEach(function(l,i){ if(i<ctLs.length-1) justificarLinha(pdf, l, ctX, cy, ctW); else pdf.text(l, ctX, cy); cy+=3.2; });
+    pdf.setFont("helvetica","bold"); pdf.setFontSize(14); pdf.setTextColor(255,255,255);
+    pdf.text("DESP-3", faixaW/2, 250, {align:"center"});
+    const M=["JANEIRO","FEVEREIRO","MARÇO","ABRIL","MAIO","JUNHO","JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"], md=val("av_data_ass");
+    const d = md ? new Date(md+"T00:00:00") : new Date();
+    pdf.setFontSize(13);
+    pdf.splitTextToSize(M[d.getMonth()]+"/"+d.getFullYear(), faixaW-6).forEach(function(l,k){ pdf.text(l, faixaW/2, 258+k*6, {align:"center"}); });
+    pdf.setTextColor(0,0,0);
   }
 
   // ---------- FICHA DE VISTORIA ----------
@@ -20610,8 +20612,8 @@ window.FOTO_rodapeHTML=rodapeHTML;
           const {jsPDF}=window.jspdf;
           if(opts.capaMemorial !== false){                      // capa do memorial (15/10/2026)
             try{
-              const dc=new jsPDF({unit:"pt",format:"a4",compress:true}), cc=makeCtx(dc);
-              desenharCapaMemorial(dc,cc);
+              const dc=new jsPDF({unit:"mm",format:"a4",compress:true});
+              desenharCapaMemorial(dc);
               await juntar(out, await PDFLib.PDFDocument.load(dc.output("arraybuffer")));
             }catch(err){ console.warn("capa do memorial:", err); }
           }
@@ -49075,7 +49077,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.15-7';
+window.APP_VERSAO = '2026.10.15-8';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.15-3';
 (function(){
