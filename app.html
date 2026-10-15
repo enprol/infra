@@ -8797,8 +8797,16 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
   <p class="hint-inline tec-areas-dica" id="tec_areas_dica">Área total e Área total ocupada são as mesmas da Assistência Social (mudar aqui ou lá dá no mesmo). Remanescentes: preenchida a área desapropriada e um dos remanescentes, o outro é calculado — área total ocupada − desapropriada − remanescente informado.</p>
   <div class="vsub tec-geo-sub">Georreferenciamento (Anexo B — Ficha de Vistoria)</div><div id="geo_row_slot"></div>
 </div>
-<div class="vcard" id="tec_kmls_card"><div class="vsub tec-kml-cab">Arquivos KML do imóvel<button type="button" class="tec-cam-btn" onclick="IMVB_camAbrir()" title="Cor, espessura, tipo de linha e sombra de cada camada dos mapas automáticos"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3 3 8l9 5 9-5-9-5z"/><path d="m3 13 9 5 9-5"/></svg>Estilos das camadas…</button></div>
+<div class="vcard" id="tec_kmls_card"><div class="vsub tec-kml-cab">Arquivos KML do imóvel<button type="button" class="tec-cam-btn" onclick="IMVB_camAbrir()" title="Quadro de camadas: estilo dos mapas automáticos da DESP 2 e da planta de situação"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3 3 8l9 5 9-5-9-5z"/><path d="m3 13 9 5 9-5"/></svg>Quadro de camadas…</button></div>
   <p class="hint-inline" style="margin-top:0;">Todos os KMLs do cadastro. O da <b>área desapropriada</b> alimenta a planta, o memorial descritivo e o Mapa Geral; os demais (opcionais) entram nos <b>mapas automáticos do DESP-2</b> conforme a regra de cada figura.</p>
+  <!-- Mesa, etapa 5 (14/10/2026): porta única de arquivos — solta tudo de uma vez, o sistema sugere o destino de cada um -->
+  <div class="mz-porta" data-mzporta tabindex="0" role="button" aria-label="Enviar arquivos do imóvel: KML, GeoPackage ou DXF — vários de uma vez">
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 14v5a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-5"/><path d="M12 15V4"/><path d="m7 9 5-5 5 5"/></svg>
+    <div class="mz-porta-t"><b>Solte aqui os arquivos do imóvel</b><span>KML, GeoPackage (.gpkg) ou DXF, vários de uma vez. O sistema sugere para onde cada um vai pelo nome; você confere e confirma.</span></div>
+    <span class="vbtn vbtn-ghost vbtn-sm mz-porta-b" aria-hidden="true">Escolher arquivos…</span>
+    <input type="file" data-mzporta-file multiple accept=".kml,.kmz,.gpkg,.dxf,.dwg" hidden>
+  </div>
+  <div class="mz-triagem" data-mztriagem hidden></div>
   <div class="imv-kml-grade">
     <div class="vfield grow">
     <label for="rel_kml_btn">Área desapropriada <span class="hint-auto"> perímetro do trecho (.kml) — planta, memorial e mapas</span></label>
@@ -8885,12 +8893,31 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 </div>
 <div class="tec-cam-ov" id="tec_cam_ov" hidden>
 <div class="tec-cam-box" role="dialog" aria-modal="true" aria-labelledby="tec_cam_tit">
-<header><h3 id="tec_cam_tit">Quadro de camadas — estilos dos mapas automáticos</h3><button type="button" class="tec-cam-x" onclick="IMVB_camFechar()" aria-label="Fechar">×</button></header>
+<header><h3 id="tec_cam_tit">Quadro de camadas</h3><button type="button" class="tec-cam-x" onclick="IMVB_camFechar()" aria-label="Fechar">×</button></header>
+<!-- Mesa, etapa 4 (14/10/2026): um quadro só para os dois desenhos. A aba "Planta" é o antigo "Estilo das camadas"
+     da composição (vale só no cadastro aberto); a aba "Mapas da DESP 2" é o antigo quadro da Técnica (servidor). -->
+<div class="mz-cam-abas" role="tablist" aria-label="Desenho">
+  <button type="button" role="tab" id="mz_cam_tab_planta" data-mzaba="planta" aria-selected="true" aria-controls="mz_cam_pn_planta">Planta de situação <span class="mz-cam-esc mz-cam-esc-cad">só neste cadastro</span></button>
+  <button type="button" role="tab" id="mz_cam_tab_d2" data-mzaba="d2" aria-selected="false" aria-controls="mz_cam_pn_d2">Mapas da DESP 2 <span class="mz-cam-esc mz-cam-esc-srv">todos os cadastros</span></button>
+</div>
+<div class="mz-cam-pn" id="mz_cam_pn_planta" role="tabpanel" aria-labelledby="mz_cam_tab_planta">
+  <p class="hint-inline mz-cam-dica">Cor, espessura, trama e tamanho de texto de cada camada da <b>planta de situação</b> (prévia, prancha, PDF, JPG e DXF). Fica guardado <b>no cadastro aberto</b>; as linhas em azul saíram do padrão aprovado.</p>
+  <div class="mz-cam-acoes">
+    <button type="button" class="vbtn vbtn-ghost vbtn-sm" onclick="MZ_camIgualar('d2→planta')" title="Copia as cores das camadas que existem nos dois desenhos (faixa, eixo, cercas, APP, reserva legal…)">↙ Trazer as cores dos mapas da DESP 2</button>
+    <button type="button" class="vbtn vbtn-ghost vbtn-sm" onclick="MDP_estZerar()">↻ Voltar ao padrão aprovado</button>
+  </div>
+  <div class="mdp-est-corpo mz-est" id="mdp_est_corpo"></div>
+</div>
+<div class="mz-cam-pn" id="mz_cam_pn_d2" role="tabpanel" aria-labelledby="mz_cam_tab_d2" hidden>
+  <p class="hint-inline mz-cam-dica">Cor, espessura, tipo de linha e <b>sombra projetada</b> de cada camada dos <b>mapas automáticos da DESP 2</b>. Ficam <b>salvos no servidor</b> e valem para todos os cadastros — para um mapa diferente só num caso, use “＋ Figura extra”.</p>
+  <div class="mz-cam-acoes">
+    <button type="button" class="vbtn vbtn-ghost vbtn-sm" onclick="MZ_camIgualar('planta→d2')" title="Copia as cores das camadas que existem nos dois desenhos; só vale para todos depois de “Salvar no servidor”">↗ Usar as cores da planta deste cadastro</button>
+  </div>
 <div class="vcard" id="d2map_quadro_card">
-  <p class="hint-inline" style="margin-top:0;">Cor, espessura, tipo de linha e <b>sombra projetada</b> de cada camada, como no quadro de layers do AutoCAD. Os estilos ficam <b>salvos no servidor</b> e valem para todos os cadastros.</p>
   <div id="d2map_quadro"><p class="hint-inline">Carregando estilos…</p></div>
 </div>
-<footer><button type="button" class="vbtn vbtn-ghost" onclick="IMVB_camFechar()">Fechar</button></footer>
+</div>
+<footer><span class="mz-cam-st" id="mz_cam_st" role="status" aria-live="polite"></span><button type="button" class="vbtn vbtn-ghost" onclick="IMVB_camFechar()">Fechar</button></footer>
 </div>
 </div>
 <div class="vsub" style="margin-top:22px;">Benfeitorias (itens 12 e 13 da Avaliação — DESP 3)</div>
@@ -9436,7 +9463,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 
 <h2 class="vsec">3 · Camadas adicionais (GeoPackage / KML)</h2>
 <div class="vcard">
-  <p class="mdp-explica">Envie um <b>GeoPackage (.gpkg)</b> ou <b>KML</b> com cercas, divisas, APP, reserva legal, pastagem, benfeitorias, acessos, córregos… Cada camada é reconhecida pelo nome (aceita os nomes <i>ENP_*</i> do CAD) e você confirma o tipo abaixo; o desenho segue a simbologia da legenda aprovada. Só o que cai perto da área da planta é guardado no cadastro.</p>
+  <p class="mdp-explica">Envie um <b>GeoPackage (.gpkg)</b> ou <b>KML</b> com cercas, divisas, APP, reserva legal, pastagem, benfeitorias, acessos, córregos… Cada camada é reconhecida pelo nome (aceita os nomes <i>ENP_*</i> do CAD) e você confirma o tipo abaixo; o desenho segue a simbologia da legenda aprovada. Só o que cai perto da área da planta é guardado no cadastro. Também dá para soltar tudo de uma vez na <b>porta de arquivos</b> da aba Técnica (KML, GeoPackage e DXF juntos).</p>
   <div class="vactions" style="margin-top:0;">
     <label class="vbtn vbtn-ghost" style="cursor:pointer;">📁 Enviar GeoPackage / KML<input type="file" id="mdp_cam_file" accept=".gpkg,.kml" multiple style="display:none" onchange="MDP_addCamadas(this)"></label>
     <span class="hint-inline" style="margin:0;" id="mdp_cam_msg"></span>
@@ -27981,8 +28008,13 @@ function AV_gerarDescSituacao(){
   function dxfResumo(){ var g = dxfGeo(); if(!g) return ""; if(g.erro) return "erro: " + g.erro; return g.prims.length + " elementos"; }
   function dxfEscolher(){
     var inp = document.createElement("input"); inp.type = "file"; inp.accept = ".dxf,.dwg";
-    inp.onchange = function(){
-      var f = inp.files && inp.files[0]; if(!f) return;
+    inp.onchange = function(){ var f = inp.files && inp.files[0]; if(f) dxfLerArquivo(f); };
+    inp.click();
+  }
+  // Mesa, etapa 5 (14/10/2026): a leitura saiu do dxfEscolher para a porta única de arquivos da Técnica usar também
+  window.MDP_dxfInserir = function(f){ if(f) dxfLerArquivo(f); };
+  function dxfLerArquivo(f){
+    (function(){
       if(/\.dwg$/i.test(f.name)){ alert("Arquivo DWG não pode ser lido aqui (formato fechado da Autodesk).\n\nNo AutoCAD/TOPOCAD: Salvar como › tipo \"AutoCAD 2010 DXF (*.dxf)\" (ou anterior) e insira o .dxf."); return; }
       if(f.size > DXF_MAX_MB*1048576){ alert("DXF grande demais (" + (f.size/1048576).toFixed(1).replace(".", ",") + " MB). Limite: " + DXF_MAX_MB + " MB — apague do desenho o que não vai para a planta (ou purgue) e salve de novo."); return; }
       var rd = new FileReader();
@@ -28005,8 +28037,7 @@ function AV_gerarDescSituacao(){
         sincronizarBarras(); agendarPreview(30);
       };
       rd.readAsText(f, "utf-8");
-    };
-    inp.click();
+    })();
   }
   function desenharFolhaBase(P, T, op, pg){
     pg = pg || { n:1, total:1, de:0, ate:G.segs.length };
@@ -28876,7 +28907,7 @@ function AV_gerarDescSituacao(){
       if(load) load.style.display = "none";
     }catch(e){ console.warn("planta/composição:", e); aviso("Não consegui desenhar: " + (e.message || e)); }
     compCotasLista(); compLeadersLista();
-    if(meu === COMP.tok){ if(COMP.arr && COMP.arr.fim) COMP.arr = null; compSelDesenhar(); }
+    if(meu === COMP.tok){ if(COMP.arr && COMP.arr.fim) COMP.arr = null; compSelDesenhar(); mesaModoSync(); }
   }
   /* alterna entre o quadro do mapa (onde se compõe) e a folha montada (como vai imprimir).
      As cotas são marcadas por coordenada na janela do mapa, então só valem na vista do quadro. */
@@ -29172,6 +29203,7 @@ function AV_gerarDescSituacao(){
     var foco = document.activeElement, digitando = !!foco && (/^(INPUT|TEXTAREA|SELECT)$/.test(foco.tagName) || foco.isContentEditable);
     if((ev.key === "Delete" || ev.key === "Backspace") && COMP.sel && !digitando && !COMP.cota && !COMP.leader){ ev.preventDefault(); selApagar(); return; }
     if(ev.key !== "Escape") return;
+    var qc = $("tec_cam_ov"); if(qc && !qc.hidden) return;     // Quadro de camadas aberto por cima: o Esc fecha só ele
     var e = $("mdp_est_ov");
     if(e && e.style.display !== "none"){ e.style.display = "none"; return; }
     if(COMP.sel && !COMP.cota && !COMP.leader){ COMP.sel = null; compSelDesenhar(); return; }
@@ -29332,7 +29364,7 @@ function AV_gerarDescSituacao(){
           '<div class="mdp-comp-top">' +
             '<b>🧩 Composição da planta</b>' + barraHtml() +
             '<button type="button" class="mdp-mini" id="mdp_bt_vista" title="Mostra a prancha montada — mapa, tabela e carimbo, como vai sair no papel">🖨️ Ver impressão</button>' +
-            '<button type="button" class="mdp-mini" id="mdp_bt_est" title="Cor, espessura, trama e tamanho de texto de cada camada do mapa">🎨 Estilo das camadas</button>' +
+            '<button type="button" class="mdp-mini" id="mdp_bt_est" title="Quadro de camadas: estilo da planta (este cadastro) e dos mapas da DESP 2 (servidor)">🎨 Quadro de camadas</button>' +
             '<button type="button" class="mdp-mini" id="mdp_bt_cota" title="Clique em dois pontos do mapa para criar uma cota de distância">📐 Cota de distância</button>' +
             '<button type="button" class="mdp-mini" id="mdp_bt_leader" title="Seta com texto: clique no ponto que a seta aponta e depois onde o texto fica. Fica guardada e sai no PDF">➡️ Leader</button>' +
             '<button type="button" class="mdp-mini" id="mdp_bt_jpg" title="Só o quadro do mapa, exatamente como está aqui">🖼️ Exportar JPG</button>' +
@@ -29412,7 +29444,8 @@ function AV_gerarDescSituacao(){
         arr.addEventListener("mousedown", function(ev){ ativo = true; x0 = ev.clientX; w0 = dir.getBoundingClientRect().width; document.body.style.userSelect = "none"; ev.preventDefault(); });
         window.addEventListener("mousemove", function(ev){
           if(!ativo) return;
-          dir.style.flexBasis = Math.max(280, Math.min(ov.clientWidth - 320, w0 - (ev.clientX - x0))) + "px";
+          var dxA = ev.clientX - x0; if(ov.classList.contains("mz-mesa")) dxA = -dxA;   // Mesa (14/10/2026): a gaveta fica à esquerda do mapa
+          dir.style.flexBasis = Math.max(280, Math.min(ov.clientWidth - 320, w0 - dxA)) + "px";
         });
         window.addEventListener("mouseup", function(){ if(!ativo) return; ativo = false; document.body.style.userSelect = ""; compRedesenhar(80); });
       })();
@@ -29563,7 +29596,11 @@ function AV_gerarDescSituacao(){
     if(!confirm("Voltar todas as camadas ao estilo do desenho aprovado?")) return;
     setExtra("estilos", {}); estRender(); agendarPreview(60);
   };
+  // Mesa, etapa 4 (14/10/2026): o "Estilo das camadas" virou a aba "Planta" do Quadro de camadas único
+  window.MDP_estRender = function(){ estRender(); };
+  window.MDP_estCor = function(k){ return EST_PAD[k] ? EST(k).cor : null; };
   window.MDP_abrirEstilos = function(){
+    if(window.IMVB_camAbrir && $("tec_cam_ov")){ window.IMVB_camAbrir("planta"); return; }
     var ov = $("mdp_est_ov");
     if(!ov){
       ov = document.createElement("div"); ov.id = "mdp_est_ov"; ov.className = "mdp-est-ov";
@@ -31273,7 +31310,7 @@ function AV_gerarDescSituacao(){
     add("Alternar quadro / ver impressão", function(){ compVista(COMP.vista === "folha" ? "quadro" : "folha"); }, "V");
     add("Cota de distância (liga/desliga)", function(){ compCotaModo(!COMP.cota); }, "C");
     add("Leader — seta com texto (liga/desliga)", function(){ compLeaderModo(!COMP.leader); });
-    add("Estilo das camadas", function(){ window.MDP_abrirEstilos(); });
+    add("Quadro de camadas (estilos)", function(){ window.MDP_abrirEstilos(); });
     add("Desfazer", v2Desfazer, "Ctrl+Z"); add("Refazer", v2Refazer, "Ctrl+Y");
     add("Salvar versão da prancha", function(){ v2SalvarVersaoUI(); });
     add("Mostrar/ocultar a tabela", function(){ v2AlternarTabela(); });
@@ -31473,6 +31510,122 @@ function AV_gerarDescSituacao(){
   var _abrirComp0 = window.MDP_abrirComposicao;
   window.MDP_abrirComposicao = async function(){ var r = await _abrirComp0.apply(this, arguments); v2NaAbertura(); v2Pos(); return r; };
   window.MDP_abrirPlanta = function(){ return window.MDP_abrirComposicao(); };
+
+  /* ---- Mesa, etapa 6 (14/10/2026): layout da Mesa — trilho, gavetas, doca e chave Desenho/Prancha ----
+     A composição vira a Mesa de Desenho: um trilho à esquerda abre as gavetas (Fontes, Camadas, Vértices,
+     Memorial, Carimbo) ao lado do mapa; clicar de novo na gaveta aberta fecha e o mapa ocupa a tela.
+     As ferramentas de desenho foram para uma doca flutuante sobre o mapa e a barra de cima ficou com a
+     folha, a escala, receitas/versões e a saída (prontidão + Exportar). Nada foi reescrito: os mesmos
+     botões e a mesma tabela só mudaram de lugar — atalhos, eventos e o que é salvo continuam iguais. */
+  var MESA = { gav:"vert" };
+  var MESA_GAV = [
+    ["fontes",   "Fontes",   '<path d="M4 14v5a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-5"/><path d="M12 15V4"/><path d="m7 9 5-5 5 5"/>'],
+    ["camadas",  "Camadas",  '<path d="M12 3 3 8l9 5 9-5z"/><path d="m3 13 9 5 9-5"/>'],
+    ["vert",     "Vértices", '<path d="M5 18 9 6l7 3 3 9z"/><circle cx="5" cy="18" r="1.6"/><circle cx="9" cy="6" r="1.6"/><circle cx="16" cy="9" r="1.6"/><circle cx="19" cy="18" r="1.6"/>'],
+    ["memorial", "Memorial", '<path d="M6 3h9l4 4v14H6z"/><path d="M9 11h7"/><path d="M9 15h7"/>'],
+    ["car",      "Carimbo",  '<rect x="3" y="5" width="18" height="14" rx="1.5"/><path d="M3 13h18"/><path d="M12 13v6"/>']
+  ];
+  function mesaEl(tag, cls, html){ var e = document.createElement(tag); if(cls) e.className = cls; if(html != null) e.innerHTML = html; return e; }
+  function mesaMontar(){
+    var ov = compAberto(); if(!ov) return;
+    if(ov.__mesa){ mesaGaveta(MESA.gav, true); mesaModoSync(); return; }
+    var corpo = ov.querySelector(".mdp-comp-corpo"), dir = $("mdp_comp_dir"), top = ov.querySelector(".mdp-comp-top"), esq = $("mdp_comp_esq");
+    if(!corpo || !dir || !top || !esq) return;
+    ov.__mesa = true; ov.classList.add("mz-mesa");
+    // 1. trilho
+    var rail = mesaEl("nav", "mz-rail"); rail.setAttribute("aria-label", "Gavetas da Mesa");
+    rail.innerHTML = MESA_GAV.map(function(g){ return '<button type="button" class="mz-rail-b" data-gav="' + g[0] + '" aria-pressed="false" title="' + g[1] + ' (clique de novo para recolher)"><svg viewBox="0 0 24 24" aria-hidden="true">' + g[2] + '</svg><span>' + g[1] + '</span></button>'; }).join("");
+    corpo.insertBefore(rail, corpo.firstChild);
+    rail.addEventListener("click", function(ev){ var b = ev.target.closest && ev.target.closest("[data-gav]"); if(b) mesaGaveta(b.getAttribute("data-gav")); });
+    // 2. gavetas novas (Vértices e Carimbo já existem: #mdp_aba_vert / #mdp_aba_car)
+    var abas = $("mdp_abas"); if(abas) abas.style.display = "none";          // o trilho substitui as abas (o CSS delas ignora "hidden")
+    var gF = mesaEl("div", "mz-gav", '<div class="mz-gav-t">Fontes</div><p class="mz-gav-s">Os arquivos deste cadastro. Para mandar mais, solte aqui — o sistema sugere para onde cada um vai.</p>' +
+      '<div class="mz-porta" data-mzporta tabindex="0" role="button" aria-label="Enviar arquivos: KML, GeoPackage ou DXF"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 14v5a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-5"/><path d="M12 15V4"/><path d="m7 9 5-5 5 5"/></svg>' +
+        '<div class="mz-porta-t"><b>Solte arquivos aqui</b><span>KML, GeoPackage ou DXF — vários de uma vez</span></div><input type="file" data-mzporta-file multiple accept=".kml,.kmz,.gpkg,.dxf,.dwg" hidden></div>' +
+      '<div class="mz-triagem" data-mztriagem hidden></div><ul class="mz-fontes" id="mz_fontes"></ul>');
+    gF.id = "mz_gav_fontes"; gF.hidden = true;
+    var gC = mesaEl("div", "mz-gav", '<div class="mz-gav-t">Camadas</div><p class="mz-gav-s">Liga e desliga o que aparece na planta. Cor, espessura e trama de cada uma ficam no Quadro de camadas.</p>' +
+      '<div class="mz-cam-lista"></div><div class="mz-gav-sub">Sobreposição CAD (DXF)</div><div class="mz-cam-dxf"></div>' +
+      '<button type="button" class="vbtn vbtn-ghost vbtn-sm mz-cam-quadro">🎨 Abrir o Quadro de camadas</button>');
+    gC.id = "mz_gav_camadas"; gC.hidden = true;
+    var gM = mesaEl("div", "mz-gav", '<div class="mz-gav-t">Memorial descritivo</div><p class="mz-gav-s">Sai do desenho e da tabela de vértices, ao vivo. Os dados do imóvel e os limites ficam na aba Planta › 4.</p>' +
+      '<div class="mz-mem" id="mz_mem"></div><div class="mz-gav-acoes"><button type="button" class="vbtn vbtn-sm" data-mzmem="pdf">Memorial — PDF</button><button type="button" class="vbtn vbtn-ghost vbtn-sm" data-mzmem="word">Memorial — Word</button></div>');
+    gM.id = "mz_gav_memorial"; gM.hidden = true;
+    dir.insertBefore(gM, dir.firstChild); dir.insertBefore(gC, dir.firstChild); dir.insertBefore(gF, dir.firstChild);
+    gM.addEventListener("click", function(ev){ var b = ev.target.closest && ev.target.closest("[data-mzmem]"); if(!b) return; if(b.getAttribute("data-mzmem") === "pdf") window.MDP_pdfMemorial(); else window.MDP_wordMemorial(); });
+    // camadas: as caixas do popover e o DXF mudam de lugar (os eventos deles são delegados no documento)
+    var lista = gC.querySelector(".mz-cam-lista"), popC = $("v2_pop_cam");
+    if(popC) Array.prototype.slice.call(popC.querySelectorAll(".mdp-chk")).forEach(function(c){ lista.appendChild(c); });
+    var wC = $("v2_bt_cam"); if(wC && wC.parentNode) wC.parentNode.style.display = "none";
+    var dxf = gC.querySelector(".mz-cam-dxf");
+    ["[data-opc-quadro]", "[data-opc-dxf]"].forEach(function(s){ var e = top.querySelector(s); if(e){ e.style.margin = "0"; dxf.appendChild(e); } });
+    gC.querySelector(".mz-cam-quadro").addEventListener("click", function(){ window.MDP_abrirEstilos(); });
+    var be = $("mdp_bt_est"); if(be) be.style.display = "none";
+    // 3. doca de ferramentas sobre o mapa
+    var doca = mesaEl("div", "mz-doca"); doca.setAttribute("role", "toolbar"); doca.setAttribute("aria-label", "Ferramentas de desenho");
+    ["mdp_bt_cota", "mdp_bt_leader"].forEach(function(id){ var e = $(id); if(e) doca.appendChild(e); });
+    doca.appendChild(mesaEl("span", "mz-doca-sep"));
+    var pan = top.querySelector("[data-opc-pan]"); if(pan){ pan.style.margin = "0"; doca.appendChild(pan); }
+    ["v2_bt_viz", "v2_bt_sug", "v2_bt_pal"].forEach(function(id){ var e = $(id); if(e) doca.appendChild(e); });
+    esq.appendChild(doca);
+    var btab = $("v2_bt_tab"); if(btab) btab.style.display = "none";          // o trilho faz o papel do "Tabela"
+    // 4. título + chave Desenho / Prancha
+    var tit = top.querySelector("b"); if(tit) tit.textContent = "Mesa de Desenho";
+    var modo = mesaEl("div", "mz-modo", '<button type="button" data-modo="quadro">Desenho</button><button type="button" data-modo="folha">Prancha</button>');
+    modo.setAttribute("role", "group"); modo.setAttribute("aria-label", "Modo da mesa");
+    if(tit && tit.nextSibling) top.insertBefore(modo, tit.nextSibling); else top.appendChild(modo);
+    modo.addEventListener("click", function(ev){ var b = ev.target.closest && ev.target.closest("[data-modo]"); if(b && COMP.vista !== b.getAttribute("data-modo")) compVista(b.getAttribute("data-modo")); });
+    var bv = $("mdp_bt_vista"); if(bv) bv.style.display = "none";
+    // a porta da gaveta Fontes e a lista se atualizam juntas
+    if(window.MZ_portaLigar) window.MZ_portaLigar();
+    document.addEventListener("mz:fontes", mesaFontes);
+    mesaGaveta(MESA.gav, true); mesaModoSync();
+  }
+  function mesaGaveta(k, forcar){
+    var ov = compAberto(); if(!ov || !ov.__mesa) return;
+    var aberta = !ov.classList.contains("v2-sem-tab");
+    if(!forcar && aberta && k === MESA.gav){ ov.classList.add("v2-sem-tab"); mesaRailSync(null); compRedesenhar(80); return; }   // clicar na aberta recolhe
+    if(!aberta){ ov.classList.remove("v2-sem-tab"); compRedesenhar(80); }
+    MESA.gav = k;
+    var v = $("mdp_aba_vert"), c = $("mdp_aba_car");
+    ["fontes", "camadas", "memorial"].forEach(function(g){ var e = $("mz_gav_" + g); if(e) e.hidden = (g !== k); });
+    if(k === "vert" || k === "car") compAba(k);
+    else { if(v) v.hidden = true; if(c) c.hidden = true; }
+    if(k === "fontes") mesaFontes();
+    if(k === "memorial") mesaMemorial();
+    var dir = $("mdp_comp_dir"); if(dir) dir.scrollTop = 0;
+    mesaRailSync(k);
+  }
+  function mesaRailSync(k){ Array.prototype.forEach.call(document.querySelectorAll(".mz-rail [data-gav]"), function(b){ var on = b.getAttribute("data-gav") === k; b.classList.toggle("on", on); b.setAttribute("aria-pressed", on ? "true" : "false"); }); }
+  function mesaModoSync(){ Array.prototype.forEach.call(document.querySelectorAll(".mz-modo [data-modo]"), function(b){ var on = b.getAttribute("data-modo") === COMP.vista; b.classList.toggle("on", on); b.setAttribute("aria-pressed", on ? "true" : "false"); }); }
+  function mesaFontes(){
+    var ul = $("mz_fontes"); if(!ul) return;
+    function nome(id){ return (($(id) || {}).value || "").trim(); }
+    var benf = {}; try{ benf = JSON.parse(gv("imv_benf_lista") || "{}") || {}; }catch(e){}
+    var cams = []; try{ cams = (JSON.parse(gv("mdp_camadas") || "{}").arquivos || []).map(function(a){ return a.nome; }); }catch(e){}
+    var nd = nome("mdp_dxf_nome");
+    var L = [
+      ["kml", "Área desapropriada", nome("rel_kml_nome")], ["kml", "Área total do imóvel", nome("imv_kml_area_nome")],
+      ["kml", "Vias de acesso", nome("imv_kml_vias_nome")], ["kml", "APP estimada", nome("imv_kml_app_nome")],
+      ["kml", "Hidrografia", nome("imv_kml_hidro_nome")],
+      ["kml", "Benfeitorias não reprodutivas", (benf.nr || []).length ? benf.nr.length + " arquivo(s)" : ""],
+      ["kml", "Benfeitorias reprodutivas", (benf.r || []).length ? benf.r.length + " arquivo(s)" : ""],
+      ["gpkg", "Camadas extras da planta", cams.join(", ")],
+      ["dxf", "Sobreposição CAD", nd ? nd + (extras().quadro_fonte === "dxf" ? "" : " (desligada)") : ""]
+    ];
+    ul.innerHTML = L.map(function(r){
+      return '<li class="' + (r[2] ? "tem" : "") + '"><span class="mz-tri-tag" data-ext="' + r[0] + '">' + r[0].toUpperCase() + '</span><span class="mz-fo-p">' + esc(r[1]) + '</span><span class="mz-fo-n" title="' + esc(r[2]) + '">' + (r[2] ? esc(r[2]) : "—") + '</span></li>';
+    }).join("");
+  }
+  function mesaMemorial(){
+    var b = $("mz_mem"); if(!b) return;
+    var t = ""; try{ t = G ? memorialTexto() : ""; }catch(e){ t = ""; }
+    b.textContent = t || "Insira o KML da área desapropriada para gerar o memorial.";
+  }
+  var _abrirComp1 = window.MDP_abrirComposicao;
+  window.MDP_abrirComposicao = async function(){ var r = await _abrirComp1.apply(this, arguments); try{ mesaMontar(); }catch(e){ console.warn("Mesa:", e); } return r; };
+  window.MDP_abrirPlanta = function(){ return window.MDP_abrirComposicao(); };
+  window.MDP_abrirCarimbo = async function(){ await window.MDP_abrirComposicao(); MESA.gav = "car"; mesaGaveta("car", true); };
 
   // teclado (captura, antes do Esc/atalhos antigos)
   window.addEventListener("keydown", function(ev){
@@ -42863,6 +43016,9 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     box.addEventListener('input', aoEditar);
     box.addEventListener('change', aoEditar);
   })();
+  // Mesa, etapa 4: o Quadro de camadas único lê/iguala as cores daqui (MZ_camIgualar)
+  window.D2MAP_cor=function(k){ return D2MAP_EST[k] ? D2MAP_EST[k].cor : null; };
+  window.D2MAP_setCor=function(k,cor){ if(!D2MAP_EST[k] || !/^#[0-9a-f]{6}$/i.test(cor||'')) return false; D2MAP_EST[k].cor=cor; return true; };
   window.D2MAP_salvarEstilos=async function(){
     d2qStatus('Salvando…');
     try{ var r=await fetch('/api/mapa-estilos',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(d2coletarEstilos())});
@@ -46917,6 +47073,112 @@ window.MG_motion={abertura:abertura,cadastro:cadastro,fichas:fichas};
 .tec-cam-x:hover{ background:#F1F3F6; }
 .tec-cam-box #d2map_quadro_card{ margin:0; border:0; box-shadow:none; border-radius:0; overflow:auto; flex:1; }
 .tec-cam-box footer{ display:flex; justify-content:flex-end; padding:10px 0 0; }
+/* Mesa, etapa 4 (14/10/2026): Quadro de camadas único (planta + mapas da DESP 2) */
+.tec-cam-ov{ z-index:2000060; }                                   /* por cima da composição da planta (2000000) */
+.tec-cam-box footer{ align-items:center; gap:12px; padding:10px 18px 12px; border-top:1px solid #E6EAF0; }
+.mz-cam-st{ flex:1; font:500 12.5px/1.4 "Segoe UI",sans-serif; color:#1e6f7c; }
+.mz-cam-abas{ display:flex; gap:4px; padding:8px 14px 0; border-bottom:1px solid #E6EAF0; background:#F7F9FB; }
+.mz-cam-abas [data-mzaba]{ display:inline-flex; align-items:center; gap:8px; min-height:42px; padding:0 14px; border:1px solid transparent; border-bottom:0; border-radius:10px 10px 0 0;
+  background:none; color:#55616F; font:600 13.5px "Segoe UI",sans-serif; cursor:pointer; margin-bottom:-1px; transition:background .15s, color .15s; }
+.mz-cam-abas [data-mzaba]:hover{ color:#0F2236; background:#EEF2F6; }
+.mz-cam-abas [data-mzaba][aria-selected="true"]{ background:#fff; color:#0F2236; border-color:#E6EAF0; }
+.mz-cam-abas [data-mzaba]:focus-visible{ outline:2px solid #1B3A5C; outline-offset:-2px; }
+.mz-cam-esc{ font:600 10.5px/1 "Segoe UI",sans-serif; letter-spacing:.03em; padding:4px 7px; border-radius:999px; }
+.mz-cam-esc-cad{ background:#E7F5F7; color:#1e6f7c; } .mz-cam-esc-srv{ background:#FFF1DE; color:#8a5200; }
+.mz-cam-pn{ flex:1; min-height:0; overflow:auto; padding:12px 18px 6px; animation:mzCamPn .18s ease-out; }
+.mz-cam-pn[hidden]{ display:none; }
+@keyframes mzCamPn{ from{ opacity:0; transform:translateY(4px); } to{ opacity:1; transform:none; } }
+.mz-cam-dica{ margin:0 0 10px !important; }
+.mz-cam-acoes{ display:flex; gap:8px; flex-wrap:wrap; margin:0 0 12px; }
+.mz-cam-pn #d2map_quadro_card{ margin:0; border:0; box-shadow:none; border-radius:0; padding:0; }
+/* a lista da planta mora fora do painel da Planta: repete aqui o visual de lá */
+.mz-est{ padding:0 !important; }
+.mz-est .mdp-est-g{ font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.5px; color:#8494a4; margin:16px 0 7px; }
+.mz-est .mdp-est-g:first-child{ margin-top:0; }
+.mz-est .mdp-est-i{ display:flex; align-items:center; gap:9px; flex-wrap:wrap; padding:7px 10px; border:1px solid #e9eff6; border-radius:9px; margin-bottom:6px; background:#fbfdff; }
+.mz-est .mdp-est-i > .n{ flex:1 1 180px; min-width:130px; font-size:12.5px; font-weight:600; color:#3d5062; }
+.mz-est .mdp-est-i.mud{ border-color:#9cc3ea; background:#f2f9ff; }
+.mz-est .mdp-est-c{ display:inline-flex; align-items:center; gap:5px; font-size:11px; color:#6b7887; white-space:nowrap; }
+.mz-est .mdp-est-c input[type=color]{ width:34px; height:24px; padding:0; border:1px solid #d7e0ea; border-radius:5px; background:#fff; cursor:pointer; }
+.mz-est .mdp-est-c input[type=number]{ width:64px; padding:4px 6px; font-size:12px; border:1px solid #d7e0ea; border-radius:5px; font-family:inherit; color:#243447; }
+.mz-est .mdp-est-c input[type=range]{ width:104px; accent-color:#1B3A5C; }
+.mz-est .mdp-est-c input[type=checkbox]{ accent-color:#1B3A5C; }
+.mz-est .mdp-est-am{ flex:0 0 auto; border:1px solid #dde6ef; border-radius:4px; background:#fff; }
+@media (prefers-reduced-motion: reduce){ .mz-cam-pn{ animation:none; } }
+/* Mesa, etapa 5 (14/10/2026): porta única de arquivos + triagem */
+.mz-porta{ display:flex; align-items:center; gap:14px; margin:4px 0 14px; padding:16px 18px; border:1.5px dashed #9FB4C8; border-radius:12px; background:#F7FAFC; cursor:pointer;
+  transition:border-color .15s, background .15s, transform .15s; }
+.mz-porta:hover, .mz-porta:focus-visible{ border-color:#1B3A5C; background:#EEF4FA; outline:none; }
+.mz-porta.sobre{ border-color:#1e8a9a; background:#E7F5F7; transform:scale(1.005); }
+.mz-porta > svg{ flex:0 0 30px; width:30px; height:30px; fill:none; stroke:#1e6f7c; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+.mz-porta-t{ flex:1; display:flex; flex-direction:column; gap:3px; min-width:0; }
+.mz-porta-t b{ font:600 14px "Segoe UI",sans-serif; color:#0F2236; }
+.mz-porta-t span{ font-size:12.5px; line-height:1.45; color:#55616F; }
+.mz-porta-b{ pointer-events:none; white-space:nowrap; }
+.mz-triagem{ margin:-6px 0 16px; border:1px solid #DCE4EC; border-radius:12px; background:#fff; overflow:hidden; animation:mzTri .2s ease-out; }
+@keyframes mzTri{ from{ opacity:0; transform:translateY(-4px); } to{ opacity:1; transform:none; } }
+.mz-tri-cab{ display:flex; align-items:baseline; gap:10px; padding:10px 14px; background:#F4F7FA; border-bottom:1px solid #E6EAF0; font-size:13px; color:#55616F; }
+.mz-tri-cab b{ color:#0F2236; }
+.mz-tri-lista{ list-style:none; margin:0; padding:4px 0; }
+.mz-tri-i{ display:grid; grid-template-columns:auto minmax(0,1fr) minmax(220px,340px); gap:4px 12px; align-items:center; padding:8px 14px; border-bottom:1px solid #F0F3F6; }
+.mz-tri-i:last-child{ border-bottom:0; }
+.mz-tri-tag{ font:700 10px/1 ui-monospace,Consolas,monospace; padding:4px 6px; border-radius:5px; background:#DCEFF2; color:#14555f; }
+.mz-tri-tag[data-ext="gpkg"]{ background:#DFF3E6; color:#1d6b3b; } .mz-tri-tag[data-ext="dxf"]{ background:#E6E8FB; color:#34408f; }
+.mz-tri-tag[data-ext="dwg"], .mz-tri-tag[data-ext="kmz"]{ background:#FBE9E7; color:#9a2f22; }
+.mz-tri-n{ font-size:13px; color:#1f2d3d; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.mz-tri-n small{ color:#8a97a6; }
+.mz-tri-i select{ width:100%; min-height:34px; border:1px solid #D5DDE7; border-radius:8px; padding:4px 8px; font-size:12.5px; background:#fff; }
+.mz-tri-nota{ grid-column:2 / -1; font-size:12px; color:#b56c00; }
+.mz-tri-dest{ font-size:12.5px; font-weight:600; }
+.mz-tri-i.ok .mz-tri-dest{ color:#159a3c; } .mz-tri-i.erro .mz-tri-dest{ color:#c0392b; } .mz-tri-i.erro .mz-tri-nota{ color:#c0392b; }
+.mz-tri-acoes{ display:flex; justify-content:flex-end; gap:8px; padding:10px 14px; border-top:1px solid #E6EAF0; background:#FAFBFC; }
+@media (max-width:720px){ .mz-tri-i{ grid-template-columns:auto minmax(0,1fr); } .mz-tri-i select, .mz-tri-dest{ grid-column:1 / -1; } }
+@media (prefers-reduced-motion: reduce){ .mz-porta, .mz-triagem{ transition:none; animation:none; } }
+/* Mesa, etapa 6 (14/10/2026): layout da Mesa — trilho, gavetas, doca, chave Desenho/Prancha */
+#panel-desp1-planta .mz-mesa .mz-rail{ order:0; flex:0 0 76px; display:flex; flex-direction:column; gap:6px; padding:10px 8px; background:#0b1d22; border-right:1px solid #16333b; overflow-y:auto; }
+#panel-desp1-planta .mz-mesa .mdp-comp-dir{ order:1; }
+#panel-desp1-planta .mz-mesa .mdp-comp-arr{ order:2; }
+#panel-desp1-planta .mz-mesa .mdp-comp-esq{ order:3; }
+#panel-desp1-planta .mz-rail-b{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; min-height:58px; width:100%; padding:6px 2px; border:0; border-radius:12px;
+  background:none; color:#93aeb5; font:600 10.5px/1.15 "Segoe UI",system-ui,sans-serif; cursor:pointer; transition:background .16s, color .16s, box-shadow .16s; }
+#panel-desp1-planta .mz-rail-b svg{ width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+#panel-desp1-planta .mz-rail-b:hover{ background:#13292f; color:#e8f1f3; }
+#panel-desp1-planta .mz-rail-b.on{ background:#173a42; color:#fff; box-shadow:inset 3px 0 0 #45d3e6; }
+#panel-desp1-planta .mz-rail-b:focus-visible{ outline:2px solid #45d3e6; outline-offset:2px; }
+#panel-desp1-planta .mz-gav{ animation:mzGav .2s cubic-bezier(.2,.8,.2,1); }
+#panel-desp1-planta .mz-gav[hidden]{ display:none; }
+@keyframes mzGav{ from{ opacity:0; transform:translateX(-6px); } to{ opacity:1; transform:none; } }
+#panel-desp1-planta .mz-gav-t{ font:700 15px/1.2 "Segoe UI",sans-serif; color:#10283a; margin:2px 0 4px; }
+#panel-desp1-planta .mz-gav-s{ font-size:12.5px; line-height:1.5; color:#5a6b7c; margin:0 0 12px; }
+#panel-desp1-planta .mz-gav-sub{ font:800 11px/1 "Segoe UI",sans-serif; letter-spacing:.5px; text-transform:uppercase; color:#8494a4; margin:16px 0 8px; }
+#panel-desp1-planta .mz-gav-acoes{ display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+#panel-desp1-planta .mz-cam-lista{ display:flex; flex-direction:column; gap:4px; }
+#panel-desp1-planta .mz-cam-lista .mdp-chk{ display:flex; align-items:center; gap:8px; min-height:38px; padding:0 10px; border:1px solid #e0e9f2; border-radius:9px; background:#fff; color:#243447; font-size:13px; cursor:pointer; }
+#panel-desp1-planta .mz-cam-lista .mdp-chk:hover{ background:#eaf6fb; border-color:#5fd0ea; }
+#panel-desp1-planta .mz-cam-dxf{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:12px; }
+#panel-desp1-planta .mz-gav .mz-porta{ margin:0 0 10px; padding:12px 14px; }
+#panel-desp1-planta .mz-gav .mz-triagem{ margin:0 0 12px; }
+#panel-desp1-planta .mz-gav .mz-tri-i{ grid-template-columns:auto minmax(0,1fr); } #panel-desp1-planta .mz-gav .mz-tri-i select{ grid-column:1 / -1; }
+#panel-desp1-planta .mz-fontes{ list-style:none; margin:0; padding:0; border:1px solid #e6ecf2; border-radius:10px; overflow:hidden; }
+#panel-desp1-planta .mz-fontes li{ display:grid; grid-template-columns:auto minmax(0,1fr) minmax(0,1.1fr); gap:10px; align-items:center; padding:8px 12px; border-bottom:1px solid #f0f3f6; font-size:12.5px; color:#9aa7b4; }
+#panel-desp1-planta .mz-fontes li:last-child{ border-bottom:0; }
+#panel-desp1-planta .mz-fontes li.tem{ color:#243447; }
+#panel-desp1-planta .mz-fontes li:not(.tem) .mz-tri-tag{ opacity:.45; }
+#panel-desp1-planta .mz-fo-p{ font-weight:600; }
+#panel-desp1-planta .mz-fo-n{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-family:ui-monospace,Consolas,monospace; font-size:11.5px; }
+#panel-desp1-planta .mz-mem{ max-height:52vh; overflow:auto; padding:14px 16px; border:1px solid #e6ecf2; border-radius:10px; background:#fbfaf6; color:#1b2a2e;
+  font:13px/1.65 Georgia,"Times New Roman",serif; white-space:pre-line; }
+#panel-desp1-planta .mz-doca{ position:absolute; left:50%; bottom:14px; transform:translateX(-50%); z-index:7; display:flex; align-items:center; gap:4px; padding:6px;
+  border-radius:14px; background:rgba(12,30,36,.94); border:1px solid #23515b; box-shadow:0 16px 36px rgba(0,0,0,.45); }
+#panel-desp1-planta .mz-doca .mdp-mini{ min-height:36px; }
+#panel-desp1-planta .mz-doca-sep{ width:1px; height:24px; background:#23515b; margin:0 4px; }
+#panel-desp1-planta .mz-modo{ position:relative; display:inline-flex; padding:3px; border-radius:999px; background:#06161a; border:1px solid #1f3b43; margin:0 6px; }
+#panel-desp1-planta .mz-modo button{ min-height:30px; padding:0 16px; border:0; border-radius:999px; background:none; color:#93aeb5; font:600 12.5px "Segoe UI",sans-serif; cursor:pointer; transition:background .2s, color .2s; }
+#panel-desp1-planta .mz-modo button.on{ background:#45d3e6; color:#06161a; }
+#panel-desp1-planta .mz-modo button:focus-visible{ outline:2px solid #45d3e6; outline-offset:2px; }
+#panel-desp1-planta .mz-mesa #mdp_comp_cotas, #panel-desp1-planta .mz-mesa #mdp_comp_leaders{ display:none; }   /* a lista agora é o próprio desenho (seleção e arraste) */
+@media (max-width:980px){ #panel-desp1-planta .mz-mesa .mz-rail{ flex-direction:row; flex:0 0 auto; overflow-x:auto; } #panel-desp1-planta .mz-rail-b{ min-width:64px; } }
+@media (prefers-reduced-motion: reduce){ #panel-desp1-planta .mz-gav, #panel-desp1-planta .mz-rail-b, #panel-desp1-planta .mz-modo button{ animation:none; transition:none; } }
 #panel-desp1-tecnica .imv-kml-grade > .imv-benf{ grid-column:1 / -1; flex-basis:100% !important; }
 .imv-benf-grupo{ border:1px solid #E1E6EC; border-radius:10px; padding:10px 12px; margin-top:8px; background:#FAFBFC; }
 .imv-benf-cab{ display:flex; align-items:center; flex-wrap:wrap; gap:6px 10px; }
@@ -47088,17 +47350,20 @@ window.MG_motion={abertura:abertura,cadastro:cadastro,fichas:fichas};
   window.IMVB_add = function(g){ var i = $("imv_benf_file_" + g); if(i) i.click(); };
   window.IMVB_lista = function(){ return { nr:L.nr.slice(), r:L.r.slice() }; };
   var trocaAlvo = null;
+  // Mesa, etapa 5 (14/10/2026): o mesmo caminho do botão "＋ Adicionar KML", aberto para a porta única de arquivos
+  function receber(g, files, depois){
+    lerArquivos(files, function(ok, erros){
+      ok.forEach(function(x){ var it = { id:uid(), ident:nomeBase(x.nome), nome:x.nome, kml:x.kml }; if(g === "nr") it.tipo = tipoAuto(it); L[g].push(it); });
+      if(depois) depois(ok, erros);
+      if(ok.length) gravar(true);
+      if(erros.length) alert("Não foi possível usar:\n• " + erros.join("\n• "));
+    });
+  }
+  window.IMVB_receber = function(g, files){ return new Promise(function(res){ receber(g === "r" ? "r" : "nr", files, function(ok, erros){ res({ ok:ok.length, erros:erros }); }); }); };
   function ligar(){
     ["nr", "r"].forEach(function(g){
       var inp = $("imv_benf_file_" + g); if(!inp || inp._l4) return; inp._l4 = true;
-      inp.addEventListener("change", function(){
-        lerArquivos(inp.files, function(ok, erros){
-          ok.forEach(function(x){ var it = { id:uid(), ident:nomeBase(x.nome), nome:x.nome, kml:x.kml }; if(g === "nr") it.tipo = tipoAuto(it); L[g].push(it); });
-          inp.value = "";
-          if(ok.length) gravar(true);
-          if(erros.length) alert("Não foi possível usar:\n• " + erros.join("\n• "));
-        });
-      });
+      inp.addEventListener("change", function(){ receber(g, inp.files, function(){ inp.value = ""; }); });
       var host = $("imv_benf_lista_" + g); if(!host) return;
       host.addEventListener("input", function(ev){
         var t = ev.target, row = t.closest && t.closest(".imv-benf-item"); if(!row || t.getAttribute("data-f") !== "ident") return;
@@ -47149,15 +47414,190 @@ window.MG_motion={abertura:abertura,cadastro:cadastro,fichas:fichas};
 
   /* ---- janela do Quadro de camadas ---- */
   var voltarFoco = null;
-  window.IMVB_camAbrir = function(){
+  /* Mesa, etapa 4 (14/10/2026): o mesmo quadro serve a planta (aba "planta") e os mapas da DESP 2 (aba "d2").
+     Da Técnica abre nos mapas; da composição da planta (MDP_abrirEstilos) abre na planta. */
+  function camAba(aba){
+    var ov = $("tec_cam_ov"); if(!ov) return;
+    aba = aba === "planta" ? "planta" : "d2";
+    Array.prototype.forEach.call(ov.querySelectorAll("[data-mzaba]"), function(b){ b.setAttribute("aria-selected", b.getAttribute("data-mzaba") === aba ? "true" : "false"); });
+    var pp = $("mz_cam_pn_planta"), pd = $("mz_cam_pn_d2");
+    if(pp) pp.hidden = aba !== "planta"; if(pd) pd.hidden = aba !== "d2";
+    if(aba === "planta" && window.MDP_estRender) window.MDP_estRender();
+    if(aba === "d2" && window.D2MAP_renderQuadro) window.D2MAP_renderQuadro();
+    var st = $("mz_cam_st"); if(st) st.textContent = "";
+  }
+  // camadas que existem nos dois desenhos: [planta (MDP), mapas da DESP 2, nome]
+  var MZ_PAR = [["area","desap","Área a desapropriar"],["fd","faixa","Faixa de domínio"],["eixo","eixo","Eixo da ferrovia"],["cerca","cercas","Cercas"],
+    ["remanescente","remanescente","Área remanescente"],["app_est","appest","APP estimada"],["app","appcar","APP (CAR)"],["rl","rl","Reserva legal"],
+    ["acesso","vias","Acessos / vias"],["corrego","hidro","Córregos / hidrografia"]];
+  // iguala só as CORES (as espessuras não se comparam: a planta mede em mm de papel, os mapas em pixels da imagem)
+  window.MZ_camIgualar = function(sentido){
+    var st = $("mz_cam_st"), n = 0, mesmo = function(a, b){ return String(a || "").toLowerCase() === String(b || "").toLowerCase(); };
+    if(!window.MDP_estSet || !window.MDP_estCor || !window.D2MAP_cor || !window.D2MAP_setCor) return;
+    var nomes = MZ_PAR.map(function(p){ return p[2]; }).join(", ");
+    if(sentido === "d2→planta"){
+      if(!confirm("Copiar para a planta DESTE cadastro as cores dos mapas da DESP 2?\n\nCamadas: " + nomes + ".")) return;
+      MZ_PAR.forEach(function(p){ var c = window.D2MAP_cor(p[1]); if(c && !mesmo(c, window.MDP_estCor(p[0]))){ window.MDP_estSet(p[0], "cor", c); n++; } });
+      if(window.MDP_estRender) window.MDP_estRender();
+      if(st) st.textContent = n ? n + " cor(es) trazida(s) para a planta deste cadastro." : "As cores já eram iguais.";
+    } else {
+      if(!confirm("Usar nos mapas da DESP 2 as cores da planta deste cadastro?\n\nCamadas: " + nomes + ".\n\nSó passa a valer para todos os cadastros depois de “Salvar no servidor”.")) return;
+      MZ_PAR.forEach(function(p){ var c = window.MDP_estCor(p[0]); if(c && !mesmo(c, window.D2MAP_cor(p[1])) && window.D2MAP_setCor(p[1], c)) n++; });
+      if(window.D2MAP_renderQuadro) window.D2MAP_renderQuadro();
+      if(st) st.textContent = n ? n + " cor(es) aplicada(s) aos mapas — clique em “Salvar no servidor” para valer em todos os cadastros." : "As cores já eram iguais.";
+    }
+  };
+  window.IMVB_camAbrir = function(aba){
     var ov = $("tec_cam_ov"); if(!ov) return;
     if(ov.parentNode !== document.body) document.body.appendChild(ov);      // fora do painel: nada corta a janela
+    if(!ov._mzAbas){ ov._mzAbas = true;
+      ov.querySelector(".mz-cam-abas").addEventListener("click", function(ev){ var b = ev.target.closest && ev.target.closest("[data-mzaba]"); if(b) camAba(b.getAttribute("data-mzaba")); });
+      ov.querySelector(".mz-cam-abas").addEventListener("keydown", function(ev){
+        if(ev.key !== "ArrowLeft" && ev.key !== "ArrowRight") return;
+        var atual = ov.querySelector('[data-mzaba][aria-selected="true"]'), outra = ov.querySelector('[data-mzaba][aria-selected="false"]');
+        if(outra){ camAba(outra.getAttribute("data-mzaba")); outra.focus(); } ev.preventDefault();
+      });
+    }
+    camAba(typeof aba === "string" ? aba : "d2");
     voltarFoco = document.activeElement; ov.hidden = false;
     var x = ov.querySelector(".tec-cam-x"); if(x) x.focus();
   };
   window.IMVB_camFechar = function(){ var ov = $("tec_cam_ov"); if(!ov || ov.hidden) return; ov.hidden = true; try{ if(voltarFoco && voltarFoco.focus) voltarFoco.focus(); }catch(e){} };
-  document.addEventListener("keydown", function(ev){ var ov = $("tec_cam_ov"); if(ev.key === "Escape" && ov && !ov.hidden){ ev.preventDefault(); window.IMVB_camFechar(); } });
+  document.addEventListener("keydown", function(ev){ var ov = $("tec_cam_ov"); if(ev.key === "Escape" && ov && !ov.hidden){ ev.preventDefault(); ev.stopImmediatePropagation(); window.IMVB_camFechar(); } });   // 14/10/2026: o Esc para aqui — não fecha também a composição que está atrás
   document.addEventListener("mousedown", function(ev){ var ov = $("tec_cam_ov"); if(ov && !ov.hidden && ev.target === ov) window.IMVB_camFechar(); });
+
+  /* ---- Mesa, etapa 5 (14/10/2026): porta única de arquivos ----
+     Antes eram dez lugares para mandar arquivo (área desapropriada, área total, vias, APP, hidrografia,
+     benfeitorias NR e R, camadas extras da Planta, DXF da composição…). Agora solta-se tudo aqui: cada
+     arquivo ganha um destino sugerido pelo nome (dá para trocar) e segue para o MESMO leitor de antes —
+     validação, mensagens e o que fica salvo no cadastro continuam exatamente os de sempre. */
+  var PORTA_DEST = [   // [destino, rótulo, extensões aceitas, 1 = lugar de um arquivo só]
+    ["desap",  "Área desapropriada (perímetro) — planta, memorial e mapas", "kml", 1],
+    ["area",   "Área total do imóvel", "kml", 1],
+    ["vias",   "Vias de acesso", "kml", 1],
+    ["app",    "APP estimada", "kml", 1],
+    ["hidro",  "Hidrografia identificada", "kml", 1],
+    ["benfnr", "Benfeitorias não reprodutivas", "kml", 0],
+    ["benfr",  "Benfeitorias reprodutivas", "kml", 0],
+    ["extras", "Camadas extras da planta (cercas, divisas, APP, RL…)", "kml gpkg", 0],
+    ["dxf",    "DXF complementar por cima da planta", "dxf", 1],
+    ["",       "— não enviar —", "*", 0]
+  ];
+  var PORTA = { itens:[], fim:false, enviando:false };
+  function pEsc(s){ return String(s == null ? "" : s).replace(/[&<>"]/g, function(c){ return { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[c]; }); }
+  function pTam(b){ return b >= 1048576 ? (b/1048576).toFixed(1).replace(".", ",") + " MB" : Math.max(1, Math.round(b/1024)) + " KB"; }
+  function pExt(n){ var m = /\.([a-z0-9]+)$/i.exec(n || ""); return m ? m[1].toLowerCase() : ""; }
+  function pSemAcento(s){ return String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, ""); }
+  function portaSugerir(f){
+    var ext = pExt(f.name), n = pSemAcento(f.name).replace(/\.[a-z0-9]+$/, "");
+    if(ext === "dwg") return { d:"", aviso:"DWG não é lido aqui: no CAD, “Salvar como” DXF e solte o .dxf." };
+    if(ext === "kmz") return { d:"", aviso:"KMZ é compactado: no Google Earth, salve como .kml." };
+    if(ext === "gpkg") return { d:"extras" };
+    if(ext === "dxf") return { d:"dxf" };
+    if(ext !== "kml") return { d:"", aviso:"Tipo de arquivo não reconhecido." };
+    if(/^enp[_-]/.test(n)) return { d:"extras" };
+    if(/desap|desapropr|faixa.?dominio|atingid|perimetro/.test(n)) return { d:"desap" };
+    // das palavras mais específicas para as genéricas ("corrego_sitio" é hidrografia, não a área total)
+    if(/hidro|corrego|riacho|(^|[^a-z])rio([^a-z]|$)|acude|lagoa|barragem|drenag|nascente/.test(n)) return { d:"hidro" };
+    if(/(^|[^a-z])vias?([^a-z]|$)|acesso|estrada|caminho/.test(n)) return { d:"vias" };
+    if(/(^|[^a-z])app([^a-z]|$)|preserva/.test(n)) return { d:"app" };
+    if(/lavoura|pomar|palma|pasto|pastagem|cultura|plantio|roca|capim|reprodut/.test(n)) return { d:"benfr" };
+    if(/benf|casa|galpao|curral|cerca|poco|cisterna|barraco|chiqueiro|aprisco|deposito|cocheira|edific/.test(n)) return { d:"benfnr" };
+    if(/total|imovel|propriedade|gleba|fazenda|sitio/.test(n)) return { d:"area" };
+    return { d:"", aviso:"Não reconheci pelo nome — escolha o destino." };
+  }
+  function portaAtual(d){                                      // arquivo que já ocupa um lugar de arquivo único
+    if(d === "desap") return ($("rel_kml_nome") || {}).value || "";
+    if(/^(area|vias|app|hidro)$/.test(d)) return ($("imv_kml_" + d + "_nome") || {}).value || "";
+    if(d === "dxf") return ($("mdp_dxf_nome") || {}).value || "";
+    return "";
+  }
+  function portaRender(host){
+    var cont = {}; PORTA.itens.forEach(function(it){ if(it.d && !it.feito) cont[it.d] = (cont[it.d] || 0) + 1; });
+    var n = PORTA.itens.filter(function(it){ return it.d && !it.feito; }).length;
+    host.innerHTML = '<div class="mz-tri-cab"><b>' + PORTA.itens.length + ' arquivo(s)</b><span>' + (PORTA.fim ? 'resultado do envio' : 'confira para onde vai cada um') + '</span></div>' +
+      '<ul class="mz-tri-lista">' + PORTA.itens.map(function(it, i){
+        var ext = pExt(it.f.name), unico = PORTA_DEST.some(function(x){ return x[0] === it.d && x[3]; }), atual = it.d ? portaAtual(it.d) : "";
+        var nota = it.res || (!it.d ? (it.aviso || "") : (unico && cont[it.d] > 1 ? "Dois arquivos para o mesmo lugar: fica o último." : (atual && atual !== it.f.name ? "Substitui “" + atual + "”." : "")));
+        var ops = PORTA_DEST.filter(function(x){ return x[2] === "*" || x[2].split(" ").indexOf(ext) >= 0; });
+        var dest = (PORTA_DEST.filter(function(x){ return x[0] === it.d; })[0] || ["", "—"])[1];
+        return '<li class="mz-tri-i' + (it.feito ? (it.ok ? ' ok' : ' erro') : '') + '">' +
+          '<span class="mz-tri-tag" data-ext="' + pEsc(ext) + '">' + pEsc(ext.toUpperCase() || "?") + '</span>' +
+          '<span class="mz-tri-n" title="' + pEsc(it.f.name) + '">' + pEsc(it.f.name) + ' <small>' + pTam(it.f.size) + '</small></span>' +
+          (it.feito ? '<span class="mz-tri-dest">' + (it.ok ? '✓ ' : '✕ ') + pEsc(dest) + '</span>'
+                    : '<select data-i="' + i + '" aria-label="Destino de ' + pEsc(it.f.name) + '"' + (PORTA.enviando ? ' disabled' : '') + '>' + ops.map(function(x){ return '<option value="' + x[0] + '"' + (x[0] === it.d ? ' selected' : '') + '>' + pEsc(x[1]) + '</option>'; }).join("") + '</select>') +
+          (nota ? '<span class="mz-tri-nota">' + pEsc(nota) + '</span>' : '') + '</li>';
+      }).join("") + '</ul>' +
+      '<div class="mz-tri-acoes">' + (PORTA.fim
+        ? '<button type="button" class="vbtn vbtn-sm" data-tri="fechar">Pronto</button>'
+        : '<button type="button" class="vbtn vbtn-ghost vbtn-sm" data-tri="cancelar"' + (PORTA.enviando ? ' disabled' : '') + '>Cancelar</button>' +
+          '<button type="button" class="vbtn vbtn-sm" data-tri="enviar"' + (n && !PORTA.enviando ? '' : ' disabled') + '>' + (PORTA.enviando ? 'Enviando…' : 'Enviar ' + n + ' arquivo(s)') + '</button>') + '</div>';
+  }
+  function esperar(cond, ms){ return new Promise(function(res){ var t0 = Date.now(); (function ver(){ if(cond()) return res(true); if(Date.now() - t0 > (ms || 6000)) return res(false); setTimeout(ver, 80); })(); }); }
+  async function portaEnviar(host){
+    PORTA.enviando = true; portaRender(host);
+    var ordem = ["desap", "area", "vias", "app", "hidro", "benfnr", "benfr", "extras", "dxf"];   // o perímetro primeiro: a planta depende dele
+    for(var oi = 0; oi < ordem.length; oi++){
+      var d = ordem[oi], its = PORTA.itens.filter(function(it){ return it.d === d && !it.feito; });
+      if(!its.length) continue;
+      try{
+        if(d === "benfnr" || d === "benfr"){
+          var rb = await window.IMVB_receber(d === "benfr" ? "r" : "nr", its.map(function(it){ return it.f; }));
+          its.forEach(function(it){ var falhou = rb.erros.some(function(e){ return String(e).indexOf(it.f.name) >= 0; }); it.feito = true; it.ok = !falhou; if(falhou) it.res = "Não foi possível ler este KML."; });
+          continue;
+        }
+        if(d === "extras"){
+          if(!(($("rel_kml_dados") || {}).value || "").trim()){ its.forEach(function(it){ it.feito = true; it.ok = false; it.res = "Precisa antes do KML da área desapropriada (a planta recorta as camadas em volta dela)."; }); continue; }
+          await window.MDP_addCamadas({ files:its.map(function(it){ return it.f; }), value:"" });
+          var msg = (($("mdp_cam_msg") || {}).textContent || "").trim();
+          its.forEach(function(it){ it.feito = true; it.ok = !/Não consegui|nada dentro/.test(msg) || its.length > 1; it.res = its.length === 1 && msg ? msg : "Veja em Planta › Camadas adicionais."; });
+          continue;
+        }
+        for(var k = 0; k < its.length; k++){
+          var it = its[k], ok = false;
+          if(d === "desap"){ window.REL_kmlEscolher({ files:[it.f], value:"" }); ok = await esperar(function(){ return ($("rel_kml_nome") || {}).value === it.f.name; }); if(!ok) it.res = (($("rel_kml_status") || {}).textContent || "").trim(); }
+          else if(d === "dxf"){ window.MDP_dxfInserir(it.f); ok = await esperar(function(){ return ($("mdp_dxf_nome") || {}).value === it.f.name; }, 9000); if(!ok) it.res = "O DXF não foi aceito (veja o aviso)."; }
+          else { window.IMV_escolher(d, { files:[it.f], value:"" }); ok = await esperar(function(){ return ($("imv_kml_" + d + "_nome") || {}).value === it.f.name; });
+                 if(!ok){ var se = document.querySelector('[data-imvst="' + d + '"]'); it.res = se ? se.textContent.trim() : ""; } }
+          it.feito = true; it.ok = ok;
+        }
+      }catch(e){ its.forEach(function(it){ if(!it.feito){ it.feito = true; it.ok = false; it.res = String(e && e.message || e); } }); }
+    }
+    PORTA.itens.forEach(function(it){ if(!it.d && !it.feito){ it.feito = true; it.ok = false; it.res = it.aviso || "Não enviado."; } });
+    PORTA.enviando = false; PORTA.fim = true; portaRender(host);
+    try{ document.dispatchEvent(new CustomEvent("mz:fontes")); }catch(e){}   // a gaveta "Fontes" da Mesa atualiza a lista
+  }
+  function portaReceber(files, host){
+    var lista = Array.prototype.slice.call(files || []); if(!lista.length) return;
+    if(PORTA.fim || PORTA.enviando === false && PORTA.itens.every(function(it){ return it.feito; })) PORTA.itens = [];
+    PORTA.fim = false;
+    lista.forEach(function(f){ var s = portaSugerir(f); PORTA.itens.push({ f:f, d:s.d, aviso:s.aviso || "", feito:false, ok:false, res:"" }); });
+    host.hidden = false; portaRender(host);
+    var sel = host.querySelector("select"); if(sel) sel.focus();
+  }
+  function portaLigar(){
+    Array.prototype.forEach.call(document.querySelectorAll("[data-mzporta]"), function(p){
+      if(p._mz) return; p._mz = true;
+      var inp = p.querySelector("[data-mzporta-file]"), host = p.nextElementSibling;
+      if(!inp || !host || !host.hasAttribute("data-mztriagem")) return;
+      p.addEventListener("click", function(ev){ if(ev.target !== inp) inp.click(); });
+      p.addEventListener("keydown", function(ev){ if(ev.key === "Enter" || ev.key === " "){ ev.preventDefault(); inp.click(); } });
+      inp.addEventListener("change", function(){ portaReceber(inp.files, host); inp.value = ""; });
+      ["dragenter", "dragover"].forEach(function(t){ p.addEventListener(t, function(ev){ ev.preventDefault(); p.classList.add("sobre"); }); });
+      ["dragleave", "drop"].forEach(function(t){ p.addEventListener(t, function(ev){ ev.preventDefault(); p.classList.remove("sobre"); }); });
+      p.addEventListener("drop", function(ev){ portaReceber(ev.dataTransfer && ev.dataTransfer.files, host); });
+      host.addEventListener("change", function(ev){ var s = ev.target; if(s.tagName !== "SELECT") return; var it = PORTA.itens[+s.getAttribute("data-i")]; if(it){ it.d = s.value; portaRender(host); } });
+      host.addEventListener("click", function(ev){
+        var b = ev.target.closest && ev.target.closest("[data-tri]"); if(!b || b.disabled) return;
+        var a = b.getAttribute("data-tri");
+        if(a === "enviar") portaEnviar(host);
+        else { PORTA.itens = []; PORTA.fim = false; host.hidden = true; host.innerHTML = ""; }
+      });
+    });
+  }
+  window.MZ_portaReceber = function(files){ var h = document.querySelector("[data-mztriagem]"); if(h) portaReceber(files, h); };
+  window.MZ_portaLigar = portaLigar;                            // a gaveta "Fontes" da Mesa (etapa 6) tem uma porta igual
+  if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", portaLigar); else portaLigar();
 
   if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", ligar); else ligar();
 })();
