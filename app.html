@@ -9303,6 +9303,30 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 #panel-desp1-planta .mdp-sel-bar button.perigo{ color:#ffb4a8; border-color:#5a2e2a; background:#2a1a19; }
 #panel-desp1-planta .mdp-sel-bar textarea{ width:190px; min-height:30px; resize:vertical; padding:4px 6px; border-radius:7px; border:1px solid #2e5560; background:#0b1a1f; color:#e8f1f3; font:inherit; white-space:pre-wrap; }
 @media (prefers-reduced-motion: reduce){ #panel-desp1-planta .mdp-sel-ants, #panel-desp1-planta .mdp-sel-bar{ animation:none; } }
+/* Mesa, etapa 2 (14/10/2026): menu Exportar + anel de prontidão */
+.mz-exp-wrap{ display:inline-flex; align-items:center; gap:6px; }
+.mz-pront{ display:inline-flex; align-items:center; gap:7px; }
+#panel-desp1-planta .mz-pront[data-est="ok"]{ color:#159a3c; } #panel-desp1-planta .mz-pront[data-est="aviso"]{ color:#b56c00; } #panel-desp1-planta .mz-pront[data-est="erro"]{ color:#c0392b; }
+#panel-desp1-planta .mdp-comp-top .mz-pront[data-est="ok"]{ color:#6fd39a; } #panel-desp1-planta .mdp-comp-top .mz-pront[data-est="aviso"]{ color:#ffb86b; } #panel-desp1-planta .mdp-comp-top .mz-pront[data-est="erro"]{ color:#ff8a7a; }
+.mz-pront .mz-pront-arco{ stroke:currentColor; transition:stroke-dasharray .45s cubic-bezier(.2,.8,.2,1); }
+.mz-pront .mz-pront-t{ color:inherit; font-weight:600; }
+.mz-exp-pop{ left:auto; right:0; min-width:300px; padding:6px; }
+.mz-exp-g{ padding:8px 10px 3px; font:600 10.5px/1.2 system-ui, sans-serif; letter-spacing:.09em; color:#7a8a99; }
+.mz-exp-i{ display:block; width:100%; text-align:left; min-height:36px; padding:0 10px; border:0; border-radius:8px; background:none; color:#243447; font:500 13px/1.2 system-ui, sans-serif; cursor:pointer; }
+.mz-exp-i:hover, .mz-exp-i:focus-visible{ background:#eaf6fb; outline:none; }
+@media (prefers-reduced-motion: reduce){ .mz-pront .mz-pront-arco{ transition:none; } }
+/* Mesa, etapa 3 (14/10/2026): figuras extras da DESP 2 */
+.d2-figwrap.d2fx{ position:relative; border-left:3px solid #2b8fa0; padding-left:10px; }
+.d2fx-tag{ font:600 11px/1.3 system-ui, sans-serif; letter-spacing:.04em; color:#1e6f7c; margin:0 0 6px; text-transform:uppercase; }
+#d2map_ov .d2fx-est{ width:100%; border-collapse:collapse; font-size:12.5px; }
+#d2map_ov .d2fx-est th{ text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; color:#667689; padding:4px 6px; border-bottom:1px solid #e0e7ef; }
+#d2map_ov .d2fx-est td{ padding:4px 6px; border-bottom:1px solid #eef2f6; vertical-align:middle; }
+#d2map_ov .d2fx-est tr.mexido td:first-child{ font-weight:700; color:#1e6f7c; }
+#d2map_ov .d2fx-est tr.mexido td:first-child::after{ content:" · só nesta figura"; font-weight:500; color:#b56c00; font-size:11px; }
+#d2map_ov .d2fx-est input[type=number]{ width:64px; padding:4px 6px; border:1px solid #d5dde7; border-radius:6px; }
+#d2map_ov .d2fx-est input[type=color]{ width:34px; height:26px; padding:0; border:1px solid #d5dde7; border-radius:6px; background:none; }
+#d2map_ov .d2fx-est select{ padding:4px 6px; border:1px solid #d5dde7; border-radius:6px; max-width:130px; }
+#d2map_ov .d2fx-reset{ border:1px solid #d5dde7; background:#fff; border-radius:6px; min-width:30px; min-height:28px; cursor:pointer; }
 .v2-abrir .mdp-comp-pal{ animation:v2roll .75s cubic-bezier(.2,.8,.2,1); }
 @keyframes v2roll{ from{ clip-path:inset(0 0 100% 0); transform:translateY(-14px); opacity:.25; } to{ clip-path:inset(-20px); transform:none; opacity:1; } }
 .v2-regua{ position:absolute; pointer-events:none; overflow:hidden; z-index:2; }
@@ -9383,14 +9407,11 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 
 <h2 class="vsec">1 · Planta de situação</h2>
 <div class="vcard">
-  <p class="mdp-explica" style="margin-bottom:14px;">A planta se compõe em <b>tela cheia</b>: o quadro do mapa à esquerda e a tabela de vértices, confrontantes e tipo de divisa à direita. Lá dentro ficam as camadas, o estilo de cada uma, as cotas de distância, a <b>visualização de impressão</b> (a prancha montada, como vai sair no papel) e as exportações.</p>
-  <div class="vactions" style="margin-top:0;">
+  <p class="mdp-explica" style="margin-bottom:14px;">A planta se compõe em <b>tela cheia</b>: o quadro do mapa à esquerda e a tabela de vértices, confrontantes e tipo de divisa à direita. Lá dentro ficam as camadas, o estilo de cada uma, as cotas e leaders (que se arrastam no próprio desenho), a <b>visualização de impressão</b> e o <b>carimbo</b>. Tudo o que sai — prancha, JPG, DXF/DWG, memorial e dossiê — fica no menu <b>Exportar</b>; o anel ao lado diz se a conferência técnica achou pendências.</p>
+  <div class="vactions" style="margin-top:0;align-items:center;">
     <button class="vbtn" type="button" onclick="MDP_abrirComposicao()" title="Quadro do mapa à esquerda, tabela de confrontantes à direita">🧩 Compor a planta (tela cheia)</button>
-    <button class="vbtn vbtn-ghost" type="button" onclick="MDP_jpgQuadro()" title="Só o quadro do mapa, com as camadas e o enquadramento como estão agora">🖼️ JPG do quadro do mapa</button>
-    <button class="vbtn vbtn-ghost" type="button" onclick="MDP_pdfPlantaCom()">📄 PDF — com satélite</button>
-    <button class="vbtn vbtn-ghost" type="button" onclick="MDP_pdfPlantaSem()">📄 PDF — sem satélite</button>
-    <button class="vbtn vbtn-ghost" type="button" onclick="MDP_exportarDxf()" data-cad-dxf title="Desenho em coordenadas UTM, uma camada por elemento. Abre em qualquer CAD; para DWG, salve pelo AutoCAD">📐 Exportar DXF (CAD)</button>
-    <button class="vbtn vbtn-ghost" type="button" onclick="MDP_exportarDxf({dwg:true})" data-cad-dwg style="display:none" title="O mesmo desenho do DXF, já convertido para DWG (AutoCAD 2010) pelo CADCraft desta máquina">📐 Exportar DWG (AutoCAD)</button>
+    <button class="vbtn vbtn-ghost" type="button" onclick="MDP_abrirCarimbo()" title="Abre a composição já na aba do carimbo">▤ Carimbo</button>
+    <span id="mz_exp_painel" style="display:inline-flex;gap:8px;align-items:center;"></span>
   </div>
 </div>
 
@@ -9438,13 +9459,10 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
   </div>
 </div>
 
-<h2 class="vsec">5 · Carimbo da planta</h2>
-<div class="vcard">
-  <p class="mdp-explica" style="margin-bottom:10px;">O carimbo agora é preenchido <b>dentro da Composição da planta</b> (aba <b>Carimbo</b>), com a prancha ao lado para ver o resultado na hora.</p>
-  <div class="vactions" style="margin-top:0"><button class="vbtn" type="button" onclick="MDP_abrirCarimbo()">🧩 Abrir o carimbo na composição</button></div>
-  <div class="vrow" id="mdp_campos_car" hidden></div>
-  <div class="vrow" id="mdp_obs" hidden></div>
-</div>
+<!-- Mesa, etapa 2 (14/10/2026): a seção "5 · Carimbo da planta" só levava de volta à composição; o acesso
+     agora é o botão "▤ Carimbo" do tópico 1. Os dois hospedeiros ocultos abaixo continuam (o carimbo os usa). -->
+<div class="vrow" id="mdp_campos_car" hidden></div>
+<div class="vrow" id="mdp_obs" hidden></div>
 </div>
 </section>
 <section class="tab-panel" id="panel-desp1-parecer">
@@ -28784,6 +28802,7 @@ function AV_gerarDescSituacao(){
     _tmrPrev = setTimeout(function(){
       analisarSeMudou();
       if(compAberto()) compPintar();
+      try{ mesaPront(); }catch(e){}                            // anel de prontidão em dia (Mesa, etapa 2)
     }, ms == null ? 700 : ms);
   }
   function analisarSeMudou(){ if(!G) analisar(); }
@@ -31318,6 +31337,75 @@ function AV_gerarDescSituacao(){
       if(abrir){ if(montar) montar(); pop.hidden = false; }
     });
   }
+  /* ---- Mesa, etapa 2 (14/10/2026): um lugar só para exportar + anel de prontidão ----
+     Antes: JPG / PDF / DXF / DWG soltos na barra do modal, outros cinco botões no painel e o
+     Dossiê noutro canto. Agora o mesmo menu "Exportar" nos dois lugares. O anel ao lado resume
+     a conferência técnica (v2Checar): verde = pronto, laranja = avisos, vermelho = erros;
+     clicar abre a conferência. O portão de antes de gerar (v2Gate) continua valendo. */
+  var EXP_ITENS = [
+    ["PRANCHA"],
+    ["pdfSat", "PDF da prancha — com satélite"], ["pdf", "PDF da prancha — sem satélite"], ["jpg", "JPG do quadro do mapa"],
+    ["CAD"],
+    ["dxf", "DXF — UTM, uma camada por elemento"], ["dwg", "DWG — AutoCAD 2010 (pelo CADCraft)"],
+    ["MEMORIAL DESCRITIVO"],
+    ["memPdf", "Memorial — PDF"], ["memWord", "Memorial — Word"],
+    ["TUDO JUNTO"],
+    ["dossie", "Dossiê ZIP — planta, DXF, memorial e KML"]
+  ];
+  var EXP_FN = {
+    pdfSat:function(){ return window.MDP_pdfPlantaCom(); }, pdf:function(){ return window.MDP_pdfPlantaSem(); },
+    jpg:function(){ return window.MDP_jpgQuadro(); }, dxf:function(){ return window.MDP_exportarDxf(); },
+    dwg:function(){ return window.MDP_exportarDxf({ dwg:true }); }, memPdf:function(){ return window.MDP_pdfMemorial(); },
+    memWord:function(){ return window.MDP_wordMemorial(); }, dossie:function(){ return window.MDP_v2Dossie(); }
+  };
+  function mesaExpWidget(clsBt){
+    var w = document.createElement("div"); w.className = "v2-wrap mz-exp-wrap";
+    w.innerHTML =
+      '<button type="button" class="' + clsBt + ' mz-pront" title="Conferência técnica da planta — clique para ver as pendências">' +
+        '<svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7.5" fill="none" stroke="currentColor" stroke-opacity=".25" stroke-width="3"/>' +
+        '<circle class="mz-pront-arco" cx="10" cy="10" r="7.5" fill="none" stroke-width="3" stroke-linecap="round" transform="rotate(-90 10 10)" stroke-dasharray="0 48"/></svg>' +
+        '<span class="mz-pront-t">conferindo…</span></button>' +
+      '<button type="button" class="' + clsBt + ' mz-exp-bt" aria-haspopup="menu">⤓ Exportar ▾</button>' +
+      '<div class="v2-pop mz-exp-pop" role="menu" hidden>' + EXP_ITENS.map(function(x){
+        if(x.length === 1) return '<div class="mz-exp-g">' + esc(x[0]) + '</div>';
+        return '<button type="button" role="menuitem" class="mz-exp-i" data-exp="' + x[0] + '"' + (x[0] === "dwg" ? ' data-cad-dwg style="display:none"' : '') + '>' + esc(x[1]) + '</button>';
+      }).join("") + '</div>';
+    var pop = w.querySelector(".mz-exp-pop");
+    v2Popover(w.querySelector(".mz-exp-bt"), pop);
+    pop.addEventListener("click", function(ev){
+      var b = ev.target.closest && ev.target.closest("[data-exp]"); if(!b) return;
+      pop.hidden = true; var f = EXP_FN[b.getAttribute("data-exp")]; if(f) f();
+    });
+    w.querySelector(".mz-pront").addEventListener("click", function(){ window.MDP_v2Conferir(); });
+    return w;
+  }
+  // modal: tira os botões de saída soltos e o "Conferir" da barra e põe o menu + o anel no lugar
+  function mesaExpModal(top, antes){
+    if(!top || top.querySelector(".mz-exp-wrap")) return;
+    ["mdp_bt_jpg", "mdp_bt_pdf", "mdp_bt_dxf", "mdp_bt_dwg", "v2_bt_dos", "v2_bt_chk"].forEach(function(id){ var e = $(id); if(e) e.remove(); });
+    top.insertBefore(mesaExpWidget("mdp-mini"), antes || null);
+    cadDwgMostrar(); mesaPront();
+  }
+  // painel da aba Planta: o menu entra no lugar marcado por #mz_exp_painel
+  function mesaExpPainel(){
+    var host = $("mz_exp_painel"); if(!host || host.querySelector(".mz-exp-wrap")) return;
+    host.appendChild(mesaExpWidget("vbtn vbtn-ghost"));
+    cadDwgMostrar(); mesaPront();
+  }
+  function mesaPront(){
+    var el = document.querySelectorAll(".mz-pront"); if(!el.length) return;
+    var R = []; try{ R = v2Checar(); }catch(e){ return; }
+    var e = R.filter(function(x){ return x.n === "erro"; }).length, a = R.filter(function(x){ return x.n === "aviso"; }).length;
+    var est = e ? "erro" : (a ? "aviso" : "ok"), C = 2*Math.PI*7.5, fr = e ? .3 : (a ? .7 : 1);
+    var txt = !G ? "sem KML" : (e ? e + (e > 1 ? " erros" : " erro") : (a ? a + (a > 1 ? " avisos" : " aviso") : "pronto para exportar"));
+    Array.prototype.forEach.call(el, function(b){
+      b.setAttribute("data-est", est);
+      var t = b.querySelector(".mz-pront-t"); if(t) t.textContent = txt;
+      var arc = b.querySelector(".mz-pront-arco"); if(arc) arc.setAttribute("stroke-dasharray", (C*fr).toFixed(1) + " " + C.toFixed(1));
+    });
+  }
+  if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", mesaExpPainel); else mesaExpPainel();
+
   function v2NaAbertura(){
     var ov = compAberto(); if(!ov) return;
     ov.classList.add("v2-abrir"); setTimeout(function(){ ov.classList.remove("v2-abrir"); }, 1100);
@@ -31363,6 +31451,7 @@ function AV_gerarDescSituacao(){
       $("v2_bt_tab").onclick = v2AlternarTabela; $("v2_bt_viz").onclick = v2AlternarViz; $("v2_bt_sug").onclick = function(){ window.MDP_v2Sugerir(); };
       $("v2_bt_chk").onclick = function(){ window.MDP_v2Conferir(); }; $("v2_bt_dos").onclick = function(){ window.MDP_v2Dossie(); }; $("v2_bt_pal").onclick = v2Paleta;
       document.addEventListener("click", function(){ document.querySelectorAll(".v2-pop").forEach(function(p){ p.hidden = true; }); });
+      mesaExpModal(top, x);                                    // Mesa, etapa 2: menu Exportar + anel de prontidão
       // régua, overlay e HUD
       var rt = document.createElement("div"); rt.id = "v2_regua_t"; rt.className = "v2-regua t";
       var rl = document.createElement("div"); rl.id = "v2_regua_l"; rl.className = "v2-regua l";
@@ -31418,13 +31507,7 @@ function AV_gerarDescSituacao(){
   var _rCmp0 = renderCampos; renderCampos = function(){ var r = _rCmp0.apply(this, arguments); v2TrilhaAgendar(); return r; };
   function v2Ligar(){
     var panel = $("panel-desp1-planta"); if(!panel) return;
-    // botão do dossiê também na seção 1
-    var va = panel.querySelector(".vsec + .vcard .vactions");
-    if(va && !va.querySelector("[data-v2dos]")){
-      var b = document.createElement("button"); b.type = "button"; b.className = "vbtn vbtn-ghost"; b.setAttribute("data-v2dos", "1");
-      b.title = "Planta (com e sem satélite), DXF, JPG, memorial PDF e Word e o KML, tudo num ZIP"; b.textContent = "📦 Dossiê (ZIP)"; b.onclick = function(){ window.MDP_v2Dossie(); };
-      va.appendChild(b);
-    }
+    // 14/10/2026 (Mesa, etapa 2): o dossiê saiu daqui — agora é item do menu Exportar da seção 1
     v2Trilha();
   }
 
@@ -40613,11 +40696,81 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
      na aba Técnica — o clique funciona nos dois lugares. ========================= */
   const D2PLANTAS_FIDS = ["f1","f2","f2b","f3","f3b","f3b2","f3b3","f3b4","f3b5","f3b6","f3c","f4","f5","f6","f7"];
   // figuras que não aparecem quando vazias (3B das demais áreas) ou quando o imóvel não tem atividade agrícola (3C)
-  function figOculta(fid){ return (/^f3b[2-9]$/.test(fid) && !figs[fid]) || (fid==="f3c" && (!!(document.getElementById("imv_culturas_nao")||{}).checked || !((window.IMV_get && window.IMV_get("culturas").kml) || "").trim())) || (fid==="f2b" && !figs[fid]); }
-  function D2PLANTAS_disponiveis(){ return D2PLANTAS_FIDS.filter(function(f){ return !!figs[f]; }); }
+  function figOculta(fid){ var _fx = d2fx(fid); if(_fx) return _fx.base === "f3c" && figOculta("f3c");
+    return (/^f3b[2-9]$/.test(fid) && !figs[fid]) || (fid==="f3c" && (!!(document.getElementById("imv_culturas_nao")||{}).checked || !((window.IMV_get && window.IMV_get("culturas").kml) || "").trim())) || (fid==="f2b" && !figs[fid]); }
+  function D2PLANTAS_disponiveis(){ return d2plantasFids().filter(function(f){ return !!figs[f]; }); }
+
+  /* ---- Figuras extras da DESP 2 (Mesa, etapa 3 — 14/10/2026) ----
+     Uma figura extra é uma receita guardada no próprio documento da DESP 2 (D2DOC.figx, que já vai
+     no cadastro): nasce de uma figura de mapa (a base), herda a regra dela e só guarda o que muda —
+       { id:"x1", base:"f4", titulo, fonte, cams:[...], foco:"area"|"desap", est:{ cam:{cor,peso,dash,op,sombra} } }
+     A imagem fica em figs["x1"], como qualquer figura, e entra logo depois da base (e das extras
+     anteriores dela) no painel, no PDF, no Word e no editor. O estilo "só desta figura" vale apenas
+     nela — o quadro de camadas do servidor continua sendo o padrão de todas as outras. */
+  function d2fxLista(){ if(!Array.isArray(D2DOC.figx)) D2DOC.figx = []; return D2DOC.figx; }
+  function d2fx(fid){ var L = Array.isArray(D2DOC.figx) ? D2DOC.figx : []; for(var i = 0; i < L.length; i++) if(L[i] && L[i].id === fid) return L[i]; return null; }
+  function d2base(fid){ var fx = d2fx(fid); return fx ? fx.base : fid; }
+  function d2regra(fid){
+    var fx = d2fx(fid); if(!fx) return D2MAP_REGRAS[fid];
+    var r = D2MAP_REGRAS[fx.base]; if(!r) return null;
+    return Object.assign({}, r, { cams:(fx.cams && fx.cams.length) ? fx.cams.slice() : (r.cams || []).slice() });
+  }
+  function d2metaBase(fid){ if(FIG_META[fid]) return FIG_META[fid]; var fx = d2fx(fid); return fx ? [fx.titulo || fid, fx.fonte || ""] : [fid, ""]; }
+  function d2extrasDe(base){ return (Array.isArray(D2DOC.figx) ? D2DOC.figx : []).filter(function(x){ return x && x.base === base; }).map(function(x){ return x.id; }); }
+  function D2_figsDoTopico(tp){ var out = []; (tp.figs || []).forEach(function(f){ out.push(f); d2extrasDe(f).forEach(function(x){ out.push(x); }); }); return out; }
+  window.D2_figsDoTopico = D2_figsDoTopico;
+  function d2plantasFids(){ var out = []; D2PLANTAS_FIDS.forEach(function(f){ out.push(f); d2extrasDe(f).forEach(function(x){ out.push(x); }); }); return out; }
+  function d2sujo(){ try{ if(window.CAD_marcarSujo) window.CAD_marcarSujo(); }catch(e){} }
+  // próximo título livre: Figura 4 → "Figura 4B – Fontes hídricas (detalhe)" (pula as letras já usadas: 2B, 3B, 3C…)
+  function d2fxProxTitulo(base){
+    var t0 = (FIG_META[base] || [""])[0], m = /^Figura\s+(\d+)/.exec(t0), n = m ? m[1] : "", usados = {};
+    var re = new RegExp("^Figura\\s+" + n + "([A-Z])\\b");
+    Object.keys(FIG_META).forEach(function(k){ var r = re.exec(FIG_META[k][0] || ""); if(r) usados[r[1]] = 1; });
+    d2fxLista().forEach(function(x){ var r = re.exec(figMeta(x.id)[0] || ""); if(r) usados[r[1]] = 1; });
+    var L = "B"; while(usados[L] && L < "Z") L = String.fromCharCode(L.charCodeAt(0) + 1);
+    return "Figura " + n + L + " – " + t0.replace(/^Figura\s+\d+[A-Z]?\s*[–-]\s*/, "") + " (detalhe)";
+  }
+  window.D2FX_criar = function(base){
+    var r = D2MAP_REGRAS[base];
+    if(!r || r.roteiro){ alert("Esta figura não aceita figura extra."); return; }
+    var n = 1; while(d2fx("x" + n)) n++;
+    var cams = ((D2MAP_TXT.cams && D2MAP_TXT.cams[base]) || r.cams || []).slice();
+    var fx = { id:"x" + n, base:base, titulo:d2fxProxTitulo(base), fonte:(FIG_META[base] || ["", ""])[1], cams:cams, foco:"desap", est:{} };
+    d2fxLista().push(fx); d2fxSlots(); d2sujo();
+    window.D2MAP_abrir(fx.id);
+  };
+  window.D2FX_excluir = function(id){
+    if(!d2fx(id)) return;
+    if(!confirm('Excluir a figura extra "' + figMeta(id)[0] + '"? A imagem dela também sai do relatório.')) return;
+    D2DOC.figx = d2fxLista().filter(function(x){ return x.id !== id; });
+    delete figs[id]; delete figNames[id]; delete D2DOC.caps[id]; delete figsAuto[id]; delete figManualBackup[id];
+    d2fxSlots(); d2sujo();
+    if(typeof D2DOC_renderSeVisivel === "function") D2DOC_renderSeVisivel();
+  };
+  // põe/tira os quadros das figuras extras no painel, logo depois da base (esteja ela na DESP 2 ou na Técnica)
+  function d2fxSlots(){
+    var vivos = {}; d2fxLista().forEach(function(x){ vivos[x.id] = 1; });
+    Array.prototype.forEach.call(document.querySelectorAll(".d2-figwrap[data-fx]"), function(w){ if(!vivos[w.getAttribute("data-fx")]) w.remove(); });
+    D2PLANTAS_FIDS.forEach(function(base){
+      var ant = document.getElementById("d2_figwrap_" + base); if(!ant) return;
+      d2extrasDe(base).forEach(function(id){
+        var w = document.getElementById("d2_figwrap_" + id), html = figSlotHtml(id);
+        if(w) w.outerHTML = html; else ant.insertAdjacentHTML("afterend", html);
+        ant = document.getElementById("d2_figwrap_" + id) || ant;
+      });
+    });
+  }
+  window.D2FX_sincronizar = d2fxSlots;
+  // troca, só durante o desenho de uma figura extra, o estilo das camadas que ela ajustou
+  function d2estTrocar(fid){
+    var fx = d2fx(fid), o = (fx && fx.est) || {}, bak = {};
+    Object.keys(o).forEach(function(k){ if(!D2MAP_EST[k] || !o[k]) return; bak[k] = D2MAP_EST[k]; D2MAP_EST[k] = Object.assign({}, D2MAP_EST[k], o[k]); });
+    return function(){ Object.keys(bak).forEach(function(k){ D2MAP_EST[k] = bak[k]; }); };
+  }
+
   function D2PLANTAS_renderizar(fid){
     if(!figs[fid]) return;
-    var meta = FIG_META[fid] || [fid,""];
+    var meta = d2metaBase(fid);
     var _cp = D2DOC.caps && D2DOC.caps[fid]; if(_cp && _cp.t) meta = [_cp.t, (_cp.f != null && _cp.f !== "" ? _cp.f : meta[1])];
     var disponiveis = D2PLANTAS_disponiveis();
     var soUma = disponiveis.length <= 1;
@@ -41360,8 +41513,8 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
 
   /* imagens de figura (Fig.1, Fig.2...) — marcação visual + textual + status para leitor de tela */
   function figSlotHtml(fid){
-    var meta=FIG_META[fid]||[fid,""], label=meta[0], has=!!figs[fid], fname=figNames[fid]||"";
-    var comVisualizador = D2PLANTAS_FIDS.indexOf(fid) >= 0;
+    var meta=figMeta(fid), label=meta[0], has=!!figs[fid], fname=figNames[fid]||"";
+    var comVisualizador = d2plantasFids().indexOf(fid) >= 0, ehExtra = !!d2fx(fid);
     if((/^f3b[2-9]$/.test(fid) || fid==="f2b") && !has) return '<div class="d2-figwrap" id="d2_figwrap_'+fid+'" style="display:none"></div>';
     if(fid==="f3c" && figOculta(fid)) return '<div class="d2-figwrap" id="d2_figwrap_f3c"><p class="hint-auto" style="margin:4px 0;">🚫 Marcado em <b>Técnica › Arquivos KML do imóvel › Áreas de culturas</b>: a propriedade não possui atividade ou exploração agrícola — o laudo traz a frase padrão e esta figura não sai.</p></div>';
     var body;
@@ -41387,8 +41540,13 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
           ? '<button type="button" class="vbtn vbtn-ghost vbtn-sm" style="margin-top:4px;" onclick="D2_gerarFig3B(this)" title="Recorta o quadro do mapa da Planta de Situação (Técnica › Planta e Memorial), com o satélite a 70% de transparência — gera uma imagem para CADA perímetro do cadastro">🗺️ Gerar da Planta de Situação'+(fid==="f3b"?" (todos os perímetros)":"")+'</button>'
           : '<button type="button" class="vbtn vbtn-ghost vbtn-sm" style="margin-top:4px;" onclick="D2MAP_abrir(\''+fid+'\')">🗺️ Gerar mapa automático</button>')
         + (figManualBackup[fid] ? ' <button type="button" class="vbtn vbtn-ghost vbtn-sm" style="margin-top:4px;" onclick="D2MAP_restaurarManual(\''+fid+'\')">↩︎ Voltar à imagem manual</button>' : '')
+        // figuras extras (Mesa, etapa 3): nas figuras de mapa, criar uma variante; na extra, excluí-la
+        + (ehExtra
+            ? ' <button type="button" class="vbtn vbtn-ghost vbtn-sm d2fx-del" style="margin-top:4px;" onclick="D2FX_excluir(\''+fid+'\')" title="Tira esta figura extra do relatório">🗑️ Excluir figura extra</button>'
+            : ((D2MAP_REGRAS[fid] && !D2MAP_REGRAS[fid].roteiro) ? ' <button type="button" class="vbtn vbtn-ghost vbtn-sm" style="margin-top:4px;" onclick="D2FX_criar(\''+fid+'\')" title="Cria outra figura a partir desta — com as camadas, o enquadramento e o estilo só dela (ex.: Figura 4B)">＋ Figura extra</button>' : ''))
       : '';
-    return '<div class="d2-figwrap'+(has?' tem-imagem':'')+'" id="d2_figwrap_'+fid+'">'+body+btnAuto
+    return '<div class="d2-figwrap'+(has?' tem-imagem':'')+(ehExtra?' d2fx':'')+'" id="d2_figwrap_'+fid+'"'+(ehExtra?' data-fx="'+fid+'"':'')+'>'
+      +(ehExtra?'<div class="d2fx-tag">Figura extra · a partir da '+esc((/^Figura\s+\S+/.exec(d2metaBase(d2base(fid))[0])||["figura base"])[0])+'</div>':'')+body+btnAuto
       +'<p class="sr-only" id="d2_figstatus_'+fid+'" role="status" aria-live="polite">'+esc(status)+'</p></div>';
   }
 
@@ -41396,7 +41554,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     const box=document.getElementById("d2_topicos"); if(!box) return;
     let html="";
     let autoOnly=0;
-    function figsHtml(tp){ if(!(tp.figs&&tp.figs.length)) return ""; var h='<div class="d2-figgrid">'; tp.figs.forEach(function(fid){ h+=figSlotHtml(fid); }); return h+'</div>'; }
+    function figsHtml(tp){ if(!(tp.figs&&tp.figs.length)) return ""; var h='<div class="d2-figgrid">'; D2_figsDoTopico(tp).forEach(function(fid){ h+=figSlotHtml(fid); }); return h+'</div>'; }
     function kfIn(name,label,ph,topic,extra){ return '<div class="vfield grow"><label>'+label+'</label><input type="text" id="d2_kf_'+name+'" data-d2topic="'+topic+'" '+(extra||'')+' placeholder="'+(ph||'')+'"></div>'; }
     function rowOpen(tp){ const titulo=(tp.num?(tp.num+" "):"")+tp.head; return '<div class="d2t-row"><div class="d2t-head"><span class="d2t-title">'+titulo.replace(/&/g,"&amp;").replace(/</g,"&lt;")+'</span></div>'; }
     DESP2_TOPICOS.forEach(function(tp){
@@ -42392,11 +42550,65 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       h+='<label style="display:flex;gap:7px;align-items:center;font-size:12.5px;font-weight:600;'+(tem?'':'opacity:.45;')+'"><input type="checkbox" id="d2map_cam_'+c[0]+'"'+(padrao.indexOf(c[0])>=0&&tem?' checked':'')+(tem?'':' disabled')+'> '+d2esc(c[1])+(tem?'':' <i style="font-weight:400">(sem KML)</i>')+'</label>'; });
     return h+'</div></div>';
   }
+  /* quadro "Estilo só desta figura" (figuras extras): uma linha por camada marcada; o que for mexido
+     fica em fx.est e só vale no desenho desta figura (d2estTrocar). */
+  function d2fxEstHtml(fx){
+    var lista = (fx.cams || []).slice(); if(lista.indexOf("faixa") >= 0) lista.push("eixo");
+    lista = lista.filter(function(k){ var e = D2MAP_EST[k]; return e && e.tipo !== "pino" && k !== "benfr"; });
+    if(!lista.length) return '<p class="d2m-note">Marque ao menos uma camada acima.</p>';
+    var est = fx.est || {};
+    return '<table class="d2fx-est"><thead><tr><th>Camada</th><th>Cor</th><th>Espessura</th><th>Linha</th><th>Preench.</th><th>Sombra</th><th></th></tr></thead><tbody>' +
+      lista.map(function(k){
+        var e = Object.assign({}, D2MAP_EST[k], est[k] || {}), mex = !!(est[k] && Object.keys(est[k]).length), cheio = (e.tipo === "fill" || e.tipo === "hatch");
+        return '<tr data-k="' + k + '"' + (mex ? ' class="mexido"' : '') + '><td>' + d2esc(D2MAP_EST[k].nome) + '</td>' +
+          '<td><input type="color" data-p="cor" value="' + d2esc(e.cor || "#000000") + '" aria-label="Cor — ' + d2esc(D2MAP_EST[k].nome) + '"></td>' +
+          '<td><input type="number" data-p="peso" min="0.2" max="14" step="0.2" value="' + (e.peso != null ? e.peso : 1.5) + '" aria-label="Espessura — ' + d2esc(D2MAP_EST[k].nome) + '"></td>' +
+          '<td><select data-p="dash" aria-label="Tipo de linha — ' + d2esc(D2MAP_EST[k].nome) + '">' + D2MAP_DASH.map(function(d){ return '<option value="' + d[0] + '"' + ((e.dash || "") === d[0] ? " selected" : "") + '>' + d[1] + '</option>'; }).join("") + '</select></td>' +
+          '<td>' + (cheio ? '<input type="number" data-p="op" min="0" max="1" step="0.05" value="' + (e.op != null ? e.op : .4) + '" aria-label="Opacidade do preenchimento — ' + d2esc(D2MAP_EST[k].nome) + '">' : '—') + '</td>' +
+          '<td><input type="checkbox" data-p="sombra"' + (e.sombra ? " checked" : "") + ' aria-label="Sombra — ' + d2esc(D2MAP_EST[k].nome) + '"></td>' +
+          '<td>' + (mex ? '<button type="button" class="d2fx-reset" data-reset="' + k + '" title="Volta ao estilo padrão do servidor">↺</button>' : '') + '</td></tr>';
+      }).join("") + '</tbody></table>';
+  }
+  function d2fxLigarModal(fx){
+    var box = document.getElementById("d2fx_est"); if(!box) return;
+    function redesenhar(){ box.innerHTML = d2fxEstHtml(fx); }
+    box.addEventListener("change", function(ev){
+      var t = ev.target, tr = t.closest && t.closest("tr[data-k]"); if(!tr) return;
+      var k = tr.getAttribute("data-k"), p = t.getAttribute("data-p"); if(!p) return;
+      fx.est = fx.est || {}; fx.est[k] = fx.est[k] || {};
+      var v = t.type === "checkbox" ? t.checked : (t.type === "number" ? parseFloat(t.value) : t.value);
+      if(t.type === "number" && !isFinite(v)) return;
+      fx.est[k][p] = (p === "dash" && !v) ? "" : v;
+      d2sujo(); redesenhar();
+    });
+    box.addEventListener("click", function(ev){
+      var b = ev.target.closest && ev.target.closest("[data-reset]"); if(!b) return;
+      if(fx.est) delete fx.est[b.getAttribute("data-reset")]; d2sujo(); redesenhar();
+    });
+    // camadas marcadas mudam a lista de estilos
+    var grid = document.querySelector("#d2map_ov .d2m-grid");
+    if(grid) grid.addEventListener("change", function(ev){
+      if(!/^d2map_cam_/.test(ev.target.id || "")) return;
+      fx.cams = D2MAP_CAMS.filter(function(c){ var cb = document.getElementById("d2map_cam_" + c[0]); return cb && cb.checked && !cb.disabled; }).map(function(c){ return c[0]; });
+      d2sujo(); redesenhar();
+    });
+    ["d2fx_tit", "d2fx_fonte"].forEach(function(id){
+      var el = document.getElementById(id); if(!el) return;
+      el.addEventListener("input", function(){
+        if(id === "d2fx_tit") fx.titulo = el.value; else fx.fonte = el.value;
+        if(D2DOC.caps[fx.id]) delete D2DOC.caps[fx.id];          // o título da figura extra mora na própria receita
+        d2sujo();
+        var w = document.getElementById("d2_figwrap_" + fx.id); if(w) w.outerHTML = figSlotHtml(fx.id);
+        var tp = document.querySelector("#d2map_ov .d2m-top p"); if(tp && id === "d2fx_tit") tp.textContent = fx.titulo;
+      });
+    });
+  }
+
   window.D2MAP_abrir=async function(fid){
-    var regra=D2MAP_REGRAS[fid];
-    var meta=FIG_META[fid]||[fid,''];
+    var regra=d2regra(fid), fxA=d2fx(fid);
+    var meta=figMeta(fid);
     if(!regra) return;
-    if(fid==='f3c' && figOculta(fid)){ alert('A propriedade está marcada como "não possui atividade agrícola" (Técnica › Arquivos KML do imóvel › Áreas de culturas). Desmarque para gerar o mapa de culturas.'); return; }
+    if(d2base(fid)==='f3c' && figOculta(fid)){ alert('A propriedade está marcada como "não possui atividade agrícola" (Técnica › Arquivos KML do imóvel › Áreas de culturas). Desmarque para gerar o mapa de culturas.'); return; }
     var rot=!!regra.roteiro;   // Figura 1: roteiro de acesso (Pontos A/B + percurso)
     // preenchimento automático a partir das abas (assistência social / identificação)
     function _campo(id){ var el=document.getElementById(id); return el?((el.value||'').trim()||(el.placeholder||'').trim()):''; }
@@ -42411,6 +42623,8 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     var h='<div class="d2m-card" role="dialog" aria-modal="true" aria-label="Gerar mapa automático">'
       +'<div class="d2m-top"><div><h3>Gerar mapa automático</h3><p>'+d2esc(meta[0])+'</p></div><button type="button" class="d2m-x" aria-label="Fechar" onclick="document.getElementById(\'d2map_ov\').remove()">✕</button></div>'
       +'<div class="d2m-grid">'
+      + (fxA ? fld('Título da figura extra (no relatório)','<input id="d2fx_tit" class="d2m-in" value="'+d2esc(fxA.titulo||'')+'">',' d2m-full')
+             + fld('Fonte','<input id="d2fx_fonte" class="d2m-in" value="'+d2esc(fxA.fonte||'')+'">') : '')
       + fld('Processo administrativo','<textarea id="d2map_proc" rows="2" class="d2m-in">'+d2esc(D2MAP_TXT.proc)+'</textarea>',' d2m-full')
       + fld('Dados da ferrovia','<textarea id="d2map_ferr" rows="2" class="d2m-in">'+d2esc(D2MAP_TXT.ferrovia)+'</textarea>',' d2m-full');
     if(rot){
@@ -42421,35 +42635,39 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
         + fld('Texto da área desapropriada (no polígono)','<textarea id="d2map_desaplbl" rows="2" class="d2m-in" placeholder="Ex.: ÁREA A DESAPROPRIAR&#10;2,3842 ha">'+d2esc(D2MAP_TXT.desapLabel||'')+'</textarea>')
         + fld('KM entrada do eixo','<input id="d2map_kment" class="d2m-in" value="'+d2esc(D2MAP_TXT.kmEnt||'000 + 000,00')+'">')
         + fld('KM saída do eixo','<input id="d2map_kmsai" class="d2m-in" value="'+d2esc(D2MAP_TXT.kmSai||'000 + 000,00')+'">')
-        + fld('Enquadramento', sel('d2map_foco',[['area','Área total do imóvel'],['desap','Foco na área desapropriada']],D2MAP_TXT.foco||'area'));
+        + fld('Enquadramento', sel('d2map_foco',[['area','Área total do imóvel'],['desap','Foco na área desapropriada']],(fxA?fxA.foco:D2MAP_TXT.foco)||'area'));
     }
     h+= fld('Base do mapa', sel('d2map_base',[['orto','Ortofoto do acervo + satélite'],['sat','Satélite Esri']],D2MAP_TXT.base||'orto'))
       + fld('Transparência da imagem', sel('d2map_transp',[[0,'0% (opaca)'],[25,'25%'],[50,'50%'],[75,'75%'],[100,'100% (sem imagem)']],D2MAP_TXT.transp==null?25:D2MAP_TXT.transp))
       + fld('Mapa de localização (PE)', sel('d2map_loclado',[['esq','Lado esquerdo'],['dir','Lado direito']],D2MAP_TXT.locLado||'esq'))
       + (rot ? '' : d2camsHtml(fid, regra))
+      + (fxA ? '<div class="d2m-f d2m-full"><label>Estilo só desta figura <span style="text-transform:none;letter-spacing:0;font-weight:500">— as outras continuam com o quadro de camadas do servidor</span></label><div id="d2fx_est">'+d2fxEstHtml(fxA)+'</div></div>' : '')
       +'</div>'
       +'<div id="d2map_status" class="d2m-st" role="status" aria-live="polite"></div>'
       +'<div id="d2map_prev" class="d2m-prev"></div>'
       +'<div class="d2m-act"><button type="button" id="d2map_ger" class="d2m-b d2m-b1">Gerar prévia</button><button type="button" id="d2map_usar" class="d2m-b d2m-b2" style="display:none;">Usar nesta figura</button></div>'
       +'</div>';
     ov.innerHTML=h;
+    if(fxA) d2fxLigarModal(fxA);
     function st(m){ var e=document.getElementById('d2map_status'); if(e) e.textContent=m||''; }
     function v(id){ var e=document.getElementById(id); return e?e.value:''; }
     document.getElementById('d2map_ger').onclick=async function(){
       try{
       D2MAP_TXT.proc=v('d2map_proc'); D2MAP_TXT.ferrovia=v('d2map_ferr');
-      if(!rot){ D2MAP_TXT.areaLabel=v('d2map_arealbl'); D2MAP_TXT.desapLabel=v('d2map_desaplbl'); D2MAP_TXT.kmEnt=v('d2map_kment'); D2MAP_TXT.kmSai=v('d2map_kmsai'); D2MAP_TXT.foco=v('d2map_foco')||'area'; }
+      var focoSel=v('d2map_foco')||'area';
+      if(!rot){ D2MAP_TXT.areaLabel=v('d2map_arealbl'); D2MAP_TXT.desapLabel=v('d2map_desaplbl'); D2MAP_TXT.kmEnt=v('d2map_kment'); D2MAP_TXT.kmSai=v('d2map_kmsai'); if(fxA){ fxA.foco=focoSel; d2sujo(); } else D2MAP_TXT.foco=focoSel; }
       D2MAP_TXT.base=v('d2map_base')||'orto';
       D2MAP_TXT.transp=parseInt(v('d2map_transp'),10); if(isNaN(D2MAP_TXT.transp)) D2MAP_TXT.transp=25;
       D2MAP_TXT.locLado=v('d2map_loclado')||'esq';
       st('Lendo camadas do imóvel…');
       var need={};
       if(rot){ (regra.cams||[]).forEach(function(c){ need[c]=true; }); }
-      else{ D2MAP_CAMS.forEach(function(c){ var cb=document.getElementById('d2map_cam_'+c[0]); if(cb && cb.checked && !cb.disabled) need[c[0]]=true; }); D2MAP_TXT.cams=D2MAP_TXT.cams||{}; D2MAP_TXT.cams[fid]=Object.keys(need); }
+      else{ D2MAP_CAMS.forEach(function(c){ var cb=document.getElementById('d2map_cam_'+c[0]); if(cb && cb.checked && !cb.disabled) need[c[0]]=true; });
+        if(fxA){ fxA.cams=Object.keys(need); d2sujo(); } else { D2MAP_TXT.cams=D2MAP_TXT.cams||{}; D2MAP_TXT.cams[fid]=Object.keys(need); } }
       var geom={}, pinos=[], falhou=[];   // cam -> geometria
       // ---- camadas client-side (KML) ----
       ['area','desap','vias','appest','hidro','cercas','culturas'].forEach(function(cam){ if(!need[cam]) return; var g=d2mapKML(d2mapFonteKML(cam)); if(g.polys.length+g.lines.length+g.pts.length) geom[cam]=g; });
-      if(fid==='f3c' && need.culturas && !geom.culturas){ st('Insira o KML das culturas em Técnica › Arquivos KML do imóvel › Benfeitorias › Reprodutivas.'); return; }
+      if(d2base(fid)==='f3c' && need.culturas && !geom.culturas){ st('Insira o KML das culturas em Técnica › Arquivos KML do imóvel › Benfeitorias › Reprodutivas.'); return; }
       if(!rot && need.benf){ var gb=d2mapKML(d2mapFonteKML('benf')); if(gb.pts.length||gb.polys.length) geom.benf=gb; }
       ['benfr','benfnr'].forEach(function(c){ if(!need[c]) return; var gn=d2mapKMLnomes(d2mapFonteKML(c)); if(gn.items.length) geom[c]=gn; });
       // camada derivada: área remanescente = área total do imóvel MENOS a área desapropriada
@@ -42471,7 +42689,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
         bb=d2bboxDe(geom.area?[geom.rota,geom.area]:[geom.rota], 0.16);
       } else {
         // enquadramento escolhido no modal (padrão: área total do imóvel)
-        var mostraTudo=((D2MAP_TXT.foco||'area')!=='desap');
+        var mostraTudo=(focoSel!=='desap');
         var focoGeoms=[]; (mostraTudo?['area']:['desap']).forEach(function(c){ if(geom[c]) focoGeoms.push(geom[c]); });
         if(!focoGeoms.length){ ['area','desap','vias','appest','hidro','benf','cercas'].forEach(function(c){ if(geom[c]) focoGeoms.push(geom[c]); }); }
         bb=d2bboxDe(focoGeoms, mostraTudo?0.12:0.30);
@@ -42522,6 +42740,8 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       if(geom.cercas){ var dpz=d2mapKML(d2mapFonteKML('desap')); if(dpz.polys.length) metrosCerca=d2metrosDentro(geom.cercas.lines.concat(geom.cercas.polys), dpz.polys); }
       var ORDER=['sigef','car','rl','appcar','appest','culturas','drenagem','hidro','faixa','area','remanescente','vias','rota','desap','cercas','benf','benfr','benfnr'];
       var camadas=[], legend=[];
+      var _volta=d2estTrocar(fid);                              // figura extra: estilo só dela (legenda)
+      try{
       ORDER.forEach(function(cam){ if(!geom[cam]) return; var est=D2MAP_EST[cam]||{}; camadas.push({cam:cam,geom:geom[cam]});
         if(cam==='faixa'){ legend.push({nome:est.nome,tipo:'line',cor:est.cor,peso:est.peso,dash:est.dash}); if(geom.faixa.eixos&&geom.faixa.eixos.length){ var ex=D2MAP_EST.eixo; legend.push({nome:ex.nome,tipo:'line',cor:ex.cor,peso:ex.peso,dash:ex.dash,tracos:true}); } }
         else if(cam==='cercas'){ legend.push({nome:est.nome+(metrosCerca!=null?(' — '+d2fmtM(metrosCerca)+' m (área desapr.)'):''),tipo:'line',cor:est.cor,peso:est.peso,dash:est.dash}); }
@@ -42529,6 +42749,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
         else legend.push({nome:est.nome,tipo:est.tipo,cor:est.cor,peso:est.peso,dash:est.dash});
       });
       if(pinos.length){ var ep=D2MAP_EST.pino; legend.push({nome:ep.nome,tipo:'pino',cor:ep.cor}); }
+      } finally { _volta(); }
       // Figura 2B: os códigos SIGEF/CAR interceptados NÃO vão para a legenda (decisão do usuário,
       // 29/09/2026 — geraria retrabalho); só os símbolos "Parcela SIGEF / Feição CAR (intercepta)".
       var basePref=D2MAP_TXT.base||'orto';
@@ -42537,7 +42758,9 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       if(base && base.mode==='orto'){ st('Baixando satélite (base de fundo)…'); try{ var satB=await d2satelite(bb); base.satUrl=satB.url; }catch(e){} }
       if(!base){ st('Baixando satélite (Esri)…'); try{ var sat=await d2satelite(bb); base={mode:'sat',sat:sat,url:sat.url}; }catch(e){ st('Falha ao baixar a base: '+(e&&e.message||e)); return; } }
       st('Compondo o mapa…');
-      var culRot=(fid==='f3c')?d2culturasAreas().filter(function(c){ return c.lon!=null; }):[]; var svg=d2mapSVG({ culRot:culRot, base:base, bb:bb, camadas:camadas, legend:legend, proc:D2MAP_TXT.proc, ferrovia:D2MAP_TXT.ferrovia, estacas:estacas, areaLabel:(rot?'':D2MAP_TXT.areaLabel), desapLabel:(rot?'':D2MAP_TXT.desapLabel), sigefCodes:sigefCodes, carCodes:carCodes, cruz:((rot||multi)?null:cruz), aneis:(multi?kmAneis:null), kmEnt:D2MAP_TXT.kmEnt, kmSai:D2MAP_TXT.kmSai, pinos:pinos, transp:D2MAP_TXT.transp, locLado:D2MAP_TXT.locLado });
+      var culRot=(d2base(fid)==='f3c')?d2culturasAreas().filter(function(c){ return c.lon!=null; }):[];
+      var _volta2=d2estTrocar(fid), svg;                       // figura extra: estilo só dela (desenho)
+      try{ svg=d2mapSVG({ culRot:culRot, base:base, bb:bb, camadas:camadas, legend:legend, proc:D2MAP_TXT.proc, ferrovia:D2MAP_TXT.ferrovia, estacas:estacas, areaLabel:(rot?'':D2MAP_TXT.areaLabel), desapLabel:(rot?'':D2MAP_TXT.desapLabel), sigefCodes:sigefCodes, carCodes:carCodes, cruz:((rot||multi)?null:cruz), aneis:(multi?kmAneis:null), kmEnt:D2MAP_TXT.kmEnt, kmSai:D2MAP_TXT.kmSai, pinos:pinos, transp:D2MAP_TXT.transp, locLado:D2MAP_TXT.locLado }); } finally { _volta2(); }
       var png; try{ png=await d2svg2png(svg,2); }catch(e){ st('Falha ao rasterizar: '+(e&&e.message||e)); return; }
       figsAuto[fid]=png;
       var prev=document.getElementById('d2map_prev'); if(prev) prev.innerHTML='<img src="'+png+'" alt="Prévia do mapa gerado">';
@@ -42713,10 +42936,11 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     if(o && typeof o==="object"){
       Object.keys(o).forEach(function(fid){ if(o[fid]) aplicarFig(fid,o[fid]); });
     }
-    Object.keys(FIG_META).forEach(function(fid){
+    Object.keys(FIG_META).concat(d2fxLista().map(function(x){ return x.id; })).forEach(function(fid){
       var wrap=document.getElementById("d2_figwrap_"+fid);
       if(wrap && !(o && o[fid])) wrap.outerHTML=figSlotHtml(fid);
     });
+    d2fxSlots();                                               // figuras extras do cadastro aberto (Mesa, etapa 3)
   };
 
   /* gera/atualiza os textos padrão (verbatim do Word + vínculos) */
@@ -43122,7 +43346,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       if(QUEBRA_ANTES.has(tp.id) && yc>topY+0.01){ rod(); nova(); }
       // item com mapa: título + texto + mapa (no mínimo FIG_MINH) ficam juntos — se não
       // couberem no resto da página, o item inteiro começa na próxima (mapa colado ao texto)
-      if((tp.figs||[]).some(function(f){ return figs[f]; }) && yc>topY+0.5){
+      if(D2_figsDoTopico(tp).some(function(f){ return figs[f]; }) && yc>topY+0.5){
         let txt=textoImpresso(tp);
         const need=18+alturaTexto(txt)+FIG_MINH+FIG_CAP;
         if(need<=botY-topY && yc+need>botY){ rod(); nova(); }
@@ -43141,7 +43365,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
         return;
       }
       { const _tx=textoImpresso(tp); if(String(_tx||"").trim()) bloco(_tx); }   // texto vazio não abre linha em branco
-      (tp.figs||[]).forEach(figura);
+      D2_figsDoTopico(tp).forEach(figura);
       imgsTopico(tp.id);
       // item h) — áreas atingidas (ha): campos movidos do item c) + eventual lista de atividades exploradas
       if(tp.id==="planta_de_localiza_o_das_rea"){
@@ -43357,7 +43581,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
         continue;
       }
       bloco(textoImpresso(tp));
-      for(const fid of (tp.figs||[])) await figura(fid);
+      for(const fid of D2_figsDoTopico(tp)) await figura(fid);
       await imgsTopicoW(tp.id);
       if(tp.id==="planta_de_localiza_o_das_rea"){
         marcador("Área de pastagem atingida: "+nOrZero(kf("past"))+" ha");
@@ -43457,7 +43681,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       return l.replace(/^(\s*[^,\n]{2,80},\s*)\d{1,2}º?\s+de\s+[A-Za-zÀ-ÿ]+\s+de\s+\d{4}(\s*\.?\s*)$/, function(_,a,b){ return a+hoje+b; });
     }).join("\n");
   }
-  function figMeta(fid){ var m=FIG_META[fid]||[fid,""], c=D2DOC.caps[fid]||{}; return [(c.t||m[0]), (c.f!=null&&c.f!==""?c.f:m[1])]; }
+  function figMeta(fid){ var m=d2metaBase(fid), c=D2DOC.caps[fid]||{}; return [(c.t||m[0]), (c.f!=null&&c.f!==""?c.f:m[1])]; }
   // tópicos que o sistema reescreve sozinho — editar aqui precisa "fixar" o texto
   function D2DOC_autoGerado(id){ var m=D2_UI[id]; return (!!m && m!=="freetext") || !!COMMENT_APPEND[id]; }
   function D2DOC_extra(id){ for(var i=0;i<D2DOC.extras.length;i++){ if(D2DOC.extras[i].id===id) return D2DOC.extras[i]; } return null; }
@@ -43483,6 +43707,11 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     D2DOC.ovr=Object.assign({},o.ovr||{}); D2DOC.heads=Object.assign({},o.heads||{}); D2DOC.hide=Object.assign({},o.hide||{});
     D2DOC.caps=Object.assign({},o.caps||{}); D2DOC.extras=(o.extras||[]).map(function(x){ return {id:x.id, after:x.after, level:x.level||3, head:x.head||"", txt:x.txt||""}; });
     D2DOC.imgs=(o.imgs||[]).filter(function(x){ return x && x.src; }).map(function(x){ return {id:x.id, topico:x.topico, src:x.src, leg:x.leg||"", fonte:x.fonte||""}; });
+    // figuras extras (Mesa, etapa 3): só receitas válidas, de uma figura de mapa que existe
+    D2DOC.figx=(Array.isArray(o.figx)?o.figx:[]).filter(function(x){ return x && /^x\d+$/.test(x.id||"") && D2MAP_REGRAS[x.base]; }).map(function(x){
+      return { id:x.id, base:x.base, titulo:String(x.titulo||""), fonte:String(x.fonte||""), cams:Array.isArray(x.cams)?x.cams.slice():[], foco:x.foco==="area"?"area":"desap", est:(x.est&&typeof x.est==="object")?JSON.parse(JSON.stringify(x.est)):{} };
+    });
+    d2fxSlots();
     renderAll(); D2DOC_renderSeVisivel();
     // imagem salva num formato que o navegador não exibe (ex.: TIFF): converte para JPEG agora
     D2DOC.imgs.forEach(function(x){
@@ -43545,7 +43774,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
   /* ---- montagem ---- */
   function ddBtn(act,txt,title,extra){ return '<button type="button" class="dd-b" data-act="'+act+'"'+(title?' title="'+esc(title)+'"':'')+(extra||'')+'>'+txt+'</button>'; }
   function docFigHtml(fid){
-    var m=figMeta(fid), has=!!figs[fid], auto=D2PLANTAS_FIDS.indexOf(fid)>=0;
+    var m=figMeta(fid), has=!!figs[fid], auto=d2plantasFids().indexOf(fid)>=0;
     if(figOculta(fid)) return '';
     return '<figure class="dd-fig'+(has?'':' falta')+'" data-fid="'+fid+'">'
       +(has?'<img src="'+figs[fid]+'" alt="'+esc(m[0])+'">':'<div class="dd-fig-vazio">Sem imagem — esta figura não sai no relatório</div>')
@@ -43675,7 +43904,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     if(id==="ressalvas_t_cnicas_e_observa") corpo=docCorpoEspecial(tp)+docImgsHtml(id);
     else {
       corpo=docEditor('data-id="'+id+'"',textoImpresso(tp));
-      (tp.figs||[]).forEach(function(fid){ corpo+=docFigHtml(fid); });
+      D2_figsDoTopico(tp).forEach(function(fid){ corpo+=docFigHtml(fid); });
       corpo+=docImgsHtml(id);
       corpo+=docCorpoEspecial(tp);
     }
@@ -43795,7 +44024,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       var cap=e.target.closest(".dd-cap");
       if(cap && cap.hasAttribute("data-imgcap")){ var xi=docImg(cap.getAttribute("data-img")); if(xi){ xi[cap.getAttribute("data-imgcap")]=cap.textContent.replace(/\s+/g," ").trim(); } return; }
       if(cap && cap.hasAttribute("data-foto")){ window.D2_setFotoLegendaRel(+cap.getAttribute("data-foto"), cap.textContent.trim()); return; }
-      if(cap){ var fid=cap.getAttribute("data-fid"), fig=cap.closest(".dd-fig"), m=FIG_META[fid]||[fid,""];
+      if(cap){ var fid=cap.getAttribute("data-fid"), fig=cap.closest(".dd-fig"), m=d2metaBase(fid);
         var t=fig.querySelector('[data-cap="t"]').textContent.trim(), f=fig.querySelector('[data-cap="f"]').textContent.trim();
         if(t===m[0] && f===m[1]) delete D2DOC.caps[fid]; else D2DOC.caps[fid]={t:(t===m[0]?"":t), f:(f===m[1]?"":f)};
       }
