@@ -22005,7 +22005,7 @@ function AV_gerarDescSituacao(){
     }
 
     corpo.innerHTML = itens.map(function(it){
-      return '<tr data-ctd="' + esc(it.ctd) + '" data-secao="' + esc(it.secao) + '" onclick="PG_abrir(' + "'" + esc(it.ctd) + "'" + ',' + "'" + esc(it.secao) + "'" + ')"'
+      return '<tr data-ctd="' + esc(it.ctd) + '" data-secao="' + esc(it.secao) + '" onclick="PG_abrir(' + "'" + esc(it.ctd) + "'" + ',' + "'" + esc(it.secao) + "'" + ',1)" ondblclick="PG_abrir(' + "'" + esc(it.ctd) + "'" + ',' + "'" + esc(it.secao) + "'" + ',2)"'
         + ' oncontextmenu="return PG_menuContexto(event,' + "'" + esc(it.ctd) + "'" + ',' + "'" + esc(it.secao) + "'" + ')">'
         + PG_medicaoCelHTML(it)
         + PG_despCelHTML(it, 'd1') + PG_despCelHTML(it, 'd2') + PG_despCelHTML(it, 'd3')
@@ -22376,8 +22376,10 @@ function AV_gerarDescSituacao(){
     if(window.CAD_abrirNuvem) window.CAD_abrirNuvem(ctd, secao);
   };
   // com o Mapa Geral aberto, clicar na linha NÃO abre o cadastro: destaca-o no mapa
-  window.PG_abrir = function(ctd, secao){
-    if(window.PG_mapaAberto && window.PG_mapaAberto() && window.PG_mapaSelecionar){ window.PG_mapaSelecionar(ctd, secao); return; }
+  // 15/10/2026: o cadastro abre com DOIS cliques (1 clique deixa selecionar/copiar o texto das células); clique simples só destaca no mapa
+  window.PG_abrir = function(ctd, secao, cliques){
+    if(window.PG_mapaAberto && window.PG_mapaAberto() && window.PG_mapaSelecionar){ if(cliques !== 2) window.PG_mapaSelecionar(ctd, secao); return; }
+    if(cliques === 1) return;
     window.PG_abrirCadastro(ctd, secao);
   };
 
