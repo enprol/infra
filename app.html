@@ -40462,7 +40462,10 @@ window.DRL_gerarPDF=async function(opts){
     var sat = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
       { maxNativeZoom:18, maxZoom:21, attribution:"Imagens © Esri, Maxar, Earthstar Geographics" });
     var osm = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom:19, attribution:"© OpenStreetMap" });
+    el.innerHTML = "";                         // 15/10/2026: tira o "Carregando o mapa…" antes de o Leaflet medir o contêiner (o texto ficava por cima e o mapa nascia com tamanho errado)
     LMAP = L.map(el, { layers:[sat], scrollWheelZoom:false });
+    LMAP.invalidateSize(false);
+    try{ if(window.ResizeObserver){ var _ro = new ResizeObserver(function(){ if(LMAP && LMAP.getContainer() === el) LMAP.invalidateSize(false); }); _ro.observe(el); LMAP.on("unload", function(){ _ro.disconnect(); }); } }catch(e){}
     L.control.layers({ "Satélite":sat, "Mapa de ruas":osm }, null, { collapsed:true }).addTo(LMAP);
     L.control.scale({ imperial:false }).addTo(LMAP);
     LMAP.on("focus click", function(){ LMAP.scrollWheelZoom.enable(); });
@@ -40490,7 +40493,8 @@ window.DRL_gerarPDF=async function(opts){
     if(lim.length) LMAP.fitBounds(lim, { padding:[40, 40], maxZoom:18 });
     else if(f.gps && isFinite(f.gps.lat)) LMAP.setView([f.gps.lat, f.gps.lon], 14);
     else LMAP.setView([-8.5, -36.5], 7);
-    setTimeout(function(){ if(LMAP) LMAP.invalidateSize(); }, 150);
+    var _m = LMAP;
+    [150, 600, 1500].forEach(function(t){ setTimeout(function(){ if(LMAP === _m){ LMAP.invalidateSize(false); if(lim.length) LMAP.fitBounds(lim, { padding:[40, 40], maxZoom:18, animate:false }); } }, t); });
     var lg = _("cm_legenda");
     if(lg) lg.innerHTML = legendaGalerias(f).map(function(x){ return '<span><i style="background:' + x.cor + '"></i>' + esc(x.t) + '</span>'; }).join("")
       + (R.mapa.ficha && f.gps ? '<span><i class="ficha"></i>Ponto da ficha (GPS do app)</span>' : "")
@@ -48987,7 +48991,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.15-4';
+window.APP_VERSAO = '2026.10.15-5';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.15-3';
 (function(){
