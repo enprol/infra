@@ -37207,8 +37207,9 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     var J=(window.jspdf&&window.jspdf.jsPDF)?window.jspdf.jsPDF:window.jsPDF;
     var pdf=new J({orientation:"portrait",unit:"mm",format:"a4",compress:true});   // 16/10/2026: compactado (o PDF final não pode ficar grande)
     // 16/10/2026: partes escolhidas na janela "Baixar Parecer" (opts.sel); sem ela, a última escolha desta máquina
-    var _sel=(opts&&opts.sel)||selSalva();
-    function incl(id){ return _sel.partes[id]!==false; }
+    // sem opts.sel (pré-visualização, material técnico) o parecer sai sempre; só a escolha dos anexos é lembrada
+    var _sel=(opts&&opts.sel)||{ semParecer:false, semAnexos:selSalva().semAnexos };
+    function incl(id){ return !_sel.semParecer; }
     var FONT="helvetica";
     try{ var CF=window.__CARLITO__; if(CF){
       pdf.addFileToVFS("Carlito-n.ttf",CF.normal); pdf.addFont("Carlito-n.ttf","Carlito","normal");
@@ -37537,8 +37538,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     yc=0; cab(); yc=topY;
     pdf.setFont(FONT,"bold"); pdf.setFontSize(15); pdf.setTextColor(20,40,70);
     var titLs=pdf.splitTextToSize("PARECER PARA REGULARIZAÇÃO FUNDIÁRIA E DOCUMENTAL", cw);
-    titLs.forEach(function(l){ ensure(8); pdf.text(l, W/2, yc, {align:"center"}); yc+=7; });
-    yc+=4;
+    if(!_sel.semParecer){ titLs.forEach(function(l){ ensure(8); pdf.text(l, W/2, yc, {align:"center"}); yc+=7; }); yc+=4; }
 
     EST.topicos.forEach(function(tp){
       if(tp.oculto) return;                       // "Ocultar" no modo Conteúdo: fora do PDF
@@ -37573,7 +37573,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     var ANX_INS=[];   // { depoisDe: nº de páginas do jsPDF quando o PDF entra, bytes, item, nome, pg0 }
     async function anexosChecklist(){
       var itens=[];
-      CHECKLIST_TABS.forEach(function(tab,n){ (tabelasPAR[n]||[]).forEach(function(lin,i){ if(_sel.anexos[n]!==false && lin.docs&&lin.docs.length) itens.push({ n:n, num:numItem(n,i), crit:lin.crit, docs:lin.docs }); }); });
+      CHECKLIST_TABS.forEach(function(tab,n){ (tabelasPAR[n]||[]).forEach(function(lin,i){ if(lin.docs&&lin.docs.length) itens.push({ n:n, num:numItem(n,i), crit:lin.crit, docs:lin.docs }); }); });
       if(!itens.length) return;
       // páginas de cada documento (PDF: lê o arquivo; imagem: 1; PDF ilegível: 1 folha de aviso)
       for(var a=0;a<itens.length;a++){
@@ -37708,7 +37708,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
         } else y+=F(7);
         return modo==="medir" ? y : pags;
       }
-      rod(); nova();
+      if(!(_sel.semParecer && PG===1 && yc<=topY)){ rod(); nova(); }   // só a Parte II: a folha de rosto usa a 1ª página
       // escolhe o maior tamanho que cabe na 1ª página: um documento por linha (até 70 %); se não couber, documentos corridos (até 50 %)
       // ordem: quadro normal + um documento por linha (até 70 %) → quadro compacto + um por linha → quadro compacto + corridos (até KMIN)
       var kF=1, corr=false;
@@ -37791,22 +37791,12 @@ window.UFOTO_rodapeHTML=rodapeHTML;
   var SEL_KEY="par_pdf_sel";
   function selSalva(){
     var s=null; try{ s=JSON.parse(localStorage.getItem(SEL_KEY)||"null"); }catch(e){}
-    if(!s||typeof s!=="object"){ s={ partes:{}, anexos:{} }; if(!window.PAR_anexosNoPdf()) s.semAnexos=true; }
-    s.partes=s.partes||{}; s.anexos=s.anexos||{};
-    return s;
+    if(!s||typeof s!=="object"){ s={}; if(!window.PAR_anexosNoPdf()) s.semAnexos=true; }
+    return { semParecer:!!s.semParecer, semAnexos:!!s.semAnexos };
   }
   function selGravar(s){ try{ localStorage.setItem(SEL_KEY, JSON.stringify(s)); localStorage.setItem(ANX_PDF_KEY, s.semAnexos?"0":"1"); }catch(e){} }
   window.PAR_selPdf=selSalva;
   function docsDaAba(n){ var k=0; (tabelasPAR[n]||[]).forEach(function(l){ k+=(l.docs||[]).length; }); return k; }
-  function arvoreTopicos(){
-    var tps=((window.PARDOC_estado?window.PARDOC_estado():{topicos:[]}).topicos||[]).filter(function(t){ return !t.oculto; }), arv=[];
-    tps.forEach(function(t){
-      var rot=(t.num?t.num+" – ":"")+(t.head||t.id);
-      if(t.lv===1 || !arv.length) arv.push({ id:t.id, rot:rot, filhos:[] });
-      else arv[arv.length-1].filhos.push({ id:t.id, rot:rot });
-    });
-    return arv;
-  }
   var dl={ sel:null, gerando:false };
   function dlEl(id){ return document.getElementById(id); }
   function dlCriar(){
@@ -37828,58 +37818,29 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     dlEl("par_dl_cancelar").addEventListener("click", dlFechar);
     dlEl("par_dl_ver").addEventListener("click", function(){ dlGerar(true); });
     dlEl("par_dl_ir").addEventListener("click", function(){ dlGerar(false); });
-    ov.addEventListener("change", function(ev){
-      var c=ev.target; if(!c||!c.dataset) return;
-      if(c.dataset.p){
-        dl.sel.partes[c.dataset.p]=c.checked;
-        if(c.dataset.pai===undefined){ Array.prototype.forEach.call(ov.querySelectorAll('input[data-pai="'+c.dataset.p+'"]'), function(f){ f.checked=c.checked; dl.sel.partes[f.dataset.p]=c.checked; }); }
-        else if(c.checked){ var pai=ov.querySelector('input[data-p="'+c.dataset.pai+'"]'); if(pai && !pai.checked){ pai.checked=true; dl.sel.partes[c.dataset.pai]=true; } }
-      }
-      if(c.dataset.a!==undefined){ dl.sel.anexos[c.dataset.a]=c.checked; }
-      dlSemAnexos(); selGravar(dl.sel); dlResumo();
-    });
-    ov.addEventListener("click", function(ev){
-      var b=ev.target.closest&&ev.target.closest("[data-todos]"); if(!b||dl.gerando) return;
-      var cs=ov.querySelectorAll('section[data-g="'+b.getAttribute("data-todos")+'"] input:not(:disabled)');
-      var algum=Array.prototype.some.call(cs, function(c){ return !c.checked; });
-      Array.prototype.forEach.call(cs, function(c){ c.checked=algum; if(c.dataset.p) dl.sel.partes[c.dataset.p]=algum; if(c.dataset.a!==undefined) dl.sel.anexos[c.dataset.a]=algum; });
-      dlSemAnexos(); selGravar(dl.sel); dlResumo();
+    ov.addEventListener("change", function(){
+      var p1=dlEl("par_dl_p1"), p2=dlEl("par_dl_p2");
+      if(p1) dl.sel.semParecer=!p1.checked;
+      if(p2 && !p2.disabled) dl.sel.semAnexos=!p2.checked;
+      selGravar(dl.sel); dlResumo();
     });
     document.addEventListener("keydown", function(ev){ if(ev.key==="Escape" && !ov.hidden){ ev.stopPropagation(); dlFechar(); } }, true);
   }
-  // "sem anexos" = nenhum tópico com documento marcado (é o que a caixa antiga "Incluir anexos" guardava)
-  function dlSemAnexos(){
-    var ov=dlEl("par_dl_ov");
-    if(ov.querySelectorAll("input[data-a]:not(:disabled)").length) dl.sel.semAnexos=!ov.querySelectorAll("input[data-a]:checked:not(:disabled)").length;
-    if(dl.sel.semAnexos===false) delete dl.sel.semAnexos;
-    if(dl.sel.semAnexos) Array.prototype.forEach.call(ov.querySelectorAll("input[data-a]"), function(c){ dl.sel.anexos[c.dataset.a]=false; });
-  }
-  function dlItem(attr, rot, on, sub, off){
-    return '<label class="mtec-item'+(sub?" sub":"")+(off?" off":"")+'"><input type="checkbox" '+attr+(on&&!off?" checked":"")+(off?" disabled":"")+'>'+
-      '<span class="t">'+esc(rot)+(off?'<small>'+esc(off)+'</small>':"")+'</span><span></span></label>';
-  }
+  // 16/10/2026: só duas escolhas — Parte I (o parecer inteiro) e Parte II (todos os anexos do check list)
+  function totalDocs(){ var k=0; CHECKLIST_TABS.forEach(function(t,n){ k+=docsDaAba(n); }); return k; }
   function dlMontar(){
-    var s=dl.sel, h='<section class="mtec-parte" data-num="I" data-g="1"><header><span class="rot">Parte I</span><h3>Parecer</h3><button type="button" class="todos" data-todos="1">Marcar/desmarcar</button></header>';
-    arvoreTopicos().forEach(function(t){
-      h+=dlItem('data-p="'+esc(t.id)+'"', t.rot, s.partes[t.id]!==false, false, "");
-      t.filhos.forEach(function(f){ h+=dlItem('data-p="'+esc(f.id)+'" data-pai="'+esc(t.id)+'"', f.rot, s.partes[f.id]!==false, true, ""); });
-    });
-    h+='</section><section class="mtec-parte" data-num="II" data-g="2"><header><span class="rot">Parte II</span><h3>Anexos – Checklist Documental</h3><button type="button" class="todos" data-todos="2">Marcar/desmarcar</button></header>';
-    h+='<p class="par-dl-nota">Abre com uma folha de rosto: os tópicos, os itens e o nome de cada documento anexado, com a página.</p>';
-    CHECKLIST_TABS.forEach(function(tab,n){
-      var k=docsDaAba(n);
-      h+=dlItem('data-a="'+n+'"', tab.titulo+(k?"  ("+k+" documento"+(k>1?"s":"")+")":""), !s.semAnexos && s.anexos[n]!==false, false, k?"":"sem documentos anexados");
-    });
-    h+='</section>';
+    var s=dl.sel, nd=totalDocs();
+    var h='<section class="mtec-parte" data-num="I"><header><span class="rot">Parte I</span><h3>Parecer</h3></header>'+
+      '<label class="mtec-item"><input type="checkbox" id="par_dl_p1"'+(s.semParecer?"":" checked")+'><span class="t">Parecer para Regularização Fundiária e Documental<small>o documento inteiro: identificação, relatório, fundamentação, análise, conclusão e assinatura</small></span><span></span></label></section>'+
+      '<section class="mtec-parte" data-num="II"><header><span class="rot">Parte II</span><h3>Anexos – Checklist Documental</h3></header>'+
+      '<label class="mtec-item'+(nd?"":" off")+'"><input type="checkbox" id="par_dl_p2"'+(nd&&!s.semAnexos?" checked":"")+(nd?"":" disabled")+'><span class="t">Folha de rosto e documentos anexados<small>'+(nd?(nd+" documento"+(nd>1?"s":"")+" anexado"+(nd>1?"s":"")+" aos itens do check list"):"nenhum documento anexado ao check list")+'</small></span><span></span></label></section>';
     dlEl("par_dl_corpo").innerHTML=h;
     dlResumo();
   }
   function dlResumo(){
-    var ov=dlEl("par_dl_ov");
-    var np=ov.querySelectorAll("input[data-p]:checked").length, ca=ov.querySelectorAll("input[data-a]:checked:not(:disabled)"), nd=0;
-    Array.prototype.forEach.call(ca, function(c){ nd+=docsDaAba(+c.dataset.a); });
-    dlEl("par_dl_resumo").innerHTML=(np||ca.length) ? ("<b>"+np+"</b> parte(s) do parecer"+(ca.length?" · anexos de <b>"+ca.length+"</b> tópico(s), "+nd+" documento(s)":" · sem anexos")) : "Marque ao menos uma parte.";
-    dlEl("par_dl_ir").disabled=dlEl("par_dl_ver").disabled=!(np||ca.length)||dl.gerando;
+    var p1=dlEl("par_dl_p1"), p2=dlEl("par_dl_p2"), a=p1&&p1.checked, b=p2&&p2.checked&&!p2.disabled;
+    dlEl("par_dl_resumo").innerHTML=(a||b) ? (a&&b ? "<b>Parte I e Parte II</b> — parecer com os anexos" : a ? "<b>Somente Parte I</b> — parecer sem os anexos" : "<b>Somente Parte II</b> — folha de rosto e documentos anexados") : "Marque ao menos uma parte.";
+    dlEl("par_dl_ir").disabled=dlEl("par_dl_ver").disabled=!(a||b)||dl.gerando;
   }
   function dlFechar(){ if(dl.gerando) return; var ov=dlEl("par_dl_ov"); if(ov) ov.hidden=true; document.body.classList.remove("modal-aberto"); }
   window.PAR_abrirDownload=function(){
@@ -49713,7 +49674,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.16-5';
+window.APP_VERSAO = '2026.10.16-6';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.15-19';
 (function(){
