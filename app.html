@@ -23737,10 +23737,14 @@ function AV_gerarDescSituacao(){
           if(!lim.contains([lat, lon])) return;
           var p = m.latLngToContainerPoint([lat, lon]);
           var a = ((t[4] % 360) + 360) % 360; if(a > 90 && a <= 270) a -= 180;       // nunca de cabeça para baixo
-          if(estaca && K && ch != null && K[Math.round(ch)]){
-            p = m.latLngToContainerPoint(K[Math.round(ch)]);                          // centrado NO eixo, girado como o eixo
-          }
           var px = estaca ? (z >= 18 ? 13 : 12) : (z >= 16 ? 12 : 11);
+          if(estaca && K && ch != null && K[Math.round(ch)]){
+            // 15/10/2026: o número fica logo ACIMA do traço de 100 m (antes ficava em cima do eixo, cobrindo a linha):
+            // parte do ponto da estaca NO eixo e se afasta, perpendicular ao eixo, para o lado em que o projeto o escreveu
+            var s = m.latLngToContainerPoint(K[Math.round(ch)]), dx = p.x - s.x, dy = p.y - s.y, dd = Math.hypot(dx, dy);
+            var afast = 7.5 + px * 0.85;                                               // meia altura do traço de 100 m + meia altura do texto
+            p = dd > 0.5 ? L.point(s.x + dx / dd * afast, s.y + dy / dd * afast) : s;
+          }
           ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(-a * Math.PI / 180);
           ctx.font = (estaca ? '700 ' : '700 ') + px + 'px system-ui,Segoe UI,Arial,sans-serif';
           var linhas = String(t[2]).split(/\r?\n/), h = px * 1.15, y0 = -(linhas.length - 1) * h / 2;
@@ -49432,7 +49436,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.15-19';
+window.APP_VERSAO = '2026.10.15-20';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.15-19';
 (function(){
