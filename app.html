@@ -6601,6 +6601,7 @@ body.pgx-conforto .pg-tabela tbody td{ padding-top:11px; padding-bottom:11px; }
       <button class="sb-link" data-setor="tecnica" data-alvo="panel-desp1-tecnica" onclick="trocarAba(this); BNF_moverParaTecnica(); if(window.D2PLANTAS_moverParaTecnica) D2PLANTAS_moverParaTecnica(); if(window.GEO_moverParaTecnica) GEO_moverParaTecnica();">Técnica</button>
       <button class="sb-link" data-setor="tecnica" data-alvo="panel-desp1-planta" onclick="trocarAba(this); if(window.MDP_render) MDP_render();">Planta e Memorial Descritivo</button>
       <button class="sb-link" data-setor="juridico" data-alvo="panel-desp1-parecer" onclick="trocarAba(this)">Parecer para Regularização Fundiária e Documental</button>
+      <button class="sb-link" data-setor="juridico" data-alvo="panel-desp1-checklist" onclick="trocarAba(this)">Checklist Documental do Expropriado</button>
     </div>
     <div class="sb-sub-grupo" data-grupo="desp2" style="display:none;">
       <div class="sb-grp">Documentação</div>
@@ -10172,6 +10173,98 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
     #panel-desp1-parecer table.par-grid .c-docs{width:23%; min-width:0;}
     #panel-desp1-parecer .par-doc-ver{white-space:normal; word-break:break-word; text-align:left;}
     #panel-desp1-parecer .par-doc-x{padding:4px 6px; font-size:13px;}
+    /* 16/10/2026: Jurídico › Checklist Documental */
+    #panel-desp1-checklist{
+      --azul:#1F6FC0; --azul-esc:#175a9f; --navy:#1B3A5C; --borda:#d3dbe4; --borda-forte:#b3bfcc; --texto:#243447;
+      --bg:#eef2f6; --card:#fff; --label:#5a6b7c; --ok:#2B8A57; --ok-bg:#E6F3EC; --err:#AE3F38; --err-bg:#FBECEA; --na:#6B7785; --na-bg:#EEF1F4;
+      font-family:"Segoe UI", Arial, Helvetica, sans-serif; background:var(--bg); color:var(--texto); padding:26px 20px 80px;
+    }
+    #panel-desp1-checklist *{box-sizing:border-box;}
+    #panel-desp1-checklist .wrap{max-width:1480px; margin:0 auto;}
+    #panel-desp1-checklist .ckd-topo{display:flex; gap:18px; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; margin-bottom:14px;}
+    #panel-desp1-checklist h1{font-size:23px; margin:0 0 4px; color:var(--azul-esc); letter-spacing:.3px;}
+    #panel-desp1-checklist .sub{font-size:13.5px; color:var(--label); margin:0; max-width:760px; line-height:1.5;}
+    #panel-desp1-checklist .ckd-acoes{display:flex; gap:8px;}
+    #panel-desp1-checklist .ckd-btn{border:1px solid var(--borda-forte); background:#fff; color:var(--navy); border-radius:9px; padding:9px 15px; font-weight:600; font-size:13px; font-family:inherit; cursor:pointer;}
+    #panel-desp1-checklist .ckd-btn:hover{border-color:var(--azul);}
+    #panel-desp1-checklist .ckd-btn.pri{background:var(--navy); border-color:var(--navy); color:#fff;}
+    #panel-desp1-checklist .ckd-btn.pri:hover{background:#264B72;}
+    /* painel de situação */
+    #panel-desp1-checklist .ckd-resumo{display:flex; align-items:center; gap:22px; flex-wrap:wrap; background:var(--card); border:1px solid var(--borda); border-radius:14px; padding:14px 20px; box-shadow:0 1px 2px rgba(16,40,70,.05); margin-bottom:12px;}
+    #panel-desp1-checklist .ckd-anel{position:relative; width:64px; height:64px; flex:none;}
+    #panel-desp1-checklist .ckd-anel svg{width:64px; height:64px; transform:rotate(-90deg);}
+    #panel-desp1-checklist .ckd-anel circle{fill:none; stroke-width:7;}
+    #panel-desp1-checklist .ckd-anel .trilho{stroke:#E3E9F0;}
+    #panel-desp1-checklist .ckd-anel .valor{stroke:var(--ok); stroke-linecap:round; transition:stroke-dashoffset .4s ease;}
+    #panel-desp1-checklist .ckd-anel b{position:absolute; inset:0; display:grid; place-items:center; font-size:14px; color:var(--navy);}
+    #panel-desp1-checklist .ckd-num b{font-size:24px; color:var(--navy);}
+    #panel-desp1-checklist .ckd-num, #panel-desp1-checklist .ckd-kpi{font-size:13px; color:var(--label); line-height:1.15;}
+    #panel-desp1-checklist .ckd-num small, #panel-desp1-checklist .ckd-kpi small{display:block; font-size:11.5px; margin-top:3px;}
+    #panel-desp1-checklist .ckd-kpi{padding-left:18px; border-left:1px solid var(--borda);}
+    #panel-desp1-checklist .ckd-kpi b{font-size:20px;}
+    #panel-desp1-checklist .ckd-kpi.sim b{color:var(--ok);} #panel-desp1-checklist .ckd-kpi.nao b{color:var(--err);}
+    #panel-desp1-checklist .ckd-kpi.na b{color:var(--na);} #panel-desp1-checklist .ckd-kpi.doc b{color:var(--azul);}
+    /* filtros e busca */
+    #panel-desp1-checklist .ckd-filtros{display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin:0 0 14px;}
+    #panel-desp1-checklist .ckd-filtros button{border:1px solid var(--borda); background:#fff; color:var(--texto); border-radius:999px; padding:6px 13px; font-weight:600; font-size:12.5px; font-family:inherit; cursor:pointer;}
+    #panel-desp1-checklist .ckd-filtros button.on{background:var(--navy); border-color:var(--navy); color:#fff;}
+    #panel-desp1-checklist .ckd-filtros input{margin-left:auto; min-width:280px; border:1px solid var(--borda-forte); border-radius:9px; padding:8px 12px; font-size:13px; font-family:inherit;}
+    #panel-desp1-checklist .ckd-filtros input:focus{outline:none; border-color:var(--azul); box-shadow:0 0 0 3px rgba(31,111,192,.12);}
+    /* tópicos */
+    #panel-desp1-checklist .ckd-topico{background:var(--card); border:1px solid var(--borda); border-radius:14px; margin-bottom:12px; overflow:hidden; box-shadow:0 1px 2px rgba(16,40,70,.05);}
+    #panel-desp1-checklist .ckd-top-cab{width:100%; display:grid; grid-template-columns:18px 1fr auto 140px; gap:12px; align-items:center; border:0; background:#F2F6FB; padding:12px 16px; cursor:pointer; text-align:left; font-family:inherit; border-bottom:1px solid var(--borda);}
+    #panel-desp1-checklist .ckd-top-cab .seta{color:var(--azul); transition:transform .2s;}
+    #panel-desp1-checklist .ckd-topico.fechado .seta{transform:rotate(-90deg);}
+    #panel-desp1-checklist .ckd-topico.fechado .ckd-top-cab{border-bottom:0;}
+    #panel-desp1-checklist .ckd-topico.fechado .ckd-corpo{display:none;}
+    #panel-desp1-checklist .ckd-top-cab .tit{font-weight:700; font-size:14px; color:var(--navy);}
+    #panel-desp1-checklist .ckd-top-cab .meta{font-size:12px; color:var(--label); white-space:nowrap;}
+    #panel-desp1-checklist .ckd-top-cab .meta em{font-style:normal; color:var(--err); font-weight:700;}
+    #panel-desp1-checklist .ckd-top-cab .barra{height:6px; border-radius:6px; background:#E3E9F0; overflow:hidden;}
+    #panel-desp1-checklist .ckd-top-cab .barra i{display:block; height:100%; background:var(--ok); border-radius:6px;}
+    /* itens: nº | item + resposta + observação | documentos */
+    #panel-desp1-checklist .ckd-item{display:grid; grid-template-columns:54px minmax(0,1.15fr) minmax(0,1fr); gap:0; border-top:1px solid #E6EBF1; border-left:4px solid transparent;}
+    #panel-desp1-checklist .ckd-item:first-child{border-top:0;}
+    #panel-desp1-checklist .ckd-item.r-sim{border-left-color:var(--ok);} #panel-desp1-checklist .ckd-item.r-nao{border-left-color:var(--err);} #panel-desp1-checklist .ckd-item.r-na{border-left-color:#B7C0CA;}
+    #panel-desp1-checklist .ckd-num-it{padding:14px 0 0; text-align:center; font-weight:700; font-size:13px; color:var(--azul-esc);}
+    #panel-desp1-checklist .ckd-crit{padding:12px 16px 12px 4px; display:flex; flex-direction:column; gap:8px;}
+    #panel-desp1-checklist .ckd-crit .t{font-size:13.5px; line-height:1.45; text-align:justify;}
+    #panel-desp1-checklist .ckd-resp{display:inline-flex; gap:6px; flex-wrap:wrap;}
+    #panel-desp1-checklist .ckd-resp button{border:1px solid var(--borda-forte); background:#fff; color:var(--texto); border-radius:8px; padding:5px 12px; font-weight:600; font-size:12px; font-family:inherit; cursor:pointer;}
+    #panel-desp1-checklist .ckd-resp button:hover{border-color:var(--azul);}
+    #panel-desp1-checklist .ckd-resp button.sim.on{background:var(--ok-bg); border-color:var(--ok); color:var(--ok);}
+    #panel-desp1-checklist .ckd-resp button.nao.on{background:var(--err-bg); border-color:var(--err); color:var(--err);}
+    #panel-desp1-checklist .ckd-resp button.na.on{background:var(--na-bg); border-color:var(--na); color:var(--na);}
+    #panel-desp1-checklist .ckd-crit textarea{width:100%; border:1px solid var(--borda); border-radius:8px; padding:7px 10px; font-size:12.5px; line-height:1.45; font-family:inherit; resize:vertical; background:#FBFCFE;}
+    #panel-desp1-checklist .ckd-crit textarea:focus{outline:none; border-color:var(--azul); background:#fff; box-shadow:0 0 0 3px rgba(31,111,192,.12);}
+    #panel-desp1-checklist .ckd-docs{padding:12px 16px; border-left:1px solid #E6EBF1; display:flex; flex-direction:column; gap:6px; transition:background .15s;}
+    #panel-desp1-checklist .ckd-docs.over{background:#EAF3FC; outline:2px dashed var(--azul); outline-offset:-6px;}
+    #panel-desp1-checklist .ckd-doc{display:flex; align-items:center; gap:8px; border:1px solid var(--borda); border-radius:8px; padding:5px 6px 5px 8px; background:#F7F9FC;}
+    #panel-desp1-checklist .ckd-doc .tp{flex:none; font-weight:700; font-size:10px; line-height:1; font-family:inherit; padding:4px 5px; border-radius:4px; color:#fff;}
+    #panel-desp1-checklist .ckd-doc .tp.pdf{background:var(--err);} #panel-desp1-checklist .ckd-doc .tp.img{background:var(--azul);}
+    #panel-desp1-checklist .ckd-doc .nm{flex:1; min-width:0; border:0; background:none; text-align:left; cursor:pointer; font-size:12.5px; line-height:1.3; font-family:inherit; color:var(--navy); overflow-wrap:anywhere;}
+    #panel-desp1-checklist .ckd-doc .nm:hover{text-decoration:underline;}
+    #panel-desp1-checklist .ckd-doc .nm small{display:block; color:var(--label); font-size:11px;}
+    #panel-desp1-checklist .ckd-doc .rm{flex:none; border:1px solid #d9a3a3; background:#fdf1f1; color:var(--err); border-radius:6px; padding:3px 6px; cursor:pointer; font-size:13px;}
+    #panel-desp1-checklist .ckd-doc .rm:hover{background:#f8d9d9; border-color:var(--err);}
+    #panel-desp1-checklist .ckd-add{display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; border:1.5px dashed var(--borda-forte); border-radius:9px; padding:9px; font-size:12.5px; color:var(--azul); cursor:pointer; text-align:center;}
+    #panel-desp1-checklist .ckd-add small{color:var(--label); font-size:11px;}
+    #panel-desp1-checklist .ckd-add:hover{border-color:var(--azul); background:#F3F8FE;}
+    #panel-desp1-checklist .ckd-add input{display:none;}
+    #panel-desp1-checklist .ckd-vazio{background:#fff; border:1px dashed var(--borda-forte); border-radius:12px; padding:30px; text-align:center; color:var(--label);}
+    @media (max-width:900px){
+      #panel-desp1-checklist .ckd-item{grid-template-columns:44px 1fr;}
+      #panel-desp1-checklist .ckd-docs{grid-column:2; border-left:0; padding-top:0;}
+      #panel-desp1-checklist .ckd-top-cab{grid-template-columns:18px 1fr; }
+      #panel-desp1-checklist .ckd-top-cab .barra{grid-column:2;}
+      #panel-desp1-checklist .ckd-filtros input{margin-left:0; min-width:0; width:100%;}
+    }
+    /* quadro do Parecer: espelho (só leitura) */
+    #panel-desp1-parecer .par-espelho{display:flex; align-items:center; gap:12px; flex-wrap:wrap; background:#EAF3FC; border:1px solid #BCD6F0; border-radius:10px; padding:10px 14px; margin:4px 0 12px; font-size:13px; color:#175a9f;}
+    #panel-desp1-parecer .par-espelho button{margin-left:auto; border:0; background:#1B3A5C; color:#fff; border-radius:8px; padding:7px 13px; font-weight:600; font-size:12.5px; cursor:pointer;}
+    #panel-desp1-parecer .par-mk-ro{display:inline-block; min-width:20px; font-weight:800; color:#1B3A5C;}
+    #panel-desp1-parecer .par-mk-ro.nao{color:#AE3F38;}
+    #panel-desp1-parecer .par-obs-ro{font-size:12px; line-height:1.4; color:#243447; white-space:pre-wrap;}
 </style>
   <style>
   /* =====================================================================
@@ -10491,6 +10584,33 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
   </div>
 </section>
 
+
+
+<!-- 16/10/2026: Jurídico › Checklist Documental — onde o check list é preenchido (o Parecer só espelha) -->
+<section class="tab-panel" id="panel-desp1-checklist">
+  <div class="wrap">
+    <div class="ckd-topo">
+      <div>
+        <h1>Checklist Documental do Expropriado</h1>
+        <p class="sub">Responda cada item, anote o que for preciso e anexe os documentos. O quadro do <b>Parecer</b> espelha o que está aqui, e os anexos saem no PDF do Parecer (Parte II).</p>
+      </div>
+      <div class="ckd-acoes">
+        <button type="button" class="ckd-btn" onclick="(function(){var l=document.querySelector('.sb-link[data-alvo=&quot;panel-desp1-parecer&quot;]'); if(l) trocarAba(l);})()">Ir para o Parecer</button>
+        <button type="button" class="ckd-btn pri" onclick="if(window.PAR_abrirDownload) PAR_abrirDownload()">Baixar PDF…</button>
+      </div>
+    </div>
+    <div class="ckd-resumo" id="ckd_resumo" aria-live="polite"></div>
+    <div class="ckd-filtros" role="toolbar" aria-label="Filtrar itens">
+      <button type="button" class="on" aria-pressed="true" data-filtro="todos">Todos</button>
+      <button type="button" aria-pressed="false" data-filtro="semresp">Sem resposta</button>
+      <button type="button" aria-pressed="false" data-filtro="nao">Não (pendências)</button>
+      <button type="button" aria-pressed="false" data-filtro="comdocs">Com documentos</button>
+      <button type="button" aria-pressed="false" data-filtro="semdocs">Sem documentos</button>
+      <input type="search" id="ckd_busca" placeholder="Buscar item, observação ou documento…" aria-label="Buscar no check list">
+    </div>
+    <div id="ckd_lista"></div>
+  </div>
+</section>
 
 
 <!--MCM:INI-->
@@ -36718,35 +36838,36 @@ window.UFOTO_rodapeHTML=rodapeHTML;
       if(!tabelasPAR[n]) tabelasPAR[n]=tab.itens.map(function(c){ return {crit:c, resp:"", obs:""}; });
     });
   }
+  // 16/10/2026: o quadro do Parecer é ESPELHO (só leitura) da aba Jurídico › Checklist Documental, onde se preenche.
+  // Todo desenho do check list passa por aqui e redesenha as duas telas.
   function renderChecklist(){
-    var host=document.getElementById("par_checklist"); if(!host) return;
-    var cols=["Sim","Não","Não Aplicável"];
-    var h="";
-    CHECKLIST_TABS.forEach(function(tab,n){
-      var titId="par_ck_tit_"+n;
-      h+='<h4 id="'+titId+'" class="par-ck-titulo">'+esc(tab.titulo)+'</h4>';
-      h+='<div class="par-grid-wrap"><table class="par-grid" aria-labelledby="'+titId+'"><thead><tr><th class="c-num" scope="col">Nº</th><th class="c-crit" scope="col">Item</th>'+
-        cols.map(function(c){ return '<th class="c-resp" scope="col">'+esc(c)+'</th>'; }).join("")+
-        '<th class="c-obs" scope="col">Observações</th><th class="c-docs" scope="col">Documentos</th></tr></thead><tbody>';
-      tabelasPAR[n].forEach(function(lin,i){
-        var obsId="par_ck_obs_"+n+"_"+i;
-        h+='<tr><td class="c-num">'+numItem(n,i)+'</td><td class="c-crit">'+esc(lin.crit)+'</td>';
-        cols.forEach(function(c){
-          var on=(lin.resp===c);
-          var cls="par-mk"+(on?" on":"")+(on&&c==="Não"?" nao":"")+(on&&c==="Não Aplicável"?" na":"");
-          h+='<td class="c-resp"><button type="button" class="'+cls+'" onclick="PAR_marcar('+n+','+i+',\''+c+'\')" aria-pressed="'+(on?"true":"false")+'" aria-label="'+esc(c)+' — '+esc(lin.crit)+'">'+(on?"X":"")+'</button></td>';
+    var host=document.getElementById("par_checklist");
+    if(host){
+      var cols=["Sim","Não","Não Aplicável"];
+      var h='<div class="par-espelho" role="note"><span>Este quadro espelha a aba <b>Checklist Documental</b> — respostas, observações e documentos são preenchidos lá.</span>'+
+            '<button type="button" onclick="CKD_abrir()">✎ Editar no Checklist Documental</button></div>';
+      CHECKLIST_TABS.forEach(function(tab,n){
+        var titId="par_ck_tit_"+n;
+        h+='<h4 id="'+titId+'" class="par-ck-titulo">'+esc(tab.titulo)+'</h4>';
+        h+='<div class="par-grid-wrap"><table class="par-grid" aria-labelledby="'+titId+'"><thead><tr><th class="c-num" scope="col">Nº</th><th class="c-crit" scope="col">Item</th>'+
+          cols.map(function(c){ return '<th class="c-resp" scope="col">'+esc(c)+'</th>'; }).join("")+
+          '<th class="c-obs" scope="col">Observações</th><th class="c-docs" scope="col">Documentos</th></tr></thead><tbody>';
+        tabelasPAR[n].forEach(function(lin,i){
+          h+='<tr><td class="c-num">'+numItem(n,i)+'</td><td class="c-crit">'+esc(lin.crit)+'</td>';
+          cols.forEach(function(c){
+            var on=(lin.resp===c);
+            h+='<td class="c-resp">'+(on?'<span class="par-mk-ro'+(c==="Não"?" nao":"")+'" aria-label="'+esc(c)+'">X</span>':'')+'</td>';
+          });
+          h+='<td class="c-obs"><div class="par-obs-ro">'+esc(lin.obs||"")+'</div></td>';
+          h+='<td class="c-docs">'+(lin.docs||[]).map(function(d,k){
+            return '<span class="par-doc"><button type="button" class="par-doc-ver" onclick="PAR_verDoc('+n+','+i+','+k+')" title="Abrir '+esc(d.nome)+'">'+(docEhPdf(d)?"PDF":"IMG")+' · '+esc(d.nome)+'</button></span>';
+          }).join("")+'</td></tr>';
         });
-        h+='<td class="c-obs"><textarea rows="2" id="'+obsId+'" aria-label="Observações — '+esc(lin.crit)+'" placeholder="Observações" oninput="PAR_setObs('+n+','+i+',this.value)">'+esc(lin.obs)+'</textarea></td>';
-        // documentos anexados ao item (PDF ou imagem): saem no fim do parecer, em "Anexos – Checklist Documental"
-        h+='<td class="c-docs">'+(lin.docs||[]).map(function(d,k){
-          return '<span class="par-doc"><button type="button" class="par-doc-ver" onclick="PAR_verDoc('+n+','+i+','+k+')" title="Abrir '+esc(d.nome)+'">'+(docEhPdf(d)?"PDF":"IMG")+' · '+esc(d.nome)+'</button>'+
-                 '<button type="button" class="par-doc-x" onclick="PAR_remDoc('+n+','+i+','+k+')" title="Excluir este anexo (para anexar o correto)" aria-label="Excluir '+esc(d.nome)+'">🗑</button></span>';
-        }).join("")+
-          '<label class="par-doc-add">+ Anexar<input type="file" multiple accept=".pdf,application/pdf,image/*" onchange="PAR_addDocs('+n+','+i+',this)" aria-label="Anexar documentos — item '+numItem(n,i)+'"></label></td></tr>';
+        h+="</tbody></table></div>";
       });
-      h+="</tbody></table></div>";
-    });
-    host.innerHTML=h;
+      host.innerHTML=h;
+    }
+    if(window.CKD_render) window.CKD_render();
   }
   // numeração do item no check list (igual ao modelo aprovado: 1.1, 1.2 … 6.14) — é a que o fiscal cita
   function numItem(n,i){ return (n+1)+"."+(i+1); }
@@ -37884,6 +38005,126 @@ window.UFOTO_rodapeHTML=rodapeHTML;
       setTimeout(function(){ var b=dlEl("par_dl_bar"); if(b) b.style.width="0"; }, 1200);
     }
   }
+
+  /* ================= Aba "Checklist Documental" (Jurídico, 16/10/2026) =================
+     Onde o check list é preenchido: resposta, observação e documentos de cada item, com espaço para listar tudo.
+     Os dados são os MESMOS do Parecer (tabelasPAR) — o quadro do Parecer só espelha o que está aqui.
+     Extras: painel de situação (respondidos, Sim/Não/N.A., documentos), filtros e busca, tópicos recolhíveis
+     com barra de progresso e arrastar-e-soltar arquivos direto no item. */
+  var CKD={ filtro:"todos", busca:"", fechados:{} };
+  var CK_COLS=[["Sim","sim"],["Não","nao"],["Não Aplicável","na"]];
+  function ckdEl(id){ return document.getElementById(id); }
+  function ckdStats(){
+    var st={ itens:0, resp:0, sim:0, nao:0, na:0, docs:0, comDocs:0, porAba:[] };
+    CHECKLIST_TABS.forEach(function(tab,n){
+      var a={ itens:0, resp:0, nao:0, docs:0 };
+      (tabelasPAR[n]||[]).forEach(function(l){
+        a.itens++; if(l.resp) a.resp++; if(l.resp==="Não") a.nao++; a.docs+=(l.docs||[]).length;
+        if(l.resp==="Sim") st.sim++; else if(l.resp==="Não") st.nao++; else if(l.resp) st.na++;
+        if((l.docs||[]).length) st.comDocs++;
+      });
+      st.itens+=a.itens; st.resp+=a.resp; st.docs+=a.docs; st.porAba.push(a);
+    });
+    return st;
+  }
+  function ckdPassa(l, n, i){
+    var f=CKD.filtro, nd=(l.docs||[]).length;
+    if(f==="semresp" && l.resp) return false;
+    if(f==="nao" && l.resp!=="Não") return false;
+    if(f==="comdocs" && !nd) return false;
+    if(f==="semdocs" && nd) return false;
+    if(CKD.busca){
+      var alvo=(numItem(n,i)+" "+l.crit+" "+(l.obs||"")+" "+(l.docs||[]).map(function(d){ return d.nome; }).join(" ")).toLowerCase();
+      if(alvo.indexOf(CKD.busca)<0) return false;
+    }
+    return true;
+  }
+  function ckdTam(d){ var b=Math.round(docB64(d).length*0.75); return b>1048576 ? (b/1048576).toFixed(1).replace(".",",")+" MB" : Math.max(1,Math.round(b/1024))+" KB"; }
+  function ckdResumo(){
+    var st=ckdStats(), pct=st.itens ? Math.round(st.resp/st.itens*100) : 0;
+    var box=ckdEl("ckd_resumo"); if(!box) return;
+    var circ=2*Math.PI*26, off=circ*(1-pct/100);
+    box.innerHTML=
+      '<div class="ckd-anel" role="img" aria-label="'+pct+'% dos itens respondidos"><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="26" class="trilho"/><circle cx="32" cy="32" r="26" class="valor" style="stroke-dasharray:'+circ.toFixed(1)+';stroke-dashoffset:'+off.toFixed(1)+'"/></svg><b>'+pct+'%</b></div>'+
+      '<div class="ckd-num"><b>'+st.resp+'</b> de '+st.itens+'<small>itens respondidos</small></div>'+
+      '<div class="ckd-kpi sim"><b>'+st.sim+'</b><small>Sim</small></div>'+
+      '<div class="ckd-kpi nao"><b>'+st.nao+'</b><small>Não (pendências)</small></div>'+
+      '<div class="ckd-kpi na"><b>'+st.na+'</b><small>Não aplicável</small></div>'+
+      '<div class="ckd-kpi doc"><b>'+st.docs+'</b><small>documento'+(st.docs===1?"":"s")+' em '+st.comDocs+' ite'+(st.comDocs===1?"m":"ns")+'</small></div>';
+  }
+  function ckdItem(l, n, i){
+    var id="ckd_"+n+"_"+i, nd=(l.docs||[]).length;
+    var h='<div class="ckd-item'+(l.resp==="Não"?" r-nao":l.resp==="Sim"?" r-sim":l.resp?" r-na":"")+'" data-n="'+n+'" data-i="'+i+'">'+
+      '<div class="ckd-num-it">'+numItem(n,i)+'</div>'+
+      '<div class="ckd-crit"><div class="t" id="'+id+'_t">'+esc(l.crit)+'</div>'+
+      '<div class="ckd-resp" role="group" aria-labelledby="'+id+'_t">'+CK_COLS.map(function(c){
+        var on=(l.resp===c[0]);
+        return '<button type="button" class="'+c[1]+(on?" on":"")+'" aria-pressed="'+on+'" onclick="PAR_marcar('+n+','+i+',\''+c[0]+'\')">'+(on?"✓ ":"")+esc(c[0])+'</button>';
+      }).join("")+'</div>'+
+      '<textarea rows="2" placeholder="Observações do item" aria-label="Observações — item '+numItem(n,i)+'" oninput="PAR_setObs('+n+','+i+',this.value)">'+esc(l.obs||"")+'</textarea></div>'+
+      '<div class="ckd-docs" ondragover="CKD_sobre(event,this)" ondragleave="this.classList.remove(\'over\')" ondrop="CKD_soltar(event,'+n+','+i+',this)">'+
+      (l.docs||[]).map(function(d,k){
+        var pdf=docEhPdf(d);
+        return '<div class="ckd-doc"><span class="tp '+(pdf?"pdf":"img")+'">'+(pdf?"PDF":"IMG")+'</span>'+
+          '<button type="button" class="nm" onclick="PAR_verDoc('+n+','+i+','+k+')" title="Abrir '+esc(d.nome)+'">'+esc(d.nome)+'<small>'+ckdTam(d)+'</small></button>'+
+          '<button type="button" class="rm" onclick="PAR_remDoc('+n+','+i+','+k+')" title="Excluir este anexo" aria-label="Excluir '+esc(d.nome)+'">🗑</button></div>';
+      }).join("")+
+      '<label class="ckd-add">'+(nd?"+ Anexar mais":"<b>+ Anexar documentos</b><small>ou arraste PDF / imagem para cá</small>")+
+      '<input type="file" multiple accept=".pdf,application/pdf,image/*" onchange="PAR_addDocs('+n+','+i+',this)" aria-label="Anexar documentos — item '+numItem(n,i)+'"></label></div></div>';
+    return h;
+  }
+  window.CKD_render=function(){
+    var host=ckdEl("ckd_lista"); if(!host) return;
+    ckdResumo();
+    var st=ckdStats(), h="", algum=false;
+    CHECKLIST_TABS.forEach(function(tab,n){
+      var linhas=(tabelasPAR[n]||[]), corpo="";
+      linhas.forEach(function(l,i){ if(ckdPassa(l,n,i)) corpo+=ckdItem(l,n,i); });
+      if(!corpo) return;
+      algum=true;
+      var a=st.porAba[n], pct=a.itens?Math.round(a.resp/a.itens*100):0, fechado=!!CKD.fechados[n] && !CKD.busca && CKD.filtro==="todos";
+      h+='<section class="ckd-topico'+(fechado?" fechado":"")+'">'+
+        '<button type="button" class="ckd-top-cab" aria-expanded="'+(!fechado)+'" onclick="CKD_alternar('+n+')">'+
+        '<span class="seta" aria-hidden="true">▾</span><span class="tit">'+esc(tab.titulo)+'</span>'+
+        '<span class="meta">'+a.resp+'/'+a.itens+' respondidos'+(a.nao?' · <em>'+a.nao+' não</em>':'')+(a.docs?' · '+a.docs+' doc.':'')+'</span>'+
+        '<span class="barra"><i style="width:'+pct+'%"></i></span></button>'+
+        '<div class="ckd-corpo">'+corpo+'</div></section>';
+    });
+    host.innerHTML=algum ? h : '<div class="ckd-vazio">Nenhum item corresponde ao filtro'+(CKD.busca?' “'+esc(CKD.busca)+'”':'')+'.</div>';
+  };
+  window.CKD_alternar=function(n){ CKD.fechados[n]=!CKD.fechados[n]; window.CKD_render(); };
+  window.CKD_sobre=function(ev, el){ ev.preventDefault(); el.classList.add("over"); };
+  window.CKD_soltar=function(ev, n, i, el){
+    ev.preventDefault(); el.classList.remove("over");
+    var fs=ev.dataTransfer && ev.dataTransfer.files; if(!fs || !fs.length) return;
+    window.PAR_addDocs(n, i, { files:fs, set value(v){} });
+  };
+  window.CKD_abrir=function(){
+    var l=document.querySelector('.sb-link[data-alvo="panel-desp1-checklist"]');
+    var s=document.querySelector('.sb-setor[data-setor="juridico"]');
+    if(s && window.SETOR_abrir && !s.classList.contains("ativo")) window.SETOR_abrir(s);
+    if(l && window.trocarAba) window.trocarAba(l);
+    window.CKD_render();
+    try{ ckdEl("panel-desp1-checklist").scrollIntoView({block:"start"}); }catch(e){}
+  };
+  function ckdLigar(){
+    var p=ckdEl("panel-desp1-checklist"); if(!p) return;
+    p.addEventListener("click", function(ev){
+      var b=ev.target.closest && ev.target.closest("[data-filtro]"); if(!b) return;
+      CKD.filtro=b.getAttribute("data-filtro");
+      Array.prototype.forEach.call(p.querySelectorAll("[data-filtro]"), function(x){ x.classList.toggle("on", x===b); x.setAttribute("aria-pressed", x===b); });
+      window.CKD_render();
+    });
+    var bu=ckdEl("ckd_busca");
+    if(bu) bu.addEventListener("input", function(){ CKD.busca=this.value.trim().toLowerCase(); window.CKD_render(); });
+    // ao entrar na aba, redesenha (o cadastro pode ter sido aberto enquanto ela estava oculta)
+    var lk=document.querySelector('.sb-link[data-alvo="panel-desp1-checklist"]');
+    if(lk) lk.addEventListener("click", function(){ setTimeout(window.CKD_render, 0); });
+    var lp=document.querySelector('.sb-link[data-alvo="panel-desp1-parecer"]');
+    if(lp) lp.addEventListener("click", function(){ setTimeout(renderChecklist, 0); });   // observações digitadas aqui aparecem no espelho
+    window.CKD_render();
+  }
+  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", function(){ setTimeout(ckdLigar, 0); }); else setTimeout(ckdLigar, 0);
 
   // ================= JSON (dados das abas de DESP 1) + ZIP (JSON + PDF do Parecer) =================
   // Escopo: só os 3 painéis do grupo DESP 1 (Anexo B / Relatório / Parecer) — não inclui
@@ -49674,7 +49915,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.16-6';
+window.APP_VERSAO = '2026.10.16-7';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.15-19';
 (function(){
