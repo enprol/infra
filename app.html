@@ -19004,6 +19004,236 @@ window.FOTO_rodapeHTML=rodapeHTML;
 })();
 </script>
 <script>
+/* ===== DOCPDF — motor de documento único dos PDFs (fase 2 do padrão de documentos, 16/10/2026) =====
+   Um lugar só para a moldura e os elementos repetidos dos PDFs (jsPDF): página A4 e margens, cabeçalho
+   (logos, identificação, nº da página, régua), rodapé (endereços), capa DESP, título de tópico, tabela
+   (cabeçalho, zebra, linha), linha de sumário, seta de itemização e assinatura.
+   - Os valores ficam em DOCPDF.T (tokens). Valores iniciais = os aprovados no DESP-1 / DESP-2 / Parecer.
+     A fase 3 (tela "Padrões") vai poder trocá-los; até lá, NÃO alterar sem o OK do Fernando.
+   - Medidas em MILÍMETROS. O motor converte para a unidade do documento (doc em "pt" também funciona).
+     Tamanhos de fonte em pt, como no jsPDF.
+   - As primitivas só DESENHAM: a paginação (quando quebrar, o y corrente) continua no gerador.
+   - Gerador migrado = mesmo PDF de antes (conferido página a página em PNG). Modelo: docs/decisoes/2026-10-16-motor-de-documento-pdf.md */
+(function(){
+  var MM = 72/25.4;
+  var T = {
+    pagina: { W:210, H:297, mEsq:30, mDir:20, mInf:10, topoConteudo:30 },
+    cab: { logoY:13, logoH:8, identY:23, identTam:7, identCor:[90,90,90], folgaIdent:24,
+           reguaY:25, reguaCor:[31,111,192], reguaLarg:0.5, rotuloPagina:"Página | " },
+    rod: { reguaDist:26, reguaCor:[31,111,192], reguaLarg:0.4, fonte:"times", tam:6, cor:[90,100,115],
+           y0:3.2, passo:2.8, telDx:33, folgaConteudo:3 },
+    enderecos: [
+      "Av. Des. Moreira, n° 1300, T. Norte, Conj. 1016/1021, Aldeota, 60.170-002, Fortaleza-CE",
+      "Rua Irmã Ambrosina, nº 249, Conj 03 e 04, Centro, 61.760-405, Eusébio-CE",
+      "Rua Araguari, nº 358, Conj.1903/1904, Barro Preto, 30.190-110, Belo Horizonte-MG",
+      "Rua Des. Mário da Silva Nunes, nº 120, Sala 201, Enseada do Suá, 29.050-240, Vitória-ES",
+      "Rua Avertano Rocha, n°192, Campina, 66.023-120, Belém-PA"
+    ],
+    telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 31) 3253-5500","(+55 27) 3029-5540","(+55 94) 3346-8994"],
+    email: "comercial@enprol.com.br",
+    capa: { faixaW:45, faixaCor:[60,90,130], logoY:14, logoH:15, corTitulo:[20,40,70], corTexto:[40,40,40],
+            orgao:["DIREM - DIRETORIA DE EMPREENDIMENTOS","SUGAT – SUPERINTENDÊNCIA DE GESTÃO AMBIENTAL E TERRITORIAL","GEDAF – GERÊNCIA DE DESAPROPRIAÇÃO E ASSUNTOS FUNDIÁRIOS"],
+            contratoObjeto:" – Cujo objeto é a prestação de serviços especializados de engenharia consultiva para a execução das atividades de desapropriação, ocupação temporária ou constituição de servidão administrativa de imóveis, gestão fundiária e regularização de passivos de desapropriação.",
+            contratoW:78, contratoY:250, contratoTam:7.5, contratoLH:3.2, faixaProdY:250, faixaDataY:258 },
+    topico: { tam:13.5, cor:[0,0,0], reguaDy:2.6, reguaCor:[70,70,70], reguaLarg:0.3, depois:7, recuoNumero:11 },
+    subtopico: { tam:11.5, lh:5.6, depois:1.5 },          // o Parecer ainda usa 11,3 (divergência registrada)
+    tabela: { cabAlt:7, cabFundo:[218,232,246], cabTexto:[20,41,74], cabTy:4.6, reguaCor:[31,111,192], reguaLarg:0.6,
+              zebra:[250,252,254], linhaCor:[237,241,245], linhaLarg:0.2 },
+    seta: { w:2.4, h:2.6 },
+    sumario: { tam:11, cor:[30,45,65], numTam:10, numCor:[120,132,146], folga:2 },
+    assinatura: { nomeTam:11, cargoTam:10.5, entre:5.5 }
+  };
+
+  // mm → unidade do documento (doc em mm: 1, exatamente)
+  function U(pdf){ var k=pdf.internal.scaleFactor; return Math.abs(k-MM)<1e-9 ? 1 : MM/k; }
+  function cor(pdf, metodo, c){ pdf[metodo](c[0],c[1],c[2]); }
+  function razao(pdf, src){
+    if(src && typeof src!=="string" && src.width && src.height) return src.width/src.height;
+    var p=pdf.getImageProperties(src); return p.width/p.height;
+  }
+  // logo com altura h (mm); aEsq: encostada em x; senão termina em x. alias/compressão opcionais (o Parecer usa "FAST")
+  function logo(pdf, src, x, y, h, aEsq, alias, comp){
+    if(!src) return;
+    try{ var u=U(pdf), w=h*razao(pdf,src); pdf.addImage(src,"JPEG",(aEsq?x:x-w)*u,y*u,w*u,h*u,alias,comp); }catch(e){}
+  }
+
+  // Carlito (métricas do Calibri) se carregada; senão helvetica. Devolve o nome da fonte do corpo.
+  function fonteCorpo(pdf){
+    try{ var CF=window.__CARLITO__; if(CF){
+      pdf.addFileToVFS("Carlito-n.ttf",CF.normal); pdf.addFont("Carlito-n.ttf","Carlito","normal");
+      pdf.addFileToVFS("Carlito-b.ttf",CF.bold); pdf.addFont("Carlito-b.ttf","Carlito","bold");
+      pdf.addFileToVFS("Carlito-i.ttf",CF.italic); pdf.addFont("Carlito-i.ttf","Carlito","italic");
+      pdf.addFileToVFS("Carlito-bi.ttf",CF.bolditalic); pdf.addFont("Carlito-bi.ttf","Carlito","bolditalic");
+      return "Carlito";
+    } }catch(e){}
+    return "helvetica";
+  }
+  // logos INFRA (I) e ENPROL (E) como <img> carregadas
+  function logos(){
+    function carregar(s){ return new Promise(function(r){ if(!s){r(null);return;} var im=new Image(); im.onload=function(){r(im);}; im.onerror=function(){r(null);}; im.src=s; }); }
+    return Promise.all([carregar(window.__LOGO_INFRA__), carregar(window.__LOGO_ENPROL__)]).then(function(a){ return { I:a[0], E:a[1] }; });
+  }
+
+  /* moldura(pdf, o) → medidas da página de conteúdo (mm). o: { mEsq, mDir, mInf } para trocar margens */
+  function moldura(pdf, o){
+    o=o||{}; var P=T.pagina;
+    var W=P.W, H=P.H, mL=(o.mEsq!=null?o.mEsq:P.mEsq), mR=(o.mDir!=null?o.mDir:P.mDir), mB=(o.mInf!=null?o.mInf:P.mInf);
+    return { W:W, H:H, mL:mL, mR:mR, mB:mB, xR:W-mR, cw:W-mL-mR, topY:P.topoConteudo, botY:H-mB-(T.rod.reguaDist-P.mInf)-T.rod.folgaConteudo };
+  }
+
+  /* cabeçalho(pdf, o). o: { logos:{I,E}, ident, pagina (nº; null = sem nº), fonte, mL, xR,
+       larguraIdent (mm; null = não corta), alias:{I,E}, comp }  */
+  function cabecalho(pdf, o){
+    var C=T.cab, u=U(pdf), mL=o.mL, xR=o.xR, lg=o.logos||{}, al=o.alias||{};
+    logo(pdf, lg.I, mL, C.logoY, C.logoH, true, al.I, o.comp);
+    logo(pdf, lg.E, xR, C.logoY, C.logoH, false, al.E, o.comp);
+    pdf.setFont(o.fonte||"helvetica","normal"); pdf.setFontSize(C.identTam); cor(pdf,"setTextColor",C.identCor);
+    var id=String(o.ident||"");
+    if(o.larguraIdent!=null) id=pdf.splitTextToSize(id, o.larguraIdent*u)[0]||"";
+    pdf.text(id, mL*u, C.identY*u);
+    if(o.pagina!=null) pdf.text(C.rotuloPagina+o.pagina, xR*u, C.identY*u, {align:"right"});
+    cor(pdf,"setDrawColor",C.reguaCor); pdf.setLineWidth(C.reguaLarg*u); pdf.line(mL*u, C.reguaY*u, xR*u, C.reguaY*u);
+  }
+
+  /* rodapé(pdf, o). o: { mL, xR, H (mm, padrão 297) } — régua + endereços (esq.), telefone e e-mail (dir.) */
+  function rodape(pdf, o){
+    var R=T.rod, u=U(pdf), mL=o.mL, xR=o.xR, yl=(o.H||T.pagina.H)-R.reguaDist;
+    cor(pdf,"setDrawColor",R.reguaCor); pdf.setLineWidth(R.reguaLarg*u); pdf.line(mL*u, yl*u, xR*u, yl*u);
+    pdf.setFont(R.fonte,"normal"); pdf.setFontSize(R.tam); cor(pdf,"setTextColor",R.cor);
+    var yy=yl+R.y0;
+    for(var i=0;i<T.enderecos.length;i++){
+      pdf.text(T.enderecos[i], mL*u, yy*u);
+      pdf.text(T.telefones[i], (xR-R.telDx)*u, yy*u, {align:"right"});
+      pdf.text(T.email, xR*u, yy*u, {align:"right"});
+      yy+=R.passo;
+    }
+  }
+
+  /* capa(pdf, o) — capa DESP (faixa azul à esquerda). Desenha na página corrente.
+     o: { logos:{I,E}, titulo, produto ("DESP-2"), ferrovia, loteLinha, processo, processoSempre,
+          expropriado, areas:[texto], locacaoAlt, contrato (nº; vazio = sem bloco), dataTxt }  */
+  function capa(pdf, o){
+    var K=T.capa, u=U(pdf), W=T.pagina.W, H=T.pagina.H, mR=T.pagina.mDir;
+    var faixaW=K.faixaW, cxL=faixaW+8, cxC=cxL+(W-cxL-mR)/2, LARG=W-cxL-mR-6, lg=o.logos||{};
+    function tx(t, x, y, op){ pdf.text(t, x*u, y*u, op); }
+    var C={align:"center"};
+    cor(pdf,"setFillColor",K.faixaCor); pdf.rect(0,0,faixaW*u,H*u,"F");
+    logo(pdf, lg.I, cxL, K.logoY, K.logoH, true);
+    logo(pdf, lg.E, W-mR, K.logoY, K.logoH, false);
+    var y=48;
+    pdf.setFont("helvetica","bold"); pdf.setFontSize(15); cor(pdf,"setTextColor",K.corTitulo);
+    tx("INFRA S.A.", cxC, y, C); y+=7;
+    pdf.setFontSize(9);
+    tx(K.orgao[0], cxC, y, C); y+=4.5;
+    tx(K.orgao[1], cxC, y, C); y+=4.5;
+    tx(K.orgao[2], cxC, y, C);
+    cor(pdf,"setDrawColor",K.corTitulo); pdf.setLineWidth(0.4*u); pdf.line(cxL*u, (y+3)*u, (W-mR)*u, (y+3)*u); y+=26;
+    pdf.setFontSize(19);
+    pdf.splitTextToSize(o.titulo||"", LARG*u).forEach(function(l){ tx(l, cxC, y, C); y+=8; });
+    y+=6;
+    pdf.setFontSize(13); cor(pdf,"setTextColor",K.corTexto); tx(o.produto||"", cxC, y, C); y+=16;
+    pdf.setFontSize(12); pdf.setFont("helvetica","normal");
+    pdf.splitTextToSize(o.ferrovia||"FERROVIA", LARG*u).forEach(function(l){ tx(l, cxC, y, C); y+=6.5; });
+    y+=6;
+    pdf.setFont("helvetica","bold");
+    if(o.loteLinha){ tx(o.loteLinha, cxC, y, C); y+=16; }
+    pdf.setFontSize(11);
+    if(o.processo || o.processoSempre){
+      pdf.setFont("helvetica","bold"); tx("Processo administrativo:", cxC, y, C); y+=6;
+      pdf.setFont("helvetica","normal");
+      pdf.splitTextToSize(o.processo||"", LARG*u).forEach(function(l){ tx(l, cxC, y, C); y+=5.4; });
+      y+=8;
+    }
+    pdf.setFontSize(10);
+    if(o.expropriado){ pdf.setFont("helvetica","normal"); tx("EXPROPRIADO: "+o.expropriado, cxC, y, C); y+=8; }
+    pdf.setFont("helvetica","bold");
+    var areas=o.areas||[];
+    if(areas.length){
+      tx("LOCAÇÃO:", cxC, y, C); y+=5;
+      areas.forEach(function(a,i){ tx("ÁREA "+(i+1)+": "+a, cxC, y, C); y+=5; });
+    } else if(o.locacaoAlt){ tx("LOCAÇÃO:", cxC, y, C); y+=5; tx(o.locacaoAlt, cxC, y, C); y+=5; }
+    if(o.contrato){   // caixa invisível no canto inferior direito: justificada, última linha à esquerda
+      var ct="Contrato nº "+o.contrato+K.contratoObjeto, ctX=W-mR-K.contratoW;
+      pdf.setFont("helvetica","normal"); pdf.setFontSize(K.contratoTam); cor(pdf,"setTextColor",K.corTexto);
+      var ls=pdf.splitTextToSize(ct, K.contratoW*u), cy=K.contratoY;
+      ls.forEach(function(l,i){
+        if(i<ls.length-1 && window.justificarLinha) window.justificarLinha(pdf, l, ctX*u, cy*u, K.contratoW*u); else tx(l, ctX, cy);
+        cy+=K.contratoLH;
+      });
+    }
+    pdf.setFont("helvetica","bold"); pdf.setFontSize(14); pdf.setTextColor(255,255,255);
+    tx(o.produto||"", faixaW/2, K.faixaProdY, C);
+    pdf.setFontSize(13);
+    pdf.splitTextToSize(o.dataTxt||"", (faixaW-6)*u).forEach(function(l,k){ tx(l, faixaW/2, K.faixaDataY+k*6, C); });
+    pdf.setTextColor(0,0,0);
+  }
+
+  /* título de tópico (nível 1): texto em caixa alta + régua cinza. Devolve o y seguinte.
+     o: { fonte, x, xFim, y, texto, separarNumero (true: "N. Título" com o nº numa coluna) } */
+  function topico(pdf, o){
+    var K=T.topico, u=U(pdf), y=o.y;
+    pdf.setFont(o.fonte||"helvetica","bold"); pdf.setFontSize(K.tam); cor(pdf,"setTextColor",K.cor);
+    var m=o.separarNumero ? String(o.texto).match(/^(\d+)\.\s*(.*)$/) : null;
+    if(m){ pdf.text(m[1]+".", o.x*u, y*u); pdf.text(m[2].toUpperCase(), (o.x+K.recuoNumero)*u, y*u); }
+    else pdf.text(String(o.texto).toUpperCase(), o.x*u, y*u);
+    y+=K.reguaDy; cor(pdf,"setDrawColor",K.reguaCor); pdf.setLineWidth(K.reguaLarg*u); pdf.line(o.x*u, y*u, o.xFim*u, y*u);
+    return y+K.depois;
+  }
+
+  /* tabela: cabeçalho (faixa azul-clara + régua azul). cols: [{ t, x (mm, absoluto), align }]. Devolve o y abaixo. */
+  function tabelaCab(pdf, o){
+    var K=T.tabela, u=U(pdf), hh=(o.alt||K.cabAlt);
+    cor(pdf,"setFillColor",K.cabFundo); pdf.rect(o.x*u, o.y*u, o.w*u, hh*u, "F");
+    pdf.setFont(o.fonte||"helvetica","bold"); pdf.setFontSize(o.tam||9); cor(pdf,"setTextColor",K.cabTexto);
+    o.cols.forEach(function(c){ pdf.text(c.t, c.x*u, (o.y+K.cabTy)*u, c.align?{align:c.align}:undefined); });
+    cor(pdf,"setDrawColor",K.reguaCor); pdf.setLineWidth(K.reguaLarg*u); pdf.line(o.x*u, (o.y+hh)*u, (o.x+o.w)*u, (o.y+hh)*u);
+    return o.y+hh;
+  }
+  function tabelaZebra(pdf, x, y, w, h, i){
+    if(i%2!==1) return; var u=U(pdf);
+    cor(pdf,"setFillColor",T.tabela.zebra); pdf.rect(x*u, y*u, w*u, h*u, "F");
+  }
+  function tabelaLinha(pdf, x, y, w){
+    var K=T.tabela, u=U(pdf);
+    cor(pdf,"setDrawColor",K.linhaCor); pdf.setLineWidth(K.linhaLarg*u); pdf.line(x*u, y*u, (x+w)*u, y*u);
+  }
+
+  // seta de itemização (a fonte não tem o glifo ➢): triângulo com o canto superior esquerdo em (x, yTopo)
+  function seta(pdf, x, yTopo){
+    var S=T.seta, u=U(pdf); pdf.setFillColor(0,0,0);
+    pdf.triangle(x*u, yTopo*u, (x+S.w)*u, (yTopo+S.h/2)*u, x*u, (yTopo+S.h)*u, "F");
+  }
+
+  /* linha do sumário/índice: texto, pontilhado e nº da página à direita (modelo do índice do DESP 1 unido, 128).
+     o: { fonte, x, xFim, y, texto, pagina } — o texto já cabe na linha (o gerador quebra antes) */
+  function sumarioLinha(pdf, o){
+    var S=T.sumario, u=U(pdf), f=o.fonte||"helvetica";
+    pdf.setFont(f,"bold"); pdf.setFontSize(S.tam); cor(pdf,"setTextColor",S.cor);
+    pdf.text(o.texto, o.x*u, o.y*u);
+    if(o.pagina==null) return;
+    var wTxt=pdf.getTextWidth(o.texto), num=String(o.pagina);
+    pdf.setFont(f,"normal"); pdf.setFontSize(S.numTam); cor(pdf,"setTextColor",S.numCor);
+    var wNum=pdf.getTextWidth(num), x0=o.x*u+wTxt+S.folga*u, x1=o.xFim*u-wNum-S.folga*u;
+    if(x1>x0){ var p=""; while(pdf.getTextWidth(p+".") < x1-x0) p+="."; pdf.text(p, x0, o.y*u); }
+    cor(pdf,"setTextColor",S.cor); pdf.text(num, o.xFim*u, o.y*u, {align:"right"});
+  }
+
+  /* assinatura centrada: nome (normal) e cargo (negrito). Devolve o y da linha do cargo. o: { fonte, cx, y, nome, cargo } */
+  function assinatura(pdf, o){
+    var A=T.assinatura, u=U(pdf), y=o.y, f=o.fonte||"helvetica";
+    pdf.setFont(f,"normal"); pdf.setFontSize(A.nomeTam); pdf.setTextColor(0,0,0);
+    pdf.text(o.nome, o.cx*u, y*u, {align:"center"}); y+=A.entre;
+    pdf.setFont(f,"bold"); pdf.setFontSize(A.cargoTam);
+    pdf.text(o.cargo, o.cx*u, y*u, {align:"center"});
+    return y;
+  }
+
+  window.DOCPDF = { T:T, U:U, fonteCorpo:fonteCorpo, logos:logos, moldura:moldura, cabecalho:cabecalho, rodape:rodape,
+    capa:capa, topico:topico, tabelaCab:tabelaCab, tabelaZebra:tabelaZebra, tabelaLinha:tabelaLinha,
+    seta:seta, sumarioLinha:sumarioLinha, assinatura:assinatura };
+})();
+</script>
+<script>
 /* ===== JS Avaliação — Gerador de PDF completo (Capa + Ficha + Laudo 1-17 + Tabelas fixas) ===== */
 (function(){
   const RODAPE = [
@@ -37409,44 +37639,20 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     // sem opts.sel (pré-visualização, material técnico) o parecer sai sempre; só a escolha dos anexos é lembrada
     var _sel=(opts&&opts.sel)||{ semParecer:false, semAnexos:selSalva().semAnexos };
     function incl(id){ return !_sel.semParecer; }
-    var FONT="helvetica";
-    try{ var CF=window.__CARLITO__; if(CF){
-      pdf.addFileToVFS("Carlito-n.ttf",CF.normal); pdf.addFont("Carlito-n.ttf","Carlito","normal");
-      pdf.addFileToVFS("Carlito-b.ttf",CF.bold); pdf.addFont("Carlito-b.ttf","Carlito","bold");
-      pdf.addFileToVFS("Carlito-i.ttf",CF.italic); pdf.addFont("Carlito-i.ttf","Carlito","italic");
-      pdf.addFileToVFS("Carlito-bi.ttf",CF.bolditalic); pdf.addFont("Carlito-bi.ttf","Carlito","bolditalic");
-      FONT="Carlito";
-    } }catch(e){}
-    var W=210,H=297,mL=30,mR=20,mT=14,mB=10,cw=W-mL-mR;   // 15/10/2026: margens, cabeçalho e rodapé iguais aos do DESP-1 / DESP-2
-    var LI=window.__LOGO_INFRA__, LE=window.__LOGO_ENPROL__;
-    function carregar(s){ return new Promise(function(r){ if(!s){r(null);return;} var im=new Image(); im.onload=function(){r(im);}; im.onerror=function(){r(null);}; im.src=s; }); }
-    var imgI=await carregar(LI), imgE=await carregar(LE);
+    // 16/10/2026 (fase 2): fonte, moldura, cabeçalho, rodapé, títulos, tabela e assinatura vêm do motor DOCPDF (097)
+    var FONT=DOCPDF.fonteCorpo(pdf);
+    var M=DOCPDF.moldura(pdf), W=M.W, H=M.H, mL=M.mL, mR=M.mR, mB=M.mB, cw=M.cw;
+    var LG=await DOCPDF.logos();
 
     var PG=0, yc=0;
-    var topY=30, botY=H-mB-16-3;
-    var PAR_END=["Av. Des. Moreira, nº 1300, T. Norte, Conj. 1016/1021, Aldeota, 60.170-002, Fortaleza-CE","Rua Idelfonso Freire, nº 106, Sala 202, Centro, 56.506-520, Arcoverde-PE","Rua Pedro Batista Ferreira, nº 278, Centro, 76.500-000, Santa Terezinha de Goiás-GO","Rua Nilo Peçanha, nº 25, 1º Andar, Sala 07, Centro, 47.640-000, Santa Maria da Vitória-BA","Rua Irmã Ambrosina, nº 249, Conj 03 e 04, Centro, 61.760-405, Eusébio-CE","Rua dos Timbiras, nº 2213, Conj.1206/1209, Lourdes, 30.140-069, Belo Horizonte-MG"];
-    var PAR_TEL=["(+55 85) 3289-6363   comercial@enprol.com.br","(+55 85) 3289-6363   comercial@enprol.com.br","(+55 85) 3289-6363   comercial@enprol.com.br","(+55 85) 3289-6363   comercial@enprol.com.br","(+55 85) 3289-6363   comercial@enprol.com.br","(+55 31) 3253-5500   comercial@enprol.com.br"];
+    var topY=M.topY, botY=M.botY;
     function cab(){
       PG++;
-      if(imgI){ try{ var w=8*(imgI.width/imgI.height); pdf.addImage(imgI,"JPEG",mL,13,w,8,"parLogoI","FAST"); }catch(e){} }
-      if(imgE){ try{ var w2=8*(imgE.width/imgE.height); pdf.addImage(imgE,"JPEG",W-mR-w2,13,w2,8,"parLogoE","FAST"); }catch(e){} }
-      pdf.setFont(FONT,"normal"); pdf.setFontSize(7); pdf.setTextColor(90,90,90);
       var sei=pf("par_sei");
       var docId="Parecer para Regularização Fundiária e Documental — DESP-1"+(pf("par_processo")?(" ("+pf("par_processo")+")"):"")+(sei?(" — SEI nº "+sei):"");
-      var ls=pdf.splitTextToSize(docId, cw-25);
-      pdf.text(ls[0]||"", mL, 23);
-      pdf.text("Página | "+PG, W-mR, 23, {align:"right"});
-      pdf.setDrawColor(31,111,192); pdf.setLineWidth(0.5); pdf.line(mL,25,W-mR,25);
+      DOCPDF.cabecalho(pdf, { logos:LG, alias:{I:"parLogoI",E:"parLogoE"}, comp:"FAST", fonte:FONT, ident:docId, pagina:PG, mL:mL, xR:M.xR, larguraIdent:cw-25 });
     }
-    var PAR_END2=["Av. Des. Moreira, n° 1300, T. Norte, Conj. 1016/1021, Aldeota, 60.170-002, Fortaleza-CE","Rua Irmã Ambrosina, nº 249, Conj 03 e 04, Centro, 61.760-405, Eusébio-CE","Rua Araguari, nº 358, Conj.1903/1904, Barro Preto, 30.190-110, Belo Horizonte-MG","Rua Des. Mário da Silva Nunes, nº 120, Sala 201, Enseada do Suá, 29.050-240, Vitória-ES","Rua Avertano Rocha, n°192, Campina, 66.023-120, Belém-PA"];
-    var PAR_TEL2=["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 31) 3253-5500","(+55 27) 3029-5540","(+55 94) 3346-8994"];
-    function rod(){   // mesmo rodapé do DESP-1 / DESP-2
-      var yl=H-mB-16;
-      pdf.setDrawColor(31,111,192); pdf.setLineWidth(0.4); pdf.line(mL,yl,W-mR,yl);
-      pdf.setFont("times","normal"); pdf.setFontSize(6); pdf.setTextColor(90,100,115);
-      var yy=yl+3.2;
-      for(var i=0;i<PAR_END2.length;i++){ pdf.text(PAR_END2[i], mL, yy); pdf.text(PAR_TEL2[i], W-mR-33, yy, {align:"right"}); pdf.text("comercial@enprol.com.br", W-mR, yy, {align:"right"}); yy+=2.8; }
-    }
+    function rod(){ DOCPDF.rodape(pdf, { mL:mL, xR:M.xR, H:H }); }
     function nova(){ pdf.addPage(); cab(); yc=topY; }
     function ensure(h){ if(yc+h>botY){ rod(); nova(); } }
     // força início de página nova (usado antes de capítulos que devem sempre
@@ -37466,9 +37672,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
       yc+=6;
     }
     function tituloRom(t){
-      ensure(16); pdf.setFont(FONT,"bold"); pdf.setFontSize(13.5); pdf.setTextColor(0,0,0);
-      pdf.text(String(t).toUpperCase(), mL, yc);
-      yc+=2.6; pdf.setDrawColor(70,70,70); pdf.setLineWidth(0.3); pdf.line(mL,yc,W-mR,yc); yc+=7;
+      ensure(16); yc=DOCPDF.topico(pdf, { fonte:FONT, x:mL, xFim:W-mR, y:yc, texto:t });
     }
     function subt(t){
       ensure(10); pdf.setFont(FONT,"bold"); pdf.setFontSize(11.3); pdf.setTextColor(0,0,0);
@@ -37520,7 +37724,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
           if(yc+LHp>botY){ rod(); nova(); }
           var first=(idx===0), last=(idx===lines.length-1);
           if(first){
-            if(kind==="A"){ pdf.setFillColor(0,0,0); var tx=mL+1.8, ty=yc-2.6; pdf.triangle(tx,ty, tx+2.4,ty+1.3, tx,ty+2.6, "F"); }   // a fonte não tem o glifo ➢
+            if(kind==="A"){ DOCPDF.seta(pdf, mL+1.8, yc-2.6); }   // a fonte não tem o glifo ➢
             else if(kind==="R"){ pdf.setFont(FONT,"normal"); pdf.setFontSize(fs); pdf.setTextColor(0,0,0); pdf.text(romanoPDF(nRom)+".", mL+9, yc, {align:"right"}); }
             else if(kind==="L"){ pdf.setFont(FONT,"italic"); pdf.setFontSize(fs); pdf.setTextColor(cor[0],cor[1],cor[2]); pdf.text(letra+")", mL+14, yc); }
           }
@@ -37549,16 +37753,10 @@ window.UFOTO_rodapeHTML=rodapeHTML;
       var wCrit=cw-wNum-wResp*nResp-wObs;
       var cabs=["Sim","Não","Não Aplic."];
       function cabecalho(){
-        var hh=7;
-        pdf.setFillColor(218,232,246); pdf.rect(mL,yc,cw,hh,'F');
-        pdf.setFont(FONT,"bold"); pdf.setFontSize(7.6); pdf.setTextColor(20,41,74);
-        pdf.text("Nº", mL+wNum/2, yc+4.6, {align:"center"});
-        pdf.text("Item", mL+wNum+2.5, yc+4.6);
-        var x=mL+wNum+wCrit;
-        cabs.forEach(function(c){ pdf.text(c, x+wResp/2, yc+4.6, {align:"center"}); x+=wResp; });
-        pdf.text("Observações", x+2.5, yc+4.6);
-        pdf.setDrawColor(31,111,192); pdf.setLineWidth(0.6); pdf.line(mL,yc+hh,mL+cw,yc+hh);
-        yc+=hh;
+        var cols=[{t:"Nº", x:mL+wNum/2, align:"center"}, {t:"Item", x:mL+wNum+2.5}], x=mL+wNum+wCrit;
+        cabs.forEach(function(c){ cols.push({t:c, x:x+wResp/2, align:"center"}); x+=wResp; });
+        cols.push({t:"Observações", x:x+2.5});
+        yc=DOCPDF.tabelaCab(pdf, { fonte:FONT, tam:7.6, x:mL, y:yc, w:cw, cols:cols });
       }
       ensure(6+10); cabecalho(); var ri=0;
       arr.forEach(function(lin, i){
@@ -37568,7 +37766,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
         var obsLs=pdf.splitTextToSize(obsTxt, wObs-3);
         var rowH=Math.max(critLs.length, obsLs.length, 1)*3.5+3;
         if(yc+rowH>botY){ rod(); nova(); cabecalho(); pdf.setFont(FONT,"normal"); pdf.setFontSize(7.6); pdf.setTextColor(0,0,0); }
-        if(ri%2===1){ pdf.setFillColor(250,252,254); pdf.rect(mL,yc,cw,rowH,'F'); }
+        DOCPDF.tabelaZebra(pdf, mL, yc, cw, rowH, ri);
         var x=mL;
         pdf.setFont(FONT,"bold"); pdf.setTextColor(20,41,74); pdf.text(numItem(n,i), x+wNum/2, yc+3.4, {align:"center"}); x+=wNum;
         pdf.setFont(FONT,"normal");
@@ -37585,7 +37783,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
           x+=wResp;
         });
         pdf.setTextColor(40,51,63); pdf.text(obsLs, x+2.5, yc+3.4);
-        pdf.setDrawColor(237,241,245); pdf.setLineWidth(0.2); pdf.line(mL, yc+rowH, mL+cw, yc+rowH);
+        DOCPDF.tabelaLinha(pdf, mL, yc+rowH, cw);
         yc+=rowH; ri++;
       });
       yc+=4;
@@ -37727,10 +37925,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
       if(dataTxt){ pdf.setFont(FONT,"italic"); pdf.setFontSize(10.5); pdf.text(dataTxt, W-mR, yc, {align:"right"}); }
       yc+=20;
 
-      pdf.setFont(FONT,"normal"); pdf.setFontSize(11); pdf.setTextColor(0,0,0);
-      pdf.text("Sávio Túlio Saraiva", W/2, yc, {align:"center"}); yc+=5.5;
-      pdf.setFont(FONT,"bold"); pdf.setFontSize(10.5);
-      pdf.text("Analista de Regularização Fundiária", W/2, yc, {align:"center"});
+      yc=DOCPDF.assinatura(pdf, { fonte:FONT, cx:W/2, y:yc, nome:"Sávio Túlio Saraiva", cargo:"Analista de Regularização Fundiária" });
     }
 
     // ---------- Corpo ----------
@@ -44732,101 +44927,36 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     if(!(window.jspdf||window.jsPDF)){ alert("Biblioteca de PDF ainda carregando. Tente novamente."); return; }
     const J=(window.jspdf&&window.jspdf.jsPDF)?window.jspdf.jsPDF:window.jsPDF;
     const pdf=new J({orientation:"portrait",unit:"mm",format:"a4"});
-    let FONT="helvetica";
-    try{ const CF=window.__CARLITO__; if(CF){
-      pdf.addFileToVFS("Carlito-n.ttf",CF.normal); pdf.addFont("Carlito-n.ttf","Carlito","normal");
-      pdf.addFileToVFS("Carlito-b.ttf",CF.bold); pdf.addFont("Carlito-b.ttf","Carlito","bold");
-      pdf.addFileToVFS("Carlito-i.ttf",CF.italic); pdf.addFont("Carlito-i.ttf","Carlito","italic");
-      pdf.addFileToVFS("Carlito-bi.ttf",CF.bolditalic); pdf.addFont("Carlito-bi.ttf","Carlito","bolditalic");
-      FONT="Carlito";
-    } }catch(e){}
-    const W=210,H=297,mL=30,mR=20,mB=10,cw=W-mL-mR;
-    const LI=window.__LOGO_INFRA__, LE=window.__LOGO_ENPROL__;
-    function carregar(s){ return new Promise(function(r){ if(!s){r(null);return;} const im=new Image(); im.onload=function(){r(im);}; im.onerror=function(){r(null);}; im.src=s; }); }
-    const imgI=await carregar(LI), imgE=await carregar(LE);
-    const END=["Av. Des. Moreira, n° 1300, T. Norte, Conj. 1016/1021, Aldeota, 60.170-002, Fortaleza-CE","Rua Irmã Ambrosina, nº 249, Conj 03 e 04, Centro, 61.760-405, Eusébio-CE","Rua Araguari, nº 358, Conj.1903/1904, Barro Preto, 30.190-110, Belo Horizonte-MG","Rua Des. Mário da Silva Nunes, nº 120, Sala 201, Enseada do Suá, 29.050-240, Vitória-ES","Rua Avertano Rocha, n°192, Campina, 66.023-120, Belém-PA"];
-    const TEL=["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 31) 3253-5500","(+55 27) 3029-5540","(+55 94) 3346-8994"];
+    // 16/10/2026 (fase 2): fonte, moldura, capa, cabeçalho, rodapé, títulos e tabela vêm do motor DOCPDF (097)
+    const FONT=DOCPDF.fonteCorpo(pdf);
+    const M=DOCPDF.moldura(pdf), W=M.W, H=M.H, mL=M.mL, mR=M.mR, mB=M.mB, cw=M.cw;
+    const LG=await DOCPDF.logos();
     const spaceW=(function(){ pdf.setFont(FONT,"normal"); pdf.setFontSize(11); return pdf.getTextWidth(" "); })();
 
-    /* CAPA — mesmo modelo da capa da DESP-1 (Relatório Socioeconômico),
-       só trocando a terminologia DESP-1 -> DESP-2. */
+    /* CAPA — mesmo modelo da capa da DESP-1 (Relatório Socioeconômico), só trocando a terminologia DESP-1 -> DESP-2.
+       16/10/2026: desenhada pelo motor (DOCPDF.capa) */
     {
-      const faixaW = 45, cxL = faixaW + 8, cxC = cxL + (W - cxL - mR)/2, mT = 14;
-      pdf.setFillColor(60,90,130); pdf.rect(0, 0, faixaW, H, "F");
-      if(imgI){ let w=15*(imgI.width/imgI.height); pdf.addImage(imgI,"JPEG",cxL,mT,w,15); }
-      if(imgE){ let w=15*(imgE.width/imgE.height); pdf.addImage(imgE,"JPEG",W-mR-w,mT,w,15); }
-      let y=48;
-      pdf.setFont("helvetica","bold"); pdf.setFontSize(15); pdf.setTextColor(20,40,70);
-      pdf.text("INFRA S.A.", cxC, y, {align:"center"}); y+=7;
-      pdf.setFontSize(9);
-      pdf.text("DIREM - DIRETORIA DE EMPREENDIMENTOS", cxC, y, {align:"center"}); y+=4.5;
-      pdf.text("SUGAT – SUPERINTENDÊNCIA DE GESTÃO AMBIENTAL E TERRITORIAL", cxC, y, {align:"center"}); y+=4.5;
-      pdf.text("GEDAF – GERÊNCIA DE DESAPROPRIAÇÃO E ASSUNTOS FUNDIÁRIOS", cxC, y, {align:"center"});
-      pdf.setDrawColor(20,40,70); pdf.setLineWidth(0.4); pdf.line(cxL, y+3, W-mR, y+3); y+=26;
-      pdf.setFontSize(19);
-      { const _tl=pdf.splitTextToSize("RELATÓRIO DE ANÁLISE DE IMPACTO E TRANSPOSIÇÃO DA FAIXA DE DOMÍNIO", W-cxL-mR-6);
-        _tl.forEach(function(l){ pdf.text(l, cxC, y, {align:"center"}); y+=8; }); }
-      y+=6;
-      pdf.setFontSize(13); pdf.setTextColor(40,40,40); pdf.text("DESP-2", cxC, y, {align:"center"}); y+=16;
-      pdf.setFontSize(12); pdf.setFont("helvetica","normal");
-      const ferroTxt=((window.CAPA_comum&&window.CAPA_comum().ferrovia)||C("ferrovia")||"FERROVIA").toUpperCase();   // 15/10/2026: texto da capa do DESP 1
-      const ferroLs=pdf.splitTextToSize(ferroTxt, W-cxL-mR-6);
-      ferroLs.forEach(function(l){ pdf.text(l, cxC, y, {align:"center"}); y+=6.5; });
-      y+=6;
-      pdf.setFont("helvetica","bold");
+      const _cm=window.CAPA_comum?window.CAPA_comum():{areas:[],expropriado:""};   // 15/10/2026: EXPROPRIADO, LOCAÇÃO e ferrovia iguais à capa do DESP 1
       const _sigla=(function(){ const f=C("ferrovia")||""; const m=f.match(/[–-]\s*([A-Z]{2,6})\s*$/); return m?m[1]:(C("codFerrovia")||""); })();
-      if(C("trecho")){ pdf.text(_sigla+" (Lote: "+C("trecho")+")", cxC, y, {align:"center"}); y+=16; }
-      pdf.setFontSize(11);
-      pdf.setFont("helvetica","bold");
-      pdf.text("Processo administrativo:", cxC, y, {align:"center"}); y+=6;
-      pdf.setFont("helvetica","normal");
-      const _procD2=procCapa();
-      const _procLsD2=pdf.splitTextToSize(_procD2, W-cxL-mR-6);
-      _procLsD2.forEach(function(l){ pdf.text(l, cxC, y, {align:"center"}); y+=5.4; });
-      y+=8;
-      pdf.setFontSize(10);
-      // 15/10/2026: EXPROPRIADO e LOCAÇÃO iguais à capa do DESP 1 (o proprietário/posseiro vem do mesmo campo do Relatório)
-      const _cm=window.CAPA_comum?window.CAPA_comum():{areas:[],expropriado:""};
-      const _expro=_cm.expropriado||C("proprietario");
-      if(_expro){ pdf.text("EXPROPRIADO: "+_expro, cxC, y, {align:"center"}); y+=8; }
-      pdf.setFont("helvetica","bold");
-      if(_cm.areas.length){
-        pdf.text("LOCAÇÃO:", cxC, y, {align:"center"}); y+=5;
-        _cm.areas.forEach(function(a,i){ pdf.text("ÁREA "+(i+1)+": "+a, cxC, y, {align:"center"}); y+=5; });
-      } else if(C("km")){ pdf.text("LOCAÇÃO:", cxC, y, {align:"center"}); y+=5; pdf.text(C("km"), cxC, y, {align:"center"}); y+=5; }
-      if(C("contrato")){
-        const ct="Contrato nº "+C("contrato")+" – Cujo objeto é a prestação de serviços especializados de engenharia consultiva para a execução das atividades de desapropriação, ocupação temporária ou constituição de servidão administrativa de imóveis, gestão fundiária e regularização de passivos de desapropriação.";
-        pdf.setFont("helvetica","normal"); pdf.setFontSize(7.5); pdf.setTextColor(40,40,40);
-        const ctW=78, ctX=W-mR-ctW;
-        const ctLs=pdf.splitTextToSize(ct, ctW);
-        let cy=250;
-        ctLs.forEach(function(l,i){
-          const ultima=(i===ctLs.length-1);
-          pdf.setFont("helvetica","normal"); pdf.setFontSize(7.5); pdf.setTextColor(40,40,40);
-          if(!ultima) window.justificarLinha(pdf, l, ctX, cy, ctW); else pdf.text(l, ctX, cy);
-          cy+=3.2;
-        });
-      }
-      pdf.setFont("helvetica","bold"); pdf.setFontSize(14); pdf.setTextColor(255,255,255);
-      pdf.text("DESP-2", faixaW/2, 250, {align:"center"});
-      const dataCapaD2=(new Date()).toLocaleDateString("pt-BR",{month:"long",year:"numeric"}).toUpperCase().replace(" DE ","/");
-      pdf.setFontSize(13);
-      const dcLsD2=pdf.splitTextToSize(dataCapaD2, faixaW-6);
-      let dyD2=258; dcLsD2.forEach(function(l){ pdf.text(l, faixaW/2, dyD2, {align:"center"}); dyD2+=6; });
+      DOCPDF.capa(pdf, {
+        logos:LG, produto:"DESP-2", titulo:"RELATÓRIO DE ANÁLISE DE IMPACTO E TRANSPOSIÇÃO DA FAIXA DE DOMÍNIO",
+        ferrovia:((window.CAPA_comum&&window.CAPA_comum().ferrovia)||C("ferrovia")||"FERROVIA").toUpperCase(),
+        loteLinha:C("trecho") ? _sigla+" (Lote: "+C("trecho")+")" : "",
+        processo:procCapa(), processoSempre:true,
+        expropriado:_cm.expropriado||C("proprietario"),
+        areas:_cm.areas, locacaoAlt:C("km"),
+        contrato:C("contrato"),
+        dataTxt:(new Date()).toLocaleDateString("pt-BR",{month:"long",year:"numeric"}).toUpperCase().replace(" DE ","/")
+      });
     }
     /* cabeçalho / rodapé */
     let PG=0;
     function cab(){ PG++;
-      if(imgI){let w=8*(imgI.width/imgI.height); pdf.addImage(imgI,"JPEG",mL,13,w,8);}
-      if(imgE){let w=8*(imgE.width/imgE.height); pdf.addImage(imgE,"JPEG",W-mR-w,13,w,8);}
-      pdf.setFont(FONT,"normal"); pdf.setFontSize(7); pdf.setTextColor(90,90,90);
       const docId="DESP-2 (Análise de Impacto e Transposição): INFRA S.A. CTD-"+C("cadastro")+(C("sei")?(" (SEI nº "+C("sei")+")"):"");
-      pdf.text(pdf.splitTextToSize(docId, cw-24)[0], mL, 23);
-      pdf.text("Página | "+PG, W-mR, 23, {align:"right"});
-      pdf.setDrawColor(31,111,192); pdf.setLineWidth(0.5); pdf.line(mL,25,W-mR,25);
+      DOCPDF.cabecalho(pdf, { logos:LG, fonte:FONT, ident:docId, pagina:PG, mL:mL, xR:M.xR, larguraIdent:cw-24 });
     }
-    function rod(){ const yl=H-mB-16; pdf.setDrawColor(31,111,192); pdf.setLineWidth(0.4); pdf.line(mL,yl,W-mR,yl); pdf.setFont("times","normal"); pdf.setFontSize(6); pdf.setTextColor(90,100,115); let yy=yl+3.2; for(let i=0;i<END.length;i++){ pdf.text(END[i],mL,yy); pdf.text(TEL[i],W-mR-33,yy,{align:"right"}); pdf.text("comercial@enprol.com.br",W-mR,yy,{align:"right"}); yy+=2.8; } }
-    const topY=30, botY=H-mB-16-3; let yc=0;
+    function rod(){ DOCPDF.rodape(pdf, { mL:mL, xR:M.xR, H:H }); }
+    const topY=M.topY, botY=M.botY; let yc=0;
     function nova(){ pdf.addPage(); cab(); yc=topY; }
     function ensure(h){ if(yc+h>botY){ rod(); nova(); } }
     // 1cm (10mm) de distância do conteúdo anterior, exceto se estamos no topo de uma
@@ -44843,10 +44973,8 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     const KEEP_NEXT=12;
     // mapas: altura máxima (sobra espaço para texto) e mínima ao reduzir para caber na página
     const FIG_MAXH=160, FIG_MINH=90, FIG_CAP=15;   // 160: mapa 900×889 sai de margem a margem (160×158 mm)
-    function titulo(t){ gapTopico(); ensure(20+KEEP_NEXT); pdf.setFont(FONT,"bold"); pdf.setFontSize(13.5); pdf.setTextColor(0,0,0);
-      const m=String(t).match(/^(\d+)\.\s*(.*)$/);
-      if(m){ pdf.text(m[1]+".", mL, yc); pdf.text(m[2].toUpperCase(), mL+11, yc); } else { pdf.text(String(t).toUpperCase(), mL, yc); }
-      yc+=2.6; pdf.setDrawColor(70,70,70); pdf.setLineWidth(0.3); pdf.line(mL,yc,W-mR,yc); yc+=7; _headEndY=yc;
+    function titulo(t){ gapTopico(); ensure(20+KEEP_NEXT);
+      yc=DOCPDF.topico(pdf, { fonte:FONT, x:mL, xFim:W-mR, y:yc, texto:t, separarNumero:true }); _headEndY=yc;
     }
     function subt(t,farGap){ pdf.setFont(FONT,"bold"); pdf.setFontSize(11.5); pdf.setTextColor(0,0,0);
       const m=String(t).match(/^(\d+\.\d+)\.?\s*(.*)$/);
@@ -44975,7 +45103,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
         if(cur.length && curLen+add>wLine){ lines.push(cur); cur=[tk]; curLen=ww; } else { cur.push(tk); curLen+=add; } });
       if(cur.length) lines.push(cur);
       lines.forEach(function(ln,idx){ if(yc+LH>botY){ rod(); nova(); }
-        if(idx===0){ pdf.setFillColor(0,0,0); const tx=mL+1.6, ty=yc-2.5; pdf.triangle(tx,ty, tx+2.4,ty+1.3, tx,ty+2.6,'F'); }
+        if(idx===0){ DOCPDF.seta(pdf, mL+1.6, yc-2.5); }
         _drawWords(ln, x0+2.5, (mL+cw)-(x0+2.5), base, idx<lines.length-1);
         yc+=LH;
       });
@@ -45052,19 +45180,17 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
         ["Alternativa 03 (Transposição com PN)","Indicação de 1 Passagem em Nível (PN).","Obras SUPRO"]
       ];
       const wA=44,wC=34,wD=cw-wA-wC;
-      function head(){ const hh=7; pdf.setFillColor(218,232,246); pdf.rect(mL,yc,cw,hh,'F');
-        pdf.setFont(FONT,"bold"); pdf.setFontSize(9); pdf.setTextColor(20,41,74);
-        pdf.text("Alternativa",mL+2.5,yc+4.6); pdf.text("Descrição das medidas",mL+wA+2.5,yc+4.6); pdf.text("Custo estimado",mL+wA+wD+2.5,yc+4.6);
-        pdf.setDrawColor(31,111,192); pdf.setLineWidth(0.6); pdf.line(mL,yc+hh,mL+cw,yc+hh); yc+=hh;
+      function head(){
+        yc=DOCPDF.tabelaCab(pdf, { fonte:FONT, tam:9, x:mL, y:yc, w:cw, cols:[{t:"Alternativa", x:mL+2.5}, {t:"Descrição das medidas", x:mL+wA+2.5}, {t:"Custo estimado", x:mL+wA+wD+2.5}] });
       }
       ensure(24); head(); let ri=0;
       linhas.forEach(function(l){ pdf.setFont(FONT,"normal"); pdf.setFontSize(8.5); pdf.setTextColor(40,51,63);
         const aLs=pdf.splitTextToSize(l[0],wA-3),dLs=pdf.splitTextToSize(l[1],wD-3),cLs=pdf.splitTextToSize(l[2],wC-3);
         const rowH=Math.max(aLs.length,dLs.length,cLs.length,1)*3.9+3;
         if(yc+rowH>botY){ rod(); nova(); head(); }
-        if(ri%2===1){ pdf.setFillColor(250,252,254); pdf.rect(mL,yc,cw,rowH,'F'); }
+        DOCPDF.tabelaZebra(pdf, mL, yc, cw, rowH, ri);
         pdf.text(aLs,mL+2.5,yc+3.9); pdf.text(dLs,mL+wA+2.5,yc+3.9); pdf.text(cLs,mL+wA+wD+2.5,yc+3.9);
-        pdf.setDrawColor(237,241,245); pdf.setLineWidth(0.2); pdf.line(mL,yc+rowH,mL+cw,yc+rowH); yc+=rowH; ri++;
+        DOCPDF.tabelaLinha(pdf, mL, yc+rowH, cw); yc+=rowH; ri++;
       }); yc+=3;
     }
     function bloco(text){
@@ -50564,7 +50690,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.16-10';
+window.APP_VERSAO = '2026.10.16-11';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.15-19';
 (function(){
