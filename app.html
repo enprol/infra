@@ -5595,6 +5595,7 @@ body.ativ-pesquisa{ overflow:hidden; }
       <button type="button" class="pg-btn pg-btn-primaria" onclick="CAD_novoCadastro()"><svg class="pgi" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14"/></svg>Novo Cadastro</button>
       <button type="button" class="pg-btn" id="pgBtnAtualizar" onclick="PG_atualizar()"><svg class="pgi" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 11a8 8 0 0 0-14.9-3M4 4v4h4M4 13a8 8 0 0 0 14.9 3M20 20v-4h-4"/></svg>Atualizar planilha</button>
       <button type="button" class="pg-btn" onclick="PG_utilitarios()"><svg class="pgi" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></svg>Utilitários</button>
+      <button type="button" class="pg-btn" id="pgBtnPadroes" onclick="PADROES_abrir()" title="Cabeçalho, rodapé, capa, tabelas e logotipos dos PDFs de todos os cadastros"><svg class="pgi" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M7 3h8l4 4v14H7z"/><path d="M15 3v4h4M10 12h6M10 16h6"/></svg>Padrões de documento</button>
       <button type="button" class="pg-btn" id="pgBtnMapa" onclick="PG_mapaAlternar()" aria-expanded="false"><svg class="pgi" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 4 3.5 6v14L9 18l6 2 5.5-2V4L15 6 9 4z"/><path d="M9 4v14M15 6v14"/></svg>Mapa Geral</button>
       <button type="button" class="pg-btn" id="pgBtnGraf" onclick="PG_grafAlternar()" aria-expanded="false"><svg class="pgi" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20h16M7 16v-5M12 16V6M17 16v-8"/></svg>Gráficos</button>
       <button type="button" class="pg-btn" id="pgxBtnFiltros" onclick="PGX_toggleFiltros()"><svg class="pgi" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 6h16M7 12h10M10 18h4"/></svg>Filtros<span class="pgx-badge" id="pgxFiltN" hidden></span></button>
@@ -49344,6 +49345,97 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
 #relprev_ov .relprev-msg{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; padding:24px; text-align:center; color:#fff; font:500 14px var(--doc-fonte); }
 #relprev_ov footer{ display:flex; align-items:center; gap:10px; padding:10px 16px; border-top:1px solid #E6EAF0; }
 #relprev_ov footer small{ flex:1; color:var(--doc-sub); font-size:12px; }
+
+/* ===== Padrões de documento (fase 3, 16/10/2026) — tela #pad_tela, js/179, aberta pelo Painel Geral ===== */
+#pad_tela{ position:fixed; inset:0; z-index:10050; display:flex; padding:14px; background:rgba(15,34,54,.55); font-family:var(--doc-fonte); }
+#pad_tela[hidden]{ display:none; }
+#pad_tela .pad-box{ flex:1; min-width:0; display:flex; flex-direction:column; background:#fff; border-radius:14px; box-shadow:0 24px 70px rgba(0,0,0,.35); overflow:hidden; color:var(--doc-texto); }
+#pad_tela header{ display:flex; align-items:flex-start; gap:12px; padding:14px 18px 12px 22px; border-bottom:1px solid var(--doc-borda-suave); }
+#pad_tela header > div{ flex:1; }
+#pad_tela header h1{ margin:0; font-size:19px; font-weight:700; color:var(--doc-navy); }
+#pad_tela header p{ margin:4px 0 0; font-size:13px; line-height:1.5; color:var(--doc-sub); max-width:860px; }
+#pad_tela .pad-x{ width:40px; height:40px; border:0; border-radius:8px; background:none; color:var(--doc-sub); font-size:26px; line-height:1; cursor:pointer; }
+#pad_tela .pad-x:hover{ background:var(--doc-fundo-hover); color:var(--doc-navy); }
+#pad_tela .pad-corpo{ flex:1; min-height:0; display:grid; grid-template-columns:250px minmax(340px,1fr) minmax(300px,.9fr); }
+#pad_tela .pad-nav{ overflow:auto; padding:12px; background:#F6F9FC; border-right:1px solid var(--doc-borda-suave); display:flex; flex-direction:column; gap:4px; }
+#pad_tela .pad-nv{ position:relative; text-align:left; border:1px solid transparent; border-radius:var(--doc-raio); background:none; padding:9px 34px 9px 12px; cursor:pointer; color:var(--doc-texto); font-family:inherit; transition:background-color .15s, border-color .15s; }
+#pad_tela .pad-nv:hover{ background:#fff; border-color:var(--doc-borda-suave); }
+#pad_tela .pad-nv.on{ background:#fff; border-color:var(--doc-azul); box-shadow:inset 3px 0 0 var(--doc-azul); }
+#pad_tela .pad-nt{ display:block; font-size:14px; font-weight:700; color:var(--doc-navy); }
+#pad_tela .pad-ns{ display:block; font-size:12px; line-height:1.4; color:var(--doc-sub); margin-top:2px; }
+#pad_tela .pad-n{ position:absolute; right:10px; top:10px; min-width:20px; height:20px; padding:0 6px; box-sizing:border-box; border-radius:999px; background:var(--doc-azul); color:#fff; font-size:11px; font-weight:700; line-height:20px; text-align:center; }
+#pad_tela .pad-n[hidden]{ display:none; }
+#pad_tela .pad-conteudo{ overflow:auto; padding:18px 22px 28px; }
+#pad_tela .pad-conteudo h2{ margin:0; font-size:18px; color:var(--doc-navy); outline:none; }
+#pad_tela .pad-sub{ margin:4px 0 14px; color:var(--doc-sub); font-size:13.5px; }
+#pad_tela .pad-ajuda{ margin:0 0 10px; font-size:12.5px; line-height:1.5; color:var(--doc-sub); }
+#pad_tela .pad-bloco{ border:1px solid var(--doc-borda-suave); border-radius:var(--doc-raio); padding:6px 14px 12px; margin:0 0 14px; }
+#pad_tela .pad-bloco h3{ margin:10px 0 6px; font-size:12px; font-weight:700; letter-spacing:.7px; text-transform:uppercase; color:var(--doc-sub); }
+#pad_tela .pad-f{ display:grid; grid-template-columns:minmax(0,1fr) minmax(150px,230px); gap:6px 16px; align-items:center; padding:9px 0; border-top:1px solid var(--doc-borda-suave); }
+#pad_tela .pad-bloco h3 + .pad-f, #pad_tela .pad-ajuda + .pad-ct-h{ border-top:0; }
+#pad_tela .pad-ft label{ display:block; font-size:13.5px; font-weight:600; color:var(--doc-texto); }
+#pad_tela .pad-ft small{ display:block; margin-top:2px; font-size:12px; line-height:1.4; color:var(--doc-sub); }
+#pad_tela .pad-fc{ display:flex; flex-wrap:wrap; align-items:center; gap:6px; justify-content:flex-end; }
+#pad_tela .pad-f.alt .pad-ft label::after{ content:"alterado"; margin-left:8px; padding:1px 7px; border-radius:999px; background:#E3F0FB; color:var(--doc-azul-esc); font-size:11px; font-weight:700; }
+#pad_tela input[type=number], #pad_tela input[type=text], #pad_tela textarea{ box-sizing:border-box; min-height:38px; padding:6px 9px; border:1px solid var(--doc-borda); border-radius:8px; font:14px var(--doc-fonte); color:var(--doc-texto); background:#fff; }
+#pad_tela .pad-fc input[type=number]{ width:110px; }
+#pad_tela .pad-fc input[type=text], #pad_tela .pad-fc textarea{ width:100%; }
+#pad_tela .pad-un{ font-style:normal; font-size:12.5px; color:var(--doc-sub); min-width:20px; }
+#pad_tela input[type=color]{ width:64px; height:38px; padding:2px; border:1px solid var(--doc-borda); border-radius:8px; background:#fff; cursor:pointer; }
+#pad_tela [aria-invalid=true]{ border-color:var(--doc-erro) !important; background:var(--doc-erro-bg) !important; }
+#pad_tela input:focus-visible, #pad_tela textarea:focus-visible, #pad_tela button:focus-visible{ outline:none; box-shadow:var(--doc-foco); border-color:var(--doc-azul); }
+#pad_tela .pad-volta{ border:0; background:none; color:var(--doc-azul-esc); font:600 12.5px var(--doc-fonte); cursor:pointer; padding:6px 8px; border-radius:6px; }
+#pad_tela .pad-volta:hover{ background:var(--doc-fundo-hover); text-decoration:underline; }
+#pad_tela .pad-volta[hidden]{ display:none; }
+#pad_tela .pad-ct{ display:grid; grid-template-columns:minmax(0,1fr) 150px 34px; gap:8px; margin:0 0 6px; align-items:center; }
+#pad_tela .pad-ct-h{ font-size:12px; font-weight:700; color:var(--doc-sub); margin-bottom:2px; }
+#pad_tela .pad-rm{ width:34px; height:34px; border:1px solid var(--doc-borda); border-radius:8px; background:#fff; color:var(--doc-erro); font-size:18px; cursor:pointer; }
+#pad_tela .pad-rm:disabled{ opacity:.4; cursor:not-allowed; }
+#pad_tela .pad-acoes{ display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:6px 0 4px; }
+#pad_tela .pad-logos{ display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:14px; margin-bottom:12px; }
+#pad_tela .pad-logo{ border:1px solid var(--doc-borda-suave); border-radius:var(--doc-raio); padding:6px 14px 14px; }
+#pad_tela .pad-logo h3{ margin:10px 0 2px; font-size:15px; color:var(--doc-navy); }
+#pad_tela .pad-logo-img{ height:110px; display:grid; place-items:center; margin:8px 0 10px; border:1px dashed var(--doc-borda); border-radius:8px; background:#fff; }
+#pad_tela .pad-logo-img img{ max-width:90%; max-height:90px; object-fit:contain; }
+#pad_tela .pad-arq{ position:relative; overflow:hidden; }
+#pad_tela .pad-arq input{ position:absolute; inset:0; opacity:0; cursor:pointer; }
+#pad_tela .pad-arq:focus-within{ box-shadow:var(--doc-foco); }
+#pad_tela .pad-hl{ list-style:none; margin:0; padding:0; display:grid; gap:6px; }
+#pad_tela .pad-hl li{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 12px; border:1px solid var(--doc-borda-suave); border-radius:var(--doc-raio); font-size:13.5px; }
+#pad_tela .pad-previa{ display:flex; flex-direction:column; background:#E9EEF4; border-left:1px solid var(--doc-borda-suave); padding:10px; min-width:0; }
+#pad_tela .pad-prevt{ display:flex; align-items:baseline; justify-content:space-between; gap:8px; padding:2px 4px 8px; font-size:13px; color:var(--doc-navy); }
+#pad_tela .pad-prevt span{ font-size:12px; color:var(--doc-sub); }
+#pad_tela .pad-previa iframe{ flex:1; width:100%; min-height:0; border:0; background:#fff; border-radius:6px; }
+#pad_tela footer{ display:flex; align-items:center; justify-content:flex-end; gap:8px; flex-wrap:wrap; padding:11px 18px; border-top:1px solid var(--doc-borda-suave); }
+#pad_tela .pad-st{ flex:1; font-size:12.5px; color:var(--doc-sub); min-width:160px; }
+#pad_tela .pad-st.erro{ color:var(--doc-erro); font-weight:600; }
+#pad_tela .pad-pend{ font-size:12.5px; font-weight:700; color:var(--doc-azul-esc); }
+#pad_tela .doc-btn:disabled{ opacity:.5; cursor:not-allowed; }
+@media (max-width:1180px){ #pad_tela .pad-corpo{ grid-template-columns:210px 1fr; } #pad_tela .pad-previa{ display:none; } }
+@media (max-width:720px){ #pad_tela{ padding:0; } #pad_tela .pad-box{ border-radius:0; } #pad_tela .pad-corpo{ grid-template-columns:1fr; grid-template-rows:auto 1fr; } #pad_tela .pad-nav{ flex-direction:row; overflow-x:auto; border-right:0; border-bottom:1px solid var(--doc-borda-suave); } #pad_tela .pad-nv{ flex:none; min-width:150px; } #pad_tela .pad-ns{ display:none; } #pad_tela .pad-f{ grid-template-columns:1fr; } #pad_tela .pad-fc{ justify-content:flex-start; } }
+#pad_tela .pad-dtit{ padding:2px 4px 6px; font-size:13px; color:var(--doc-navy); }
+#pad_tela .pad-diag{ background:#fff; border:1px solid var(--doc-borda-suave); border-radius:8px; padding:8px 10px 10px; margin-bottom:10px; }
+#pad_tela .pad-dsvg svg{ display:block; width:100%; height:auto; max-height:min(34vh,300px); background:#F3F6FA; border-radius:6px; }
+#pad_tela .pad-dcap{ margin:8px 0 0; font-size:12.5px; line-height:1.5; color:var(--doc-texto); }
+#pad_tela .pad-dcap strong{ color:var(--doc-navy); }
+#pad_tela .pad-valor{ display:inline-block; margin-left:4px; padding:0 7px; border-radius:999px; background:#FDEBDC; color:#9A4306; font-weight:700; font-size:11.5px; }
+#pad_tela .pad-previa{ overflow:auto; }
+#pad_tela .pad-previa iframe{ min-height:360px; }
+#pad_tela .pad-fino{ border:1px dashed var(--doc-borda); border-radius:var(--doc-raio); padding:0 14px 6px; margin:6px 0 14px; background:#FBFCFE; }
+#pad_tela .pad-fino > summary{ padding:12px 0; font-size:13px; font-weight:700; color:var(--doc-sub); cursor:pointer; border-radius:6px; }
+#pad_tela .pad-fino > summary:focus-visible{ outline:none; box-shadow:var(--doc-foco); }
+#pad_tela .pad-fino[open] > summary{ color:var(--doc-navy); }
+#pad_senha{ position:fixed; inset:0; z-index:10060; display:flex; align-items:center; justify-content:center; padding:16px; background:rgba(15,34,54,.55); font-family:var(--doc-fonte); }
+#pad_senha[hidden]{ display:none; }
+#pad_senha .pad-sbox{ width:min(380px,96vw); background:#fff; border-radius:14px; padding:20px 22px 18px; box-shadow:0 24px 70px rgba(0,0,0,.35); color:var(--doc-texto); }
+#pad_senha h2{ margin:0 0 6px; font-size:17px; color:var(--doc-navy); }
+#pad_senha p{ margin:0 0 12px; font-size:13px; line-height:1.5; color:var(--doc-sub); }
+#pad_senha label{ display:block; font-size:13px; font-weight:600; margin-bottom:4px; }
+#pad_senha input{ width:100%; box-sizing:border-box; min-height:40px; padding:6px 10px; border:1px solid var(--doc-borda); border-radius:8px; font:15px var(--doc-fonte); }
+#pad_senha input:focus-visible{ outline:none; border-color:var(--doc-azul); box-shadow:var(--doc-foco); }
+#pad_senha input[aria-invalid=true]{ border-color:var(--doc-erro); background:var(--doc-erro-bg); }
+#pad_senha .pad-serro{ min-height:18px; margin:6px 0 4px; color:var(--doc-erro); font-weight:600; }
+#pad_senha .pad-acoes{ display:flex; justify-content:flex-end; gap:8px; margin-top:6px; }
 </style>
 <div id="relprev_ov" hidden>
   <div class="relprev-box" role="dialog" aria-modal="true" aria-labelledby="relprev_tit">
@@ -49801,6 +49893,732 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     });
   }
   if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", ligarTarde); else ligarTarde();
+})();
+</script><script>/* ===== Padrões de documento — fase 3 (16/10/2026) =====
+   Tela cheia aberta pelo Painel Geral ("Padrões de documento"): a formatação vale para TODOS os cadastros e PDFs.
+   Edita os tokens DOCPDF.T (js/097) e os logotipos (window.__LOGO_INFRA__ / __LOGO_ENPROL__, JPEG em data URL).
+   Grava no servidor (/api/padroes-documento: atual.json + historico, últimas 50 versões) e aplica ao abrir o app.
+   - Os campos nascem de DOCPDF.T (número, cor, texto): token novo no motor = campo novo aqui; dê o rótulo/dica em ROT
+     e coloque a chave numa seção em SECOES (sem rótulo aparece o nome técnico).
+   - Prévia: PDF de exemplo (capa + página de conteúdo) desenhado pelas primitivas do motor com o rascunho; nada é gravado.
+   - "Original" = valores aprovados que vêm no código, guardados antes de aplicar o que veio do servidor. */
+(function(){
+  "use strict";
+  var $ = function(id){ return document.getElementById(id); };
+  function esc(s){ return String(s == null ? "" : s).replace(/[&<>"]/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
+  function clone(o){ return JSON.parse(JSON.stringify(o)); }
+  function igual(a, b){ return JSON.stringify(a) === JSON.stringify(b); }
+
+  /* acesso gerencial: a tela só abre com a senha; o servidor também exige a chave para gravar/restaurar.
+     Só o SHA-256 fica no código (o repositório é público); a senha em si não é guardada em lugar nenhum. */
+  var CHAVE = null;                                    // hash da senha digitada, só na memória desta página
+  function sha256(str){
+    var K = [0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
+    var H = [0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];
+    var b = unescape(encodeURIComponent(str)), l = b.length, w = [], i;
+    for(i = 0; i < ((((l + 8) >> 6) + 1) << 4); i++) w[i] = 0;
+    for(i = 0; i < l; i++) w[i >> 2] |= b.charCodeAt(i) << (24 - (i % 4) * 8);
+    w[l >> 2] |= 0x80 << (24 - (l % 4) * 8); w[(((l + 8) >> 6) << 4) + 15] = l * 8;
+    function rr(x, n){ return (x >>> n) | (x << (32 - n)); }
+    for(var o = 0; o < w.length; o += 16){
+      var W = w.slice(o, o + 16), a = H.slice();
+      for(i = 16; i < 64; i++){ var s0 = rr(W[i-15],7) ^ rr(W[i-15],18) ^ (W[i-15] >>> 3), s1 = rr(W[i-2],17) ^ rr(W[i-2],19) ^ (W[i-2] >>> 10); W[i] = (W[i-16] + s0 + W[i-7] + s1) | 0; }
+      for(i = 0; i < 64; i++){
+        var S1 = rr(a[4],6) ^ rr(a[4],11) ^ rr(a[4],25), ch = (a[4] & a[5]) ^ (~a[4] & a[6]), t1 = (a[7] + S1 + ch + K[i] + W[i]) | 0;
+        var S0 = rr(a[0],2) ^ rr(a[0],13) ^ rr(a[0],22), mj = (a[0] & a[1]) ^ (a[0] & a[2]) ^ (a[1] & a[2]), t2 = (S0 + mj) | 0;
+        a = [(t1 + t2) | 0, a[0], a[1], a[2], (a[3] + t1) | 0, a[4], a[5], a[6]];
+      }
+      for(i = 0; i < 8; i++) H[i] = (H[i] + a[i]) | 0;
+    }
+    return H.map(function(x){ return ("00000000" + (x >>> 0).toString(16)).slice(-8); }).join("");
+  }
+  var HASH_OK = "bc50db646a03a05d8d85f7d9489181fadc45bfd659609148e4b0f5ec4356baa0";
+  function pedirSenha(){
+    return new Promise(function(resolve){
+      var el = $("pad_senha");
+      if(!el){
+        el = document.createElement("div"); el.id = "pad_senha"; el.hidden = true;
+        el.innerHTML = '<form class="pad-sbox" role="dialog" aria-modal="true" aria-labelledby="pad_s_tit" autocomplete="off">' +
+          '<h2 id="pad_s_tit">Acesso gerencial</h2><p>Os padrões de documento valem para todos os cadastros. Digite a senha gerencial para continuar.</p>' +
+          '<label for="pad_s_in">Senha</label><input type="password" id="pad_s_in" autocomplete="off" aria-describedby="pad_s_erro">' +
+          '<p class="pad-serro" id="pad_s_erro" role="alert"></p>' +
+          '<div class="pad-acoes"><button type="button" class="doc-btn" data-s="cancelar">Cancelar</button><button type="submit" class="doc-btn pri">Entrar</button></div></form>';
+        document.body.appendChild(el);
+      }
+      var form = el.firstChild, inp = $("pad_s_in"), erro = $("pad_s_erro"), antes = document.activeElement;
+      inp.value = ""; erro.textContent = ""; inp.removeAttribute("aria-invalid"); el.hidden = false; inp.focus();
+      function fim(v){ el.hidden = true; form.onsubmit = null; el.onkeydown = null; el.onclick = null; if(antes && antes.focus) try{ antes.focus(); }catch(e){} resolve(v); }
+      form.onsubmit = function(ev){
+        ev.preventDefault();
+        var h = sha256("enprol-padroes:" + inp.value);
+        if(h === HASH_OK){ CHAVE = h; fim(true); }
+        else { erro.textContent = "Senha incorreta."; inp.setAttribute("aria-invalid", "true"); inp.select(); }
+      };
+      el.onclick = function(ev){ if(ev.target === el || (ev.target.getAttribute && ev.target.getAttribute("data-s") === "cancelar")) fim(false); };
+      el.onkeydown = function(ev){ if(ev.key === "Escape"){ ev.preventDefault(); fim(false); } };
+    });
+  }
+
+  var T = null, ORIGINAL = null, LOGO_ORIG = { I:null, E:null };
+  var SALVO = null, SALVO_LOGOS = { I:null, E:null }, SALVO_META = null;          // o que está gravado no servidor
+  var rasc = null, rascLogos = { I:null, E:null };                                  // rascunho em edição
+  var secao = "logos", urlPrevia = null, timerPrevia = null, ocupado = false, voltarFoco = null, seq = 0;
+
+  /* ---------- textos ---------- */
+  /* itens: caminho de token (campo simples), "c_*"/"p_*" (controle que muda vários tokens de uma vez), "@logos", "@contatos".
+     prefixos: o que sobra desses grupos (não coberto por controle) vai para "Ajustes finos (avançado)". */
+  var SECOES = [
+    { id:"logos",  tit:"Logotipos",          sub:"Troque as imagens e ajuste o tamanho", pg:1, vb:"logos", itens:["@logos", "cab.logoH", "capa.logoH"], prefixos:[] },
+    { id:"cores",  tit:"Cores",              sub:"Azul de destaque, capa, títulos, textos de apoio e tabelas", pg:2, vb:"pagina", itens:["c_destaque", "c_capa", "c_titulos", "c_apoio", "c_fundo"], prefixos:[] },
+    { id:"texto",  tit:"Letras e linhas",    sub:"Tamanho dos textos e espessura das linhas", pg:2, vb:"titulo", itens:["p_titulos", "p_cabrod", "p_indice", "p_linhas"], prefixos:["topico", "subtopico", "seta", "tabela", "sumario", "assinatura"] },
+    { id:"pagina", tit:"Margens",            sub:"Espaço em branco ao redor do texto", pg:2, vb:"pagina", itens:["pagina.mEsq", "pagina.mDir"], prefixos:["pagina"] },
+    { id:"cabrod", tit:"Cabeçalho e rodapé", sub:"Número da página, endereços, telefones e e-mail", pg:2, vb:"cab", itens:["cab.rotuloPagina", "@contatos"], prefixos:["cab", "rod"] },
+    { id:"capa",   tit:"Capa",               sub:"Órgãos e texto do contrato", pg:1, vb:"capa", itens:["capa.orgao", "capa.contratoObjeto"], prefixos:["capa"] },
+    { id:"hist",   tit:"Versões anteriores", sub:"Voltar a uma configuração gravada antes", especial:"hist" }
+  ];
+  /* controles gerais: um ajuste que vale para vários tokens do motor. tipo "cor" = mesma cor em todos; "pct" = % do valor original de cada um */
+  function clarear(c){ return c.map(function(n){ return Math.round(n + (255 - n) * 0.87); }); }
+  var CTRL = {
+    c_destaque:{ tipo:"cor", rot:"Cor de destaque", dica:"As linhas azuis do cabeçalho, do rodapé e das tabelas.", alvos:["cab.reguaCor", "rod.reguaCor", "tabela.reguaCor"], vb:"pagina" },
+    c_capa:{ tipo:"cor", rot:"Cor da faixa da capa", dica:"A faixa lateral da primeira página.", alvos:["capa.faixaCor"], pagina:"capa", vb:[0, 0, 210, 110] },
+    c_titulos:{ tipo:"cor", rot:"Cor dos títulos", dica:"Nome do relatório na capa, títulos de coluna das tabelas e texto do índice.", alvos:["capa.corTitulo", "tabela.cabTexto", "sumario.cor"], vb:"pagina" },
+    c_apoio:{ tipo:"cor", rot:"Cor dos textos de apoio", dica:"O cinza da identificação do cabeçalho, dos endereços do rodapé e dos números de página do índice.", alvos:["cab.identCor", "rod.cor", "sumario.numCor"], vb:"pagina" },
+    c_fundo:{ tipo:"cor", rot:"Fundo das tabelas", dica:"Faixa dos títulos de coluna; as linhas alternadas usam um tom mais claro da mesma cor.", alvos:["tabela.cabFundo", { p:"tabela.zebra", f:clarear }], vb:"tabela" },
+    p_titulos:{ tipo:"pct", rot:"Tamanho dos títulos", dica:"Títulos de tópico e subtítulos. 100 % = padrão.", alvos:["topico.tam", "subtopico.tam"], vb:"titulo" },
+    p_cabrod:{ tipo:"pct", rot:"Letra do cabeçalho e do rodapé", dica:"Identificação do cadastro no topo e endereços no rodapé. 100 % = padrão.", alvos:["cab.identTam", "rod.tam"], vb:"pagina" },
+    p_indice:{ tipo:"pct", rot:"Letra do índice e da assinatura", dica:"Entradas do índice, número da página e nome/cargo na assinatura. 100 % = padrão.", alvos:["sumario.tam", "sumario.numTam", "assinatura.nomeTam", "assinatura.cargoTam"], vb:"fim" },
+    p_linhas:{ tipo:"pct", rot:"Espessura das linhas", dica:"Linhas do cabeçalho, do rodapé, dos títulos e das tabelas. 100 % = padrão.", alvos:["cab.reguaLarg", "rod.reguaLarg", "topico.reguaLarg", "tabela.reguaLarg", "tabela.linhaLarg"], vb:"pagina" }
+  };
+  function alvoP(a){ return typeof a === "string" ? a : a.p; }
+  function ctrlValor(c){ var p = alvoP(c.alvos[0]), v = pegar(rasc, p); if(c.tipo === "pct"){ var o = pegar(ORIGINAL, p); return o ? Math.round(v / o * 100) : 100; } return v; }
+  function ctrlAplicar(c, v){
+    c.alvos.forEach(function(a){
+      var p = alvoP(a), o = pegar(ORIGINAL, p), nv = c.tipo === "pct" ? Math.round(o * v) / 100 : (typeof a === "string" ? v : a.f(v));
+      por(rasc, p, Array.isArray(nv) ? nv.slice() : nv);
+    });
+  }
+  function ctrlAlterado(c){ return c.alvos.some(function(a){ var p = alvoP(a); return !igual(pegar(rasc, p), pegar(ORIGINAL, p)); }); }
+  function ctrlReset(c){ c.alvos.forEach(function(a){ var p = alvoP(a); por(rasc, p, clone(pegar(ORIGINAL, p))); }); }
+  function cobertos(){
+    var s = {};
+    Object.keys(CTRL).forEach(function(k){ CTRL[k].alvos.forEach(function(a){ s[alvoP(a)] = 1; }); });
+    SECOES.forEach(function(x){ (x.itens || []).forEach(function(i){ if(i.charAt(0) !== "@" && !CTRL[i]) s[i] = 1; }); });
+    return s;
+  }
+  function finos(s){
+    var cb = cobertos(), r = [];
+    (s.prefixos || []).forEach(function(ch){ Object.keys(rasc[ch]).forEach(function(k){ var p = ch + "." + k; if(!FIXOS[p] && !cb[p]) r.push(p); }); });
+    return r;
+  }
+  var GRUPOS = { pagina:"Margens", cab:"Cabeçalho", rod:"Texto e linha do rodapé", capa:"Capa", topico:"Título de tópico (ex.: 1. OBJETO)",
+    subtopico:"Subtítulo", seta:"Seta ➢ dos itens", sumario:"Índice (sumário)", assinatura:"Assinatura", tabela:"Tabela" };
+  var PT = { "cab.identTam":1, "rod.tam":1, "capa.contratoTam":1, "topico.tam":1, "subtopico.tam":1, "sumario.tam":1, "sumario.numTam":1, "assinatura.nomeTam":1, "assinatura.cargoTam":1 };
+  /* [rótulo, dica] — dica diz o que muda no papel */
+  var ROT = {
+    "pagina.mEsq":["Margem esquerda", "Distância entre a borda esquerda da folha e o texto (deixa espaço para encadernar)."],
+    "pagina.mDir":["Margem direita", "Distância entre o texto e a borda direita."],
+    "pagina.mInf":["Margem inferior", "Distância entre o rodapé e a borda de baixo da folha."],
+    "pagina.topoConteudo":["Onde o texto começa", "Altura, contada do topo da folha, em que o conteúdo começa (abaixo do cabeçalho)."],
+    "cab.logoY":["Logos: distância do topo", "Quanto os logos ficam abaixo da borda de cima."],
+    "cab.logoH":["Logos: altura", "Tamanho dos dois logos; a largura acompanha a proporção da imagem."],
+    "cab.identY":["Identificação: altura da linha", "Posição vertical do texto 'INFRA S.A. CTD … | Expropriado'."],
+    "cab.identTam":["Identificação: tamanho da letra", "Tamanho do texto de identificação do cadastro."],
+    "cab.identCor":["Identificação: cor", "Cor do texto de identificação e do nº da página."],
+    "cab.folgaIdent":["Identificação: reserva à direita", "Espaço que o texto não pode invadir, para não encostar no 'Página | n'. Texto maior que isso é cortado."],
+    "cab.reguaY":["Linha azul: altura", "Posição da linha que separa o cabeçalho do corpo."],
+    "cab.reguaCor":["Linha azul: cor", "Cor da linha do cabeçalho."],
+    "cab.reguaLarg":["Linha azul: espessura", "Grossura da linha do cabeçalho."],
+    "cab.rotuloPagina":["Texto antes do nº da página", "Ex.: 'Página | ' resulta em 'Página | 2'."],
+    "rod.reguaDist":["Linha do rodapé: distância do fim da folha", "Quanto a linha fica acima da borda de baixo; aumentar sobe o rodapé e diminui a área do texto."],
+    "rod.reguaCor":["Linha do rodapé: cor", "Cor da linha acima dos endereços."],
+    "rod.reguaLarg":["Linha do rodapé: espessura", "Grossura da linha acima dos endereços."],
+    "rod.fonte":["Fonte do rodapé", "times, helvetica ou courier."],
+    "rod.tam":["Tamanho da letra", "Tamanho do texto dos endereços e contatos."],
+    "rod.cor":["Cor do texto", "Cor dos endereços, telefones e e-mail."],
+    "rod.y0":["1ª linha: distância da linha", "Espaço entre a linha do rodapé e o primeiro endereço."],
+    "rod.passo":["Espaço entre endereços", "Distância de uma linha de endereço à seguinte."],
+    "rod.telDx":["Telefone: recuo da margem direita", "Quanto o telefone fica afastado da margem, deixando espaço para o e-mail."],
+    "rod.folgaConteudo":["Folga entre o texto e o rodapé", "Espaço mínimo que o texto deixa antes do rodapé."],
+    "capa.faixaW":["Faixa lateral: largura", "Largura da faixa azul à esquerda da capa."],
+    "capa.faixaCor":["Faixa lateral: cor", "Cor da faixa azul da capa."],
+    "capa.logoY":["Logos: distância do topo", "Posição dos logos na capa."],
+    "capa.logoH":["Logos: altura", "Tamanho dos logos na capa."],
+    "capa.corTitulo":["Cor dos títulos", "Cor do nome do relatório e dos órgãos."],
+    "capa.corTexto":["Cor do texto", "Cor dos demais textos da capa."],
+    "capa.orgao":["Órgãos contratantes", "Uma linha por linha impressa, abaixo de 'INFRA S.A.'."],
+    "capa.contratoObjeto":["Texto do contrato", "Aparece depois de 'Contrato nº …' no canto inferior direito."],
+    "capa.contratoW":["Contrato: largura da caixa", "Largura do bloco do contrato."],
+    "capa.contratoY":["Contrato: altura de início", "Onde o bloco do contrato começa, contado do topo."],
+    "capa.contratoTam":["Contrato: tamanho da letra", "Tamanho do texto do contrato."],
+    "capa.contratoLH":["Contrato: espaço entre linhas", "Distância entre as linhas do contrato."],
+    "capa.faixaProdY":["Faixa: altura do nome do produto", "Ex.: 'DESP-2' escrito na faixa azul."],
+    "capa.faixaDataY":["Faixa: altura da data", "Posição da data na faixa azul."],
+    "topico.tam":["Tamanho da letra", "Tamanho do título de tópico."],
+    "topico.cor":["Cor do texto", "Cor do título de tópico."],
+    "topico.reguaDy":["Linha: distância do texto", "Espaço entre o título e a linha cinza embaixo dele."],
+    "topico.reguaCor":["Linha: cor", "Cor da linha sob o título."],
+    "topico.reguaLarg":["Linha: espessura", "Grossura da linha sob o título."],
+    "topico.depois":["Espaço depois da linha", "Distância entre a linha e o texto que vem em seguida."],
+    "topico.recuoNumero":["Recuo depois do número", "Distância entre o 'nº.' e o título."],
+    "subtopico.tam":["Tamanho da letra", "Tamanho dos subtítulos."],
+    "subtopico.lh":["Espaço entre linhas", "Distância entre as linhas de um subtítulo."],
+    "subtopico.depois":["Espaço depois", "Distância até o texto seguinte."],
+    "seta.w":["Largura", "Largura da seta que abre cada item."],
+    "seta.h":["Altura", "Altura da seta."],
+    "tabela.cabAlt":["Cabeçalho: altura", "Altura da faixa azul-clara de títulos de coluna."],
+    "tabela.cabFundo":["Cabeçalho: cor de fundo", "Cor da faixa de títulos de coluna."],
+    "tabela.cabTexto":["Cabeçalho: cor do texto", "Cor dos títulos de coluna."],
+    "tabela.cabTy":["Cabeçalho: altura do texto", "Posição vertical do texto dentro da faixa."],
+    "tabela.reguaCor":["Linha sob o cabeçalho: cor", "Cor da linha azul sob os títulos de coluna."],
+    "tabela.reguaLarg":["Linha sob o cabeçalho: espessura", "Grossura dessa linha."],
+    "tabela.zebra":["Linhas alternadas: cor", "Cor de fundo de uma linha sim, uma não."],
+    "tabela.linhaCor":["Filete entre linhas: cor", "Cor da linha fina que separa as linhas."],
+    "tabela.linhaLarg":["Filete entre linhas: espessura", "Grossura do filete."],
+    "sumario.tam":["Texto: tamanho da letra", "Tamanho do título de cada entrada do índice."],
+    "sumario.cor":["Texto: cor", "Cor do texto do índice."],
+    "sumario.numTam":["Nº da página: tamanho da letra", "Tamanho do número à direita."],
+    "sumario.numCor":["Nº da página: cor", "Cor do número da página."],
+    "sumario.folga":["Pontilhado: folga", "Espaço entre o texto, o pontilhado e o número."],
+    "assinatura.nomeTam":["Nome: tamanho da letra", "Tamanho do nome do responsável."],
+    "assinatura.cargoTam":["Cargo: tamanho da letra", "Tamanho do cargo/registro, abaixo do nome."],
+    "assinatura.entre":["Espaço entre nome e cargo", "Distância entre as duas linhas da assinatura."]
+  };
+  var FIXOS = { "pagina.W":1, "pagina.H":1 };           // tamanho A4: não se edita
+
+  /* ---------- valores ---------- */
+  function ehCor(v){ return Array.isArray(v) && v.length === 3 && v.every(function(n){ return typeof n === "number"; }); }
+  function hex(c){ return "#" + c.map(function(n){ return ("0" + Math.max(0, Math.min(255, n | 0)).toString(16)).slice(-2); }).join(""); }
+  function deHex(h){ return [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]; }
+  function pegar(o, caminho){ return caminho.split(".").reduce(function(a, k){ return a == null ? a : a[k]; }, o); }
+  function por(o, caminho, v){ var p = caminho.split("."); for(var i = 0; i < p.length - 1; i++) o = o[p[i]]; o[p[p.length - 1]] = v; }
+
+  /* mescla valores gravados em T mantendo só caminhos/tipos que já existem (token apagado do motor não volta) */
+  function mesclar(dest, orig){
+    Object.keys(orig || {}).forEach(function(k){
+      if(!(k in dest)) return;
+      var d = dest[k], o = orig[k];
+      if(d && typeof d === "object" && !Array.isArray(d)){ if(o && typeof o === "object") mesclar(d, o); }
+      else if(Array.isArray(d)){ if(Array.isArray(o) && o.length > 0 && typeof o[0] === typeof d[0] && (d.length === o.length || /enderecos|telefones/.test(k))) dest[k] = o.slice(); }
+      else if(typeof o === typeof d && !FIXOS[k]) dest[k] = o;
+    });
+  }
+  function comSalvo(){ var c = clone(ORIGINAL); if(SALVO) mesclar(c, SALVO); return c; }
+  function aplicarEm(dest, fonte){             // copia no lugar (as primitivas leem DOCPDF.T em cada geração)
+    Object.keys(fonte).forEach(function(k){
+      var f = fonte[k];
+      if(f && typeof f === "object" && !Array.isArray(f)) aplicarEm(dest[k], f);
+      else dest[k] = Array.isArray(f) ? f.slice() : f;
+    });
+  }
+  function aplicarLogos(l){ window.__LOGO_INFRA__ = (l && l.I) || LOGO_ORIG.I; window.__LOGO_ENPROL__ = (l && l.E) || LOGO_ORIG.E; }
+  function aplicarSalvo(){ aplicarEm(T, comSalvo()); aplicarLogos(SALVO_LOGOS); }
+
+  function iniciar(){
+    if(T || !window.DOCPDF) return !!T;
+    T = window.DOCPDF.T; ORIGINAL = clone(T); LOGO_ORIG = { I:window.__LOGO_INFRA__ || null, E:window.__LOGO_ENPROL__ || null };
+    return true;
+  }
+  function carregar(){
+    if(!iniciar()) return;
+    return fetch("/api/padroes-documento", { cache:"no-cache" }).then(function(r){ return r.ok ? r.json() : null; }).then(function(o){
+      if(o && o.T){
+        SALVO = o.T; SALVO_LOGOS = { I:(o.logos && o.logos.I) || null, E:(o.logos && o.logos.E) || null };
+        SALVO_META = { atualizado:o.atualizado, por:o.por }; aplicarSalvo();
+      }
+    }).catch(function(){});
+  }
+
+  /* ---------- campos ---------- */
+  function unidade(caminho){ return PT[caminho] ? "pt" : "mm"; }
+  function campo(caminho, v){
+    var id = "pad_" + caminho.replace(/\./g, "_"), r = ROT[caminho] || [caminho, ""], dicaId = id + "_d", dica = r[1] ? '<small id="' + dicaId + '">' + esc(r[1]) + '</small>' : "";
+    var ctl, un = "";
+    if(ehCor(v)) ctl = '<input type="color" id="' + id + '" data-p="' + caminho + '" data-t="cor" value="' + hex(v) + '" aria-describedby="' + dicaId + '">';
+    else if(typeof v === "number"){ ctl = '<input type="number" id="' + id + '" data-p="' + caminho + '" data-t="num" step="any" value="' + v + '" aria-describedby="' + dicaId + '">'; un = '<em class="pad-un">' + unidade(caminho) + '</em>'; }
+    else if(Array.isArray(v)) ctl = '<textarea id="' + id + '" data-p="' + caminho + '" data-t="lista" rows="' + (v.length + 1) + '" aria-describedby="' + dicaId + '">' + esc(v.join("\n")) + '</textarea>';
+    else if(String(v).length > 60) ctl = '<textarea id="' + id + '" data-p="' + caminho + '" data-t="txt" rows="5" aria-describedby="' + dicaId + '">' + esc(v) + '</textarea>';
+    else ctl = '<input type="text" id="' + id + '" data-p="' + caminho + '" data-t="txt" value="' + esc(v) + '" aria-describedby="' + dicaId + '">';
+    return '<div class="pad-f" data-f="' + caminho + '"><div class="pad-ft"><label for="' + id + '">' + esc(r[0]) + '</label>' + dica + '</div>' +
+      '<div class="pad-fc">' + ctl + un + '<button type="button" class="pad-volta" data-a="campo" data-p="' + caminho + '" aria-label="Voltar ao original: ' + esc(r[0]) + '" title="Voltar ao original" hidden>↺ original</button></div></div>';
+  }
+  function ctrlHTML(id){
+    var c = CTRL[id], eid = "pad_c_" + id, v = ctrlValor(c), dId = eid + "_d", ctl, un = "";
+    if(c.tipo === "cor") ctl = '<input type="color" id="' + eid + '" data-c="' + id + '" value="' + hex(v) + '" aria-describedby="' + dId + '">';
+    else { ctl = '<input type="number" id="' + eid + '" data-c="' + id + '" min="40" max="250" step="5" value="' + v + '" aria-describedby="' + dId + '">'; un = '<em class="pad-un">%</em>'; }
+    return '<div class="pad-f" data-f="c:' + id + '"><div class="pad-ft"><label for="' + eid + '">' + esc(c.rot) + '</label><small id="' + dId + '">' + esc(c.dica) + '</small></div>' +
+      '<div class="pad-fc">' + ctl + un + '<button type="button" class="pad-volta" data-a="ctrl" data-c="' + id + '" aria-label="Voltar ao original: ' + esc(c.rot) + '" title="Voltar ao original" hidden>↺ original</button></div></div>';
+  }
+  function bloco(chave){
+    var v = rasc[chave], h = "";
+    Object.keys(v).forEach(function(k){ if(!FIXOS[chave + "." + k]) h += campo(chave + "." + k, v[k]); });
+    return '<section class="pad-bloco"><h3>' + esc(GRUPOS[chave] || chave) + '</h3>' + h + '</section>';
+  }
+  function contatosHTML(){
+    var linhas = rasc.enderecos.map(function(e, i){
+      return '<div class="pad-ct" role="group" aria-label="Unidade ' + (i + 1) + '"><input type="text" data-ct="e" data-i="' + i + '" value="' + esc(e) + '" aria-label="Endereço ' + (i + 1) + '">' +
+        '<input type="text" data-ct="t" data-i="' + i + '" value="' + esc(rasc.telefones[i] || "") + '" aria-label="Telefone ' + (i + 1) + '">' +
+        '<button type="button" class="pad-rm" data-a="ct-rm" data-i="' + i + '" aria-label="Remover unidade ' + (i + 1) + '"' + (rasc.enderecos.length < 2 ? " disabled" : "") + '>×</button></div>';
+    }).join("");
+    return '<section class="pad-bloco" data-f="contatos"><h3>Unidades e contatos</h3><p class="pad-ajuda">Cada linha vira uma linha do rodapé: endereço à esquerda, telefone à direita.</p>' +
+      '<div class="pad-ct pad-ct-h" aria-hidden="true"><span>Endereço</span><span>Telefone</span><span></span></div>' + linhas +
+      '<div class="pad-acoes"><button type="button" class="doc-btn" data-a="ct-add">+ Adicionar unidade</button>' +
+      '<button type="button" class="pad-volta" data-a="contatos" hidden>↺ original</button></div>' + campo("email", rasc.email) + '</section>';
+  }
+
+  /* ---------- logos ---------- */
+  var LOGOS = [{ k:"I", nome:"INFRA S.A.", onde:"canto esquerdo" }, { k:"E", nome:"ENPROL", onde:"canto direito" }];
+  function logoAtual(k){ return rascLogos[k] || LOGO_ORIG[k]; }
+  function logosHTML(){
+    return '<p class="pad-ajuda">Os dois logos aparecem no cabeçalho de cada página e na capa. A largura acompanha a proporção da imagem; o tamanho (altura) se ajusta abaixo.</p><div class="pad-logos">' +
+      LOGOS.map(function(L){
+        var src = logoAtual(L.k), alt = !!rascLogos[L.k];
+        return '<div class="pad-logo" data-f="logo' + L.k + '"><h3>' + L.nome + '</h3><p class="pad-ajuda">Fica no ' + L.onde + '.</p>' +
+          '<div class="pad-logo-img">' + (src ? '<img src="' + src + '" alt="Logotipo atual: ' + L.nome + '">' : '<span>Sem imagem</span>') + '</div>' +
+          '<div class="pad-acoes"><label class="doc-btn pri pad-arq" for="pad_logo_' + L.k + '">Trocar imagem…<input type="file" id="pad_logo_' + L.k + '" data-logo="' + L.k + '" accept="image/png,image/jpeg,image/webp"></label>' +
+          '<button type="button" class="pad-volta" data-a="logo" data-k="' + L.k + '"' + (alt ? "" : " hidden") + '>↺ original</button></div></div>';
+      }).join("") + '</div><p class="pad-ajuda">Aceita PNG, JPG ou WebP. Fundo transparente vira branco (o PDF usa JPEG). Prefira imagens horizontais e nítidas, com pelo menos 300 px de altura.</p>';
+  }
+  function lerImagem(arq, k){
+    if(!arq) return;
+    var st = $("pad_status");
+    var rd = new FileReader();
+    rd.onload = function(){
+      var im = new Image();
+      im.onload = function(){
+        var h = Math.min(im.naturalHeight, 400), w = Math.round(im.naturalWidth * h / im.naturalHeight);
+        if(w > 1600){ w = 1600; h = Math.round(im.naturalHeight * w / im.naturalWidth); }
+        var c = document.createElement("canvas"); c.width = w; c.height = h;
+        var x = c.getContext("2d"); x.fillStyle = "#fff"; x.fillRect(0, 0, w, h); x.drawImage(im, 0, 0, w, h);
+        rascLogos[k] = c.toDataURL("image/jpeg", 0.92);
+        montarSecao(); agendarPrevia(); status("Imagem carregada. Confira na prévia e clique em Salvar para todos.");
+      };
+      im.onerror = function(){ status("Não foi possível ler essa imagem. Use PNG, JPG ou WebP.", true); };
+      im.src = rd.result;
+    };
+    rd.onerror = function(){ status("Não foi possível abrir o arquivo.", true); };
+    rd.readAsDataURL(arq);
+  }
+
+  /* ---------- tela ---------- */
+  function secaoAtual(){ return SECOES.filter(function(s){ return s.id === secao; })[0]; }
+  function nSecao(s){                                   // quantas coisas desta seção diferem do original
+    if(s.especial === "hist") return 0;
+    var n = 0;
+    (s.itens || []).forEach(function(i){
+      if(i === "@logos") n += (rascLogos.I ? 1 : 0) + (rascLogos.E ? 1 : 0);
+      else if(i === "@contatos") n += igual([rasc.enderecos, rasc.telefones, rasc.email], [ORIGINAL.enderecos, ORIGINAL.telefones, ORIGINAL.email]) ? 0 : 1;
+      else if(CTRL[i]) n += ctrlAlterado(CTRL[i]) ? 1 : 0;
+      else n += igual(pegar(rasc, i), pegar(ORIGINAL, i)) ? 0 : 1;
+    });
+    finos(s).forEach(function(p){ if(!igual(pegar(rasc, p), pegar(ORIGINAL, p))) n++; });
+    return n;
+  }
+  function sujo(){ return !igual(rasc, comSalvo()) || !igual(rascLogos, SALVO_LOGOS); }
+  function marcas(){
+    var el = $("pad_tela"); if(!el) return;
+    Array.prototype.forEach.call(el.querySelectorAll(".pad-f[data-f]"), function(f){
+      var c = f.getAttribute("data-f"), mudou = c.indexOf("c:") === 0 ? ctrlAlterado(CTRL[c.slice(2)]) : !igual(pegar(rasc, c), pegar(ORIGINAL, c));
+      f.classList.toggle("alt", mudou); var b = f.querySelector(".pad-volta"); if(b) b.hidden = !mudou;
+    });
+    var ctb = el.querySelector('[data-a="contatos"]');
+    if(ctb) ctb.hidden = igual([rasc.enderecos, rasc.telefones], [ORIGINAL.enderecos, ORIGINAL.telefones]);
+    SECOES.forEach(function(s){
+      var b = el.querySelector('[data-s="' + s.id + '"] .pad-n'), n = nSecao(s);
+      if(b){ b.textContent = n || ""; b.hidden = !n; b.setAttribute("aria-label", n + (n === 1 ? " alteração" : " alterações")); }
+    });
+    var d = sujo(); $("pad_salvar").disabled = !d || ocupado;
+    $("pad_pendente").textContent = d ? "Há alterações não salvas." : "";
+    diag();
+  }
+  function montarNav(){
+    $("pad_nav").innerHTML = SECOES.map(function(s){
+      return '<button type="button" class="pad-nv' + (s.id === secao ? " on" : "") + '" data-s="' + s.id + '" data-a="secao" aria-current="' + (s.id === secao ? "page" : "false") + '">' +
+        '<span class="pad-nt">' + esc(s.tit) + '</span><span class="pad-ns">' + esc(s.sub) + '</span><span class="pad-n" hidden></span></button>';
+    }).join("");
+  }
+  function montarSecao(){
+    var s = secaoAtual(), h = '<h2 id="pad_sec_tit" tabindex="-1">' + esc(s.tit) + '</h2><p class="pad-sub">' + esc(s.sub) + '.</p>';
+    if(s.especial === "hist") h += '<div id="pad_hist">Carregando…</div>';
+    else {
+      var buf = "";
+      function solta(){ if(buf){ h += '<section class="pad-bloco">' + buf + '</section>'; buf = ""; } }
+      (s.itens || []).forEach(function(i){
+        if(i === "@logos"){ solta(); h += logosHTML(); }
+        else if(i === "@contatos"){ solta(); h += contatosHTML(); }
+        else if(CTRL[i]) buf += ctrlHTML(i);
+        else buf += campo(i, pegar(rasc, i));
+      });
+      solta();
+      var fp = finos(s);
+      if(fp.length){
+        var aberto = fp.some(function(p){ return !igual(pegar(rasc, p), pegar(ORIGINAL, p)); }), fh = "";
+        (s.prefixos || []).forEach(function(ch){
+          var cs = fp.filter(function(p){ return p.split(".")[0] === ch; }); if(!cs.length) return;
+          fh += '<section class="pad-bloco"><h3>' + esc(GRUPOS[ch] || ch) + '</h3>' + cs.map(function(p){ return campo(p, pegar(rasc, p)); }).join("") + '</section>';
+        });
+        h += '<details class="pad-fino"' + (aberto ? " open" : "") + '><summary>Ajustes finos (avançado)</summary><p class="pad-ajuda">Posições, espaçamentos e medidas detalhadas. Só mexa se precisar de um acerto específico; os controles acima já cobrem o uso normal.</p>' + fh + '</details>';
+      }
+    }
+    $("pad_conteudo").innerHTML = h; $("pad_conteudo").scrollTop = 0;
+    $("pad_prevrot").textContent = s.pg === 1 ? "Prévia: capa" : "Prévia: página de conteúdo";
+    marcas(); if(s.especial === "hist") historico();
+  }
+  function irSecao(id){ foco = null; secao = id; montarNav(); montarSecao(); marcas(); if(secaoAtual().pg) agendarPrevia(true); var t = $("pad_sec_tit"); if(t) t.focus(); }
+
+  function lerCampo(el){
+    var t = el.getAttribute("data-t"), caminho = el.getAttribute("data-p"), v;
+    if(t === "cor") v = deHex(el.value);
+    else if(t === "num"){ v = parseFloat(el.value); if(!isFinite(v)){ el.setAttribute("aria-invalid", "true"); return; } }
+    else if(t === "lista"){ v = el.value.split("\n").map(function(x){ return x.trim(); }).filter(Boolean); var n0 = pegar(ORIGINAL, caminho).length; if(v.length !== n0){ el.setAttribute("aria-invalid", "true"); el.title = "Precisa ter " + n0 + " linhas."; return; } el.removeAttribute("title"); }
+    else v = el.value;
+    el.removeAttribute("aria-invalid"); por(rasc, caminho, v);
+  }
+  function lerControle(el){
+    var c = CTRL[el.getAttribute("data-c")], v = c.tipo === "cor" ? deHex(el.value) : parseFloat(el.value);
+    if(c.tipo === "pct" && (!isFinite(v) || v < 40 || v > 250)){ el.setAttribute("aria-invalid", "true"); return; }
+    el.removeAttribute("aria-invalid"); ctrlAplicar(c, v);
+  }
+  function lerContatos(){
+    var es = [], ts = [];
+    Array.prototype.forEach.call($("pad_conteudo").querySelectorAll("[data-ct]"), function(i){
+      var n = +i.getAttribute("data-i"); (i.getAttribute("data-ct") === "e" ? es : ts)[n] = i.value.trim();
+    });
+    rasc.enderecos = es; rasc.telefones = ts;
+  }
+
+  /* ---------- prévia ---------- */
+  function agendarPrevia(logo){ clearTimeout(timerPrevia); $("pad_prevst").textContent = "Atualizando prévia…"; timerPrevia = setTimeout(previa, logo ? 60 : 380); }
+  async function previa(){
+    var fr = $("pad_prev"); if(!fr) return;
+    var meu = ++seq;
+    try{
+      aplicarEm(T, rasc); aplicarLogos(rascLogos);
+      var J = (window.jspdf && window.jspdf.jsPDF) ? window.jspdf.jsPDF : window.jsPDF;
+      var pdf = new J({ unit:"mm", format:"a4" }), D = window.DOCPDF, lg = await D.logos(), fonte = D.fonteCorpo(pdf);
+      if(meu !== seq) return;
+      D.capa(pdf, { logos:lg, titulo:["RELATÓRIO DE EXEMPLO", "DOS PADRÕES"], produto:"DESP-2", ferrovia:"FERROVIA DE EXEMPLO",
+        loteLinha:"LOTE SPS-00", processo:"INFRA S.A. CTD 000 - SPS-00 – UF", expropriado:"NOME DO EXPROPRIADO", areas:["0,0000 ha"], contrato:"00/0000", dataTxt:"Mês/Ano" });
+      pdf.addPage();
+      var m = D.moldura(pdf), u = D.U(pdf);
+      D.cabecalho(pdf, { logos:lg, ident:"INFRA S.A. CTD 000 - SPS-00 – UF  |  Expropriado de Exemplo", pagina:2, fonte:fonte, mL:m.mL, xR:m.xR, larguraIdent:m.cw - T.cab.folgaIdent });
+      var y = D.topico(pdf, { fonte:fonte, x:m.mL, xFim:m.xR, y:m.topY + 4, texto:"1. Título de tópico", separarNumero:true });
+      pdf.setFont(fonte, "normal"); pdf.setFontSize(10.6); pdf.setTextColor(0, 0, 0);
+      pdf.splitTextToSize("Texto corrido de exemplo para ver o corpo do documento junto do cabeçalho, do rodapé, da tabela e do índice com os valores em edição.", m.cw * u).forEach(function(l){ pdf.text(l, m.mL * u, y * u); y += 5.4; });
+      y += 3;
+      y = D.tabelaCab(pdf, { fonte:fonte, x:m.mL, y:y, w:m.cw, cols:[{ t:"Item", x:m.mL + 2 }, { t:"Descrição", x:m.mL + 22 }, { t:"Área", x:m.xR - 2, align:"right" }] });
+      for(var i = 0; i < 4; i++){
+        D.tabelaZebra(pdf, m.mL, y, m.cw, 7, i);
+        pdf.setFont(fonte, "normal"); pdf.setFontSize(9); pdf.setTextColor(0, 0, 0);
+        pdf.text(String(i + 1), (m.mL + 2) * u, (y + 4.6) * u); pdf.text("Linha de exemplo " + (i + 1), (m.mL + 22) * u, (y + 4.6) * u); pdf.text("0,00 m²", (m.xR - 2) * u, (y + 4.6) * u, { align:"right" });
+        y += 7; D.tabelaLinha(pdf, m.mL, y, m.cw);
+      }
+      y += 8;
+      ["1. Primeiro tópico do índice", "2. Segundo tópico do índice"].forEach(function(t, k){ D.sumarioLinha(pdf, { fonte:fonte, x:m.mL, xFim:m.xR, y:y, texto:t, pagina:3 + k }); y += 6; });
+      y += 12;
+      D.assinatura(pdf, { fonte:fonte, cx:m.mL + m.cw / 2, y:y, nome:"Nome do Responsável", cargo:"Cargo / Registro" });
+      D.rodape(pdf, { mL:m.mL, xR:m.xR });
+      if(meu !== seq) return;
+      var s = secaoAtual(), url = URL.createObjectURL(pdf.output("blob")); if(urlPrevia) URL.revokeObjectURL(urlPrevia); urlPrevia = url;
+      fr.src = url + "#toolbar=0&navpanes=0&view=Fit&page=" + ((s && s.pg) || 2); $("pad_prevst").textContent = "";
+    } catch(e){ $("pad_prevst").textContent = "Prévia indisponível: " + (e && e.message || e); }
+  }
+
+  /* ---------- esquema gráfico instrutivo ("Onde isso aparece") ----------
+     SVG em milímetros (1 unidade = 1 mm da folha A4), desenhado com os valores do rascunho. O campo em foco/sob o mouse é
+     destacado em laranja com cotas (setas e valor). Sem campo em foco, mostra a seção inteira. */
+  var foco = null, razoes = {}, rotOff = false;
+  var LARANJA = "#D9600A", PT_MM = 25.4 / 72;
+  function rgb(c){ return "rgb(" + c.map(function(n){ return n | 0; }).join(",") + ")"; }
+  function n1(v){ return String(Math.round(v * 100) / 100).replace(".", ","); }
+  function razao(src, pad){
+    if(!src) return pad;
+    if(razoes[src]) return razoes[src];
+    var im = new Image(); im.onload = function(){ razoes[src] = im.naturalWidth / im.naturalHeight; diag(); }; im.src = src;
+    return pad;
+  }
+  function logoSvg(src, x, y, h, w){
+    return src ? '<image href="' + src + '" x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" preserveAspectRatio="xMidYMid meet"/>' :
+      '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" fill="#e5e9ee"/>';
+  }
+  function tx(x, y, s, tam, op){
+    op = op || {};
+    return '<text x="' + x + '" y="' + y + '" font-size="' + (tam * PT_MM) + '" fill="' + (op.fill || "#222") + '"' + (op.w ? ' font-weight="' + op.w + '"' : "") +
+      (op.a ? ' text-anchor="' + op.a + '"' : "") + ' font-family="Helvetica,Arial,sans-serif">' + esc(s) + '</text>';
+  }
+  function barra(x, y, w, h, f){ return '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" fill="' + (f || "#cfd6de") + '"/>'; }
+  function linha(x1, y1, x2, y2, c, w, extra){ return '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '" stroke="' + c + '" stroke-width="' + w + '"' + (extra || "") + '/>'; }
+  /* anotações */
+  function hl(x, y, w, h){ return '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" fill="rgba(217,96,10,.16)" stroke="' + LARANJA + '" stroke-width=".5" stroke-dasharray="1.6 1"/>'; }
+  function rot(x, y, s, a){ if(rotOff) return ""; return '<text x="' + x + '" y="' + y + '" font-size="4.6" font-weight="700" fill="' + LARANJA + '" text-anchor="' + (a || "middle") + '" font-family="Helvetica,Arial,sans-serif" stroke="#fff" stroke-width="1.3" paint-order="stroke">' + esc(s) + '</text>'; }
+  function dimH(y, x1, x2, s){
+    return linha(x1, y, x2, y, LARANJA, .55, ' marker-start="url(#pad_seta)" marker-end="url(#pad_seta)"') + linha(x1, y - 2.2, x1, y + 2.2, LARANJA, .45) + linha(x2, y - 2.2, x2, y + 2.2, LARANJA, .45) + rot((x1 + x2) / 2, y - 1.8, s);
+  }
+  function dimV(x, y1, y2, s, lado){
+    return linha(x, y1, x, y2, LARANJA, .55, ' marker-start="url(#pad_seta)" marker-end="url(#pad_seta)"') + linha(x - 2.2, y1, x + 2.2, y1, LARANJA, .45) + linha(x - 2.2, y2, x + 2.2, y2, LARANJA, .45) +
+      rot(lado === "e" ? x - 2.6 : x + 2.6, (y1 + y2) / 2 + 1.6, s, lado === "e" ? "end" : "start");
+  }
+
+  function geometria(){
+    var P = rasc.pagina, C = rasc.cab, R = rasc.rod, TP = rasc.topico, ST = rasc.subtopico, TB = rasc.tabela, SM = rasc.sumario, AS = rasc.assinatura;
+    var g = { W:210, H:297, mL:P.mEsq, mR:P.mDir }; g.xR = g.W - g.mR; g.cw = g.W - g.mL - g.mR;
+    g.wI = C.logoH * razao(logoAtual("I"), 3.4); g.wE = C.logoH * razao(logoAtual("E"), 3.1);
+    g.topY = P.topoConteudo + 4; g.y2 = g.topY + TP.reguaDy + TP.depois;
+    g.s1 = g.y2; g.b1 = g.s1 + ST.lh + ST.depois; g.b2 = g.b1 + 5.4; g.i1 = g.b2 + 6; g.i2 = g.i1 + 5.4;
+    g.tT = g.i2 + 8; g.tB = g.tT + TB.cabAlt; g.tF = g.tB + 28; g.sy = g.tF + 8; g.ay = g.sy + 20; g.rodY = g.H - R.reguaDist;
+    return g;
+  }
+  function paginaConteudo(g){
+    var C = rasc.cab, R = rasc.rod, TP = rasc.topico, ST = rasc.subtopico, SE = rasc.seta, TB = rasc.tabela, SM = rasc.sumario, AS = rasc.assinatura, s = "";
+    s += logoSvg(logoAtual("I"), g.mL, C.logoY, C.logoH, g.wI) + logoSvg(logoAtual("E"), g.xR - g.wE, C.logoY, C.logoH, g.wE);
+    s += tx(g.mL, C.identY, "INFRA S.A. CTD 000 - SPS-00 – UF  |  Expropriado de Exemplo", C.identTam, { fill:rgb(C.identCor) });
+    s += tx(g.xR, C.identY, (C.rotuloPagina || "") + "2", C.identTam, { fill:rgb(C.identCor), a:"end" });
+    s += linha(g.mL, C.reguaY, g.xR, C.reguaY, rgb(C.reguaCor), C.reguaLarg);
+    s += tx(g.mL, g.topY, "1.", TP.tam, { fill:rgb(TP.cor), w:700 }) + tx(g.mL + TP.recuoNumero, g.topY, "TÍTULO DE TÓPICO", TP.tam, { fill:rgb(TP.cor), w:700 });
+    s += linha(g.mL, g.topY + TP.reguaDy, g.xR, g.topY + TP.reguaDy, rgb(TP.reguaCor), TP.reguaLarg);
+    s += tx(g.mL, g.s1, "Subtítulo de exemplo", ST.tam, { w:700 });
+    s += barra(g.mL, g.b1 - 2, g.cw, 1.5) + barra(g.mL, g.b2 - 2, g.cw * .7, 1.5);
+    [g.i1, g.i2].forEach(function(y){ s += '<polygon points="' + (g.mL + 1.6) + "," + (y - SE.h - .2) + " " + (g.mL + 1.6 + SE.w) + "," + (y - SE.h / 2 - .2) + " " + (g.mL + 1.6) + "," + (y - .2) + '" fill="#000"/>' + barra(g.mL + 6, y - 2, g.cw * .6, 1.5); });
+    s += '<rect x="' + g.mL + '" y="' + g.tT + '" width="' + g.cw + '" height="' + TB.cabAlt + '" fill="' + rgb(TB.cabFundo) + '"/>';
+    s += tx(g.mL + 2, g.tT + TB.cabTy, "Item", 9, { fill:rgb(TB.cabTexto), w:700 }) + tx(g.mL + 22, g.tT + TB.cabTy, "Descrição", 9, { fill:rgb(TB.cabTexto), w:700 }) + tx(g.xR - 2, g.tT + TB.cabTy, "Área", 9, { fill:rgb(TB.cabTexto), w:700, a:"end" });
+    s += linha(g.mL, g.tB, g.xR, g.tB, rgb(TB.reguaCor), TB.reguaLarg);
+    for(var i = 0; i < 4; i++){
+      var y = g.tB + i * 7;
+      if(i % 2 === 1) s += '<rect x="' + g.mL + '" y="' + y + '" width="' + g.cw + '" height="7" fill="' + rgb(TB.zebra) + '"/>';
+      s += tx(g.mL + 2, y + 4.6, String(i + 1), 9) + tx(g.mL + 22, y + 4.6, "Linha de exemplo " + (i + 1), 9) + tx(g.xR - 2, y + 4.6, "0,00 m²", 9, { a:"end" }) + linha(g.mL, y + 7, g.xR, y + 7, rgb(TB.linhaCor), TB.linhaLarg);
+    }
+    ["1. Primeiro tópico do índice", "2. Segundo tópico do índice"].forEach(function(t, k){
+      var y = g.sy + k * 6; s += tx(g.mL, y, t, SM.tam, { fill:rgb(SM.cor), w:700 }) + tx(g.xR, y, String(3 + k), SM.numTam, { fill:rgb(SM.numCor), a:"end" }) + linha(g.mL + 62, y, g.xR - 6, y, rgb(SM.numCor), .35, ' stroke-dasharray=".4 .9"');
+    });
+    s += tx(g.mL + g.cw / 2, g.ay, "Nome do Responsável", AS.nomeTam, { a:"middle" }) + tx(g.mL + g.cw / 2, g.ay + AS.entre, "Cargo / Registro", AS.cargoTam, { a:"middle", w:700 });
+    s += linha(g.mL, g.rodY, g.xR, g.rodY, rgb(R.reguaCor), R.reguaLarg);
+    var yy = g.rodY + R.y0;
+    rasc.enderecos.forEach(function(e, i){
+      s += tx(g.mL, yy, e, R.tam, { fill:rgb(R.cor) }) + tx(g.xR - R.telDx, yy, rasc.telefones[i] || "", R.tam, { fill:rgb(R.cor), a:"end" }) + tx(g.xR, yy, rasc.email, R.tam, { fill:rgb(R.cor), a:"end" });
+      yy += R.passo;
+    });
+    return s;
+  }
+  function paginaCapa(){
+    var K = rasc.capa, P = rasc.pagina, W = 210, H = 297, mR = P.mDir, cxL = K.faixaW + 8, cxC = cxL + (W - cxL - mR) / 2, s = "";
+    var hI = K.logoH * razao(logoAtual("I"), 3.4), hE = K.logoH * razao(logoAtual("E"), 3.1);
+    s += '<rect x="0" y="0" width="' + K.faixaW + '" height="' + H + '" fill="' + rgb(K.faixaCor) + '"/>';
+    s += logoSvg(logoAtual("I"), cxL, K.logoY, K.logoH, hI) + logoSvg(logoAtual("E"), W - mR - hE, K.logoY, K.logoH, hE);
+    s += tx(cxC, 48, "INFRA S.A.", 15, { fill:rgb(K.corTitulo), w:700, a:"middle" });
+    K.orgao.forEach(function(o, i){ s += tx(cxC, 55 + i * 4.5, o, 9, { fill:rgb(K.corTitulo), w:700, a:"middle" }); });
+    s += linha(cxL, 68, W - mR, 68, rgb(K.corTitulo), .4);
+    s += tx(cxC, 94, "RELATÓRIO DE EXEMPLO", 19, { fill:rgb(K.corTitulo), w:700, a:"middle" }) + tx(cxC, 102, "DOS PADRÕES", 19, { fill:rgb(K.corTitulo), w:700, a:"middle" });
+    s += tx(cxC, 118, "DESP-2", 13, { fill:rgb(K.corTexto), w:700, a:"middle" }) + tx(cxC, 134, "FERROVIA DE EXEMPLO", 12, { fill:rgb(K.corTexto), a:"middle" });
+    s += tx(cxC, 150, "LOTE SPS-00", 12, { fill:rgb(K.corTexto), w:700, a:"middle" }) + barra(cxC - 35, 162, 70, 1.6) + barra(cxC - 28, 168, 56, 1.6);
+    var ctX = W - mR - K.contratoW;
+    for(var i = 0; i < 6; i++) s += barra(ctX, K.contratoY + i * K.contratoLH, i === 5 ? K.contratoW * .5 : K.contratoW, K.contratoTam * PT_MM * .6, "#b9c2cc");
+    s += tx(K.faixaW / 2, K.faixaProdY, "DESP-2", 14, { fill:"#fff", w:700, a:"middle" }) + tx(K.faixaW / 2, K.faixaDataY, "Mês/Ano", 13, { fill:"#fff", a:"middle" });
+    return s;
+  }
+
+  /* [x, y, largura, altura] da janela de zoom por assunto */
+  var JANELAS = { pagina:[0, 0, 210, 297], cab:[0, 0, 210, 62], rod:[0, 232, 210, 65], capa:[0, 0, 210, 297], titulo:[0, 26, 210, 52], tabela:[0, 70, 210, 50], fim:[0, 108, 210, 42], logos:[0, 0, 210, 40] };
+  function anotacao(path, g){
+    var C = rasc.cab, R = rasc.rod, K = rasc.capa, TP = rasc.topico, ST = rasc.subtopico, SE = rasc.seta, TB = rasc.tabela, SM = rasc.sumario, AS = rasc.assinatura, P = rasc.pagina;
+    var u = function(p){ return n1(pegar(rasc, p)) + (PT[p] ? " pt" : " mm"); };
+    var o = { vb:null, s:"" };
+    var a = path.split(".")[0];
+    switch(path){
+      case "pagina.mEsq": o.vb = "pagina"; o.s = hl(0, 0, g.mL, 297) + dimH(150, 0, g.mL, u(path)); break;
+      case "pagina.mDir": o.vb = "pagina"; o.s = hl(g.xR, 0, g.mR, 297) + dimH(150, g.xR, 210, u(path)); break;
+      case "pagina.mInf": o.vb = "pagina"; o.s = hl(0, 297 - P.mInf, 210, P.mInf) + dimV(105, 297 - P.mInf, 297, u(path)); break;
+      case "pagina.topoConteudo": o.vb = "pagina"; o.s = hl(0, 0, 210, P.topoConteudo) + dimV(105, 0, P.topoConteudo, u(path)); break;
+      case "cab.logoY": o.vb = "cab"; o.s = dimV(g.mL + g.wI / 2, 0, C.logoY, u(path)) + hl(g.mL, C.logoY - 1, g.wI, 2); break;
+      case "cab.logoH": o.vb = "cab"; o.s = hl(g.mL, C.logoY, g.wI, C.logoH) + hl(g.xR - g.wE, C.logoY, g.wE, C.logoH) + dimV(g.mL - 2.5, C.logoY, C.logoY + C.logoH, u(path), "e"); break;
+      case "cab.identY": o.vb = "cab"; o.s = dimV(g.mL + 90, 0, C.identY, u(path)) + hl(g.mL, C.identY - 3, 100, 3.6); break;
+      case "cab.identTam": case "cab.identCor": o.vb = "cab"; o.s = hl(g.mL, C.identY - C.identTam * PT_MM, g.cw, C.identTam * PT_MM * 1.25); break;
+      case "cab.folgaIdent": o.vb = "cab"; o.s = hl(g.xR - C.folgaIdent, C.identY - 3, C.folgaIdent, 4) + dimH(C.identY + 3.8, g.xR - C.folgaIdent, g.xR, u(path)); break;
+      case "cab.reguaY": o.vb = "cab"; o.s = dimV(g.xR - 10, 0, C.reguaY, u(path), "e") + hl(g.mL, C.reguaY - .8, g.cw, 1.6); break;
+      case "cab.reguaCor": case "cab.reguaLarg": o.vb = "cab"; o.s = hl(g.mL, C.reguaY - 1, g.cw, 2) + (path === "cab.reguaLarg" ? rot(g.mL + g.cw / 2, C.reguaY + 5.5, u(path)) : ""); break;
+      case "cab.rotuloPagina": o.vb = "cab"; o.s = hl(g.xR - 24, C.identY - 3, 24, 4); break;
+      case "rod.reguaDist": o.vb = "rod"; o.s = dimV(g.xR + 5, g.rodY, 297, u(path), "e") + hl(g.mL, g.rodY - .8, g.cw, 1.6); break;
+      case "rod.reguaCor": case "rod.reguaLarg": o.vb = "rod"; o.s = hl(g.mL, g.rodY - 1, g.cw, 2) + (path === "rod.reguaLarg" ? rot(g.mL + 20, g.rodY - 2.5, u(path)) : ""); break;
+      case "rod.fonte": case "rod.tam": case "rod.cor": o.vb = "rod"; o.s = hl(g.mL, g.rodY + 1, g.cw, R.passo * rasc.enderecos.length + 1); break;
+      case "rod.y0": o.vb = "rod"; o.s = dimV(g.mL - 3, g.rodY, g.rodY + R.y0, u(path), "e") + hl(g.mL, g.rodY + R.y0 - 2.4, g.cw, 2.8); break;
+      case "rod.passo": o.vb = "rod"; o.s = dimV(g.mL - 3, g.rodY + R.y0, g.rodY + R.y0 + R.passo, u(path), "e") + hl(g.mL, g.rodY + R.y0 - 2.4, g.cw, R.passo * 2); break;
+      case "rod.telDx": o.vb = "rod"; o.s = dimH(g.rodY + R.y0 + 2.8, g.xR - R.telDx, g.xR, u(path)) + hl(g.xR - R.telDx - 28, g.rodY + R.y0 - 2.4, 28, 2.8); break;
+      case "rod.folgaConteudo": o.vb = "rod"; o.s = dimV(g.mL + 40, g.rodY - R.folgaConteudo, g.rodY, u(path)) + hl(g.mL, g.rodY - R.folgaConteudo, g.cw, R.folgaConteudo); break;
+      case "enderecos": case "telefones": case "email": case "contatos": o.vb = "rod"; o.s = hl(g.mL, g.rodY + 1, g.cw, R.passo * rasc.enderecos.length + 1); break;
+      case "capa.faixaW": o.vb = "capa"; o.s = hl(0, 0, K.faixaW, 297) + dimH(20, 0, K.faixaW, u(path)); break;
+      case "capa.faixaCor": o.vb = "capa"; o.s = hl(0, 0, K.faixaW, 297); break;
+      case "capa.logoY": o.vb = "capa"; o.s = dimV(K.faixaW + 20, 0, K.logoY, u(path)) + hl(K.faixaW + 8, K.logoY - 1, 40, 2); break;
+      case "capa.logoH": o.vb = "capa"; o.s = hl(K.faixaW + 8, K.logoY, K.logoH * razao(logoAtual("I"), 3.4), K.logoH) + dimV(K.faixaW + 5, K.logoY, K.logoY + K.logoH, u(path), "e"); break;
+      case "capa.corTitulo": o.vb = "capa"; o.s = hl(K.faixaW + 8, 40, 210 - K.faixaW - 28, 66); break;
+      case "capa.corTexto": o.vb = "capa"; o.s = hl(K.faixaW + 8, 110, 210 - K.faixaW - 28, 66); break;
+      case "capa.orgao": o.vb = "capa"; o.s = hl(K.faixaW + 8, 51, 210 - K.faixaW - 28, 18); break;
+      case "capa.contratoObjeto": case "capa.contratoTam": case "capa.contratoLH": o.vb = "capa"; o.s = hl(210 - P.mDir - K.contratoW, K.contratoY - 3, K.contratoW, K.contratoLH * 6 + 2); break;
+      case "capa.contratoW": o.vb = "capa"; o.s = hl(210 - P.mDir - K.contratoW, K.contratoY - 3, K.contratoW, K.contratoLH * 6 + 2) + dimH(K.contratoY - 6, 210 - P.mDir - K.contratoW, 210 - P.mDir, u(path)); break;
+      case "capa.contratoY": o.vb = "capa"; o.s = dimV(210 - P.mDir - K.contratoW - 4, 0, K.contratoY, u(path), "e") + hl(210 - P.mDir - K.contratoW, K.contratoY - 2, K.contratoW, 2.4); break;
+      case "capa.faixaProdY": o.vb = "capa"; o.s = dimV(K.faixaW - 4, 0, K.faixaProdY, u(path), "e") + hl(4, K.faixaProdY - 7, K.faixaW - 8, 9); break;
+      case "capa.faixaDataY": o.vb = "capa"; o.s = dimV(K.faixaW - 4, 0, K.faixaDataY, u(path), "e") + hl(4, K.faixaDataY - 6, K.faixaW - 8, 8); break;
+      case "topico.tam": case "topico.cor": o.vb = "titulo"; o.s = hl(g.mL, g.topY - TP.tam * PT_MM, g.cw, TP.tam * PT_MM * 1.3); break;
+      case "topico.reguaDy": o.vb = "titulo"; o.s = dimV(g.xR - 8, g.topY, g.topY + TP.reguaDy, u(path), "e") + hl(g.mL, g.topY + TP.reguaDy - .8, g.cw, 1.6); break;
+      case "topico.reguaCor": case "topico.reguaLarg": o.vb = "titulo"; o.s = hl(g.mL, g.topY + TP.reguaDy - 1, g.cw, 2) + (path === "topico.reguaLarg" ? rot(g.mL + g.cw / 2, g.topY + TP.reguaDy + 4, u(path)) : ""); break;
+      case "topico.depois": o.vb = "titulo"; o.s = dimV(g.xR - 8, g.topY + TP.reguaDy, g.y2, u(path), "e"); break;
+      case "topico.recuoNumero": o.vb = "titulo"; o.s = dimH(g.topY - 5, g.mL, g.mL + TP.recuoNumero, u(path)) + hl(g.mL, g.topY - 4, TP.recuoNumero, 5); break;
+      case "subtopico.tam": o.vb = "titulo"; o.s = hl(g.mL, g.s1 - ST.tam * PT_MM, 70, ST.tam * PT_MM * 1.3); break;
+      case "subtopico.lh": o.vb = "titulo"; o.s = dimV(g.mL + 80, g.s1, g.s1 + ST.lh, u(path)); break;
+      case "subtopico.depois": o.vb = "titulo"; o.s = dimV(g.mL + 80, g.s1 + ST.lh, g.b1, u(path)); break;
+      case "seta.w": o.vb = "titulo"; o.s = hl(g.mL + 1.6, g.i1 - SE.h - .2, SE.w, SE.h) + dimH(g.i1 + 3, g.mL + 1.6, g.mL + 1.6 + SE.w, u(path)); break;
+      case "seta.h": o.vb = "titulo"; o.s = hl(g.mL + 1.6, g.i1 - SE.h - .2, SE.w, SE.h) + dimV(g.mL - 1, g.i1 - SE.h - .2, g.i1 - .2, u(path), "e"); break;
+      case "tabela.cabAlt": o.vb = "tabela"; o.s = hl(g.mL, g.tT, g.cw, TB.cabAlt) + dimV(g.mL - 3, g.tT, g.tB, u(path), "e"); break;
+      case "tabela.cabFundo": case "tabela.cabTexto": o.vb = "tabela"; o.s = hl(g.mL, g.tT, g.cw, TB.cabAlt); break;
+      case "tabela.cabTy": o.vb = "tabela"; o.s = dimV(g.mL + 12, g.tT, g.tT + TB.cabTy, u(path)) + hl(g.mL, g.tT, g.cw, TB.cabAlt); break;
+      case "tabela.reguaCor": case "tabela.reguaLarg": o.vb = "tabela"; o.s = hl(g.mL, g.tB - 1, g.cw, 2) + (path === "tabela.reguaLarg" ? rot(g.mL + g.cw / 2, g.tB - 3, u(path)) : ""); break;
+      case "tabela.zebra": o.vb = "tabela"; o.s = hl(g.mL, g.tB + 7, g.cw, 7) + hl(g.mL, g.tB + 21, g.cw, 7); break;
+      case "tabela.linhaCor": case "tabela.linhaLarg": o.vb = "tabela"; o.s = hl(g.mL, g.tB + 6, g.cw, 2) + hl(g.mL, g.tB + 13, g.cw, 2) + (path === "tabela.linhaLarg" ? rot(g.mL + g.cw / 2, g.tB + 5, u(path)) : ""); break;
+      case "sumario.tam": case "sumario.cor": o.vb = "fim"; o.s = hl(g.mL, g.sy - SM.tam * PT_MM, 62, SM.tam * PT_MM * 1.3) + hl(g.mL, g.sy + 6 - SM.tam * PT_MM, 62, SM.tam * PT_MM * 1.3); break;
+      case "sumario.numTam": case "sumario.numCor": o.vb = "fim"; o.s = hl(g.xR - 8, g.sy - 3.6, 8, 4.4) + hl(g.xR - 8, g.sy + 2.4, 8, 4.4); break;
+      case "sumario.folga": o.vb = "fim"; o.s = hl(g.mL + 56, g.sy - 3, 14, 3.6) + dimH(g.sy + 2, g.mL + 56, g.mL + 56 + 14, u(path)); break;
+      case "assinatura.nomeTam": o.vb = "fim"; o.s = hl(g.mL + g.cw / 2 - 28, g.ay - AS.nomeTam * PT_MM, 56, AS.nomeTam * PT_MM * 1.3); break;
+      case "assinatura.cargoTam": o.vb = "fim"; o.s = hl(g.mL + g.cw / 2 - 24, g.ay + AS.entre - AS.cargoTam * PT_MM, 48, AS.cargoTam * PT_MM * 1.3); break;
+      case "assinatura.entre": o.vb = "fim"; o.s = dimV(g.mL + g.cw / 2 + 32, g.ay, g.ay + AS.entre, u(path)); break;
+      case "logoI": o.vb = "logos"; o.s = hl(g.mL, C.logoY, g.wI, C.logoH); break;
+      case "logoE": o.vb = "logos"; o.s = hl(g.xR - g.wE, C.logoY, g.wE, C.logoH); break;
+    }
+    var VBS = { "pagina.mEsq":[0, 105, 100, 90], "pagina.mDir":[110, 105, 100, 90], "pagina.mInf":[0, 235, 210, 62], "pagina.topoConteudo":[0, 0, 210, 62],
+      "capa.faixaW":[0, 0, 210, 110], "capa.faixaCor":[0, 0, 210, 110], "capa.logoY":[0, 0, 210, 110], "capa.logoH":[0, 0, 210, 110], "capa.orgao":[0, 30, 210, 90], "capa.corTitulo":[0, 30, 210, 90], "capa.corTexto":[0, 95, 210, 90],
+      "capa.contratoObjeto":[90, 225, 120, 72], "capa.contratoTam":[90, 225, 120, 72], "capa.contratoLH":[90, 225, 120, 72], "capa.contratoW":[90, 225, 120, 72], "capa.contratoY":[60, 190, 150, 107],
+      "capa.faixaProdY":[0, 190, 120, 107], "capa.faixaDataY":[0, 190, 120, 107] };
+    if(VBS[path]) o.vb = VBS[path];
+    if(!o.vb){ var m = { pagina:"pagina", cab:"cab", rod:"rod", capa:"capa", topico:"titulo", subtopico:"titulo", seta:"titulo", tabela:"tabela", sumario:"fim", assinatura:"fim" }; o.vb = m[a] || "cab"; }
+    return o;
+  }
+  function diag(){
+    var box = $("pad_diag"); if(!box || !rasc) return;
+    var s = secaoAtual(), g = geometria(), path = foco, o = { vb:null, s:"" }, cc = (path && path.indexOf("c:") === 0) ? CTRL[path.slice(2)] : null;
+    if(cc){
+      var daCapa = cc.pagina === "capa"; rotOff = true;
+      o.s = cc.alvos.map(alvoP).filter(function(p){ return (p.split(".")[0] === "capa") === daCapa; }).map(function(p){ return anotacao(p, g).s; }).join("");
+      rotOff = false; o.vb = cc.vb;
+    } else if(path) o = anotacao(path, g);
+    else o.vb = (s && s.vb) || "cab";
+    var capa = cc ? cc.pagina === "capa" : (path ? path.split(".")[0] === "capa" : o.vb === "capa"), w = Array.isArray(o.vb) ? o.vb : (JANELAS[o.vb] || JANELAS.cab);
+    var svg = '<svg viewBox="' + w.join(" ") + '" role="img" aria-labelledby="pad_diag_cap" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">' +
+      '<defs><marker id="pad_seta" viewBox="0 0 6 6" refX="3" refY="3" markerWidth="4" markerHeight="4" orient="auto-start-reverse"><path d="M0 0 6 3 0 6z" fill="' + LARANJA + '"/></marker></defs>' +
+      '<rect x="0" y="0" width="210" height="297" fill="#fff" stroke="#b9c2cc" stroke-width=".6"/>' +
+      '<rect x="' + g.mL + '" y="0.5" width="' + g.cw + '" height="296" fill="none" stroke="#9fb3c8" stroke-width=".25" stroke-dasharray="1.5 1.5"/>' +
+      (capa ? paginaCapa() : paginaConteudo(g)) + o.s + '</svg>';
+    var r = (!cc && path && ROT[path]) ? ROT[path] : null, tit = cc ? cc.rot : r ? r[0] : (path === "contatos" ? "Unidades e contatos" : path === "logoI" ? "Logotipo INFRA" : path === "logoE" ? "Logotipo ENPROL" : null);
+    var dica = cc ? cc.dica : r ? r[1] : (path === "contatos" ? "Cada unidade vira uma linha do rodapé." : path === "logoI" || path === "logoE" ? "Aparece no cabeçalho de cada página e na capa." : "");
+    var val = "";
+    if(cc && cc.tipo === "pct") val = ' <span class="pad-valor">Valor: ' + ctrlValor(cc) + ' %</span>';
+    else if(r && path){ var pv = pegar(rasc, path); if(typeof pv === "number") val = ' <span class="pad-valor">Valor: ' + esc(n1(pv)) + (PT[path] ? " pt" : " mm") + '</span>'; }
+    var cap = tit ? '<strong>' + esc(tit) + '</strong>' + (dica ? ' — ' + esc(dica) : "") + val :
+      'Passe o mouse ou clique num campo para ver, no esquema, onde ele aparece no documento. Em medidas, as setas laranja indicam o tamanho.';
+    box.innerHTML = '<div class="pad-dsvg">' + svg + '</div><p class="pad-dcap" id="pad_diag_cap">' + cap + '</p>';
+  }
+  function definirFoco(p){ if(p === foco) return; foco = p; diag(); }
+
+  /* ---------- janela ---------- */
+  function criar(){
+    var el = document.createElement("div"); el.id = "pad_tela"; el.hidden = true;
+    el.innerHTML = '<div class="pad-box" role="dialog" aria-modal="true" aria-labelledby="pad_tit">' +
+      '<header><div><h1 id="pad_tit">Padrões de documento</h1><p>Vale para <strong>todos os cadastros</strong> e para todos os PDFs gerados pelo sistema (Parecer, DESP-1, DESP-2, Marcos…). Escolha um assunto à esquerda, mude os valores e confira na prévia.</p></div>' +
+      '<button type="button" class="pad-x" data-a="fechar" aria-label="Fechar">&times;</button></header>' +
+      '<div class="pad-corpo"><nav class="pad-nav" id="pad_nav" aria-label="Assuntos"></nav>' +
+      '<div class="pad-conteudo" id="pad_conteudo" role="region" aria-labelledby="pad_sec_tit"></div>' +
+      '<aside class="pad-previa" aria-label="Esquema e prévia"><div class="pad-dtit"><strong>Onde isso aparece</strong></div><div class="pad-diag" id="pad_diag"></div><div class="pad-prevt"><strong id="pad_prevrot">Prévia</strong><span id="pad_prevst" role="status" aria-live="polite"></span></div><iframe id="pad_prev" title="Prévia dos padrões"></iframe></aside></div>' +
+      '<footer><span class="pad-pend" id="pad_pendente" role="status" aria-live="polite"></span><span class="pad-st" id="pad_status" role="status" aria-live="polite"></span>' +
+      '<button type="button" class="doc-btn" data-a="cancelar">Fechar sem salvar</button>' +
+      '<button type="button" class="doc-btn pri" id="pad_salvar" data-a="salvar" disabled>Salvar para todos</button></footer></div>';
+    document.body.appendChild(el);
+    el.addEventListener("input", function(ev){
+      var t = ev.target;
+      if(t.matches("[data-c]")){ lerControle(t); marcas(); agendarPrevia(); }
+      else if(t.matches("[data-p]")){ lerCampo(t); marcas(); agendarPrevia(); }
+      else if(t.matches("[data-ct]")){ lerContatos(); marcas(); agendarPrevia(); }
+    });
+    function campoDe(t){ var f = t.closest && t.closest("[data-f]"); return f ? f.getAttribute("data-f") : null; }
+    el.addEventListener("focusin", function(ev){ var p = campoDe(ev.target); if(p) definirFoco(p); });
+    el.addEventListener("mouseover", function(ev){ var p = campoDe(ev.target); if(p) definirFoco(p); });
+    el.addEventListener("change", function(ev){ var t = ev.target; if(t.matches("[data-logo]")){ lerImagem(t.files && t.files[0], t.getAttribute("data-logo")); t.value = ""; } });
+    el.addEventListener("click", function(ev){
+      var b = ev.target.closest && ev.target.closest("button[data-a]"); if(!b || b.disabled) return;
+      var a = b.getAttribute("data-a");
+      if(a === "secao") irSecao(b.getAttribute("data-s"));
+      else if(a === "fechar" || a === "cancelar") tentarFechar();
+      else if(ocupado) return;
+      else if(a === "salvar") salvar();
+      else if(a === "ctrl"){ ctrlReset(CTRL[b.getAttribute("data-c")]); montarSecao(); agendarPrevia(); }
+      else if(a === "campo"){ var p = b.getAttribute("data-p"); por(rasc, p, clone(pegar(ORIGINAL, p))); montarSecao(); agendarPrevia(); }
+      else if(a === "contatos"){ rasc.enderecos = ORIGINAL.enderecos.slice(); rasc.telefones = ORIGINAL.telefones.slice(); montarSecao(); agendarPrevia(); }
+      else if(a === "ct-add"){ lerContatos(); rasc.enderecos.push(""); rasc.telefones.push(""); montarSecao(); agendarPrevia(); }
+      else if(a === "ct-rm"){ lerContatos(); var i = +b.getAttribute("data-i"); rasc.enderecos.splice(i, 1); rasc.telefones.splice(i, 1); montarSecao(); agendarPrevia(); }
+      else if(a === "logo"){ rascLogos[b.getAttribute("data-k")] = null; montarSecao(); agendarPrevia(); }
+      else if(a === "restaurar") restaurar(b.getAttribute("data-id"));
+    });
+    el.addEventListener("keydown", function(ev){
+      if(ev.key === "Escape"){ ev.preventDefault(); if(!ocupado) tentarFechar(); return; }
+      if(ev.key !== "Tab") return;                                          // foco preso na tela
+      var f = Array.prototype.filter.call(el.querySelectorAll("button, input, textarea, [tabindex]"), function(x){ return !x.disabled && !x.hidden && x.offsetParent !== null && x.tabIndex >= 0; });
+      if(!f.length) return;
+      var i = f.indexOf(document.activeElement);
+      if(ev.shiftKey && i <= 0){ ev.preventDefault(); f[f.length - 1].focus(); }
+      else if(!ev.shiftKey && i === f.length - 1){ ev.preventDefault(); f[0].focus(); }
+    });
+    return el;
+  }
+  async function abrir(){
+    if(!iniciar()){ alert("Motor de documentos indisponível."); return; }
+    if(!CHAVE && !(await pedirSenha())) return;
+    var el = $("pad_tela") || criar();
+    rasc = comSalvo(); rascLogos = { I:SALVO_LOGOS.I, E:SALVO_LOGOS.E };
+    voltarFoco = document.activeElement; secao = SECOES[0].id; ocupado = false; foco = null;
+    status(SALVO_META && SALVO_META.atualizado ? "Última gravação: " + new Date(SALVO_META.atualizado).toLocaleString("pt-BR") : "Usando os valores originais do sistema.");
+    el.hidden = false; document.body.style.overflow = "hidden";
+    montarNav(); montarSecao(); marcas(); previa();
+    var t = $("pad_sec_tit"); if(t) t.focus();
+  }
+  function fecharTela(){
+    seq++; clearTimeout(timerPrevia); aplicarSalvo();
+    var el = $("pad_tela"); if(el) el.hidden = true; document.body.style.overflow = "";
+    if(urlPrevia){ URL.revokeObjectURL(urlPrevia); urlPrevia = null; }
+    var fr = $("pad_prev"); if(fr) fr.src = "about:blank";
+    if(voltarFoco && voltarFoco.focus) try{ voltarFoco.focus(); }catch(e){}
+  }
+  function tentarFechar(){ if(sujo() && !confirm("Há alterações não salvas. Fechar mesmo assim?")) return; fecharTela(); }
+  function status(t, erro){ var s = $("pad_status"); if(!s) return; s.textContent = t || ""; s.classList.toggle("erro", !!erro); }
+
+  async function salvar(){
+    ocupado = true; marcas(); status("Gravando…");
+    try{
+      var r = await fetch("/api/padroes-documento", { method:"PUT", headers:{ "Content-Type":"application/json", "X-Padroes-Chave":CHAVE || "" }, body:JSON.stringify({ T:rasc, logos:rascLogos, por:"app" }) });
+      if(!r.ok){ var j = await r.json().catch(function(){ return {}; }); throw new Error(j.erro || ("HTTP " + r.status)); }
+      SALVO = clone(rasc); SALVO_LOGOS = { I:rascLogos.I, E:rascLogos.E }; SALVO_META = { atualizado:new Date().toISOString() }; aplicarSalvo();
+      ocupado = false; marcas(); status("Gravado para todos. A versão anterior ficou em “Versões anteriores”.");
+    } catch(e){ ocupado = false; marcas(); status("Não gravou: " + (e.message || e), true); }
+  }
+
+  /* ---------- versões anteriores ---------- */
+  async function historico(){
+    var alvo = $("pad_hist"); if(!alvo) return;
+    try{
+      var lista = await (await fetch("/api/padroes-documento/historico", { cache:"no-cache" })).json();
+      alvo.innerHTML = !lista.length ? '<p class="pad-ajuda">Ainda não há versões anteriores. Cada vez que você salva, a configuração antiga fica guardada aqui (as últimas 50).</p>' :
+        '<p class="pad-ajuda">Escolha uma versão para voltar. A configuração atual também é guardada antes, então dá para desfazer.</p><ul class="pad-hl">' +
+        lista.map(function(v){ return '<li><span>Gravada em ' + esc(v.atualizado ? new Date(v.atualizado).toLocaleString("pt-BR") : v.id) + '</span><button type="button" class="doc-btn" data-a="restaurar" data-id="' + esc(v.id) + '">Restaurar</button></li>'; }).join("") + '</ul>';
+    } catch(e){ alvo.textContent = "Não foi possível ler as versões: " + (e.message || e); }
+  }
+  async function restaurar(id){
+    if(sujo() && !confirm("As alterações não salvas serão perdidas. Restaurar esta versão?")) return;
+    ocupado = true; status("Restaurando…");
+    try{
+      var r = await fetch("/api/padroes-documento/restaurar", { method:"POST", headers:{ "Content-Type":"application/json", "X-Padroes-Chave":CHAVE || "" }, body:JSON.stringify({ id:id }) });
+      if(!r.ok) throw new Error("HTTP " + r.status);
+      var o = await r.json(); SALVO = o.T; SALVO_LOGOS = { I:(o.logos && o.logos.I) || null, E:(o.logos && o.logos.E) || null }; SALVO_META = { atualizado:o.atualizado };
+      aplicarSalvo(); rasc = comSalvo(); rascLogos = { I:SALVO_LOGOS.I, E:SALVO_LOGOS.E }; ocupado = false;
+      montarNav(); montarSecao(); marcas(); agendarPrevia(); status("Versão restaurada e gravada para todos.");
+    } catch(e){ ocupado = false; marcas(); status("Não restaurou: " + (e.message || e), true); }
+  }
+
+  window.PADROES_abrir = abrir;
+  window.PADROES_carregar = carregar;
+  if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", function(){ carregar(); }); else carregar();
 })();
 </script>
 <style id="lote10-abas-css">
@@ -50546,9 +51364,9 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.16-12';
+window.APP_VERSAO = '2026.10.16-13';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
-window.SERVIDOR_RECOMENDADO = '2026.10.15-19';
+window.SERVIDOR_RECOMENDADO = '2026.10.16-13';
 (function(){
   var SEM_VERSAO = '0000.00.00-0';
   var LEGADO_LAYOUT = '2026.10.07-0';   // servidor que já tem layout_antigo no health, mas ainda sem número de versão
