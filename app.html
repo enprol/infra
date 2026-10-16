@@ -10063,6 +10063,14 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
     #panel-desp1-campo .cf-segs button{border:1px solid #c3ccd6; background:#fff; border-radius:8px; padding:7px 18px; font:inherit; font-size:13px; cursor:pointer; color:#3d5062;}
     #panel-desp1-campo .cf-segs button.on{background:#1F6FC0; border-color:#1F6FC0; color:#fff; font-weight:700;}
     #panel-desp1-campo .cf-chk{display:flex; align-items:center; gap:8px; font-weight:600;}
+    /* 16/10/2026: outros tipos de cerca (Cerca 2, 3…) */
+    #panel-desp1-campo .cf-cerca{border:1px solid #dde5ed; border-radius:10px; padding:10px 12px 12px; margin:0 0 10px; background:#fafcfe;}
+    #panel-desp1-campo .cf-cerca-cab{display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;}
+    #panel-desp1-campo .cf-cerca-cab b{font-size:13px; color:#0a4d7c;}
+    #panel-desp1-campo .cf-cerca-rm{border:1px solid #d9a3a3; background:#fdf1f1; color:#AE3F38; border-radius:7px; padding:5px 11px; font:inherit; font-size:12.5px; cursor:pointer;}
+    #panel-desp1-campo .cf-cerca-rm:hover{background:#f8d9d9;}
+    #panel-desp1-campo .cf-cerca-add{align-self:flex-start; border:1px dashed #9aa7b5; background:#fff; color:#175a9f; border-radius:8px; padding:8px 14px; font:inherit; font-size:13px; font-weight:600; cursor:pointer;}
+    #panel-desp1-campo .cf-cerca-add:hover{border-color:#1F6FC0; background:#F3F8FE;}
     @media (max-width:760px){ #panel-desp1-campo .cf-grid{grid-template-columns:1fr;} }
     #panel-desp1-campo .cf-gal{margin-top:16px;}
     #panel-desp1-campo .cf-gal-h{display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding-bottom:6px; border-bottom:1px dashed #d3dbe4; font-size:13px; color:#175a9f;}
@@ -39777,6 +39785,7 @@ window.DRL_gerarPDF=async function(opts){
       {k:"geral.cercaEspacamento", l:"Espaçamento entre estacas (m)", t:"sel",
         o:["0,5","1","1,5","2","2,5","3","3,5","4","4,5","5","5,5","6","6,5","7","7,5","8","8,5","9","9,5","10"]},
       {k:"geral.cercaDesc", l:"Descrição da cerca", t:"ta", rows:2, largo:true},
+      {k:"geral.cercasExtras", l:"Outros tipos de cerca no imóvel", t:"cercas", largo:true},   // 16/10/2026: a de cima é a Cerca 1
       {k:"campos.fb_321", l:"3.2.1 Benfeitorias reprodutivas da faixa não edificante", t:"snquais", largo:true},
       {k:"campos.fb_31_nrep", l:"3.1 Não reprodutivas", t:"ta", rows:3, largo:true, legado:true},
       {k:"campos.fb_32_rep", l:"3.2 Reprodutivas", t:"ta", rows:3, largo:true, legado:true},
@@ -39808,6 +39817,7 @@ window.DRL_gerarPDF=async function(opts){
   }
   function textoDe(f, cam, c){
     var v = getv(f, cam);
+    if(c && c.t === "cercas") return cercasTexto(v);
     if(v && typeof v === "object" && !Array.isArray(v) && "__chk" in v) return v.__chk ? "marcado" : "";
     if(Array.isArray(v)) return v.join(", ");
     if(v == null) return "";
@@ -40403,9 +40413,78 @@ window.DRL_gerarPDF=async function(opts){
         return '<button type="button" class="'+(sn===op?"on":"")+'" onclick="CAMPO_sn(\''+cam+'\',\''+op+'\')">'+op+'</button>';
       }).join("") + '</div>'
         + '<input type="text" placeholder="Quais?" value="'+esc(quais==null?"":quais)+'" oninput="CAMPO_quais(\''+cam+'\',this.value)">';
+    } else if(c.t === "cercas"){
+      h += cercasHTML(f);
     }
     return h + '</div>';
   }
+
+  /* 16/10/2026: mais de um tipo de cerca (fios, espaçamento, INFRA ou não, descrição). A cerca dos campos
+     geral.cerca* é a Cerca 1; as demais ficam em geral.cercasExtras = [{pertenceInfra, fios, espacamento, desc}]
+     (o mesmo formato da ficha do celular, campo.html). */
+  var CERCA_FIOS = ["0","1","2","3","4","5","6","7","8","9","10"];
+  var CERCA_ESP = ["0,5","1","1,5","2","2,5","3","3,5","4","4,5","5","5,5","6","6,5","7","7,5","8","8,5","9","9,5","10"];
+  function cercaTxtAuto(fios, esp){
+    return (fios != null && fios !== "" && esp != null && esp !== "") ? ("Cerca com espaçamento de " + esp + " m entre estacas, " + fios + " fio(s).") : "";
+  }
+  function cercasTexto(arr){
+    if(!Array.isArray(arr)) return "";
+    return arr.map(function(it, i){
+      it = it || {};
+      var p = [];
+      if(it.pertenceInfra) p.push("INFRA: " + it.pertenceInfra);
+      if(it.fios) p.push(it.fios + " fio(s)");
+      if(it.espacamento) p.push(it.espacamento + " m entre estacas");
+      return "Cerca " + (i+2) + (p.length ? " (" + p.join("; ") + ")" : "") + (it.desc ? ": " + it.desc : "");
+    }).join(" | ");
+  }
+  function cercasHTML(f){
+    var arr = getv(f, "geral.cercasExtras"); if(!Array.isArray(arr)) arr = [];
+    function sel(i, k, ops, v){
+      var o = ops.slice(), cur = (v == null ? "" : String(v)); if(cur && o.indexOf(cur) < 0) o.push(cur);
+      return '<select onchange="CAMPO_cercaSet('+i+',\''+k+'\',this.value)"><option value="">— selecione —</option>'
+        + o.map(function(op){ return '<option'+(op===cur?" selected":"")+'>'+esc(op)+'</option>'; }).join("") + '</select>';
+    }
+    var h = '<p class="hint-inline" style="margin:0 0 6px">Se houver cercas diferentes (fios, espaçamento, da INFRA ou não), adicione cada uma. A cerca descrita acima é a <b>Cerca 1</b>.</p>';
+    arr.forEach(function(it, i){
+      it = it || {};
+      h += '<div class="cf-cerca"><div class="cf-cerca-cab"><b>Cerca '+(i+2)+'</b>'
+        + '<button type="button" class="cf-cerca-rm" onclick="CAMPO_cercaRm('+i+')">Remover</button></div><div class="cf-grid">'
+        + '<div class="cf-f"><label>É pertencente à INFRA?</label>'+sel(i, "pertenceInfra", SN, it.pertenceInfra)+'</div>'
+        + '<div class="cf-f"><label>Fios</label>'+sel(i, "fios", CERCA_FIOS, it.fios)+'</div>'
+        + '<div class="cf-f"><label>Espaçamento entre estacas (m)</label>'+sel(i, "espacamento", CERCA_ESP, it.espacamento)+'</div>'
+        + '<div class="cf-f cf-largo"><label>Descrição da cerca</label><textarea rows="2" data-cerca-desc="'+i+'" oninput="CAMPO_cercaSet('+i+',\'desc\',this.value)">'+esc(it.desc || "")+'</textarea></div>'
+        + '</div></div>';
+    });
+    h += '<button type="button" class="cf-cerca-add" onclick="CAMPO_cercaAdd()">+ Adicionar outro tipo de cerca</button>';
+    return h;
+  }
+  function cercasLista(){
+    var arr = getv(CAMPO, "geral.cercasExtras");
+    if(!Array.isArray(arr)){ arr = []; setv(CAMPO, "geral.cercasExtras", arr); }
+    return arr;
+  }
+  window.CAMPO_cercaAdd = function(){
+    if(!CAMPO) return;
+    cercasLista().push({ pertenceInfra:"", fios:"", espacamento:"", desc:"" });
+    refazerCampo("geral.cercasExtras"); marcarSujo();
+  };
+  window.CAMPO_cercaRm = function(i){
+    if(!CAMPO) return;
+    var arr = cercasLista(); if(!arr[i]) return;
+    if(!confirm("Remover a Cerca " + (i+2) + "?")) return;
+    arr.splice(i, 1); refazerCampo("geral.cercasExtras"); marcarSujo();
+  };
+  window.CAMPO_cercaSet = function(i, k, v){
+    if(!CAMPO) return;
+    var it = cercasLista()[i]; if(!it) return;
+    it[k] = v;
+    if(k === "fios" || k === "espacamento"){     // texto gerado (continua editável), como na Cerca 1
+      var t = cercaTxtAuto(it.fios, it.espacamento);
+      if(t){ it.desc = t; var ta = document.querySelector('[data-cerca-desc="'+i+'"]'); if(ta) ta.value = t; }
+    }
+    marcarSujo();
+  };
   function extraHTML(cam){
     var v = getv(CAMPO, cam), rot = rotuloExtra(cam);
     if(v && typeof v === "object" && !Array.isArray(v) && "__chk" in v){
@@ -50052,7 +50131,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.16-8';
+window.APP_VERSAO = '2026.10.16-9';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.15-19';
 (function(){
