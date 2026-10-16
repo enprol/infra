@@ -5365,15 +5365,15 @@ table,input[type="number"]{font-variant-numeric:tabular-nums}
 /* CAD_load: mostra/atualiza/esconde a tela de carregamento. Definido logo no início do <body> para já estar
    visível durante a recarga da página (o cadastro pedido fica pendente em sessionStorage). */
 (function(){
-  var PASSOS = ["Conferindo no servidor", "Preparando a tela", "Baixando dados e fotos", "Montando as abas"];
+  var PASSOS_ABRIR = ["Conferindo no servidor", "Preparando a tela", "Baixando dados e fotos", "Montando as abas"], PASSOS = PASSOS_ABRIR;
   var el = document.getElementById("cadLoad"), t0 = 0, ultimo = 0;
   function $(id){ return document.getElementById(id); }
   function desenhaPassos(i){
     $("cadLoadPassos").innerHTML = PASSOS.map(function(p, k){ return '<span class="' + (k < i ? "feito" : (k === i ? "atual" : "")) + '">' + (k < i ? "✓ " : "") + p + '</span>'; }).join("");
   }
   var CL = window.CAD_load = {
-    mostrar: function(titulo, passo, sub){
-      if(!el) return; t0 = Date.now();
+    mostrar: function(titulo, passo, sub, lista){
+      if(!el) return; t0 = Date.now(); PASSOS = lista || PASSOS_ABRIR;
       $("cadLoadTit").textContent = titulo || "Abrindo cadastro…";
       CL.passo(passo || 0, sub || "", null);
       el.hidden = false;
@@ -33318,15 +33318,21 @@ function AV_gerarDescSituacao(){
       // garantia, recalcula agora, no momento de salvar, pra nunca ir vazia pro pacote
       // mesmo que o usuário não tenha passado pela aba Parecer nesta sessão.
       if (window.PAR_gerarTexto){ try{ window.PAR_gerarTexto("titularidade"); }catch(e){} }
+      // 16/10/2026: tela de progresso do salvamento (a mesma janela de "Abrindo cadastro")
+      var PASSOS_SALVAR = ["Conferindo os dados", "Otimizando as imagens", "Enviando ao servidor", "Confirmando a gravação"];
+      var _tela = function(i, sub){ try{ if(window.CAD_load){ if(i === 0) window.CAD_load.mostrar("Salvando cadastro…", 0, sub || "Reunindo as abas e as fotos…", PASSOS_SALVAR); else window.CAD_load.passo(i, sub, null); } }catch(x){} };
+      var _telaOff = function(){ try{ if(window.CAD_load) window.CAD_load.ocultar(); }catch(x){} };
+      _tela(0);
       var pacote = _preservarOrfaos(montarPacote());
-      if (window.__comprimirImagensPacote){ if (btn) btn.textContent = "💾 Otimizando imagens…"; pacote = await window.__comprimirImagensPacote(pacote); }
+      if (window.__comprimirImagensPacote){ _tela(1, "Reduzindo o tamanho das fotos…"); if (btn) btn.textContent = "💾 Otimizando imagens…"; pacote = await window.__comprimirImagensPacote(pacote); }
       if (btn) btn.textContent = "💾 Salvando…";
+      _tela(2, "Gravando em " + secao + "…");
       var processoSei = _rotuloProc();
       // 05/10/2026: manda junto o "atualizado_em" do cadastro que ESTA tela abriu/salvou por último. Se outra
       // pessoa salvou o mesmo cadastro nesse meio tempo, o servidor responde 409 e nada é sobrescrito sem aviso.
       var baseVersao = (aberto && aberto.atualizado_em) ? aberto.atualizado_em : undefined;
       var urlPut = "/api/cadastros/" + encodeURIComponent(secao) + "/" + encodeURIComponent(ctd);
-      var _aoRetentar = function(n, t){ if (btn) btn.textContent = "💾 Servidor não respondeu — tentando de novo (" + n + "/" + t + ")…"; };
+      var _aoRetentar = function(n, t){ _tela(2, "Servidor não respondeu — tentando de novo (" + n + "/" + t + ")…"); if (btn) btn.textContent = "💾 Servidor não respondeu — tentando de novo (" + n + "/" + t + ")…"; };
       var resp;
       try{
         resp = await _apiComRetry("PUT", urlPut, {
@@ -33335,12 +33341,14 @@ function AV_gerarDescSituacao(){
         }, _aoRetentar);
       }catch(e409){
         if (!e409 || e409.status !== 409) throw e409;
+        _telaOff();
         var quando = ""; try{ quando = new Date(e409.payload.atualizado_em_servidor).toLocaleString("pt-BR"); }catch(x){}
         if (!confirm("ATENÇÃO — conflito de gravação.\n\n" +
                      'O cadastro "' + ctd + '" foi salvo por outra pessoa (ou em outra máquina)' + (quando ? " em " + quando : "") + ", depois que você o abriu.\n\n" +
                      "OK = salvar mesmo assim (as alterações dela serão substituídas — a versão anterior fica guardada na pasta _versoes do cadastro).\n" +
                      "Cancelar = não salvar. Seus dados continuam na tela; use “Salvar em arquivo” para guardar uma cópia e depois reabra o cadastro para ver o que mudou.")) return;
         if (btn) btn.textContent = "💾 Salvando…";
+        _tela(2, "Gravando em " + secao + "…");
         resp = await _apiComRetry("PUT", urlPut, {
           versao: VERSAO, processo_sei: processoSei || null, pacote: pacote,
           renomear_de: renomearDe || undefined, base_atualizado_em: baseVersao, forcar: true
@@ -33348,6 +33356,7 @@ function AV_gerarDescSituacao(){
       }
       // o servidor devolve a pasta em que realmente gravou (pode ser a antiga, se o
       // nome novo já pertencia a outro cadastro) — é ela que vale daqui pra frente.
+      _tela(3, "Cadastro gravado.");
       var ctdFinal = (resp && resp.ctd) || ctd;
       window.__CAD_ATUAL = { secao: secao, ctd: ctdFinal, ctdCalc: ctdCalc, pacote: pacote, atualizado_em: (resp && resp.atualizado_em) || null };
       var extra = (pacote._orfaos && Object.keys(pacote._orfaos).length)
@@ -33357,8 +33366,10 @@ function AV_gerarDescSituacao(){
       } else if (renomearDe && resp && resp.motivo_renome === "destino_existe"){
         extra += '\n\nATENÇÃO: já existe outro cadastro chamado "' + ctd + '". Para não misturar os dois, este continuou salvo em "' + ctdFinal + '".';
       }
+      _telaOff();
       alert('Cadastro "' + ctdFinal + '" salvo no servidor da empresa (' + secao + ') com sucesso.' + extra);
     }catch(e){
+      try{ if(window.CAD_load) window.CAD_load.ocultar(); }catch(x){}
       if (_erroDeRede(e)){
         alert("O servidor de cadastros (nesta máquina) não respondeu, mesmo depois de 3 tentativas.\n\n" +
               "Seus dados continuam na tela — NADA foi perdido. Ele costuma voltar sozinho em até 10 minutos " +
@@ -33369,6 +33380,7 @@ function AV_gerarDescSituacao(){
               "\n\nVerifique a conexão (rede local ou VPN) e se o serviço de cadastros está ativo.");
       }
     }finally{
+      try{ if(window.CAD_load) window.CAD_load.ocultar(); }catch(x){}
       if (btn){ btn.disabled = false; btn.textContent = txt0; }
     }
   };
@@ -49448,7 +49460,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.16-3';
+window.APP_VERSAO = '2026.10.16-4';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.15-19';
 (function(){
