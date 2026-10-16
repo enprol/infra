@@ -20737,6 +20737,16 @@ window.FOTO_rodapeHTML=rodapeHTML;
   // folha de rosto de uma parte do material técnico (PDF de uma página)
   // capa única do material técnico (15/10/2026): CTD/SPS no título, sumário numerado por DESP.
   // grupos = [{ n:1, t:"DESP 1", itens:["Ficha …", …] }, …]
+  // identificação do cadastro para títulos de capa: "CTD 001 - SPS-04 – PE" (campos do processo; vale para qualquer cadastro)
+  window.AVFTN_ident = function(padrao){
+    const proc = val("fv_processo") || val("fb_processo") || val("fb_proc_preview");
+    const ctdN = val("fb_proc_ctd"), loteN = val("fb_proc_lote").replace(/[^0-9]/g,""), ufN = (typeof window.FB_ufProcesso === "function") ? window.FB_ufProcesso() : "";
+    let ident = "";
+    if(ctdN && loteN) ident = ("CTD " + ctdN + " - SPS-" + String(parseInt(loteN,10)).padStart(2,"0") + (ufN ? " – " + ufN : "")).toUpperCase();
+    if(!ident){ const m = /CTD[ ]*[0-9]+[A-Z0-9-]*[ ]*[-–][ ]*SPS-?[ ]*[0-9]+[ ]*[-–][ ]*[A-Z]{2}/i.exec(proc); if(m) ident = m[0].replace(/[ ]+/g," ").toUpperCase(); }
+    if(!ident){ const at = window.__CAD_ATUAL || {}; ident = (ctdN ? "CTD " + ctdN : (at.ctd ? String(at.ctd).split(" - ")[0] : (padrao || "CADASTRO"))).toUpperCase(); }
+    return ident;
+  };
   window.AVFTN_folhaRosto = function(grupos){
     const {jsPDF} = window.jspdf, doc = new jsPDF({unit:"pt",format:"a4",compress:true}), ctx = makeCtx(doc);
     ctx.rodapePadrao = true; novaPagina(doc,ctx);
@@ -20744,11 +20754,7 @@ window.FOTO_rodapeHTML=rodapeHTML;
     // título = identificação do cadastro (ex.: "CTD 001 - SPS-04 – PE")
     // título: CTD + SPS + UF montados dos campos do processo (iguais ao "Nº do processo" da Ficha) — vale para qualquer cadastro
     const proc = val("fv_processo") || val("fb_processo") || val("fb_proc_preview");
-    const ctdN = val("fb_proc_ctd"), loteN = val("fb_proc_lote").replace(/[^0-9]/g,""), ufN = (typeof window.FB_ufProcesso === "function") ? window.FB_ufProcesso() : "";
-    let ident = "";
-    if(ctdN && loteN) ident = ("CTD " + ctdN + " - SPS-" + String(parseInt(loteN,10)).padStart(2,"0") + (ufN ? " – " + ufN : "")).toUpperCase();
-    if(!ident){ const m = /CTD[ ]*[0-9]+[A-Z0-9-]*[ ]*[-–][ ]*SPS-?[ ]*[0-9]+[ ]*[-–][ ]*[A-Z]{2}/i.exec(proc); if(m) ident = m[0].replace(/[ ]+/g," ").toUpperCase(); }
-    if(!ident){ const at = window.__CAD_ATUAL || {}; ident = (ctdN ? "CTD " + ctdN : (at.ctd ? String(at.ctd).split(" - ")[0] : "MATERIAL TÉCNICO")).toUpperCase(); }
+    const ident = window.AVFTN_ident("MATERIAL TÉCNICO");
     doc.setFont("helvetica","bold"); doc.setFontSize(8); doc.setTextColor(122,133,148);
     doc.text("MATERIAL TÉCNICO DO CADASTRO", cx, y, {align:"center", charSpace:1.4});
     let fs = 40; doc.setFontSize(fs); while(fs > 18 && doc.getTextWidth(ident) > L - 20){ fs -= 1; doc.setFontSize(fs); }
@@ -36778,7 +36784,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     cb.addEventListener("change", function(){ try{ localStorage.setItem(ANX_PDF_KEY, this.checked?"1":"0"); }catch(e){} });
     atualizarCaixaAnexos();
   }
-  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", montarCaixaAnexos); else setTimeout(montarCaixaAnexos, 0);
+  // 16/10/2026: a caixa "Incluir anexos do check list" saiu — a escolha agora é feita na janela "Baixar Parecer" (Gerar PDF)
   function lerArquivo(f){ return new Promise(function(res,rej){ var r=new FileReader(); r.onload=function(){ res(r.result); }; r.onerror=function(){ rej(r.error); }; r.readAsDataURL(f); }); }
   // imagem muito grande (foto de celular): reduz para no máx. 2200 px no maior lado, em JPEG
   function reduzirImagem(src){
@@ -37199,7 +37205,10 @@ window.UFOTO_rodapeHTML=rodapeHTML;
   window.PAR_gerarPDF=async function(opts){
     if(!(window.jspdf||window.jsPDF)){ alert("Biblioteca de PDF ainda carregando. Tente novamente."); return; }
     var J=(window.jspdf&&window.jspdf.jsPDF)?window.jspdf.jsPDF:window.jsPDF;
-    var pdf=new J({orientation:"portrait",unit:"mm",format:"a4"});
+    var pdf=new J({orientation:"portrait",unit:"mm",format:"a4",compress:true});   // 16/10/2026: compactado (o PDF final não pode ficar grande)
+    // 16/10/2026: partes escolhidas na janela "Baixar Parecer" (opts.sel); sem ela, a última escolha desta máquina
+    var _sel=(opts&&opts.sel)||selSalva();
+    function incl(id){ return _sel.partes[id]!==false; }
     var FONT="helvetica";
     try{ var CF=window.__CARLITO__; if(CF){
       pdf.addFileToVFS("Carlito-n.ttf",CF.normal); pdf.addFont("Carlito-n.ttf","Carlito","normal");
@@ -37219,8 +37228,8 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     var PAR_TEL=["(+55 85) 3289-6363   comercial@enprol.com.br","(+55 85) 3289-6363   comercial@enprol.com.br","(+55 85) 3289-6363   comercial@enprol.com.br","(+55 85) 3289-6363   comercial@enprol.com.br","(+55 85) 3289-6363   comercial@enprol.com.br","(+55 31) 3253-5500   comercial@enprol.com.br"];
     function cab(){
       PG++;
-      if(imgI){ try{ var w=8*(imgI.width/imgI.height); pdf.addImage(imgI,"JPEG",mL,13,w,8); }catch(e){} }
-      if(imgE){ try{ var w2=8*(imgE.width/imgE.height); pdf.addImage(imgE,"JPEG",W-mR-w2,13,w2,8); }catch(e){} }
+      if(imgI){ try{ var w=8*(imgI.width/imgI.height); pdf.addImage(imgI,"JPEG",mL,13,w,8,"parLogoI","FAST"); }catch(e){} }
+      if(imgE){ try{ var w2=8*(imgE.width/imgE.height); pdf.addImage(imgE,"JPEG",W-mR-w2,13,w2,8,"parLogoE","FAST"); }catch(e){} }
       pdf.setFont(FONT,"normal"); pdf.setFontSize(7); pdf.setTextColor(90,90,90);
       var sei=pf("par_sei");
       var docId="Parecer para Regularização Fundiária e Documental — DESP-1"+(pf("par_processo")?(" ("+pf("par_processo")+")"):"")+(sei?(" — SEI nº "+sei):"");
@@ -37533,6 +37542,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
 
     EST.topicos.forEach(function(tp){
       if(tp.oculto) return;                       // "Ocultar" no modo Conteúdo: fora do PDF
+      if(!incl(tp.id)) return;                    // 16/10/2026: desmarcado na janela "Baixar Parecer"
       var id=tp.id;
       if(tp.pagina) novaPaginaForcada();          // II e IV abrem página própria
       if(tp.extra){                               // seção / subseção / subtítulo criados no modo Conteúdo
@@ -37563,7 +37573,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     var ANX_INS=[];   // { depoisDe: nº de páginas do jsPDF quando o PDF entra, bytes, item, nome, pg0 }
     async function anexosChecklist(){
       var itens=[];
-      CHECKLIST_TABS.forEach(function(tab,n){ (tabelasPAR[n]||[]).forEach(function(lin,i){ if(lin.docs&&lin.docs.length) itens.push({ num:numItem(n,i), crit:lin.crit, docs:lin.docs }); }); });
+      CHECKLIST_TABS.forEach(function(tab,n){ (tabelasPAR[n]||[]).forEach(function(lin,i){ if(_sel.anexos[n]!==false && lin.docs&&lin.docs.length) itens.push({ n:n, num:numItem(n,i), crit:lin.crit, docs:lin.docs }); }); });
       if(!itens.length) return;
       // páginas de cada documento (PDF: lê o arquivo; imagem: 1; PDF ilegível: 1 folha de aviso)
       for(var a=0;a<itens.length;a++){
@@ -37576,43 +37586,139 @@ window.UFOTO_rodapeHTML=rodapeHTML;
           INF.set(d,inf);
         }
       }
-      rod(); nova();
-      pdf.setFont(FONT,"bold"); pdf.setFontSize(13); pdf.setTextColor(20,40,70);
-      pdf.text("ANEXOS – CHECKLIST DOCUMENTAL", mL, yc); yc+=2.6;
-      pdf.setDrawColor(70,70,70); pdf.setLineWidth(0.3); pdf.line(mL,yc,W-mR,yc); yc+=7;
-      pdf.setFont(FONT,"bold"); pdf.setFontSize(10.5); pdf.setTextColor(0,0,0); pdf.text("Índice documental", mL, yc); yc+=5.5;
-      // linhas do índice: uma por documento
-      var wN=12, wP=16, wD=58, wI=cw-wN-wD-wP, linhas=[];
-      pdf.setFont(FONT,"normal"); pdf.setFontSize(8);
-      itens.forEach(function(it){ it.docs.forEach(function(d,k){
-        var iL=k===0 ? pdf.splitTextToSize(it.crit||"", wI-3) : [""], dL=pdf.splitTextToSize(d.nome||"documento", wD-3);
-        linhas.push({ it:it, d:d, primeira:k===0, iL:iL, dL:dL, h:Math.max(iL.length,dL.length,1)*3.6+2.6 });
-      }); });
-      // simula onde o índice termina para saber em que página começa cada documento
-      var ys=yc+7, pgIdx=PG;
-      linhas.forEach(function(l){ if(ys+l.h>botY){ pgIdx++; ys=topY+7; } ys+=l.h; });
-      var pgAt=pgIdx;
-      itens.forEach(function(it){ pgAt++; it.pgAbre=pgAt; it.docs.forEach(function(d){ INF.get(d).pg=pgAt+1; pgAt+=INF.get(d).n; }); });
-      function cabIdx(){
-        var hh=7; pdf.setFillColor(218,232,246); pdf.rect(mL,yc,cw,hh,'F');
-        pdf.setFont(FONT,"bold"); pdf.setFontSize(7.6); pdf.setTextColor(20,41,74);
-        pdf.text("Nº", mL+wN/2, yc+4.6, {align:"center"}); pdf.text("Item do check list", mL+wN+2.5, yc+4.6);
-        pdf.text("Documento", mL+wN+wI+2.5, yc+4.6); pdf.text("Página", mL+cw-wP/2, yc+4.6, {align:"center"});
-        pdf.setDrawColor(31,111,192); pdf.setLineWidth(0.6); pdf.line(mL,yc+hh,mL+cw,yc+hh); yc+=hh;
+      /* folha de rosto dos anexos (16/10/2026): identificação do cadastro e uma tabela no estilo do check list —
+         tópico em faixa; por item, uma célula com todos os documentos anexados, a página de cada um e o check verde.
+         A tabela tem de caber na 1ª página: mede com a escala k (fontes, linhas e folgas) e vai reduzindo até caber;
+         só se nem na menor escala couber é que continua na página seguinte. */
+      var grp=[];
+      itens.forEach(function(it){ var g=grp[grp.length-1]; if(!g||g.n!==it.n){ g={ n:it.n, tit:CHECKLIST_TABS[it.n].titulo, itens:[] }; grp.push(g); } g.itens.push(it); });
+      var QH=24;   // quadro do processo no pé da 1ª página (11 = quadro compacto, numa linha, quando a tabela precisa de espaço)
+      var KMIN=0.45;
+      // modo: "medir" (sem páginas: devolve onde a tabela termina), "contar" (devolve nº de páginas), "desenhar"
+      // corrido=true: os documentos do item seguem na mesma linha, separados por ";", cada um com a página (para caber muitos)
+      function folhaRosto(modo, k, corrido){
+        var desenhar=(modo==="desenhar"), pags=1, primeira=true, y;
+        function F(v){ return v*k; }
+        function limite(){ return modo==="medir" ? 1e9 : (primeira ? botY-QH-4 : botY); }
+        function cabeca(){
+          var ident=window.AVFTN_ident ? window.AVFTN_ident("PARECER") : "";
+          y=topY+5;
+          if(desenhar){
+            pdf.setFont(FONT,"bold"); pdf.setFontSize(7.5); pdf.setTextColor(122,133,148);
+            pdf.text("PARECER JURÍDICO — ANEXOS", W/2, y, {align:"center", charSpace:0.5});
+          }
+          y+=11;
+          if(desenhar && ident){
+            var fs=24; pdf.setFont(FONT,"bold"); pdf.setFontSize(fs); while(fs>14 && pdf.getTextWidth(ident)>cw-6){ fs--; pdf.setFontSize(fs); }
+            pdf.setTextColor(27,58,92); pdf.text(ident, W/2, y, {align:"center"});
+          }
+          y+=8;
+          if(desenhar){ pdf.setFont(FONT,"bold"); pdf.setFontSize(11.5); pdf.setTextColor(30,40,55); pdf.text("ANEXOS – CHECKLIST DOCUMENTAL", W/2, y, {align:"center", charSpace:0.4}); }
+          y+=7;
+          if(desenhar){   // quadro do processo (igual ao da capa do material técnico)
+            var yb=botY-QH, mun=pf("par_municipio");
+            pdf.setFillColor(244,248,252); pdf.setDrawColor(188,214,240); pdf.setLineWidth(0.25); pdf.roundedRect(mL, yb, cw, QH, 1.2, 1.2, "FD");
+            pdf.setFillColor(31,111,192); pdf.rect(mL, yb, 1.4, QH, "F");
+            (QH<20
+              ? [["Processo administrativo", pf("par_processo")||"—", 0, cw*0.44, 0.6], ["Proprietário / ocupante", pf("par_prop")||pf("par_interessado")||"—", cw*0.46, cw*0.3, 0.6], ["Município", mun||"—", cw*0.79, cw*0.18, 0.6]]
+              : [["Processo administrativo", pf("par_processo")||"—", 0, cw-10, 2.5], ["Proprietário / ocupante", pf("par_prop")||pf("par_interessado")||"—", 0, cw*0.6, 12.5], ["Município", mun||"—", cw*0.64, cw*0.32, 12.5]]).forEach(function(c){
+              var xx=mL+5+c[2];
+              pdf.setFont(FONT,"bold"); pdf.setFontSize(6.3); pdf.setTextColor(100,112,128); pdf.text(c[0].toUpperCase(), xx, yb+c[4]+2.5);
+              pdf.setFontSize(8.8); pdf.setTextColor(20,40,70); pdf.text(pdf.splitTextToSize(String(c[1]), c[3])[0]||"", xx, yb+c[4]+6.4);
+            });
+          }
+        }
+        function quebra(h){
+          if(y+h<=limite()) return false;
+          pags++; primeira=false;
+          if(desenhar){ rod(); nova(); pdf.setFont(FONT,"bold"); pdf.setFontSize(8); pdf.setTextColor(122,133,148); pdf.text("ANEXOS – CHECKLIST DOCUMENTAL (continuação)", W/2, topY+2, {align:"center", charSpace:0.4}); }
+          y=topY+8;
+          return true;
+        }
+        cabeca();
+        var cN=11, cI=67, cD=64, cP=10, cK=cw-cN-cI-cD-cP, LH=F(3.9), PAD=F(3.4);
+        function cabTab(){
+          var hh=F(6.8);
+          if(desenhar){
+            pdf.setFillColor(27,58,92); pdf.rect(mL, y, cw, hh, "F");
+            pdf.setFont(FONT,"bold"); pdf.setFontSize(F(8)); pdf.setTextColor(255,255,255);
+            var yt=y+hh/2+F(1.1);
+            pdf.text("Nº", mL+cN/2, yt, {align:"center"});
+            pdf.text("Item do check list", mL+cN+2.2, yt);
+            pdf.text("Documentos anexados", mL+cN+cI+2.2, yt);
+            pdf.text("Pág.", mL+cN+cI+cD+cP/2, yt, {align:"center"});
+          }
+          y+=hh;
+        }
+        function check(x, yy){   // círculo verde com o "✓" desenhado (não depende de fonte)
+          var r=Math.max(1.5, F(2.2));
+          pdf.setFillColor(43,138,87); pdf.circle(x, yy, r, "F");
+          pdf.setDrawColor(255,255,255); pdf.setLineWidth(r*0.24);
+          pdf.lines([[r*0.33,r*0.35],[r*0.63,-0.72*r]], x-r*0.48, yy+r*0.02);
+        }
+        function grade(y0, h){
+          pdf.setDrawColor(150,165,182); pdf.setLineWidth(0.2);
+          pdf.rect(mL, y0, cw, h);
+          [cN, cN+cI, cN+cI+cD, cN+cI+cD+cP].forEach(function(x){ pdf.line(mL+x, y0, mL+x, y0+h); });
+        }
+        cabTab();
+        var zebra=0;
+        grp.forEach(function(g){
+          pdf.setFont(FONT,"bold"); pdf.setFontSize(F(8.8));
+          var tl=pdf.splitTextToSize(g.tit, cw-5), th=tl.length*LH+F(2.8);
+          if(quebra(th+F(10))) cabTab();
+          if(desenhar){
+            pdf.setFillColor(218,232,246); pdf.rect(mL, y, cw, th, "F");
+            pdf.setDrawColor(150,165,182); pdf.setLineWidth(0.2); pdf.rect(mL, y, cw, th);
+            pdf.setFont(FONT,"bold"); pdf.setFontSize(F(8.8)); pdf.setTextColor(20,41,74); pdf.text(tl, mL+2.2, y+F(1.4)+LH*0.8);
+          }
+          y+=th;
+          g.itens.forEach(function(it){
+            pdf.setFont(FONT,"normal"); pdf.setFontSize(F(8.6));
+            var cl=pdf.splitTextToSize(it.crit||"", cI-4.4);
+            pdf.setFontSize(F(8.4));
+            var docs=corrido
+              ? [{ d:null, l:pdf.splitTextToSize(it.docs.map(function(d){ return (d.nome||"documento")+" (p. "+INF.get(d).pg+")"; }).join(";  "), cD-4.4) }]
+              : it.docs.map(function(d){ return { d:d, l:pdf.splitTextToSize(d.nome||"documento", cD-4.4) }; });
+            var hD=docs.reduce(function(s,x){ return s+x.l.length*LH; }, 0)+(docs.length-1)*F(0.9);
+            var h=Math.max(cl.length*LH, hD, F(5))+PAD;
+            if(quebra(h)) cabTab();
+            if(desenhar){
+              if(zebra++%2===1){ pdf.setFillColor(247,250,253); pdf.rect(mL, y, cw, h, "F"); }
+              grade(y, h);
+              var y1=y+PAD/2+LH*0.78;
+              pdf.setFont(FONT,"bold"); pdf.setFontSize(F(8.6)); pdf.setTextColor(20,41,74); pdf.text(it.num, mL+cN/2, y1, {align:"center"});
+              pdf.setFont(FONT,"normal"); pdf.setTextColor(36,52,71); pdf.text(cl, mL+cN+2.2, y1);
+              var yd=y1;
+              docs.forEach(function(x){
+                pdf.setFont(FONT,"normal"); pdf.setFontSize(F(8.4)); pdf.setTextColor(36,52,71); pdf.text(x.l, mL+cN+cI+2.2, yd);
+                pdf.setFont(FONT,"bold"); pdf.setTextColor(20,41,74); var pT=x.d ? String(INF.get(x.d).pg) : (function(){ var a=INF.get(it.docs[0]).pg, b=INF.get(it.docs[it.docs.length-1]).pg; return a===b ? String(a) : a+"–"+b; })();
+                pdf.text(pT, mL+cN+cI+cD+cP/2, yd, {align:"center"});
+                yd+=x.l.length*LH+F(0.9);
+              });
+              check(mL+cN+cI+cD+cP+cK/2, y+h/2);
+            }
+            y+=h;
+          });
+        });
+        var nd=0; itens.forEach(function(it){ nd+=it.docs.length; });
+        if(desenhar){
+          y+=F(3.6); pdf.setFont(FONT,"italic"); pdf.setFontSize(Math.max(6, F(7.4))); pdf.setTextColor(100,112,128);
+          pdf.text(pdf.splitTextToSize(itens.length+" item(ns) do check list com "+nd+" documento(s) anexado(s). Cada item abre com uma folha de identificação; a página indicada é a do documento.", cw), mL, y);
+        } else y+=F(7);
+        return modo==="medir" ? y : pags;
       }
-      cabIdx();
-      linhas.forEach(function(l,ri){
-        if(yc+l.h>botY){ rod(); nova(); cabIdx(); }
-        if(ri%2===1){ pdf.setFillColor(250,252,254); pdf.rect(mL,yc,cw,l.h,'F'); }
-        pdf.setFont(FONT,"bold"); pdf.setFontSize(8); pdf.setTextColor(20,41,74);
-        if(l.primeira) pdf.text(l.it.num, mL+wN/2, yc+3.6, {align:"center"});
-        pdf.setFont(FONT,"normal"); pdf.setTextColor(40,51,63);
-        pdf.text(l.iL, mL+wN+2.5, yc+3.6);
-        pdf.text(l.dL, mL+wN+wI+2.5, yc+3.6);
-        pdf.text(String(INF.get(l.d).pg), mL+cw-wP/2, yc+3.6, {align:"center"});
-        pdf.setDrawColor(237,241,245); pdf.setLineWidth(0.2); pdf.line(mL, yc+l.h, mL+cw, yc+l.h);
-        yc+=l.h;
-      });
+      rod(); nova();
+      // escolhe o maior tamanho que cabe na 1ª página: um documento por linha (até 70 %); se não couber, documentos corridos (até 50 %)
+      // ordem: quadro normal + um documento por linha (até 70 %) → quadro compacto + um por linha → quadro compacto + corridos (até KMIN)
+      var kF=1, corr=false;
+      function cabe(){ return folhaRosto("medir", kF, corr)<=botY-QH-4; }
+      while(kF>0.7 && !cabe()) kF=Math.round((kF-0.04)*100)/100;
+      if(!cabe()){ QH=11; kF=1; while(kF>0.7 && !cabe()) kF=Math.round((kF-0.04)*100)/100; }
+      if(!cabe()){ corr=true; kF=1; while(kF>KMIN && !cabe()) kF=Math.round((kF-0.04)*100)/100; }
+      var pgAt=PG+folhaRosto("contar", kF, corr)-1;
+      itens.forEach(function(it){ pgAt++; it.pgAbre=pgAt; it.docs.forEach(function(d){ INF.get(d).pg=pgAt+1; pgAt+=INF.get(d).n; }); });
+      folhaRosto("desenhar", kF, corr);
       // folhas de abertura + documentos
       itens.forEach(function(it){
         rod(); nova();
@@ -37645,7 +37751,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
       });
     }
     // 15/10/2026: com ou sem o tópico dos anexos — opts.anexos (true/false) manda; sem ele, vale a escolha da tela ("Incluir anexos do check list")
-    var _comAnexos = (opts && opts.anexos !== undefined) ? !!opts.anexos : window.PAR_anexosNoPdf();
+    var _comAnexos = (opts && opts.anexos !== undefined) ? !!opts.anexos : !_sel.semAnexos;
     if(_comAnexos) try{ await anexosChecklist(); }catch(e){ console.error("anexos do check list:", e); alert("O parecer foi gerado, mas os anexos do check list não puderam ser incluídos: "+(e&&e.message||e)); ANX_INS=[]; }
 
     rod();
@@ -37654,8 +37760,10 @@ window.UFOTO_rodapeHTML=rodapeHTML;
       // junta: páginas do jsPDF na ordem, com as páginas de cada PDF anexado logo depois da página em que foi chamado
       var base=await PDFLib.PDFDocument.load(await blob.arrayBuffer()), outD=await PDFLib.PDFDocument.create();
       var fonteA=await outD.embedFont(PDFLib.StandardFonts.Helvetica), nJs=base.getPageCount();
+      // copia as páginas do parecer de uma vez só: página a página o pdf-lib duplicava as fontes e o PDF inchava (16/10/2026)
+      var pgsBase=await outD.copyPages(base, base.getPageIndices());
       for(var pj=0; pj<nJs; pj++){
-        (await outD.copyPages(base,[pj])).forEach(function(p){ outD.addPage(p); });
+        outD.addPage(pgsBase[pj]);
         for(var q=0; q<ANX_INS.length; q++){
           var ins=ANX_INS[q]; if(ins.depoisDe!==pj+1) continue;
           var src=await PDFLib.PDFDocument.load(ins.bytes,{ignoreEncryption:true});
@@ -37668,13 +37776,153 @@ window.UFOTO_rodapeHTML=rodapeHTML;
           });
         }
       }
-      blob=new Blob([await outD.save()],{type:"application/pdf"});
+      blob=new Blob([await outD.save({ useObjectStreams:true })],{type:"application/pdf"});
     }
     var nome="Parecer_Regularizacao_Fundiaria_"+(window.__CTDsuf?window.__CTDsuf():"CTD 000")+".pdf";
     if(opts&&opts.retornar) return {blob:blob, nome:nome};
     if(window.FS_salvar){ await window.FS_salvar(blob, nome); }
     else { var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=nome; document.body.appendChild(a); a.click(); setTimeout(function(){URL.revokeObjectURL(a.href); a.remove();},1500); }
   };
+
+  /* ================= Download do Parecer (16/10/2026) =================
+     Janela igual à do "Baixar material técnico": escolhe as partes que saem no PDF (tópicos do parecer e,
+     por tópico do check list, os anexos), "Visualizar PDF" (nova aba, sem baixar) e "Gerar e baixar".
+     A escolha fica lembrada nesta máquina e vale também para a pré-visualização e o material técnico. */
+  var SEL_KEY="par_pdf_sel";
+  function selSalva(){
+    var s=null; try{ s=JSON.parse(localStorage.getItem(SEL_KEY)||"null"); }catch(e){}
+    if(!s||typeof s!=="object"){ s={ partes:{}, anexos:{} }; if(!window.PAR_anexosNoPdf()) s.semAnexos=true; }
+    s.partes=s.partes||{}; s.anexos=s.anexos||{};
+    return s;
+  }
+  function selGravar(s){ try{ localStorage.setItem(SEL_KEY, JSON.stringify(s)); localStorage.setItem(ANX_PDF_KEY, s.semAnexos?"0":"1"); }catch(e){} }
+  window.PAR_selPdf=selSalva;
+  function docsDaAba(n){ var k=0; (tabelasPAR[n]||[]).forEach(function(l){ k+=(l.docs||[]).length; }); return k; }
+  function arvoreTopicos(){
+    var tps=((window.PARDOC_estado?window.PARDOC_estado():{topicos:[]}).topicos||[]).filter(function(t){ return !t.oculto; }), arv=[];
+    tps.forEach(function(t){
+      var rot=(t.num?t.num+" – ":"")+(t.head||t.id);
+      if(t.lv===1 || !arv.length) arv.push({ id:t.id, rot:rot, filhos:[] });
+      else arv[arv.length-1].filhos.push({ id:t.id, rot:rot });
+    });
+    return arv;
+  }
+  var dl={ sel:null, gerando:false };
+  function dlEl(id){ return document.getElementById(id); }
+  function dlCriar(){
+    if(dlEl("par_dl_ov")) return;
+    var ov=document.createElement("div"); ov.id="par_dl_ov"; ov.hidden=true;
+    ov.innerHTML='<div class="mtec-box" role="dialog" aria-modal="true" aria-labelledby="par_dl_tit">'+
+      '<div class="mtec-head"><div class="ico"><svg viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M12 12v6M9 15l3 3 3-3"/></svg></div>'+
+      '<div><h2 id="par_dl_tit">Baixar Parecer Jurídico</h2><div class="ident" id="par_dl_ident"></div></div>'+
+      '<button type="button" class="x" id="par_dl_x" aria-label="Fechar">×</button></div>'+
+      '<div class="mtec-barra"><i id="par_dl_bar"></i></div>'+
+      '<div class="mtec-corpo" id="par_dl_corpo"></div>'+
+      '<div class="mtec-pe"><div class="mtec-resumo" id="par_dl_resumo" aria-live="polite"></div>'+
+      '<button type="button" class="mtec-btn" id="par_dl_cancelar">Cancelar</button>'+
+      '<button type="button" class="mtec-btn" id="par_dl_ver" title="Gera o PDF com as partes marcadas e abre numa nova aba, sem baixar">Visualizar PDF</button>'+
+      '<button type="button" class="mtec-btn pri" id="par_dl_ir">Gerar e baixar</button></div></div>';
+    document.body.appendChild(ov);
+    ov.addEventListener("mousedown", function(ev){ if(ev.target===ov) dlFechar(); });
+    dlEl("par_dl_x").addEventListener("click", dlFechar);
+    dlEl("par_dl_cancelar").addEventListener("click", dlFechar);
+    dlEl("par_dl_ver").addEventListener("click", function(){ dlGerar(true); });
+    dlEl("par_dl_ir").addEventListener("click", function(){ dlGerar(false); });
+    ov.addEventListener("change", function(ev){
+      var c=ev.target; if(!c||!c.dataset) return;
+      if(c.dataset.p){
+        dl.sel.partes[c.dataset.p]=c.checked;
+        if(c.dataset.pai===undefined){ Array.prototype.forEach.call(ov.querySelectorAll('input[data-pai="'+c.dataset.p+'"]'), function(f){ f.checked=c.checked; dl.sel.partes[f.dataset.p]=c.checked; }); }
+        else if(c.checked){ var pai=ov.querySelector('input[data-p="'+c.dataset.pai+'"]'); if(pai && !pai.checked){ pai.checked=true; dl.sel.partes[c.dataset.pai]=true; } }
+      }
+      if(c.dataset.a!==undefined){ dl.sel.anexos[c.dataset.a]=c.checked; }
+      dlSemAnexos(); selGravar(dl.sel); dlResumo();
+    });
+    ov.addEventListener("click", function(ev){
+      var b=ev.target.closest&&ev.target.closest("[data-todos]"); if(!b||dl.gerando) return;
+      var cs=ov.querySelectorAll('section[data-g="'+b.getAttribute("data-todos")+'"] input:not(:disabled)');
+      var algum=Array.prototype.some.call(cs, function(c){ return !c.checked; });
+      Array.prototype.forEach.call(cs, function(c){ c.checked=algum; if(c.dataset.p) dl.sel.partes[c.dataset.p]=algum; if(c.dataset.a!==undefined) dl.sel.anexos[c.dataset.a]=algum; });
+      dlSemAnexos(); selGravar(dl.sel); dlResumo();
+    });
+    document.addEventListener("keydown", function(ev){ if(ev.key==="Escape" && !ov.hidden){ ev.stopPropagation(); dlFechar(); } }, true);
+  }
+  // "sem anexos" = nenhum tópico com documento marcado (é o que a caixa antiga "Incluir anexos" guardava)
+  function dlSemAnexos(){
+    var ov=dlEl("par_dl_ov");
+    if(ov.querySelectorAll("input[data-a]:not(:disabled)").length) dl.sel.semAnexos=!ov.querySelectorAll("input[data-a]:checked:not(:disabled)").length;
+    if(dl.sel.semAnexos===false) delete dl.sel.semAnexos;
+    if(dl.sel.semAnexos) Array.prototype.forEach.call(ov.querySelectorAll("input[data-a]"), function(c){ dl.sel.anexos[c.dataset.a]=false; });
+  }
+  function dlItem(attr, rot, on, sub, off){
+    return '<label class="mtec-item'+(sub?" sub":"")+(off?" off":"")+'"><input type="checkbox" '+attr+(on&&!off?" checked":"")+(off?" disabled":"")+'>'+
+      '<span class="t">'+esc(rot)+(off?'<small>'+esc(off)+'</small>':"")+'</span><span></span></label>';
+  }
+  function dlMontar(){
+    var s=dl.sel, h='<section class="mtec-parte" data-num="I" data-g="1"><header><span class="rot">Parte I</span><h3>Parecer</h3><button type="button" class="todos" data-todos="1">Marcar/desmarcar</button></header>';
+    arvoreTopicos().forEach(function(t){
+      h+=dlItem('data-p="'+esc(t.id)+'"', t.rot, s.partes[t.id]!==false, false, "");
+      t.filhos.forEach(function(f){ h+=dlItem('data-p="'+esc(f.id)+'" data-pai="'+esc(t.id)+'"', f.rot, s.partes[f.id]!==false, true, ""); });
+    });
+    h+='</section><section class="mtec-parte" data-num="II" data-g="2"><header><span class="rot">Parte II</span><h3>Anexos – Checklist Documental</h3><button type="button" class="todos" data-todos="2">Marcar/desmarcar</button></header>';
+    h+='<p class="par-dl-nota">Abre com uma folha de rosto: os tópicos, os itens e o nome de cada documento anexado, com a página.</p>';
+    CHECKLIST_TABS.forEach(function(tab,n){
+      var k=docsDaAba(n);
+      h+=dlItem('data-a="'+n+'"', tab.titulo+(k?"  ("+k+" documento"+(k>1?"s":"")+")":""), !s.semAnexos && s.anexos[n]!==false, false, k?"":"sem documentos anexados");
+    });
+    h+='</section>';
+    dlEl("par_dl_corpo").innerHTML=h;
+    dlResumo();
+  }
+  function dlResumo(){
+    var ov=dlEl("par_dl_ov");
+    var np=ov.querySelectorAll("input[data-p]:checked").length, ca=ov.querySelectorAll("input[data-a]:checked:not(:disabled)"), nd=0;
+    Array.prototype.forEach.call(ca, function(c){ nd+=docsDaAba(+c.dataset.a); });
+    dlEl("par_dl_resumo").innerHTML=(np||ca.length) ? ("<b>"+np+"</b> parte(s) do parecer"+(ca.length?" · anexos de <b>"+ca.length+"</b> tópico(s), "+nd+" documento(s)":" · sem anexos")) : "Marque ao menos uma parte.";
+    dlEl("par_dl_ir").disabled=dlEl("par_dl_ver").disabled=!(np||ca.length)||dl.gerando;
+  }
+  function dlFechar(){ if(dl.gerando) return; var ov=dlEl("par_dl_ov"); if(ov) ov.hidden=true; document.body.classList.remove("modal-aberto"); }
+  window.PAR_abrirDownload=function(){
+    dlCriar();
+    dl.sel=selSalva();
+    var proc=pf("par_processo"), dono=pf("par_prop")||pf("par_interessado");
+    dlEl("par_dl_ident").innerHTML="<b>"+esc(window.AVFTN_ident?window.AVFTN_ident("PARECER"):"Parecer")+"</b>"+(dono?" · "+esc(dono):"")+(proc?" · "+esc(proc):"");
+    dlEl("par_dl_cancelar").textContent="Cancelar"; dlEl("par_dl_ir").textContent="Gerar e baixar";
+    dlMontar();
+    var ov=dlEl("par_dl_ov"); ov.hidden=false; document.body.classList.add("modal-aberto");
+    setTimeout(function(){ try{ dlEl("par_dl_ir").focus(); }catch(e){} }, 30);
+  };
+  async function dlGerar(ver){
+    if(dl.gerando) return;
+    var aba=null;
+    if(ver){ try{ aba=window.open("", "_blank"); if(aba) aba.document.write('<title>Visualizar PDF</title><p style="font:14px sans-serif;padding:24px">Gerando o PDF… aguarde.</p>'); }catch(e){ aba=null; } }
+    dl.gerando=true; dlResumo(); dlEl("par_dl_cancelar").disabled=true;
+    var bx=dlEl("par_dl_ov").querySelector(".mtec-box"); bx.classList.add("gerando");
+    dlEl("par_dl_bar").style.width="35%"; dlEl("par_dl_resumo").textContent="Gerando o PDF…";
+    try{
+      var r=await window.PAR_gerarPDF({ retornar:true, sel:dl.sel });
+      if(!r||!r.blob) throw new Error("o gerador não devolveu o PDF");
+      dlEl("par_dl_bar").style.width="100%";
+      if(ver){
+        var url=URL.createObjectURL(r.blob);
+        if(aba) aba.location.href=url; else window.open(url, "_blank");
+        setTimeout(function(){ URL.revokeObjectURL(url); }, 600000);
+        dlEl("par_dl_resumo").innerHTML="<b>Visualização aberta em nova aba.</b>";
+      } else {
+        if(window.FS_salvar) await window.FS_salvar(r.blob, r.nome);
+        else { var a=document.createElement("a"); a.href=URL.createObjectURL(r.blob); a.download=r.nome; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function(){ URL.revokeObjectURL(a.href); }, 5000); }
+        dlEl("par_dl_resumo").innerHTML="<b>"+esc(r.nome)+"</b> gerado.";
+        dlEl("par_dl_ir").textContent="Gerar de novo";
+      }
+    }catch(e){
+      console.error("parecer — download:", e); if(aba){ try{ aba.close(); }catch(x){} }
+      dlEl("par_dl_resumo").innerHTML='<span style="color:#AE3F38">Erro: '+esc(e&&e.message||e)+'</span>';
+    }finally{
+      dl.gerando=false; bx.classList.remove("gerando"); dlEl("par_dl_cancelar").disabled=false; dlEl("par_dl_cancelar").textContent="Fechar";
+      dlEl("par_dl_ir").disabled=dlEl("par_dl_ver").disabled=false;
+      setTimeout(function(){ var b=dlEl("par_dl_bar"); if(b) b.style.width="0"; }, 1200);
+    }
+  }
 
   // ================= JSON (dados das abas de DESP 1) + ZIP (JSON + PDF do Parecer) =================
   // Escopo: só os 3 painéis do grupo DESP 1 (Anexo B / Relatório / Parecer) — não inclui
@@ -48660,7 +48908,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     { painel:"panel-desp1-vist", fn:"FB_gerarPDF", nome:"Ficha de Vistoria (Anexo B)", previa:ret("FB_gerarPDF"), salvar:sal("FB_gerarPDF") },
     { painel:"panel-desp1-rel", fn:"REL_gerarPDF", nome:"Relatório Socioeconômico", previa:ret("REL_gerarPDF"), salvar:sal("REL_gerarPDF") },
     { painel:"panel-desp1-drl", fn:"DRL_gerarPDF", nome:"DRL — Declaração de Respeito de Limites", previa:ret("DRL_gerarPDF"), salvar:sal("DRL_gerarPDF") },
-    { painel:"panel-desp1-parecer", fn:"PAR_gerarPDF", nome:"Parecer Jurídico", previa:ret("PAR_gerarPDF"), salvar:sal("PAR_gerarPDF") },
+    { painel:"panel-desp1-parecer", fn:"PAR_gerarPDF", nome:"Parecer Jurídico", previa:ret("PAR_gerarPDF"), salvar:function(){ if(typeof window.PAR_abrirDownload==="function") return window.PAR_abrirDownload(); return sal("PAR_gerarPDF")(); } },
     { painel:"panel-avaliacao-ftn", fn:"AVFTN_gerarPDF", nome:"Avaliação da terra nua (FTN)",
       previa:function(){ if(typeof window.AVFTN_buildBytes !== "function") return Promise.reject(new Error("gerador indisponível"));
         return Promise.resolve(window.AVFTN_buildBytes()).then(function(b){ return { blob:new Blob([b], { type:"application/pdf" }), nome:"Avaliacao_terra_nua.pdf" }; }); },
@@ -48937,6 +49185,11 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
 .mtec-barra i{ display:block; height:100%; width:0; background:#1F6FC0; transition:width .3s var(--gl-ease,ease); }
 .mtec-box.gerando .mtec-item{ cursor:default; }
 @media (max-width:760px){ .mtec-corpo{ grid-template-columns:1fr; } .mtec-pe{ flex-direction:column; align-items:stretch; } }
+/* 16/10/2026: a mesma janela para "Baixar Parecer Jurídico" (partes do parecer + anexos do check list) */
+#par_dl_ov{ position:fixed; inset:0; z-index:100050; display:flex; align-items:center; justify-content:center; padding:20px;
+  background:rgba(15,34,54,.42); backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px); animation:mtecFade .18s var(--gl-ease,ease) both; }
+#par_dl_ov[hidden]{ display:none; }
+#par_dl_ov .par-dl-nota{ margin:0 2px 8px; font-size:12px; line-height:1.4; color:var(--gl-mut,#55616F); }
 </style>
 <div id="mtec_ov" hidden>
   <div class="mtec-box" role="dialog" aria-modal="true" aria-labelledby="mtec_tit">
@@ -49460,7 +49713,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.16-4';
+window.APP_VERSAO = '2026.10.16-5';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.15-19';
 (function(){
