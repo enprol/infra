@@ -5665,9 +5665,9 @@ body.ativ-pesquisa{ overflow:hidden; }
           </tr>
           <tr class="pg-cabecalho">
             <th>Medição</th>
-            <th class="pg-desp-th pg-col-dp" title="DESP 1 — R$ 1.802,53 por cadastro">DESP 1</th>
-            <th class="pg-desp-th pg-col-dp" title="DESP 2 — R$ 1.072,53 por cadastro">DESP 2</th>
-            <th class="pg-desp-th pg-col-dp" title="DESP 3 — R$ 4.045,01 por cadastro">DESP 3</th>
+            <th class="pg-desp-th pg-col-dp" title="DESP 1">DESP 1</th>
+            <th class="pg-desp-th pg-col-dp" title="DESP 2">DESP 2</th>
+            <th class="pg-desp-th pg-col-dp" title="DESP 3">DESP 3</th>
             <th class="pg-desp-th pg-desp-valor-th pg-col-dpv" title="Soma dos valores unitários dos DESPs marcados no cadastro">R$&nbsp;DESPs</th>
             <th>Lote (SPS)</th>
             <th>Nº Laudo Origem</th>
@@ -6163,7 +6163,7 @@ body.ativ-pesquisa{ overflow:hidden; }
         <div class="pgg-sub" id="pggAreaNota"></div>
       </section>
 
-      <section class="pgg-card pgg-full" style="--c:#ffd24a;--i:2">
+      <section class="pgg-card pgg-full pgg-so-ger" style="--c:#ffd24a;--i:2">
         <div class="pgg-etp-topo">
           <div>
             <div class="pgg-tit"><i></i>Produtos (DESP) — entregues</div>
@@ -22535,8 +22535,31 @@ function AV_gerarDescSituacao(){
       + op + '</select></td>';
   }
 
-  // valor unitário de cada DESP (R$ por cadastro) — os Gráficos usam o mesmo objeto
-  var PG_DESP_UNIT = window.PG_DESP_UNIT = { d1:1802.53, d2:1072.53, d3:4045.01 };
+  // valor unitário de cada DESP (R$ por cadastro) — os Gráficos usam o mesmo objeto.
+  // 17/10/2026: os valores NÃO ficam mais no código (repositório público). Vêm de GET /api/valores (CONFIG/SEGURANCA/valores.json),
+  // só para usuário gerencial com a senha reconfirmada; até lá ficam zerados e a coluna R$ DESPs / aba Gerencial não aparecem.
+  var PG_DESP_UNIT = window.PG_DESP_UNIT = { d1:0, d2:0, d3:0 };
+  window.PG_DESP_UNIT_OK = false;
+  window.PG_garantirValores = async function(){
+    if(window.PG_DESP_UNIT_OK) return true;
+    if(window.SESSAO && window.SESSAO.gerencial && !window.SESSAO.gerencial()){ alert('Esta área é só para usuários gerenciais.'); return false; }
+    if(!window.PG_pedirSenha || !(await window.PG_pedirSenha('Ver os valores em R$ das DESPs e os gráficos gerenciais.'))) return false;
+    try{
+      var r = await fetch('/api/valores', { credentials:'same-origin' }), j = await r.json().catch(function(){ return {}; });
+      if(r.status === 403 && j.confirmar && window.SESSAO && window.SESSAO.esquecerConfirmacao){      // a confirmação venceu no servidor
+        window.SESSAO.esquecerConfirmacao();
+        if(!(await window.PG_pedirSenha('Ver os valores em R$ das DESPs e os gráficos gerenciais.'))) return false;
+        r = await fetch('/api/valores', { credentials:'same-origin' }); j = await r.json().catch(function(){ return {}; });
+      }
+      if(!r.ok){ alert(j.erro || ('Não consegui carregar os valores (erro ' + r.status + ').')); return false; }
+      if(j.definido === false){ alert('Os valores unitários das DESPs ainda não foram definidos nesta base. Rode: node ferramentas/definir-valores.js d1=… d2=… d3=…'); return false; }
+      ['d1','d2','d3'].forEach(function(k){ PG_DESP_UNIT[k] = Number(j[k]) || 0; });
+      window.PG_DESP_UNIT_OK = true;
+      if(window.PG_renderizar) window.PG_renderizar();
+      if(window.PG_grafAtualizar) window.PG_grafAtualizar();
+      return true;
+    }catch(e){ alert('Não consegui carregar os valores: ' + (e && e.message || e)); return false; }
+  };
   function despValor(it){
     if(!it.desps) return 0;
     return Math.round(['d1','d2','d3'].reduce(function(a, k){ return a + (it.desps[k] ? PG_DESP_UNIT[k] : 0); }, 0) * 100) / 100;
@@ -22567,8 +22590,7 @@ function AV_gerarDescSituacao(){
       PG_aplicarGrupoDesp();
     }
     if(!_pgDespFechado){ aplicar(true); return; }   // recolher é livre; só expandir pede a senha
-    if(!window.PG_pedirSenha) return;
-    window.PG_pedirSenha('Expandir Medição e produtos (DESP) e a coluna R$ DESPs.').then(function(ok){ if(ok) aplicar(false); });
+    window.PG_garantirValores().then(function(ok){ if(ok) aplicar(false); });   // reconfirma a senha e só então baixa os valores
   };
 
   // ---- DESP 1 / 2 / 3: caixa de marcação por cadastro (gravada no servidor, como a Medição) ----
@@ -22938,7 +22960,9 @@ function AV_gerarDescSituacao(){
         Array.isArray(it.melhorias) ? it.melhorias.length : '', num(haNum(it.area_total)), num(haNum(it.area_desapropriada)),
         num(it.valor_terra_nua), num(it.valor_benf_reprodutiva), num(it.valor_benf_nao_reprodutiva), num(it.valor_total)]);
     });
-    if(_pgDespFechado) linhas = linhas.map(function(l){ return l.slice(0, 1).concat(l.slice(5)); });   // DESP ocultos não saem no CSV
+    var _ger = !window.SESSAO || !window.SESSAO.gerencial || window.SESSAO.gerencial();
+    if(!_ger) linhas = linhas.map(function(l){ return l.slice(5); });                                   // sem Medição, DESPs e R$ DESPs para quem não é gerencial
+    else if(_pgDespFechado || !window.PG_DESP_UNIT_OK) linhas = linhas.map(function(l){ return l.slice(0, 1).concat(l.slice(5)); });   // DESP ocultos / sem valores não saem no CSV
     var csv = '﻿' + linhas.map(function(l){ return l.map(function(c){ return '"' + String(c).replace(/"/g, '""') + '"'; }).join(';'); }).join('\r\n');
     var a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([csv], { type:'text/csv;charset=utf-8' }));
@@ -24759,7 +24783,7 @@ function AV_gerarDescSituacao(){
     {k:'d2', rot:'DESP 2', cor:'var(--gl-navy-3,#5A7899)'},
     {k:'d3', rot:'DESP 3', cor:'var(--gl-navy-4,#A7B8CB)'}
   ];
-  var unit = function(){ return window.PG_DESP_UNIT || { d1:1802.53, d2:1072.53, d3:4045.01 }; };
+  var unit = function(){ return window.PG_DESP_UNIT || { d1:0, d2:0, d3:0 }; };   // valores só vêm de /api/valores (gerencial, senha reconfirmada)
   var r2 = function(v){ return Math.round(v * 100) / 100; };
 
   // tudo o que a aba Gerencial precisa, a partir dos cadastros filtrados
@@ -25201,7 +25225,18 @@ function AV_gerarDescSituacao(){
   }
 
   /* ---------------- abas, janela, unidade ---------------- */
+  var _pgGerNegada = false;
+  function gerenciaPode(){ return !window.SESSAO || !window.SESSAO.gerencial || window.SESSAO.gerencial(); }
   function trocarAba(nova, foco){
+    // aba Gerencial = valores em R$: só usuário gerencial e só depois de reconfirmar a senha e carregar os valores
+    if(nova !== 'op' && !window.PG_DESP_UNIT_OK){
+      if(!gerenciaPode()){ nova = 'op'; }
+      else if(window.PG_garantirValores && !_pgGerNegada){
+        _pgGerNegada = true;
+        window.PG_garantirValores().then(function(ok){ _pgGerNegada = false; trocarAba(ok ? 'ger' : 'op', foco); }, function(){ _pgGerNegada = false; trocarAba('op', foco); });
+        nova = 'op';                                   // enquanto pede a senha, mostra a aba Operacional
+      } else { nova = 'op'; }
+    }
     aba = nova === 'op' ? 'op' : 'ger';
     try{ localStorage.setItem('pgg.aba', aba); }catch(e){}
     [['pggAbaGer', 'pggGer', 'ger'], ['pggAbaOp', 'pggCorpo', 'op']].forEach(function(a){
@@ -32817,7 +32852,10 @@ function AV_gerarDescSituacao(){
    sessão enquanto a pessoa usa o app. Expõe window.SESSAO (usuario(), confirmarGerencial(), abrirUsuarios()). */
 (function(){
   "use strict";
-  var EST = { usuario:null, exigir:false, servidor:true, gerencialAte:0 };
+  var EST = { usuario:null, exigir:false, servidor:true, gerencialAte:0, gerencial:true, anterior:null };
+  /* gerencial = pode ver as áreas gerenciais (medição, DESPs, valores em R$, gráficos gerenciais). Sem conta e sem login exigido
+     (transição) o servidor também libera. A classe sem-gerencial esconde as colunas; o servidor é quem de fato não entrega os dados. */
+  function aplicarPapel(){ try{ document.body.classList.toggle("sem-gerencial", !EST.gerencial); }catch(e){} }
   var $ = function(id){ return document.getElementById(id); };
   function srv(){ return (typeof window.CAD_SERVIDOR_URL === "string" ? window.CAD_SERVIDOR_URL : "").replace(/\/+$/, ""); }
   function esc(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){ return { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]; }); }
@@ -32840,7 +32878,7 @@ function AV_gerarDescSituacao(){
     var sem = document.createElement("button"); sem.type = "button"; sem.id = "login_sem_conta"; sem.className = "login-sem-conta"; sem.hidden = true;
     sem.textContent = "Continuar sem conta";
     sem.title = "Enquanto o login não for obrigatório, dá para usar o sistema sem entrar. Peça a sua conta a um usuário gerencial.";
-    sem.addEventListener("click", function(){ EST.usuario = null; liberar(true); });
+    sem.addEventListener("click", function(){ EST.usuario = null; EST.gerencial = true; aplicarPapel(); liberar(true); });
     var lblUser = document.querySelector('#loginGate label[for="login_user"]'), btn = $("login_btn");
     if(lblUser) lblUser.parentNode.insertBefore(aviso, lblUser);
     if(btn) btn.parentNode.insertBefore(sem, btn.nextSibling);
@@ -32878,7 +32916,9 @@ function AV_gerarDescSituacao(){
     try{
       var r = await api("POST", "/api/login", { login:user.trim(), senha:pass });
       if(!r.ok){ erro(r.js.erro || "Não consegui entrar (erro " + r.status + ")."); var p = $("login_pass"); if(p){ p.value = ""; p.focus(); } return; }
-      EST.usuario = r.js.usuario;
+      EST.usuario = r.js.usuario; EST.gerencial = EST.usuario.papel === "gerencial"; aplicarPapel();
+      // outra pessoa entrou nesta página (ex.: sessão expirou e outro colega assumiu): recarrega para não herdar dados da anterior
+      if(EST.anterior && EST.anterior !== EST.usuario.login){ flag(true); location.reload(); return; }
       if(EST.usuario.trocarSenha){ var ok = await dialogoSenha(true, pass); if(!ok) return; }
       // 1ª entrada desta página com login exigido: o que o app carregou ao abrir (Painel, Padrões, assinaturas) voltou 401.
       // Recarrega já logado (nada foi feito na tela ainda). Sessão que expirou no meio do uso NÃO recarrega (preserva a tela).
@@ -33130,7 +33170,7 @@ function AV_gerarDescSituacao(){
   async function sair(silencioso){
     try{ await api("POST", "/api/logout"); }catch(e){}
     EST.usuario = null; EST.gerencialAte = 0; flag(false);
-    if(!silencioso){ mostrarGate(""); }
+    if(!silencioso){ location.reload(); return; }          // recarregar descarta da memória o que a pessoa podia ver
     desenharMenu();
   }
   function aviso(msg){ try{ if(window.toast) return window.toast(msg); }catch(e){} try{ console.info(msg); }catch(e){} }
@@ -33140,7 +33180,7 @@ function AV_gerarDescSituacao(){
     return fetchOrig(rec, op).then(function(r){
       try{
         if(r.status === 401 && r.headers.get("X-Login-Necessario") === "1" && document.body.classList.contains("logado")){
-          EST.usuario = null; EST.exigir = true; flag(false); desenharMenu();
+          EST.anterior = EST.usuario && EST.usuario.login; EST.usuario = null; EST.exigir = true; flag(false); desenharMenu();
           mostrarGate("A sua sessão terminou. Entre de novo: o que está na tela continua aqui. Depois, repita a última ação (ex.: Salvar).");
         }
       }catch(e){}
@@ -33156,8 +33196,8 @@ function AV_gerarDescSituacao(){
     ativo = false;
     try{
       var r = await api("GET", "/api/sessao");
-      EST.exigir = !!r.js.exigirLogin;
-      if(r.ok && !r.js.usuario){ EST.usuario = null; desenharMenu(); if(EST.exigir) mostrarGate("A sua sessão terminou. Entre de novo: o que está na tela continua aqui."); }
+      EST.exigir = !!r.js.exigirLogin; EST.gerencial = r.js.gerencial !== false; aplicarPapel();
+      if(r.ok && !r.js.usuario){ EST.anterior = EST.usuario && EST.usuario.login; EST.usuario = null; desenharMenu(); if(EST.exigir) mostrarGate("A sua sessão terminou. Entre de novo: o que está na tela continua aqui."); }
     }catch(e){}
   }, 4 * 60 * 1000);
 
@@ -33175,7 +33215,7 @@ function AV_gerarDescSituacao(){
     var r = null;
     try{ r = await api("GET", "/api/sessao?tocar=0"); }catch(e){ r = null; }
     if(r && r.ok){
-      EST.usuario = r.js.usuario || null; EST.exigir = !!r.js.exigirLogin;
+      EST.usuario = r.js.usuario || null; EST.exigir = !!r.js.exigirLogin; EST.gerencial = r.js.gerencial !== false; aplicarPapel();
       if(r.js.gerencialConfirmado) EST.gerencialAte = Date.now() + 10 * 60000;
       if(EST.usuario){ if(EST.usuario.trocarSenha){ mostrarGate(""); if(!(await dialogoSenha(true))) return; } return liberar(!jaEntrou); }
       if(EST.exigir){ flag(false); return mostrarGate(""); }
@@ -33190,6 +33230,8 @@ function AV_gerarDescSituacao(){
 
   window.SESSAO = {
     usuario: function(){ return EST.usuario ? Object.assign({}, EST.usuario) : null; },
+    gerencial: function(){ return EST.gerencial; },
+    esquecerConfirmacao: function(){ EST.gerencialAte = 0; },
     exigirLogin: function(){ return EST.exigir; },
     confirmarGerencial: confirmarGerencial,
     abrirUsuarios: abrirUsuarios,
@@ -48317,6 +48359,12 @@ body:not(.logado) .ses-menu{ display:none; }
 .ses-aud .ses-usr-tab td{ font-size:12.5px; }
 .ses-aud-det{ max-width:260px; color:var(--gl-mut,#5A6B7C); }
 .ses-mut{ color:var(--gl-mut,#5A6B7C); }
+/* S2 (17/10/2026): quem não é gerencial não vê Medição, DESP 1/2/3 e R$ DESPs (as 5 primeiras colunas do Painel Geral);
+   o servidor também não envia esses dados para ele. A aba Gerencial dos Gráficos some do mesmo modo. */
+body.sem-gerencial .pg-tabela tr:not(.pg-grupos) > :nth-child(-n+5){ display:none; }
+body.sem-gerencial .pg-tabela tr.pg-grupos > :first-child{ display:none; }
+body.sem-gerencial #pggAbaGer{ display:none; }
+body.sem-gerencial .pgg-so-ger{ display:none; }   /* DESPs entregues/medidos são dados gerenciais */
 </style>
 <script id="glass-login-js">
 /* Login: tremor curto + aria-invalid quando a senha é recusada. Escolha da atividade: luz que segue o cursor,
@@ -48926,47 +48974,21 @@ window.MG_motion={abertura:abertura,cadastro:cadastro,fichas:fichas};
     <div class="pgs-bt"><button type="button" id="pgSenhaCan">Cancelar</button><button type="submit" class="pri" id="pgSenhaOk">Confirmar</button></div>
   </form>
 </div>
-<script id="pg-senha-js">
+<script id="pg-senha-js">/* Confirmação gerencial do Painel Geral (reescrito em 17/10/2026, S2).
+   Antes: um SHA-256 da senha estava escrito aqui (repositório público) e a conferência era no navegador.
+   Agora a senha é SEMPRE conferida pelo servidor:
+     · com conta (login por usuário): a PRÓPRIA senha do usuário gerencial, reconfirmada (vale 15 min) — SESSAO.confirmarGerencial();
+     · sem conta, enquanto o login não é obrigatório (transição): a senha gerencial da base (node ferramentas/definir-senha-gerencial.js),
+       por POST /api/gerencial/senha (5 erros = bloqueio de 15 min).
+   window.PG_pedirSenha(motivo, { sessao:true }) -> Promise<boolean>.  Usos: excluir cadastro, expandir DESP/valores, Gráficos gerenciais. */
 (function(){
   "use strict";
-  var HASH = "c2d3008e1f355d1740110142f68a95f1f27bd3130dd895d74c15ccba5ecc0a7c", KEY = "pg_gerencial_ok";
-  function sha256(ascii){
-    function rr(v, a){ return (v >>> a) | (v << (32 - a)); }
-    var maxWord = Math.pow(2, 32), result = "", words = [], bits = ascii.length * 8, i, j;
-    var hash = sha256.h = sha256.h || [], k = sha256.k = sha256.k || [], pc = k.length, comp = {};
-    for(var cand = 2; pc < 64; cand++){
-      if(!comp[cand]){
-        for(i = 0; i < 313; i += cand) comp[i] = cand;
-        hash[pc] = (Math.pow(cand, .5) * maxWord) | 0;
-        k[pc++] = (Math.pow(cand, 1 / 3) * maxWord) | 0;
-      }
-    }
-    ascii += "\x80";
-    while(ascii.length % 64 - 56) ascii += "\x00";
-    for(i = 0; i < ascii.length; i++){ j = ascii.charCodeAt(i); if(j >> 8) return ""; words[i >> 2] |= j << ((3 - i) % 4) * 8; }
-    words[words.length] = (bits / maxWord) | 0;
-    words[words.length] = bits;
-    for(j = 0; j < words.length;){
-      var w = words.slice(j, j += 16), old = hash;
-      hash = hash.slice(0, 8);
-      for(i = 0; i < 64; i++){
-        var w15 = w[i - 15], w2 = w[i - 2], a = hash[0], e = hash[4];
-        var t1 = hash[7] + (rr(e, 6) ^ rr(e, 11) ^ rr(e, 25)) + ((e & hash[5]) ^ (~e & hash[6])) + k[i]
-          + (w[i] = (i < 16) ? w[i] : (w[i - 16] + (rr(w15, 7) ^ rr(w15, 18) ^ (w15 >>> 3)) + w[i - 7] + (rr(w2, 17) ^ rr(w2, 19) ^ (w2 >>> 10))) | 0);
-        var t2 = (rr(a, 2) ^ rr(a, 13) ^ rr(a, 22)) + ((a & hash[1]) ^ (a & hash[2]) ^ (hash[1] & hash[2]));
-        hash = [(t1 + t2) | 0].concat(hash);
-        hash[4] = (hash[4] + t1) | 0;
-      }
-      for(i = 0; i < 8; i++) hash[i] = (hash[i] + old[i]) | 0;
-    }
-    for(i = 0; i < 8; i++) for(j = 3; j + 1; j--){ var b = (hash[i] >> (j * 8)) & 255; result += (b < 16 ? 0 : "") + b.toString(16); }
-    return result;
-  }
+  var KEY = "pg_gerencial_ok";                       // só no caminho SEM conta: lembra a liberação até fechar a aba
   function $(id){ return document.getElementById(id); }
   function liberado(){ try{ return sessionStorage.getItem(KEY) === "1"; }catch(e){ return false; } }
   var fim = null;
-  /* motivo: texto da janela; op.sessao = true → lembra a liberação até fechar a aba / trocar de atividade */
-  window.PG_pedirSenha = function(motivo, op){
+
+  function pedirSenhaBase(motivo, op){          // caminho sem conta: janela #pgSenhaOv, conferência no servidor
     op = op || {};
     if(op.sessao && liberado()) return Promise.resolve(true);
     return new Promise(function(resolve){
@@ -48986,21 +49008,38 @@ window.MG_motion={abertura:abertura,cadastro:cadastro,fichas:fichas};
       document.addEventListener("keydown", tecla, true);
       $("pgSenhaCan").onclick = function(){ sair(false); };
       ov.onmousedown = function(ev){ if(ev.target === ov) sair(false); };
-      card.onsubmit = function(ev){
-        ev.preventDefault();
-        if(trava) return;
-        if(sha256(inp.value) === HASH){
-          if(op.sessao){ try{ sessionStorage.setItem(KEY, "1"); }catch(e){} }
-          sair(true); return;
-        }
-        trava = true; $("pgSenhaOk").disabled = true;
-        err.textContent = "Senha incorreta."; inp.setAttribute("aria-invalid", "true"); inp.value = "";
+      function recusa(msg){
+        err.textContent = msg; inp.setAttribute("aria-invalid", "true"); inp.value = "";
         card.classList.remove("err"); void card.offsetWidth; card.classList.add("err");
         setTimeout(function(){ trava = false; $("pgSenhaOk").disabled = false; inp.focus(); }, 700);
+      }
+      card.onsubmit = async function(ev){
+        ev.preventDefault();
+        if(trava) return;
+        trava = true; $("pgSenhaOk").disabled = true;
+        try{
+          var r = await fetch("/api/gerencial/senha", { method:"POST", credentials:"same-origin", headers:{ "Content-Type":"application/json" }, body:JSON.stringify({ senha:inp.value }) });
+          var j = await r.json().catch(function(){ return {}; });
+          if(r.ok){
+            if(op.sessao){ try{ sessionStorage.setItem(KEY, "1"); }catch(e){} }
+            sair(true); return;
+          }
+          recusa(j.erro || ("Erro " + r.status));
+        }catch(e){ recusa("Sem conexão com o servidor desta máquina."); }
       };
     });
+  }
+
+  window.PG_pedirSenha = function(motivo, op){
+    var S = window.SESSAO;
+    if(S && S.usuario && S.usuario()){
+      if(!S.gerencial()){ alert("Esta área é só para usuários gerenciais."); return Promise.resolve(false); }
+      return S.confirmarGerencial();
+    }
+    return pedirSenhaBase(motivo, op);
   };
-  /* excluir cadastro: sempre pede (qualquer caminho: menu do Painel, lista, botão do cadastro) */
+
+  /* excluir cadastro: sempre pede (qualquer caminho: menu do Painel, lista, botão do cadastro). O servidor também exige. */
   var excluir = window.CAD_excluir;
   if(typeof excluir === "function"){
     window.CAD_excluir = function(ctd, rotulo, secao){
@@ -49009,15 +49048,8 @@ window.MG_motion={abertura:abertura,cadastro:cadastro,fichas:fichas};
       });
     };
   }
-  /* Gráficos: abrir pede a senha (uma vez por sessão); fechar é livre */
-  var graf = window.PG_grafAlternar;
-  if(typeof graf === "function"){
-    window.PG_grafAlternar = function(){
-      if(window.PG_grafAberto && window.PG_grafAberto()) return graf();
-      return window.PG_pedirSenha("Acessar os Gráficos do Painel Geral.").then(function(ok){ if(ok) graf(); });
-    };
-  }
-  /* trocar de atividade encerra a liberação */
+  /* Gráficos: o painel abre livre (aba Operacional, sem valores); a aba Gerencial pede a senha em js/109 (PG_garantirValores) */
+  /* trocar de atividade encerra a liberação (caminho sem conta) */
   var trocar = window.ATIV_trocar;
   if(typeof trocar === "function"){
     window.ATIV_trocar = function(){ try{ sessionStorage.removeItem(KEY); }catch(e){} return trocar.apply(this, arguments); };
@@ -50391,6 +50423,17 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
   /* acesso gerencial: a senha é conferida no SERVIDOR (scrypt; arquivo CONFIG/SEGURANCA/gerencial.json fora do repositório).
      Aqui ela só fica na memória desta página, para ir junto de cada gravação (cabeçalho X-Padroes-Senha). */
   var SENHA = null;
+  /* 17/10/2026 (S2): com conta, o acesso é pela PRÓPRIA senha do usuário gerencial reconfirmada (SESSAO.confirmarGerencial, vale 15 min);
+     a senha gerencial única acima só vale para quem ainda está sem conta (transição). */
+  function comConta(){ return !!(window.SESSAO && window.SESSAO.usuario && window.SESSAO.usuario()); }
+  async function fetchGer(url, op){
+    var r = await fetch(url, op);
+    if(r.status === 403 && comConta()){
+      var j = await r.clone().json().catch(function(){ return {}; });
+      if(j.confirmar){ window.SESSAO.esquecerConfirmacao(); if(await window.SESSAO.confirmarGerencial()) return fetch(url, op); }
+    }
+    return r;
+  }
   async function conferirSenha(senha){                  // "" = ok; senão, a mensagem a mostrar
     try{
       var r = await fetch("/api/padroes-documento/acesso", { method:"POST", headers:{ "X-Padroes-Senha":senha } });
@@ -51041,7 +51084,8 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
   }
   async function abrir(){
     if(!iniciar()){ alert("Motor de documentos indisponível."); return; }
-    if(!SENHA && !(await pedirSenha())) return;
+    if(comConta()){ if(!(await window.SESSAO.confirmarGerencial())) return; }
+    else if(!SENHA && !(await pedirSenha())) return;
     var el = $("pad_tela") || criar();
     rasc = comSalvo(); rascLogos = { I:SALVO_LOGOS.I, E:SALVO_LOGOS.E };
     voltarFoco = document.activeElement; secao = SECOES[0].id; ocupado = false; foco = null;
@@ -51064,7 +51108,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     ocupado = true; marcas(); status("Gravando…");
     var so = difs(rasc, ORIGINAL) || {};
     try{
-      var r = await fetch("/api/padroes-documento", { method:"PUT", headers:{ "Content-Type":"application/json", "X-Padroes-Senha":SENHA || "" }, body:JSON.stringify({ T:so, logos:rascLogos, por:"app" }) });
+      var r = await fetchGer("/api/padroes-documento", { method:"PUT", headers:{ "Content-Type":"application/json", "X-Padroes-Senha":SENHA || "" }, body:JSON.stringify({ T:so, logos:rascLogos, por:"app" }) });
       if(!r.ok){ var j = await r.json().catch(function(){ return {}; }); if(r.status === 401) SENHA = null; throw new Error(j.erro || ("HTTP " + r.status)); }
       SALVO = clone(so); SALVO_LOGOS = { I:rascLogos.I, E:rascLogos.E }; SALVO_META = { atualizado:new Date().toISOString() }; aplicarSalvo();
       ocupado = false; marcas(); status("Gravado para todos. A versão anterior ficou em “Versões anteriores”.");
@@ -51085,7 +51129,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     if(sujo() && !confirm("As alterações não salvas serão perdidas. Restaurar esta versão?")) return;
     ocupado = true; status("Restaurando…");
     try{
-      var r = await fetch("/api/padroes-documento/restaurar", { method:"POST", headers:{ "Content-Type":"application/json", "X-Padroes-Senha":SENHA || "" }, body:JSON.stringify({ id:id }) });
+      var r = await fetchGer("/api/padroes-documento/restaurar", { method:"POST", headers:{ "Content-Type":"application/json", "X-Padroes-Senha":SENHA || "" }, body:JSON.stringify({ id:id }) });
       if(!r.ok){ if(r.status === 401) SENHA = null; var jr = await r.json().catch(function(){ return {}; }); throw new Error(jr.erro || ("HTTP " + r.status)); }
       var o = await r.json(); SALVO = o.T; SALVO_LOGOS = { I:(o.logos && o.logos.I) || null, E:(o.logos && o.logos.E) || null }; SALVO_META = { atualizado:o.atualizado };
       aplicarSalvo(); rasc = comSalvo(); rascLogos = { I:SALVO_LOGOS.I, E:SALVO_LOGOS.E }; ocupado = false;
@@ -51841,9 +51885,9 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.17-3';
+window.APP_VERSAO = '2026.10.17-4';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
-window.SERVIDOR_RECOMENDADO = '2026.10.17-3';
+window.SERVIDOR_RECOMENDADO = '2026.10.17-4';
 (function(){
   var SEM_VERSAO = '0000.00.00-0';
   var LEGADO_LAYOUT = '2026.10.07-0';   // servidor que já tem layout_antigo no health, mas ainda sem número de versão

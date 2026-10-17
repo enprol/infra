@@ -3438,6 +3438,8 @@ async function _pesqAcaoServidor(acao, it, fechar){
   } else {
     var qd = it.backup_em ? new Date(it.backup_em).toLocaleString('pt-BR') : '';
     if (!confirm('Voltar "' + it.nome + '" para a versao de backup' + (qd ? ' (' + qd + ')' : '') + '?\n\nA versao atual vira o novo backup - da para desfazer repetindo.')) return;
+    // area gerencial (S2, 17/10/2026): o servidor exige a senha reconfirmada; a janela de senha mora na pagina principal
+    try { if (window.parent && window.parent.PG_pedirSenha && !(await window.parent.PG_pedirSenha('Voltar a pesquisa "' + it.nome + '" para o backup.'))) return; } catch(e){}
   }
   try {
     var r = await fetch(PESQ_SRV + '/api/pesquisas/' + encodeURIComponent(it.nome) + '/' + acao, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(corpo) });
