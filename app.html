@@ -32807,54 +32807,330 @@ function AV_gerarDescSituacao(){
   else ligar();
 })();
 </script>
-<script>
-/* ===== Login / Acesso Restrito ===== */
+<script>/* ===== Login / Acesso Restrito — usuários do servidor (S1, 17/10/2026) =====
+   Antes: um usuário/senha únicos escritos AQUI (repositório público) e conferidos no navegador. Agora cada pessoa tem
+   usuário e senha próprios, conferidos pelo SERVIDOR (POST /api/login; senha em scrypt em CONFIG/SEGURANCA/usuarios.json).
+   A sessão é um cookie HttpOnly que o JavaScript não lê. Enquanto a exigência de login estiver desligada
+   (CONFIG/SEGURANCA/politica.json), a tela de entrada mostra "Continuar sem conta" e a API segue aberta.
+   Aqui também: menu do usuário no topo (trocar senha, Usuários, sair), troca obrigatória no 1º acesso, aviso de sessão
+   expirada (qualquer /api/ que responda 401 reabre a tela de entrada sem perder o que está na tela) e renovação da
+   sessão enquanto a pessoa usa o app. Expõe window.SESSAO (usuario(), confirmarGerencial(), abrirUsuarios()). */
 (function(){
-  const USUARIO = "Enprol";
-  const SENHA   = "avaliacao2026";
+  "use strict";
+  var EST = { usuario:null, exigir:false, servidor:true, gerencialAte:0 };
+  var $ = function(id){ return document.getElementById(id); };
+  function srv(){ return (typeof window.CAD_SERVIDOR_URL === "string" ? window.CAD_SERVIDOR_URL : "").replace(/\/+$/, ""); }
+  function esc(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){ return { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]; }); }
+  var fetchOrig = window.fetch.bind(window);
+  async function api(metodo, caminho, corpo){
+    var op = { method:metodo, credentials:"same-origin", headers:{} };
+    if(corpo !== undefined){ op.headers["Content-Type"] = "application/json"; op.body = JSON.stringify(corpo); }
+    var r = await fetchOrig(srv() + caminho, op), js = null;
+    try{ js = await r.json(); }catch(e){}
+    return { status:r.status, ok:r.ok, js:js || {} };
+  }
+  function flag(v){ try{ if(v) sessionStorage.setItem("enprol_logado","1"); else sessionStorage.removeItem("enprol_logado"); }catch(e){} }
 
-  function tentarLogin(){
-    const u = document.getElementById("login_user");
-    const p = document.getElementById("login_pass");
-    const erro = document.getElementById("login_erro");
-    const user = (u ? u.value : "").trim();
-    const pass = (p ? p.value : "");
-    // comparação de usuário sem diferenciar maiúsculas/minúsculas; senha exata
-    if(user.toLowerCase() === USUARIO.toLowerCase() && pass === SENHA){
-      document.body.classList.add("logado");
-      try{
-        sessionStorage.setItem("enprol_logado","1");
-        if(!sessionStorage.getItem("enprol_modo")) sessionStorage.setItem("enprol_modo","painel");
-      }catch(e){}
-      if(erro) erro.textContent = "";
-      window.__PG_aplicarModo && window.__PG_aplicarModo();
-      window.ATIV_iniciar && window.ATIV_iniciar();
-    } else {
-      if(erro) erro.textContent = "Usuário ou senha inválidos.";
-      if(p){ p.value = ""; p.focus(); }
+  /* ---------- tela de entrada ---------- */
+  function card(){ return document.querySelector("#loginGate .login-card"); }
+  function erro(msg){ var e = $("login_erro"); if(e) e.textContent = msg || ""; var c = card(); if(msg && c){ c.classList.remove("gl-erro"); void c.offsetWidth; c.classList.add("gl-erro"); } }
+  function montarExtras(){
+    var c = card(); if(!c || $("login_sem_conta")) return;
+    var aviso = document.createElement("div"); aviso.id = "login_aviso"; aviso.className = "login-aviso"; aviso.hidden = true; aviso.setAttribute("role","status");
+    var sem = document.createElement("button"); sem.type = "button"; sem.id = "login_sem_conta"; sem.className = "login-sem-conta"; sem.hidden = true;
+    sem.textContent = "Continuar sem conta";
+    sem.title = "Enquanto o login não for obrigatório, dá para usar o sistema sem entrar. Peça a sua conta a um usuário gerencial.";
+    sem.addEventListener("click", function(){ EST.usuario = null; liberar(true); });
+    var lblUser = document.querySelector('#loginGate label[for="login_user"]'), btn = $("login_btn");
+    if(lblUser) lblUser.parentNode.insertBefore(aviso, lblUser);
+    if(btn) btn.parentNode.insertBefore(sem, btn.nextSibling);
+    var e = $("login_erro"); if(e){ e.setAttribute("role","alert"); e.setAttribute("aria-live","assertive"); }
+  }
+  function mostrarGate(motivo){
+    montarExtras();
+    document.documentElement.classList.remove("pre-logado");
+    document.body.classList.remove("logado");
+    var a = $("login_aviso"); if(a){ a.textContent = motivo || ""; a.hidden = !motivo; }
+    var sem = $("login_sem_conta"); if(sem) sem.hidden = EST.exigir;
+    erro("");
+    var u = $("login_user"); if(u){ if(EST.usuario && !u.value) u.value = EST.usuario.login; setTimeout(function(){ ($("login_user").value ? $("login_pass") : $("login_user")).focus(); }, 30); }
+  }
+  /* interativo = acabou de entrar pela tela (mostra a escolha da atividade, como antes); senão só reabre */
+  function liberar(interativo){
+    document.body.classList.add("logado");
+    flag(true);
+    try{ if(!sessionStorage.getItem("enprol_modo")) sessionStorage.setItem("enprol_modo","painel"); }catch(e){}
+    erro("");
+    var p = $("login_pass"); if(p) p.value = "";
+    window.__PG_aplicarModo && window.__PG_aplicarModo();
+    if(interativo && !liberar.feito){ window.ATIV_iniciar && window.ATIV_iniciar(); }
+    liberar.feito = true;
+    desenharMenu();
+  }
+
+  var tentando = false;
+  async function tentarLogin(){
+    if(tentando) return;
+    var user = ($("login_user") || {}).value || "", pass = ($("login_pass") || {}).value || "";
+    if(!user.trim() || !pass){ erro("Informe usuário e senha."); return; }
+    if(!EST.servidor){ erro("Sem conexão com o servidor desta máquina. Abra pelo atalho do sistema."); return; }
+    tentando = true; var btn = $("login_btn"); if(btn){ btn.disabled = true; btn.textContent = "ENTRANDO…"; }
+    try{
+      var r = await api("POST", "/api/login", { login:user.trim(), senha:pass });
+      if(!r.ok){ erro(r.js.erro || "Não consegui entrar (erro " + r.status + ")."); var p = $("login_pass"); if(p){ p.value = ""; p.focus(); } return; }
+      EST.usuario = r.js.usuario;
+      if(EST.usuario.trocarSenha){ var ok = await dialogoSenha(true, pass); if(!ok) return; }
+      // 1ª entrada desta página com login exigido: o que o app carregou ao abrir (Painel, Padrões, assinaturas) voltou 401.
+      // Recarrega já logado (nada foi feito na tela ainda). Sessão que expirou no meio do uso NÃO recarrega (preserva a tela).
+      if(EST.exigir && !liberar.feito){ flag(true); location.reload(); return; }
+      liberar(true);
+    }catch(e){ erro("Sem conexão com o servidor desta máquina."); }
+    finally{ tentando = false; if(btn){ btn.disabled = false; btn.textContent = "ENTRAR"; } }
+  }
+
+  /* ---------- diálogos (elemento <dialog>) ---------- */
+  function dialogo(id, html){
+    var d = $(id);
+    if(!d){ d = document.createElement("dialog"); d.id = id; d.className = "ses-dlg"; document.body.appendChild(d); }
+    d.innerHTML = html;
+    return d;
+  }
+  /* troca de senha; obrigatoria = 1º acesso / senha temporária (não dá para cancelar, só sair) */
+  function dialogoSenha(obrigatoria, atualConhecida){
+    return new Promise(function(resolve){
+      var d = dialogo("ses_senha",
+        '<form method="dialog" class="ses-form" aria-labelledby="ses_s_tit">' +
+        '<h2 id="ses_s_tit">' + (obrigatoria ? "Crie a sua senha" : "Trocar senha") + '</h2>' +
+        (obrigatoria ? '<p>Você entrou com uma senha temporária. Escolha uma senha só sua para continuar.</p>' : '') +
+        (atualConhecida ? '' : '<label for="ses_s_atual">Senha atual</label><input type="password" id="ses_s_atual" autocomplete="current-password" required>') +
+        '<label for="ses_s_nova">Senha nova</label><input type="password" id="ses_s_nova" autocomplete="new-password" required minlength="10" aria-describedby="ses_s_dica">' +
+        '<p class="ses-dica" id="ses_s_dica">Pelo menos 10 caracteres. Uma frase curta funciona bem (ex.: três palavras e um número). Não use enprol, infra, o ano nem o seu nome.</p>' +
+        '<label for="ses_s_rep">Repita a senha nova</label><input type="password" id="ses_s_rep" autocomplete="new-password" required>' +
+        '<div class="ses-erro" id="ses_s_erro" role="alert"></div>' +
+        '<div class="ses-acoes"><button type="button" class="ses-sec" id="ses_s_canc">' + (obrigatoria ? "Sair" : "Cancelar") + '</button>' +
+        '<button type="submit" class="ses-pri" id="ses_s_ok">Salvar senha</button></div></form>');
+      var fim = function(v){ d.close(); resolve(v); };
+      d.oncancel = function(ev){ ev.preventDefault(); if(!obrigatoria) fim(false); };
+      $("ses_s_canc").onclick = async function(){ if(obrigatoria){ await sair(true); } fim(false); };
+      d.querySelector("form").onsubmit = async function(ev){
+        ev.preventDefault();
+        var nova = $("ses_s_nova").value, rep = $("ses_s_rep").value, err = $("ses_s_erro");
+        if(nova !== rep){ err.textContent = "As duas senhas novas não conferem."; $("ses_s_rep").focus(); return; }
+        $("ses_s_ok").disabled = true;
+        try{
+          var r = await api("POST", "/api/sessao/senha", { atual: atualConhecida || $("ses_s_atual").value, nova: nova });
+          if(!r.ok){ err.textContent = r.js.erro || ("Erro " + r.status); return; }
+          EST.usuario = r.js.usuario; fim(true);
+          if(!obrigatoria) aviso("Senha trocada.");
+        }catch(e){ err.textContent = "Sem conexão com o servidor."; }
+        finally{ $("ses_s_ok").disabled = false; }
+      };
+      d.showModal(); setTimeout(function(){ (($("ses_s_atual")) || $("ses_s_nova")).focus(); }, 30);
+    });
+  }
+  /* confirmação da área gerencial (a própria senha de novo; vale 15 min no servidor) */
+  function confirmarGerencial(){
+    if(EST.gerencialAte > Date.now()) return Promise.resolve(true);
+    return new Promise(function(resolve){
+      var d = dialogo("ses_conf",
+        '<form method="dialog" class="ses-form" aria-labelledby="ses_c_tit"><h2 id="ses_c_tit">Área gerencial</h2>' +
+        '<p>Confirme a sua senha para continuar, ' + esc(EST.usuario ? EST.usuario.nome : "") + '.</p>' +
+        '<label for="ses_c_in">Sua senha</label><input type="password" id="ses_c_in" autocomplete="current-password" required>' +
+        '<div class="ses-erro" id="ses_c_erro" role="alert"></div>' +
+        '<div class="ses-acoes"><button type="button" class="ses-sec" id="ses_c_canc">Cancelar</button><button type="submit" class="ses-pri" id="ses_c_ok">Confirmar</button></div></form>');
+      var fim = function(v){ d.close(); resolve(v); };
+      d.oncancel = function(){ resolve(false); };
+      $("ses_c_canc").onclick = function(){ fim(false); };
+      d.querySelector("form").onsubmit = async function(ev){
+        ev.preventDefault(); $("ses_c_ok").disabled = true;
+        try{
+          var r = await api("POST", "/api/sessao/confirmar", { senha: $("ses_c_in").value });
+          if(!r.ok){ $("ses_c_erro").textContent = r.js.erro || ("Erro " + r.status); $("ses_c_in").select(); return; }
+          EST.gerencialAte = Date.now() + (r.js.validoMin || 15) * 60000 - 30000; fim(true);
+        }catch(e){ $("ses_c_erro").textContent = "Sem conexão com o servidor."; }
+        finally{ $("ses_c_ok").disabled = false; }
+      };
+      d.showModal(); setTimeout(function(){ $("ses_c_in").focus(); }, 30);
+    });
+  }
+
+  /* ---------- tela Usuários (gerencial) ---------- */
+  async function abrirUsuarios(){
+    if(!EST.usuario || EST.usuario.papel !== "gerencial") return;
+    if(!(await confirmarGerencial())) return;
+    var d = dialogo("ses_usr",
+      '<div class="ses-usr" role="document" aria-labelledby="ses_u_tit">' +
+      '<div class="ses-usr-cab"><h2 id="ses_u_tit">Usuários</h2><button type="button" class="ses-x" id="ses_u_fechar" aria-label="Fechar">×</button></div>' +
+      '<div class="ses-pol" id="ses_u_pol"></div>' +
+      '<div class="ses-usr-tab-wrap"><table class="ses-usr-tab"><caption class="ses-sr">Usuários cadastrados</caption><thead><tr><th scope="col">Usuário</th><th scope="col">Nome</th><th scope="col">Papel</th><th scope="col">Situação</th><th scope="col">Último acesso</th><th scope="col"><span class="ses-sr">Ações</span></th></tr></thead><tbody id="ses_u_lista"></tbody></table></div>' +
+      '<form class="ses-novo" id="ses_u_form"><h3>Novo usuário</h3>' +
+      '<div class="ses-novo-lin"><label>Usuário<input id="ses_u_login" required pattern="[A-Za-z0-9][A-Za-z0-9._\\-]{1,39}" placeholder="ex.: maria.lima" autocomplete="off"></label>' +
+      '<label>Nome completo<input id="ses_u_nome" required autocomplete="off"></label>' +
+      '<label>Papel<select id="ses_u_papel"><option value="comum">Comum</option><option value="gerencial">Gerencial</option></select></label>' +
+      '<button type="submit" class="ses-pri">Criar</button></div></form>' +
+      '<div class="ses-temp" id="ses_u_temp" hidden role="status"></div>' +
+      '<div class="ses-erro" id="ses_u_erro" role="alert"></div></div>');
+    $("ses_u_fechar").onclick = function(){ d.close(); };
+    $("ses_u_form").onsubmit = async function(ev){
+      ev.preventDefault();
+      var r = await chamarGer("POST", "/api/usuarios", { login:$("ses_u_login").value.trim(), nome:$("ses_u_nome").value.trim(), papel:$("ses_u_papel").value });
+      if(!r) return;
+      $("ses_u_login").value = ""; $("ses_u_nome").value = "";
+      mostrarTemp(r.usuario, r.senhaTemporaria); carregar();
+    };
+    d.showModal();
+    await carregar();
+
+    async function chamarGer(m, c, corpo){
+      $("ses_u_erro").textContent = "";
+      var r = await api(m, c, corpo);
+      if(r.status === 403 && r.js.confirmar){ EST.gerencialAte = 0; if(await confirmarGerencial()) r = await api(m, c, corpo); else return null; }
+      if(!r.ok){ $("ses_u_erro").textContent = r.js.erro || ("Erro " + r.status); return null; }
+      return r.js;
+    }
+    function mostrarTemp(u, temp){
+      var t = $("ses_u_temp");
+      t.innerHTML = 'Senha temporária de <b>' + esc(u.login) + '</b>: <code id="ses_u_tcod">' + esc(temp) + '</code> ' +
+        '<button type="button" class="ses-sec" id="ses_u_copiar">Copiar</button><br><small>Vale 24 h e aparece só agora. Entregue pessoalmente; no 1º acesso a pessoa cria a senha dela.</small>';
+      t.hidden = false;
+      $("ses_u_copiar").onclick = function(){ try{ navigator.clipboard.writeText(temp); this.textContent = "Copiada"; }catch(e){} };
+    }
+    async function carregar(){
+      var r = await chamarGer("GET", "/api/usuarios"); if(!r) return;
+      var pol = r.politica || {};
+      $("ses_u_pol").innerHTML = '<label class="ses-chave"><input type="checkbox" id="ses_u_exigir"' + (pol.exigirLogin ? " checked" : "") + '> Exigir login em todas as máquinas</label>' +
+        '<span class="ses-dica">' + (pol.exigirLogin ? "Ligado: sem entrar, ninguém lê nem grava cadastros." : "Desligado: dá para usar sem conta (\"Continuar sem conta\"). Ligue quando todos tiverem a conta.") + '</span>';
+      $("ses_u_exigir").onchange = async function(){
+        var lig = this.checked;
+        if(lig && !confirm("Ligar a exigência de login?\n\nEm até 15 segundos, todas as máquinas passam a pedir usuário e senha. Quem ainda não tem conta fica sem acesso.")){ this.checked = false; return; }
+        if(!lig && !confirm("Desligar a exigência de login? O sistema volta a aceitar uso sem conta.")){ this.checked = true; return; }
+        if(await chamarGer("PUT", "/api/usuarios/_politica", { exigirLogin:lig })){ EST.exigir = lig; carregar(); } else this.checked = !lig;
+      };
+      var eu = EST.usuario.login;
+      $("ses_u_lista").innerHTML = (r.usuarios || []).map(function(u){
+        var sit = !u.ativo ? '<span class="ses-tag ses-tag-off">Desativado</span>' : u.bloqueadoAte ? '<span class="ses-tag ses-tag-warn">Bloqueado</span>' :
+          u.trocarSenha ? '<span class="ses-tag ses-tag-warn">Aguardando 1º acesso</span>' : '<span class="ses-tag ses-tag-ok">Ativo</span>';
+        var proprio = u.login === eu;
+        return '<tr data-login="' + esc(u.login) + '"><td>' + esc(u.login) + (proprio ? ' <small>(você)</small>' : '') + '</td><td>' + esc(u.nome) + '</td>' +
+          '<td><select class="ses-papel" aria-label="Papel de ' + esc(u.login) + '"' + (proprio ? " disabled" : "") + '><option value="comum"' + (u.papel === "comum" ? " selected" : "") + '>Comum</option><option value="gerencial"' + (u.papel === "gerencial" ? " selected" : "") + '>Gerencial</option></select></td>' +
+          '<td>' + sit + '</td><td>' + (u.ultimoAcesso ? esc(new Date(u.ultimoAcesso).toLocaleString("pt-BR")) : "—") + '</td>' +
+          '<td class="ses-acoes-lin"><button type="button" class="ses-sec ses-reset">Nova senha</button>' +
+          (proprio ? '' : '<button type="button" class="ses-sec ses-ativo">' + (u.ativo ? "Desativar" : "Reativar") + '</button>') + '</td></tr>';
+      }).join("");
+      Array.prototype.forEach.call($("ses_u_lista").querySelectorAll("tr"), function(tr){
+        var login = tr.getAttribute("data-login"), u = (r.usuarios || []).filter(function(x){ return x.login === login; })[0];
+        tr.querySelector(".ses-papel").onchange = async function(){ if(await chamarGer("PUT", "/api/usuarios/" + encodeURIComponent(login), { papel:this.value })) carregar(); else carregar(); };
+        tr.querySelector(".ses-reset").onclick = async function(){
+          if(!confirm("Gerar uma senha temporária nova para " + login + "?\nA senha atual dele deixa de valer.")) return;
+          var x = await chamarGer("POST", "/api/usuarios/" + encodeURIComponent(login) + "/resetar"); if(x){ mostrarTemp(x.usuario, x.senhaTemporaria); carregar(); }
+        };
+        var bA = tr.querySelector(".ses-ativo");
+        if(bA) bA.onclick = async function(){
+          if(u.ativo && !confirm("Desativar " + login + "? A pessoa sai do sistema em todas as máquinas.")) return;
+          if(await chamarGer("PUT", "/api/usuarios/" + encodeURIComponent(login), { ativo:!u.ativo })) carregar();
+        };
+      });
     }
   }
 
-  function init(){
-    // se já autenticado nesta sessão, libera direto
-    try{
-      if(sessionStorage.getItem("enprol_logado")==="1"){
-        document.body.classList.add("logado");
-        window.__PG_aplicarModo && window.__PG_aplicarModo();
-        return;
-      }
-    }catch(e){}
-    const btn = document.getElementById("login_btn");
-    if(btn) btn.addEventListener("click", tentarLogin);
-    // Enter em qualquer campo dispara o login
-    ["login_user","login_pass"].forEach(id=>{
-      const el=document.getElementById(id);
-      if(el) el.addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); tentarLogin(); } });
+  /* ---------- menu do usuário no topo ---------- */
+  function desenharMenu(){
+    var hdr = document.querySelector(".app-header .marca"); if(!hdr) return;
+    var m = $("ses_menu");
+    if(!m){
+      m = document.createElement("div"); m.id = "ses_menu"; m.className = "ses-menu";
+      hdr.appendChild(m);
+      document.addEventListener("click", function(ev){ var l = $("ses_menu_lista"); if(l && !l.hidden && !m.contains(ev.target)) l.hidden = true; });
+    }
+    var u = EST.usuario;
+    if(!u){
+      m.innerHTML = EST.servidor ? '<button type="button" class="ses-btn ses-entrar" id="ses_entrar" title="Entrar com o seu usuário">Entrar</button>' : '';
+      var be = $("ses_entrar"); if(be) be.onclick = function(){ mostrarGate(""); };
+      return;
+    }
+    m.innerHTML = '<button type="button" class="ses-btn ses-quem" id="ses_quem" aria-haspopup="true" aria-expanded="false" title="' + esc(u.nome) + ' (' + esc(u.papel) + ')">' +
+      esc(u.nome.split(/\s+/)[0]) + ' ▾</button>' +
+      '<div class="ses-menu-lista" id="ses_menu_lista" role="menu" hidden>' +
+      '<div class="ses-menu-nome">' + esc(u.nome) + '<small>' + esc(u.login) + ' · ' + (u.papel === "gerencial" ? "gerencial" : "comum") + '</small></div>' +
+      '<button type="button" role="menuitem" id="ses_m_senha">Trocar senha</button>' +
+      (u.papel === "gerencial" ? '<button type="button" role="menuitem" id="ses_m_usr">Usuários…</button>' : '') +
+      '<button type="button" role="menuitem" id="ses_m_sair">Sair</button></div>';
+    $("ses_quem").onclick = function(){ var l = $("ses_menu_lista"); l.hidden = !l.hidden; this.setAttribute("aria-expanded", String(!l.hidden)); };
+    $("ses_m_senha").onclick = function(){ $("ses_menu_lista").hidden = true; dialogoSenha(false); };
+    if($("ses_m_usr")) $("ses_m_usr").onclick = function(){ $("ses_menu_lista").hidden = true; abrirUsuarios(); };
+    $("ses_m_sair").onclick = function(){ $("ses_menu_lista").hidden = true; sair(false); };
+  }
+  async function sair(silencioso){
+    try{ await api("POST", "/api/logout"); }catch(e){}
+    EST.usuario = null; EST.gerencialAte = 0; flag(false);
+    if(!silencioso){ mostrarGate(""); }
+    desenharMenu();
+  }
+  function aviso(msg){ try{ if(window.toast) return window.toast(msg); }catch(e){} try{ console.info(msg); }catch(e){} }
+
+  /* ---------- sessão expirada: qualquer chamada à API que volte 401 "login necessário" reabre a entrada ---------- */
+  window.fetch = function(rec, op){
+    return fetchOrig(rec, op).then(function(r){
+      try{
+        if(r.status === 401 && r.headers.get("X-Login-Necessario") === "1" && document.body.classList.contains("logado")){
+          EST.usuario = null; EST.exigir = true; flag(false); desenharMenu();
+          mostrarGate("A sua sessão terminou. Entre de novo: o que está na tela continua aqui. Depois, repita a última ação (ex.: Salvar).");
+        }
+      }catch(e){}
+      return r;
     });
-    const u=document.getElementById("login_user"); if(u) u.focus();
+  };
+
+  /* ---------- renovação: enquanto a pessoa usa a tela, a sessão não expira por inatividade ---------- */
+  var ativo = false;
+  ["click","keydown","mousemove","wheel","touchstart"].forEach(function(t){ document.addEventListener(t, function(){ ativo = true; }, { passive:true, capture:true }); });
+  setInterval(async function(){
+    if(!EST.usuario || !ativo) return;
+    ativo = false;
+    try{
+      var r = await api("GET", "/api/sessao");
+      EST.exigir = !!r.js.exigirLogin;
+      if(r.ok && !r.js.usuario){ EST.usuario = null; desenharMenu(); if(EST.exigir) mostrarGate("A sua sessão terminou. Entre de novo: o que está na tela continua aqui."); }
+    }catch(e){}
+  }, 4 * 60 * 1000);
+
+  /* ---------- início ---------- */
+  async function init(){
+    var btn = $("login_btn");
+    if(btn) btn.addEventListener("click", tentarLogin);
+    ["login_user","login_pass"].forEach(function(id){
+      var el = $(id); if(el) el.addEventListener("keydown", function(e){ if(e.key === "Enter"){ e.preventDefault(); tentarLogin(); } });
+    });
+    var u = $("login_user"); if(u){ u.placeholder = "Seu usuário (ex.: maria.lima)"; u.setAttribute("autocapitalize","none"); u.setAttribute("spellcheck","false"); }
+    montarExtras();
+    var jaEntrou = false; try{ jaEntrou = sessionStorage.getItem("enprol_logado") === "1"; }catch(e){}
+    if(jaEntrou) liberar.feito = true;                                       // a escolha da atividade já foi feita nesta aba (js/112)
+    var r = null;
+    try{ r = await api("GET", "/api/sessao?tocar=0"); }catch(e){ r = null; }
+    if(r && r.ok){
+      EST.usuario = r.js.usuario || null; EST.exigir = !!r.js.exigirLogin;
+      if(r.js.gerencialConfirmado) EST.gerencialAte = Date.now() + 10 * 60000;
+      if(EST.usuario){ if(EST.usuario.trocarSenha){ mostrarGate(""); if(!(await dialogoSenha(true))) return; } return liberar(!jaEntrou); }
+      if(EST.exigir){ flag(false); return mostrarGate(""); }
+      if(jaEntrou) return liberar(false);                                    // escolheu "Continuar sem conta" nesta aba
+      return mostrarGate("");
+    }
+    // servidor antigo (sem /api/sessao) ou sem servidor: nada para conferir aqui
+    EST.servidor = false;
+    if(jaEntrou) return liberar(false);
+    mostrarGate("");
   }
 
-  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", init);
+  window.SESSAO = {
+    usuario: function(){ return EST.usuario ? Object.assign({}, EST.usuario) : null; },
+    exigirLogin: function(){ return EST.exigir; },
+    confirmarGerencial: confirmarGerencial,
+    abrirUsuarios: abrirUsuarios,
+    trocarSenha: function(){ return dialogoSenha(false); },
+    sair: function(){ return sair(false); }
+  };
+
+  if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
   else init();
 })();
 </script>
@@ -47885,6 +48161,81 @@ body.ativ-util .tab-panel.ativa{ animation:glFade 180ms var(--gl-ease); }
   #ativGate .ativ-card{ display:grid; grid-template-columns:52px 1fr; column-gap:14px; align-items:start; padding:16px; }
   #ativGate .ativ-ico{ grid-row:span 2; margin:0; }
 }
+
+/* ---------- S1 (17/10/2026): login por usuário, menu do usuário, troca de senha, tela Usuários ---------- */
+#loginGate .login-aviso{ margin:0 0 12px; padding:10px 12px; border-radius:var(--gl-r,8px); background:#FFF6E5; color:#6B4A0E;
+  border:1px solid #F0D9A8; font:500 12.5px/1.45 var(--gl-font); text-align:left; }
+#loginGate .login-sem-conta{ display:block; width:100%; margin-top:10px; padding:10px; border:0; background:none; cursor:pointer;
+  color:var(--gl-navy,#1B3A5C); font:600 12.5px/1.2 var(--gl-font); text-decoration:underline; text-underline-offset:3px; }
+#loginGate .login-sem-conta:hover{ color:var(--gl-navy-2,#24496F); }
+#loginGate .login-sem-conta[hidden]{ display:none; }
+
+.ses-menu{ position:relative; margin-left:auto; display:flex; align-items:center; }
+.ses-menu .ses-quem, .ses-menu .ses-entrar{ white-space:nowrap; }
+.ses-menu-lista{ position:absolute; right:0; top:calc(100% + 6px); z-index:3000; min-width:220px; padding:6px; background:#fff;
+  border:1px solid #D9DEE5; border-radius:10px; box-shadow:0 12px 32px -8px rgba(15,34,54,.28); font-family:var(--gl-font); }
+.ses-menu-lista[hidden]{ display:none; }
+.ses-menu-nome{ padding:8px 10px 10px; border-bottom:1px solid #EEF1F4; margin-bottom:4px; font:600 13px/1.3 var(--gl-font); color:var(--gl-ink,#0F2236); }
+.ses-menu-nome small{ display:block; font-weight:400; color:var(--gl-mut,#5A6B7C); margin-top:2px; }
+.ses-menu-lista button{ display:block; width:100%; text-align:left; padding:9px 10px; border:0; background:none; border-radius:6px;
+  font:500 13px var(--gl-font); color:var(--gl-txt,#1F2B38); cursor:pointer; }
+.ses-menu-lista button:hover, .ses-menu-lista button:focus-visible{ background:#F1F4F8; }
+
+dialog.ses-dlg{ border:0; padding:0; border-radius:14px; box-shadow:0 30px 70px -20px rgba(5,14,26,.55); font-family:var(--gl-font);
+  color:var(--gl-txt,#1F2B38); max-width:calc(100vw - 32px); }
+dialog.ses-dlg::backdrop{ background:rgba(9,23,38,.55); }
+.ses-form{ width:380px; max-width:100%; padding:22px 24px 20px; display:flex; flex-direction:column; gap:6px; }
+.ses-form h2, .ses-usr h2{ margin:0 0 6px; font:600 17px/1.3 var(--gl-disp,var(--gl-font)); color:var(--gl-ink,#0F2236); }
+.ses-form p{ margin:0 0 6px; font-size:13px; line-height:1.45; color:var(--gl-mut,#5A6B7C); }
+.ses-form label, .ses-novo label{ font:600 11.5px/1.2 var(--gl-font); letter-spacing:.04em; color:var(--gl-mut,#5A6B7C); margin-top:6px; }
+.ses-form input, .ses-novo input, .ses-novo select, .ses-usr-tab select{ height:38px; padding:0 10px; border:1px solid #CBD3DD; border-radius:8px;
+  font:400 14px var(--gl-font); color:var(--gl-txt,#1F2B38); background:#fff; }
+.ses-form input:focus, .ses-novo input:focus, .ses-novo select:focus{ outline:0; border-color:var(--gl-navy,#1B3A5C); box-shadow:0 0 0 3px rgba(27,58,92,.16); }
+.ses-dica{ font-size:12px !important; color:var(--gl-mut,#5A6B7C); margin:2px 0 0 !important; }
+.ses-erro{ min-height:18px; color:var(--gl-err,#AE3F38); font:600 12.5px/1.4 var(--gl-font); margin-top:6px; }
+.ses-acoes{ display:flex; justify-content:flex-end; gap:8px; margin-top:8px; }
+.ses-pri, .ses-sec{ height:36px; padding:0 14px; border-radius:8px; font:600 13px var(--gl-font); cursor:pointer; }
+.ses-pri{ background:var(--gl-navy,#1B3A5C); color:#fff; border:1px solid var(--gl-navy,#1B3A5C); }
+.ses-pri:hover{ background:var(--gl-navy-2,#24496F); }
+.ses-pri:disabled{ opacity:.6; cursor:wait; }
+.ses-sec{ background:#fff; color:var(--gl-navy,#1B3A5C); border:1px solid #CBD3DD; }
+.ses-sec:hover{ background:#F1F4F8; }
+.ses-dlg :focus-visible{ outline:2px solid var(--gl-navy,#1B3A5C); outline-offset:2px; }
+
+.ses-usr{ width:880px; max-width:100%; padding:20px 24px 22px; }
+.ses-usr-cab{ display:flex; align-items:center; justify-content:space-between; }
+.ses-x{ width:36px; height:36px; border:0; background:none; border-radius:8px; font-size:22px; line-height:1; cursor:pointer; color:var(--gl-mut,#5A6B7C); }
+.ses-x:hover{ background:#F1F4F8; }
+.ses-pol{ display:flex; flex-wrap:wrap; align-items:center; gap:6px 14px; margin:6px 0 14px; padding:10px 12px; border-radius:10px; background:#F5F7FA; border:1px solid #E3E8EE; }
+.ses-chave{ display:flex; align-items:center; gap:8px; font:600 13px var(--gl-font); color:var(--gl-ink,#0F2236); cursor:pointer; }
+.ses-chave input{ width:18px; height:18px; accent-color:var(--gl-navy,#1B3A5C); }
+.ses-usr-tab-wrap{ max-height:46vh; overflow:auto; border:1px solid #E3E8EE; border-radius:10px; }
+.ses-usr-tab{ width:100%; border-collapse:collapse; font-size:13px; }
+.ses-usr-tab th{ position:sticky; top:0; background:#F5F7FA; text-align:left; padding:8px 10px; font:600 11.5px var(--gl-font); letter-spacing:.04em; color:var(--gl-mut,#5A6B7C); border-bottom:1px solid #E3E8EE; }
+.ses-usr-tab td{ padding:8px 10px; border-bottom:1px solid #EEF1F4; vertical-align:middle; }
+.ses-usr-tab tr:last-child td{ border-bottom:0; }
+.ses-usr-tab select{ height:32px; font-size:13px; }
+.ses-acoes-lin{ white-space:nowrap; text-align:right; }
+.ses-acoes-lin button{ height:30px; padding:0 10px; font-size:12px; margin-left:4px; }
+.ses-tag{ display:inline-block; padding:2px 8px; border-radius:999px; font:600 11.5px var(--gl-font); }
+.ses-tag-ok{ background:#E6F2EC; color:var(--gl-ok,#2B7A57); }
+.ses-tag-warn{ background:#FBF0DC; color:var(--gl-warn,#A66A12); }
+.ses-tag-off{ background:#EEF0F3; color:var(--gl-mut,#5A6B7C); }
+.ses-novo{ margin-top:16px; }
+.ses-novo h3{ margin:0 0 4px; font:600 14px var(--gl-font); color:var(--gl-ink,#0F2236); }
+.ses-novo-lin{ display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end; }
+.ses-novo-lin label{ display:flex; flex-direction:column; gap:4px; flex:1 1 180px; }
+.ses-novo-lin label:nth-child(3){ flex:0 0 140px; }
+.ses-temp{ margin-top:12px; padding:12px 14px; border-radius:10px; background:#EAF2FB; border:1px solid #C9DCF0; font-size:13px; line-height:1.6; }
+.ses-temp code{ font:600 15px/1 Consolas, monospace; padding:3px 8px; background:#fff; border-radius:6px; border:1px solid #C9DCF0; user-select:all; }
+.ses-temp small{ color:var(--gl-mut,#5A6B7C); }
+.ses-sr{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+@media (max-width:640px){ .ses-usr-tab th:nth-child(5), .ses-usr-tab td:nth-child(5){ display:none; } .ses-usr{ padding:16px; } }
+.app-header .ses-btn{ display:inline-flex; align-items:center; gap:6px; height:36px; box-sizing:border-box; padding:0 12px; border-radius:8px;
+  border:1.5px solid #d6dee7; background:#fff; color:#1b3a5c; font:600 13px var(--gl-font, inherit); cursor:pointer; white-space:nowrap; }
+.app-header .ses-btn:hover{ background:#eef4fa; border-color:#1F6FC0; }
+.app-header .ses-btn:focus-visible{ outline:2px solid var(--gl-navy,#1B3A5C); outline-offset:2px; }
+body:not(.logado) .ses-menu{ display:none; }
 </style>
 <script id="glass-login-js">
 /* Login: tremor curto + aria-invalid quando a senha é recusada. Escolha da atividade: luz que segue o cursor,
@@ -51409,9 +51760,9 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.17-1';
+window.APP_VERSAO = '2026.10.17-2';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
-window.SERVIDOR_RECOMENDADO = '2026.10.17-1';
+window.SERVIDOR_RECOMENDADO = '2026.10.17-2';
 (function(){
   var SEM_VERSAO = '0000.00.00-0';
   var LEGADO_LAYOUT = '2026.10.07-0';   // servidor que já tem layout_antigo no health, mas ainda sem número de versão
