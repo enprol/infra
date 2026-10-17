@@ -762,9 +762,16 @@ function repHTML(sec){
   return h;
 }
 
+/* CPF não fica no código (o arquivo é público): o técnico digita uma vez e o aparelho lembra (tecDoc). */
 var TECNICOS = [
-  { nome:"Leonardo Rodrigues", doc:"008.044.553-50" }
+  { nome:"Leonardo Rodrigues" }
 ];
+function tecDoc(nome, doc){                   // lê (doc omitido) ou grava o CPF lembrado neste aparelho para o técnico
+  var k = CHAVE + "_tecdoc", m = {};
+  try{ m = JSON.parse(localStorage.getItem(k) || "{}") || {}; }catch(e){}
+  if(doc === undefined) return m[nome] || "";
+  m[nome] = doc; try{ localStorage.setItem(k, JSON.stringify(m)); }catch(e){}
+}
 function fimHTML(){
   var f = atual();
   return campoHTML("tecnico.nome", { l:"Nome do t\u00e9cnico", t:"sel",
@@ -939,11 +946,12 @@ function dobra(id){ for(var i=0;i<SECOES.length;i++){ if(SECOES[i].id===id){ irP
 function upd(el, cam){
   var v = el.dataset && el.dataset.m ? aplicaMascara(el, el.dataset.m) : el.value;
   setv(atual(), cam, v); salvar(true); tituloTalvez(cam);
+  if(cam === "tecnico.documento"){ var tf = atual().tecnico; if(tf && tf.nome) tecDoc(tf.nome, v); }
 }
 function updSel(el, cam){
-  if(cam === "tecnico.nome"){                 // escolheu o t\u00e9cnico -> o CPF vem junto
+  if(cam === "tecnico.nome"){                 // escolheu o t\u00e9cnico -> o CPF lembrado neste aparelho vem junto
     var t = TECNICOS.filter(function(x){ return x.nome === el.value; })[0];
-    if(t){ setv(atual(), "tecnico.documento", t.doc); setv(atual(), cam, el.value);
+    if(t){ var d = tecDoc(t.nome); if(d) setv(atual(), "tecnico.documento", d); setv(atual(), cam, el.value);
            salvar(true); render(); return; }
   }
   var box = el.parentNode.querySelector(".outro");
