@@ -33033,6 +33033,72 @@ function AV_gerarDescSituacao(){
     }
   }
 
+  /* ---------- tela Auditoria (gerencial; S3) ---------- */
+  var ACOES = { "login":"Entrou", "login-falhou":"Login errado", "login-bloqueado":"Login bloqueado", "logout":"Saiu",
+    "trocar-senha":"Trocou a senha", "confirmar-gerencial":"Abriu área gerencial", "usuario-criar":"Criou usuário",
+    "usuario-alterar":"Alterou usuário", "usuario-resetar":"Nova senha temporária", "politica-login":"Exigência de login",
+    "usuarios-consultar":"Consultou usuários", "auditoria-consultar":"Consultou auditoria", "cadastro-abrir":"Abriu cadastro",
+    "cadastro-salvar":"Salvou cadastro", "cadastro-excluir":"Excluiu cadastro", "produto-gravar":"Gravou PDF do produto",
+    "padroes-gravar":"Alterou padrões de documento", "padroes-restaurar":"Restaurou padrões", "padroes-acesso":"Entrou nos padrões" };
+  function dataBR(iso){ var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || ""); return m ? m[3] + "/" + m[2] + "/" + m[1] : ""; }
+  function dataISO(br){ var m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(String(br || "").trim()); return m ? m[3] + "-" + m[2] + "-" + m[1] : ""; }
+  function isoDia(d){ return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+  function detTexto(o){
+    var d = o.det; if(!d) return "";
+    if(o.acao === "cadastro-salvar") return (d.novo ? "cadastro novo · " : "") + d.n_campos + " campo(s)" + (d.forcou ? " · sobrescreveu conflito" : "") + (d.renomeado_de ? " · renomeado de " + d.renomeado_de : "");
+    if(d.tentativa !== undefined) return "usuário digitado: " + d.tentativa;
+    return Object.keys(d).map(function(k){ return k + ": " + (typeof d[k] === "object" ? JSON.stringify(d[k]) : d[k]); }).join(" · ");
+  }
+  async function abrirAuditoria(){
+    if(!EST.usuario || EST.usuario.papel !== "gerencial") return;
+    if(!(await confirmarGerencial())) return;
+    var hoje = new Date(), semana = new Date(Date.now() - 7 * 86400000);
+    var d = dialogo("ses_aud",
+      '<div class="ses-usr ses-aud" role="document" aria-labelledby="ses_a_tit">' +
+      '<div class="ses-usr-cab"><h2 id="ses_a_tit">Auditoria</h2><button type="button" class="ses-x" id="ses_a_fechar" aria-label="Fechar">×</button></div>' +
+      '<div class="ses-integ" id="ses_a_integ" role="status">Conferindo a corrente…</div>' +
+      '<form class="ses-novo ses-aud-filtro" id="ses_a_form"><div class="ses-novo-lin">' +
+      '<label>De<input id="ses_a_de" class="data-br" inputmode="numeric" placeholder="dd/mm/aaaa" value="' + dataBR(isoDia(semana)) + '"></label>' +
+      '<label>Até<input id="ses_a_ate" class="data-br" inputmode="numeric" placeholder="dd/mm/aaaa" value="' + dataBR(isoDia(hoje)) + '"></label>' +
+      '<label>Usuário<input id="ses_a_usr" placeholder="todos" autocomplete="off"></label>' +
+      '<label>Contém<input id="ses_a_txt" placeholder="CTD, ação, máquina…" autocomplete="off"></label>' +
+      '<button type="submit" class="ses-pri">Filtrar</button></div></form>' +
+      '<div class="ses-aud-total" id="ses_a_total" role="status"></div>' +
+      '<div class="ses-usr-tab-wrap"><table class="ses-usr-tab"><caption class="ses-sr">Registros de auditoria</caption><thead><tr><th scope="col">Quando</th><th scope="col">Usuário</th><th scope="col">Máquina</th><th scope="col">Ação</th><th scope="col">Cadastro / alvo</th><th scope="col">Resultado</th><th scope="col">Detalhe</th></tr></thead><tbody id="ses_a_lista"></tbody></table></div>' +
+      '<div class="ses-erro" id="ses_a_erro" role="alert"></div></div>');
+    $("ses_a_fechar").onclick = function(){ d.close(); };
+    $("ses_a_form").onsubmit = function(ev){ ev.preventDefault(); carregar(); };
+    d.showModal();
+    async function chamar(c){
+      var r = await api("GET", c);
+      if(r.status === 403 && r.js.confirmar){ EST.gerencialAte = 0; if(await confirmarGerencial()) r = await api("GET", c); else return null; }
+      if(!r.ok){ $("ses_a_erro").textContent = r.js.erro || ("Erro " + r.status); return null; }
+      return r.js;
+    }
+    async function carregar(){
+      $("ses_a_erro").textContent = "";
+      var de = dataISO($("ses_a_de").value), ate = dataISO($("ses_a_ate").value);
+      if(!de || !ate){ $("ses_a_erro").textContent = "Use as datas no formato dd/mm/aaaa."; return; }
+      var q = "?de=" + de + "&ate=" + ate + "&usuario=" + encodeURIComponent($("ses_a_usr").value) + "&texto=" + encodeURIComponent($("ses_a_txt").value) + "&limite=2000";
+      var r = await chamar("/api/auditoria" + q); if(!r) return;
+      $("ses_a_total").textContent = r.total + " registro(s)" + (r.total > r.linhas.length ? " — mostrando os " + r.linhas.length + " mais recentes" : "");
+      $("ses_a_lista").innerHTML = r.linhas.map(function(o){
+        var ok = o.st >= 200 && o.st < 300;
+        return '<tr><td>' + esc(new Date(o.ts).toLocaleString("pt-BR")) + '</td><td>' + (o.usr ? esc(o.usr) : '<span class="ses-mut">sem conta</span>') + '</td>' +
+          '<td>' + esc(o.maq || "") + '</td><td>' + esc(ACOES[o.acao] || o.acao) + '</td><td>' + esc(o.alvo || "—") + '</td>' +
+          '<td><span class="ses-tag ' + (ok ? "ses-tag-ok" : "ses-tag-warn") + '">' + (ok ? "ok" : esc(o.st)) + '</span></td>' +
+          '<td class="ses-aud-det" title="' + esc(o.det && o.det.campos ? o.det.campos.join(", ") : "") + '">' + esc(detTexto(o)) + '</td></tr>';
+      }).join("") || '<tr><td colspan="7" class="ses-mut">Nenhum registro no período.</td></tr>';
+      var v = await chamar("/api/auditoria/verificar?de=" + de + "&ate=" + ate); if(!v) return;
+      var ruins = v.arquivos.filter(function(a){ return !a.ok; }), el = $("ses_a_integ");
+      el.className = "ses-integ " + (v.ok ? "ses-integ-ok" : "ses-integ-ruim");
+      el.innerHTML = v.ok
+        ? "Corrente íntegra: " + v.arquivos.length + " arquivo(s) no período, nenhuma linha apagada ou alterada." + (v.com_ancora ? "" : " <small>(esta máquina ainda não tem registro próprio para comparar)</small>")
+        : "<b>Atenção: o registro foi mexido fora do sistema.</b> " + ruins.map(function(a){ return esc(a.arquivo) + " — " + esc(a.erros.map(function(e){ return "linha " + e.linha + ": " + e.motivo; }).join("; ")); }).join("<br>");
+    }
+    await carregar();
+  }
+
   /* ---------- menu do usuário no topo ---------- */
   function desenharMenu(){
     var hdr = document.querySelector(".app-header .marca"); if(!hdr) return;
@@ -33053,11 +33119,12 @@ function AV_gerarDescSituacao(){
       '<div class="ses-menu-lista" id="ses_menu_lista" role="menu" hidden>' +
       '<div class="ses-menu-nome">' + esc(u.nome) + '<small>' + esc(u.login) + ' · ' + (u.papel === "gerencial" ? "gerencial" : "comum") + '</small></div>' +
       '<button type="button" role="menuitem" id="ses_m_senha">Trocar senha</button>' +
-      (u.papel === "gerencial" ? '<button type="button" role="menuitem" id="ses_m_usr">Usuários…</button>' : '') +
+      (u.papel === "gerencial" ? '<button type="button" role="menuitem" id="ses_m_usr">Usuários…</button><button type="button" role="menuitem" id="ses_m_aud">Auditoria…</button>' : '') +
       '<button type="button" role="menuitem" id="ses_m_sair">Sair</button></div>';
     $("ses_quem").onclick = function(){ var l = $("ses_menu_lista"); l.hidden = !l.hidden; this.setAttribute("aria-expanded", String(!l.hidden)); };
     $("ses_m_senha").onclick = function(){ $("ses_menu_lista").hidden = true; dialogoSenha(false); };
     if($("ses_m_usr")) $("ses_m_usr").onclick = function(){ $("ses_menu_lista").hidden = true; abrirUsuarios(); };
+    if($("ses_m_aud")) $("ses_m_aud").onclick = function(){ $("ses_menu_lista").hidden = true; abrirAuditoria(); };
     $("ses_m_sair").onclick = function(){ $("ses_menu_lista").hidden = true; sair(false); };
   }
   async function sair(silencioso){
@@ -33126,6 +33193,7 @@ function AV_gerarDescSituacao(){
     exigirLogin: function(){ return EST.exigir; },
     confirmarGerencial: confirmarGerencial,
     abrirUsuarios: abrirUsuarios,
+    abrirAuditoria: abrirAuditoria,
     trocarSenha: function(){ return dialogoSenha(false); },
     sair: function(){ return sair(false); }
   };
@@ -48236,6 +48304,19 @@ dialog.ses-dlg::backdrop{ background:rgba(9,23,38,.55); }
 .app-header .ses-btn:hover{ background:#eef4fa; border-color:#1F6FC0; }
 .app-header .ses-btn:focus-visible{ outline:2px solid var(--gl-navy,#1B3A5C); outline-offset:2px; }
 body:not(.logado) .ses-menu{ display:none; }
+/* S3: tela Auditoria */
+.ses-aud{ width:1100px; }
+.ses-integ{ margin:6px 0 12px; padding:10px 12px; border-radius:10px; font:500 13px/1.45 var(--gl-font); background:#F5F7FA; border:1px solid #E3E8EE; }
+.ses-integ-ok{ background:#E9F5EF; border-color:#BFE0CF; color:#1F5E42; }
+.ses-integ-ruim{ background:#FBEAE8; border-color:#EBC0BB; color:#7E2B25; }
+.ses-aud-filtro{ margin-top:0; }
+.ses-aud-filtro .ses-novo-lin label{ flex:1 1 130px; }
+.ses-aud-filtro .ses-novo-lin label:nth-child(3){ flex:1 1 130px; }
+.ses-aud-total{ margin:10px 2px 6px; font:500 12.5px var(--gl-font); color:var(--gl-mut,#5A6B7C); }
+.ses-aud .ses-usr-tab-wrap{ max-height:52vh; }
+.ses-aud .ses-usr-tab td{ font-size:12.5px; }
+.ses-aud-det{ max-width:260px; color:var(--gl-mut,#5A6B7C); }
+.ses-mut{ color:var(--gl-mut,#5A6B7C); }
 </style>
 <script id="glass-login-js">
 /* Login: tremor curto + aria-invalid quando a senha é recusada. Escolha da atividade: luz que segue o cursor,
@@ -51760,9 +51841,9 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.17-2';
+window.APP_VERSAO = '2026.10.17-3';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
-window.SERVIDOR_RECOMENDADO = '2026.10.17-2';
+window.SERVIDOR_RECOMENDADO = '2026.10.17-3';
 (function(){
   var SEM_VERSAO = '0000.00.00-0';
   var LEGADO_LAYOUT = '2026.10.07-0';   // servidor que já tem layout_antigo no health, mas ainda sem número de versão
