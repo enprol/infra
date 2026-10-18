@@ -8307,6 +8307,17 @@ RGV - Relatório Genérico de Valores - FIOL - Lote-5F - 4ª Revisão (SEI/MT n�
         <label class="fb-chk"><input type="checkbox" id="av_sg_infra_6" value="Pavimentação"> Pavimentação</label>
         <label class="fb-chk"><input type="checkbox" id="av_sg_infra_7" value="Telefone"> Telefone</label>
       </div></div>
+    <div class="vfield grow"><label>Serviços públicos comunitários (raio de até 1 km) <span class="hint-auto" id="av_sg_serv_origem"> espelha a aba Campo › Caracterização do Imóvel</span></label>
+      <div class="fb-checks" id="av_sg_serv">
+        <label class="fb-chk"><input type="checkbox" id="av_sg_serv_0" value="Coleta de Lixo"> Coleta de Lixo</label>
+        <label class="fb-chk"><input type="checkbox" id="av_sg_serv_1" value="Comércio"> Comércio</label>
+        <label class="fb-chk"><input type="checkbox" id="av_sg_serv_2" value="Escola"> Escola</label>
+        <label class="fb-chk"><input type="checkbox" id="av_sg_serv_3" value="Lazer"> Lazer</label>
+        <label class="fb-chk"><input type="checkbox" id="av_sg_serv_4" value="Saúde"> Saúde</label>
+        <label class="fb-chk"><input type="checkbox" id="av_sg_serv_5" value="Segurança"> Segurança</label>
+        <label class="fb-chk"><input type="checkbox" id="av_sg_serv_6" value="Transporte"> Transporte</label>
+        <label class="fb-chk"><input type="checkbox" id="av_sg_serv_7" value="Universidade"> Universidade</label>
+      </div></div>
   </div>
 
   <h2 class="vsec acc" onclick="FV_toggleSec(this)"><span>Tipologia e zoneamento do imóvel avaliando</span><span class="acc-chevron">▾</span></h2>
@@ -8331,6 +8342,14 @@ RGV - Relatório Genérico de Valores - FIOL - Lote-5F - 4ª Revisão (SEI/MT n�
     <div class="vfield grow"><label for="av_sg_vist_obs">Observação <span class="hint-auto"> da Ficha de Vistoria › 1.5 Observações</span></label>
       <textarea id="av_sg_vist_obs" class="bloqueado" readonly rows="3" placeholder="Sem observações na Ficha de Vistoria"></textarea>
       <div class="av-sg-acoes"><button type="button" class="vbtn vbtn-ghost vbtn-sm" onclick="AVSG_abrirFicha()">↗ Editar na Ficha de Vistoria</button></div></div>
+  </div>
+
+  <h2 class="vsec acc" onclick="FV_toggleSec(this)"><span>Localização (perímetros)</span><span class="acc-chevron">▾</span></h2>
+  <div class="vcard">
+    <div class="vfield grow"><label for="av_sg_lado">Lado em relação ao eixo <span class="auto-tag">calculado pelo KML</span></label>
+      <textarea id="av_sg_lado" class="bloqueado" readonly rows="2" placeholder="Calculado a partir do KML da área desapropriada e das estacas do projeto do lote"></textarea>
+      <div class="av-sg-acoes"><button type="button" class="vbtn vbtn-ghost vbtn-sm" onclick="AVSG_calcularLado()">↻ Calcular</button><span id="av_sg_lado_st" class="av-sg-st"></span></div></div>
+    <p class="av-sg-nota">Uma localização por perímetro do KML. Lado no sentido crescente do km: Direito, Esquerdo ou Direito e Esquerdo (quando o perímetro passa pelos dois lados do eixo). O km de cada perímetro vem da Planta/Relatório Técnico.</p>
   </div>
   </div>
 
@@ -8928,6 +8947,19 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
     <div class="vrow">
       <div class="vfield grow"><label>O ocupante é o(a) proprietário(a)?</label><select id="fb_ocup_e_prop"><option value="">Selecione</option><option>1 - Sim</option><option>2 - Não</option></select></div>
       <div class="vfield"><label>Tipo</label><span class="fb-checks" style="display:flex;gap:12px;margin-top:2px"><label style="font-weight:400;cursor:pointer"><input type="radio" name="fb_pf_pj" id="fb_pf_pj_pf" value="PF" checked> PF</label><label style="font-weight:400;cursor:pointer"><input type="radio" name="fb_pf_pj" id="fb_pf_pj_pj" value="PJ"> PJ</label></span></div>
+      <!-- 18/10/2026: Subtipo do SGPD (só para o SGPD; não sai no Anexo B nem no Word) -->
+      <div class="vfield" data-sem-doc><label for="fb_subtipo">Subtipo <span class="hint-auto"> SGPD</span></label><select id="fb_subtipo"><option selected>Normal</option><option>Posseiro</option><option>Espólio</option></select></div>
+    </div>
+    <div id="fb_esp_wrap" data-sem-doc style="display:none;">
+      <p class="hint-auto" style="margin:0 0 8px;">Espólio: dados do(a) falecido(a). Nome, RG, CPF e estado civil abaixo passam a ser os do(a) inventariante.</p>
+      <div class="vrow">
+        <div class="vfield grow"><label for="fb_esp_de">Espólio de</label><input type="text" id="fb_esp_de" placeholder="Nome do(a) falecido(a)"></div>
+        <div class="vfield"><label for="fb_esp_rg">RG</label><input type="text" id="fb_esp_rg" placeholder="RG"></div>
+        <div class="vfield"><label for="fb_esp_cpf">CPF</label><input type="text" id="fb_esp_cpf" class="mask-cpf" inputmode="numeric" maxlength="14" placeholder="000.000.000-00"></div>
+      </div>
+      <div class="vrow">
+        <div class="vfield"><label for="fb_esp_inv">Situação do inventário</label><select id="fb_esp_inv"><option selected>Em Andamento</option><option>Finalizado</option><option>Sem Inventário</option></select></div>
+      </div>
     </div>
     <div class="vrow">
       <div class="vfield grow"><label>Nome / Razão Social</label><input type="text" id="fb_nome" placeholder="Nome / Razão Social"></div>
@@ -8988,6 +9020,11 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
     <div class="vrow">
       <div class="vfield grow"><label>Endereço</label><input type="text" id="fb_prop_end" placeholder="Endereço"></div>
       <div class="vfield"><label>CEP</label><input type="text" id="fb_prop_cep" class="mask-cep" inputmode="numeric" maxlength="10" placeholder="00.000-000"></div>
+    </div>
+    <!-- 18/10/2026: endereço no formato do SGPD (só para o SGPD; não sai no Anexo B nem no Word) -->
+    <div class="vrow" data-sem-doc>
+      <div class="vfield"><label for="fb_prop_tipo_end">Tipo de endereço <span class="hint-auto"> SGPD</span></label><select id="fb_prop_tipo_end"><option value="" selected>Selecione</option><option>Aeroporto</option><option>Alameda</option><option>Avenida</option><option>Beco</option><option>Comercial</option><option>Calçada</option><option>Campo</option><option>Chacara</option><option>Colônia</option><option>Condomínio</option><option>Conjunto</option><option>Distrito</option><option>Esplanada</option><option>Estrada</option><option>Favela</option><option>Feira</option><option>Jardim</option><option>Ladeira</option><option>Lago</option><option>Lagoa</option><option>Largo</option><option>Linha</option><option>Lote</option><option>Loteamento</option><option>Morro</option><option>Núcleo</option><option>Parada</option><option>Parque</option><option>Passarela</option><option>Praça</option><option>Pátio</option><option>Quadra</option><option>Recado</option><option>Recanto</option><option>Residencial</option><option>Rodovia</option><option>Rua</option><option>Setor</option><option>Sítio</option><option>Travessa</option><option>Trecho</option><option>Trevo</option><option>Vale</option><option>Vereda</option><option>Via</option><option>Viela</option><option>Vila</option><option>Área</option><option>Viaduto</option></select></div>
+      <div class="vfield grow"><label for="fb_prop_bairro">Bairro <span class="hint-auto"> SGPD</span></label><input type="text" id="fb_prop_bairro" placeholder="Ex.: P.A. Riacho Seco Zona Rural"></div>
     </div>
     <div class="vrow">
       <div class="vfield grow"><label>Município</label><input type="text" id="fb_prop_mun" placeholder="Município"></div>
@@ -40309,6 +40346,9 @@ window.DRL_gerarPDF=async function(opts){
   var INFRA_SG = { o:["Água","Energia elétrica","Esgoto pluvial","Esgoto sanitário","Gás canalizado","Iluminação pública","Pavimentação","Telefone"],
                    ids:["av_sg_infra_0","av_sg_infra_1","av_sg_infra_2","av_sg_infra_3","av_sg_infra_4","av_sg_infra_5","av_sg_infra_6","av_sg_infra_7"] };
   window.CAMPO_INFRA_SG = INFRA_SG;
+  // 18/10/2026: Serviços públicos comunitários (raio de 1 km), mesmo esquema
+  var SERV_SG = { o:["Coleta de Lixo","Comércio","Escola","Lazer","Saúde","Segurança","Transporte","Universidade"],
+                  ids:["av_sg_serv_0","av_sg_serv_1","av_sg_serv_2","av_sg_serv_3","av_sg_serv_4","av_sg_serv_5","av_sg_serv_6","av_sg_serv_7"] };
   var FSECOES = [
     { t:"1 · Identificação", campos:[
       {k:"geral.processo", l:"Nº CTD", t:"text"},
@@ -40338,6 +40378,7 @@ window.DRL_gerarPDF=async function(opts){
         o:["Água","Energia","Esgoto","Iluminação pública","Pavimentação/calçamento","Telefonia/sinal de celular","Coleta de lixo"],
         fr:["rede de abastecimento de água","energia","rede de esgoto","iluminação pública","pavimentação","sinal de telefonia","coleta de lixo"]},
       {k:"geral.infraSgpd", l:"Infraestrutura do laudo (DESP 3) — não sai no PDF", t:"chks", largo:true, semPdf:true, o:INFRA_SG.o, ids:INFRA_SG.ids},
+      {k:"geral.servSgpd", l:"Serviços públicos num raio de 1 km (DESP 3) — não sai no PDF", t:"chks", largo:true, semPdf:true, o:SERV_SG.o, ids:SERV_SG.ids},
       {k:"campos.fb_242_terra", l:"2.4.2 Características da terra", t:"ta", rows:3, largo:true},
       {k:"campos.fb_243_hidro", l:"2.4.3 Hidrografia / Vazão (m³ ou L/s)", t:"ta", rows:3, largo:true}
     ]},
@@ -41126,17 +41167,16 @@ window.DRL_gerarPDF=async function(opts){
     if(el && el.parentNode) el.parentNode.classList.toggle("on", on);
     marcarSujo();
   };
-  // DESP 3 (Avaliação FTN): lê/grava a Infraestrutura do gêmeo. null = não há ficha de campo ou ela não traz o item.
-  window.CAMPO_infraGet = function(){
-    if(!CAMPO) return null;
-    var c = FMAP["geral.infraSgpd"];
+  // DESP 3 (Avaliação FTN): lê/grava um grupo gêmeo ("geral.infraSgpd", "geral.servSgpd"). null = não há ficha de campo ou ela não traz o item.
+  window.CAMPO_chksGet = function(cam){
+    var c = FMAP[cam]; if(!CAMPO || !c) return null;
     var tem = Array.isArray(getv(CAMPO, c.k)) || c.ids.some(function(id){ var x = getv(CAMPO, "campos." + id); return x && typeof x === "object" && "__chk" in x; });
     return tem ? chksMarcas(CAMPO, c) : null;
   };
-  window.CAMPO_infraSet = function(marc){
-    if(!CAMPO) return false;
-    chksGravar(CAMPO, FMAP["geral.infraSgpd"], marc || []);
-    refazerCampo("geral.infraSgpd");
+  window.CAMPO_chksSet = function(cam, marc){
+    var c = FMAP[cam]; if(!CAMPO || !c) return false;
+    chksGravar(CAMPO, c, marc || []);
+    refazerCampo(cam);
     return true;
   };
   function regenerarSn(cam){
@@ -51262,6 +51302,8 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
 /* ===== DESP 3 › Avaliação FTN › Aspectos Gerais do laudo (SGPD, seções 4 a 9) — 18/10/2026 =====
    Campos novos no topo da aba (#av_sg, ids av_sg_*). Entram no cadastro como qualquer campo com id num painel;
    não saem no PDF do memorial de cálculo (o gerador lê ids próprios) nem no Word (data-sem-doc).
+   - Serviços em 1 km (geral.servSgpd, av_sg_serv_N): mesmo esquema da Infraestrutura.
+   - Localização: lado de cada perímetro calculado pelo KML × estacas do projeto do lote (ver AVSG_calcularLado).
    - Infraestrutura: gêmea do item da aba Campo › 2 · Caracterização do Imóvel (geral.infraSgpd + campos.av_sg_infra_N,
      mesmos ids destas caixas). Com ficha de campo, as duas se espelham; sem ficha, vale o que for marcado aqui.
    - Vistoria: Data e Observação vêm da Ficha de Vistoria (fb_data, fb_15_obs), só leitura.
@@ -51274,14 +51316,15 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
   function gv(id){ var e = G(id); return e ? String(e.value || "").trim() : ""; }
   function sujo(){ try{ if(window.CAD_marcarSujo) window.CAD_marcarSujo(); }catch(e){} }
 
-  /* ---------- Infraestrutura (gêmea da aba Campo) ---------- */
-  function infraDom(){
+  /* ---------- grupos gêmeos da aba Campo: Infraestrutura e Serviços em 1 km ---------- */
+  var GEMEOS = { infra:"geral.infraSgpd", serv:"geral.servSgpd" };
+  function gemeoDom(g){
     var out = [];
-    for(var i = 0; i < NI; i++){ var e = G("av_sg_infra_" + i); if(e && e.checked) out.push(e.value); }
+    for(var i = 0; i < NI; i++){ var e = G("av_sg_" + g + "_" + i); if(e && e.checked) out.push(e.value); }
     return out;
   }
-  function infraDoCampo(){
-    var marc = window.CAMPO_infraGet ? window.CAMPO_infraGet() : null, org = G("av_sg_infra_origem");
+  function gemeoDoCampo(g){
+    var marc = window.CAMPO_chksGet ? window.CAMPO_chksGet(GEMEOS[g]) : null, org = G("av_sg_" + g + "_origem");
     var temFicha = !!(window.CAMPO_getFicha && window.CAMPO_getFicha());
     if(org) org.textContent = marc ? " vem da aba Campo › Caracterização do Imóvel (as duas se espelham)"
                           : temFicha ? " a ficha de campo ainda não traz este item: o que marcar aqui vai para a aba Campo"
@@ -51289,21 +51332,28 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     if(!marc) return;
     var mudou = false;
     for(var i = 0; i < NI; i++){
-      var e = G("av_sg_infra_" + i); if(!e) continue;
+      var e = G("av_sg_" + g + "_" + i); if(!e) continue;
       var on = marc.indexOf(e.value) >= 0;
       if(e.checked !== on){ e.checked = on; mudou = true; }
     }
     if(mudou && !window.__CAD_RESTAURANDO) sujo();
   }
+  function infraDoCampo(){ gemeoDoCampo("infra"); gemeoDoCampo("serv"); }
   document.addEventListener("change", function(ev){
-    var el = ev.target;
-    if(!ev.isTrusted || !el || !/^av_sg_infra_\d$/.test(el.id || "")) return;   // só clique do usuário (restaurar/zerar o cadastro não conta)
-    if(window.CAMPO_infraSet) window.CAMPO_infraSet(infraDom());
+    var el = ev.target, m = el && /^av_sg_(infra|serv)_\d$/.exec(el.id || "");
+    if(!ev.isTrusted || !m) return;                                            // só clique do usuário (restaurar/zerar o cadastro não conta)
+    if(window.CAMPO_chksSet) window.CAMPO_chksSet(GEMEOS[m[1]], gemeoDom(m[1]));
     sujo();
   });
   // ficha de campo trocada (abrir cadastro, importar) → a DESP 3 acompanha
   var setFicha0 = window.CAMPO_setFicha;
-  if(setFicha0) window.CAMPO_setFicha = function(o){ var r = setFicha0.apply(this, arguments); try{ infraDoCampo(); }catch(e){} return r; };
+  if(setFicha0) window.CAMPO_setFicha = function(o){
+    var r = setFicha0.apply(this, arguments);
+    try{ infraDoCampo(); }catch(e){}
+    // cadastro aberto com a aba já à vista: os automáticos rodam depois que o restante do cadastro terminar de entrar
+    setTimeout(function(){ var p = G("panel-avaliacao-ftn"); if(p && p.classList.contains("ativa") && !window.__CAD_RESTAURANDO) aoAbrir(); }, 1500);
+    return r;
+  };
 
   /* ---------- Vistoria: espelho da Ficha de Vistoria ---------- */
   function semMarcas(t){ return String(t || "").replace(/<[^>]+>/g, "").replace(/\*\*/g, "").replace(/\r/g, "").trim(); }
@@ -51414,9 +51464,83 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     finally{ gerando = false; }
   };
 
+  /* ---------- Lado de cada perímetro (KML da área desapropriada × estacas do projeto do lote) ----------
+     estacas.json › k = [[lon, lat, metros], …] a cada 100 m: a polilinha é o eixo no sentido crescente do km.
+     Cada vértice do perímetro cai à direita ou à esquerda do trecho do eixo mais próximo (produto vetorial). */
+  var EIXO = {};
+  async function eixoDoLote(lote){
+    var sps = String(parseInt(lote, 10) || "").padStart(2, "0");
+    if(!lote || sps === "00") throw new Error("sem Nº do lote (SPS) na Ficha de Vistoria");
+    if(EIXO[sps]) return EIXO[sps];
+    var gs = await (await fetch("/api/mapa/projetos", { cache:"no-cache" })).json();
+    var g = (Array.isArray(gs) ? gs : []).filter(function(x){ return x && String(x.sps).padStart(2, "0") === sps; })[0];
+    var c = g && (g.camadas || []).filter(function(x){ return x.tipo === "estacas" || /^estacas\.json$/i.test(x.arquivo || ""); })[0];
+    if(!c) throw new Error("o projeto do SPS-" + sps + " não tem a camada de estacas");
+    var j = await (await fetch("/api/mapa/projeto/" + encodeURIComponent(g.pasta) + "/" + encodeURIComponent(c.arquivo))).json();
+    var k = (j && Array.isArray(j.k) ? j.k : []).filter(function(p){ return p && isFinite(p[0]) && isFinite(p[1]) && isFinite(p[2]); });
+    if(k.length < 2) throw new Error("estacas do SPS-" + sps + " sem cadeamento");
+    k.sort(function(a, b){ return a[2] - b[2]; });
+    return (EIXO[sps] = k);
+  }
+  function ladoDoPerimetro(ring, k){
+    var la0 = ring[0][1] * Math.PI / 180, fx = 111320 * Math.cos(la0), fy = 110540;
+    var A = k.map(function(p){ return [p[0] * fx, p[1] * fy, p[2]]; });
+    var dir = 0, esq = 0, kmin = Infinity, kmax = -Infinity, dmin = Infinity;
+    ring.forEach(function(q){
+      var px = q[0] * fx, py = q[1] * fy, best = null;
+      for(var i = 0; i < A.length - 1; i++){
+        var ax = A[i][0], ay = A[i][1], dx = A[i+1][0] - ax, dy = A[i+1][1] - ay, L2 = dx * dx + dy * dy; if(!L2) continue;
+        var t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / L2));
+        var cx = ax + t * dx, cy = ay + t * dy, d2 = (px - cx) * (px - cx) + (py - cy) * (py - cy);
+        if(!best || d2 < best.d2) best = { d2:d2, cr:dx * (py - ay) - dy * (px - ax), ch:A[i][2] + t * (A[i+1][2] - A[i][2]) };
+      }
+      if(!best) return;
+      dmin = Math.min(dmin, Math.sqrt(best.d2));
+      kmin = Math.min(kmin, best.ch); kmax = Math.max(kmax, best.ch);
+      if(Math.sqrt(best.d2) < 3) return;                                      // perto do eixo não decide o lado (a corda entre estacas desvia do eixo real nas curvas)
+      if(best.cr < 0) dir++; else esq++;
+    });
+    var lado = dir && esq ? "Direito e Esquerdo" : dir ? "Direito" : esq ? "Esquerdo" : "";
+    return { lado:lado, kmin:kmin, kmax:kmax, longe:dmin > 3000 };
+  }
+  var calculandoLado = false;
+  window.AVSG_calcularLado = async function(auto){
+    var ta = G("av_sg_lado"), st = G("av_sg_lado_st"); if(!ta || calculandoLado) return;
+    var polys = lerKml((window.REL_getKML ? window.REL_getKML().kml : "") || "");
+    if(!polys.length){ if(!auto && st){ st.className = "av-sg-st erro"; st.textContent = "Sem KML da área desapropriada (Técnica)."; } return; }
+    calculandoLado = true; if(st){ st.className = "av-sg-st"; st.textContent = "Calculando pelas estacas do projeto…"; }
+    try{
+      var k = await eixoDoLote(gv("fb_proc_lote"));
+      var linhas = [], aviso = "";
+      polys.forEach(function(r, i){
+        var x = ladoDoPerimetro(r, k);
+        if(x.longe) aviso = "Algum perímetro está a mais de 3 km do eixo: confira o lote (SPS) da Ficha.";
+        linhas.push("Perímetro " + (i + 1) + ": " + (x.lado || "sobre o eixo"));
+      });
+      var novo = linhas.join("\n");
+      if(ta.value !== novo){ ta.value = novo; ta.dispatchEvent(new Event("input", { bubbles:true })); sujo(); }
+      if(st){ st.className = "av-sg-st" + (aviso ? " erro" : ""); st.textContent = aviso || ("Calculado: " + polys.length + " perímetro(s)."); }
+    }catch(e){ if(st){ st.className = "av-sg-st erro"; st.textContent = "Não foi possível calcular: " + e.message; } }
+    finally{ calculandoLado = false; }
+  };
+
+  /* ---------- Ficha de Vistoria 1.3: Subtipo do SGPD (Normal/Posseiro/Espólio). Pessoa Jurídica não tem Espólio. ---------- */
+  function subtipo(){
+    var s = G("fb_subtipo"), w = G("fb_esp_wrap"), pj = G("fb_pf_pj_pj"); if(!s) return;
+    var opEsp = Array.prototype.filter.call(s.options, function(o){ return o.value === "Espólio"; })[0];
+    var ehPj = !!(pj && pj.checked);
+    if(opEsp) opEsp.disabled = ehPj;
+    if(ehPj && s.value === "Espólio"){ s.value = "Normal"; if(!window.__CAD_RESTAURANDO) sujo(); }
+    if(w) w.style.display = (s.value === "Espólio") ? "" : "none";
+  }
+  ["input", "change"].forEach(function(t){
+    document.addEventListener(t, function(ev){ var id = ev.target && ev.target.id; if(id === "fb_subtipo" || id === "fb_pf_pj_pf" || id === "fb_pf_pj_pj") subtipo(); });
+  });
+
   /* ---------- ao abrir a aba ---------- */
-  function aoAbrir(){ try{ infraDoCampo(); vistoria(); window.AVSG_gerarDescricao(false); }catch(e){ console.warn("AVSG:", e); } }
+  function aoAbrir(){ try{ infraDoCampo(); vistoria(); window.AVSG_gerarDescricao(false); if(!gv("av_sg_lado")) window.AVSG_calcularLado(true); }catch(e){ console.warn("AVSG:", e); } }
   function ligar(){
+    subtipo();
     var p = G("panel-avaliacao-ftn"); if(!p) return;
     var antes = p.classList.contains("ativa");
     new MutationObserver(function(){ var ag = p.classList.contains("ativa"); if(ag && !antes) aoAbrir(); antes = ag; }).observe(p, { attributes:true, attributeFilter:["class"] });
@@ -52186,7 +52310,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.18-1';
+window.APP_VERSAO = '2026.10.18-2';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.17-5';
 (function(){
