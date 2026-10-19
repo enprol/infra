@@ -28918,8 +28918,15 @@ function AV_gerarDescSituacao(){
       }
       if(sec === "HEADER" && p[0] === 9 && p[1] === "$LTSCALE"){ var lv = P[j+1]; if(lv && lv[0] === 40 && +lv[1] > 0) ltscale = +lv[1]; j += 2; continue; }
       if(sec === "TABLES" && p[0] === 0 && p[1] === "LTYPE"){                     // tipos de linha: comprimentos (49) — + traço, − espaço, 0 ponto
-        var lt = lerEnt(), ln = "", el = []; lt.g.forEach(function(q){ if(q[0] === 2) ln = q[1]; else if(q[0] === 49) el.push(+q[1]); });
-        if(ln && el.length) ltypes[ln.toUpperCase()] = el; continue;
+        var lt = lerEnt(), ln = "", el = [], mk = [], cm = null;
+        lt.g.forEach(function(q){
+          if(q[0] === 2) ln = q[1];
+          else if(q[0] === 49){ el.push(+q[1]); cm = null; }
+          else if(q[0] === 74 && el.length && (+q[1] & 6)){ cm = { k:el.length - 1, tipo:(+q[1] & 2) ? "txt" : "shape", abs:!!(+q[1] & 1), sc:1, rot:0, ox:0, oy:0, txt:"" }; mk.push(cm); }
+          else if(cm){ if(q[0] === 46) cm.sc = +q[1] || 1; else if(q[0] === 50) cm.rot = +q[1] || 0; else if(q[0] === 44) cm.ox = +q[1] || 0; else if(q[0] === 45) cm.oy = +q[1] || 0; else if(q[0] === 9) cm.txt = q[1]; }
+        });
+        // 19/10/2026: o "X" da CERCA (texto embutido no tipo de linha) — formas SHX (74 bit 4) não têm como ser desenhadas e ficam de fora
+        if(ln && el.length){ el.marks = mk.filter(function(m){ return m.tipo === "txt" && m.txt; }); ltypes[ln.toUpperCase()] = el; } continue;
       }
       if(sec === "TABLES" && p[0] === 0 && p[1] === "LAYER"){
         var lg = lerEnt(), nm = "", cor = 7, fl = 0, lw = -3, tc = null, lty = "";
@@ -28999,19 +29006,20 @@ function AV_gerarDescSituacao(){
       // tipo de linha: da entidade, ByLayer (da camada) ou ByBlock (do bloco); escala = $LTSCALE × escala da entidade (48) × escala do bloco
       var ltn = String(s1(e, 6, "BYLAYER")).toUpperCase(); if(ltn === "BYLAYER") ltn = String((layers[layer] || {}).lt || "CONTINUOUS").toUpperCase();
       var escLt = (herdEsc || 1)*g1(e, 48, 1), dash = ltn === "BYBLOCK" ? herdLt : (ltypes[ltn] ? ltypes[ltn].map(function(v){ return v*ltscale*escLt; }) : null);
-      var add = function(pr, tf2, ly, c2, w2){ pr.op = op; pr.hd = hd; if(dash && pr.k === "L") pr.dash = dash; return add0(pr, tf2, ly, c2, w2); };
+      var marks = (ltn !== "BYBLOCK" && ltypes[ltn] && ltypes[ltn].marks && ltypes[ltn].marks.length) ? { l:ltypes[ltn].marks, esc:ltscale*escLt } : null;
+      var add = function(pr, tf2, ly, c2, w2){ pr.op = op; pr.hd = hd; if(dash && pr.k === "L"){ pr.dash = dash; if(marks) pr.marks = marks; } return add0(pr, tf2, ly, c2, w2); };
       var X = function(x){ return mir ? -x : x; };
       if(t === "LINE") add({ k:"L", pts:[[g1(e,10,0), g1(e,20,0)], [g1(e,11,0), g1(e,21,0)]] }, tf, layer, cor, lw);
       else if(t === "LWPOLYLINE"){
         var vs = [], cur = null; e.g.forEach(function(q){ if(q[0] === 10){ cur = [X(+q[1]), 0, 0]; vs.push(cur); } else if(q[0] === 20 && cur) cur[1] = +q[1]; else if(q[0] === 42 && cur) cur[2] = mir ? -(+q[1]) : +q[1]; });
         var fech = (g1(e, 70, 0) & 1) === 1, o = vs.length ? [[vs[0][0], vs[0][1]]] : [];
         for(var k = 1; k < vs.length + (fech ? 1 : 0); k++){ var a = vs[k-1], b = vs[k % vs.length]; bulgePts([a[0], a[1]], [b[0], b[1]], a[2], o); }
-        if(o.length > 1) add({ k:"L", pts:o }, tf, layer, cor, lw);
+        if(o.length > 1) add({ k:"L", pts:o, wid:g1(e, 43, 0) }, tf, layer, cor, lw);   // 43 = largura global (unidades do desenho)
       } else if(t === "POLYLINE"){
         var fl = g1(e, 70, 0); if(fl & (16 | 64)) { nIgn["POLYLINE malha"] = (nIgn["POLYLINE malha"] || 0) + 1; return; }
         var vv = (e.vs || []).filter(function(v){ return !(g1(v, 70, 0) & 16); }).map(function(v){ return [X(g1(v,10,0)), g1(v,20,0), mir ? -g1(v,42,0) : g1(v,42,0)]; }), fe = (fl & 1) === 1, o2 = vv.length ? [[vv[0][0], vv[0][1]]] : [];
         for(var m = 1; m < vv.length + (fe ? 1 : 0); m++){ var a2 = vv[m-1], b2 = vv[m % vv.length]; bulgePts([a2[0], a2[1]], [b2[0], b2[1]], a2[2], o2); }
-        if(o2.length > 1) add({ k:"L", pts:o2 }, tf, layer, cor, lw);
+        if(o2.length > 1) add({ k:"L", pts:o2, wid:Math.max(g1(e, 40, 0), g1(e, 41, 0)) }, tf, layer, cor, lw);
       } else if(t === "CIRCLE"){ var r = g1(e, 40, 0); if(r > 0) add({ k:"L", pts:arcoPts(X(g1(e,10,0)), g1(e,20,0), r, 0, 360) }, tf, layer, cor, lw); }
       else if(t === "ARC"){ var cx = g1(e,10,0), r2 = g1(e,40,0), s0 = g1(e,50,0), s9 = g1(e,51,360);
         if(mir){ cx = -cx; var tmp = 180 - s9; s9 = 180 - s0; s0 = tmp; } if(r2 > 0) add({ k:"L", pts:arcoPts(cx, g1(e,20,0), r2, s0, s9) }, tf, layer, cor, lw); }
@@ -29209,9 +29217,31 @@ function AV_gerarDescSituacao(){
         var tr = null;
         if(p.dash && p.dash.length > 1){ var mm = p.dash.map(function(v){ return Math.abs(v)*T.mmPorM; }), tot = mm.reduce(function(a, b){ return a + b; }, 0);
           if(tot >= .6 && tot < 400){ tr = mm.map(function(v){ return Math.max(.15, v); }); if(p.dash[0] < 0) tr.unshift(.0001); if(tr.length % 2) tr = tr.concat(tr); } }   // muito miúdo ou muito longo na escala: contínua
-        P.poli(pts, { cor:p.cor, peso:p.lw, fechar:false, opac:op, tracejado:tr || undefined });
+        var pesoL = p.lw; if(p.wid > 0) pesoL = Math.max(pesoL, p.wid*T.mmPorM);      // 19/10/2026: largura global da polilinha (43) vale no papel
+        P.poli(pts, { cor:p.cor, peso:pesoL, fechar:false, opac:op, tracejado:tr || undefined });
+        if(tr && p.marks) dxfMarcasLinha(P, T, p);
       }
     });
+  }
+  /* 19/10/2026: texto embutido no tipo de linha (ex.: CERCA "----X----"). Cada marca fica no FIM do elemento a que está presa,
+     deslocada por 44/45 (na direção da linha e na perpendicular) e girada com a linha (74 bit 1 = rotação absoluta), com altura 46 —
+     tudo × escala do tipo de linha ($LTSCALE × 48 × bloco). */
+  function dxfMarcasLinha(P, T, p){
+    var d = p.dash, per = 0, ini = [], es = p.marks.esc || 1;
+    d.forEach(function(v){ ini.push(per); per += Math.abs(v); }); if(!(per > 0)) return;
+    var pts = p.pts, cum = [0]; for(var i = 1; i < pts.length; i++) cum.push(cum[i-1] + Math.hypot(pts[i][0] - pts[i-1][0], pts[i][1] - pts[i-1][1]));
+    var L = cum[cum.length - 1]; if(!(L > 0) || L/per > 4000) return;
+    var med = dxfMedidas("sans"), seg = 1;
+    function em(sv){ while(seg < cum.length - 1 && cum[seg] < sv) seg++; var a = pts[seg-1], b = pts[seg], dl = (cum[seg] - cum[seg-1]) || 1, t = (sv - cum[seg-1])/dl; return { x:a[0] + (b[0] - a[0])*t, y:a[1] + (b[1] - a[1])*t, ux:(b[0] - a[0])/dl, uy:(b[1] - a[1])/dl }; }
+    for(var s0 = 0; s0 < L; s0 += per){
+      p.marks.l.forEach(function(m){
+        var sv = s0 + ini[m.k] + Math.abs(d[m.k]); if(sv > L) return;
+        var q = em(sv), h = m.sc*es, tam = h*T.mmPorM/med.cap/0.3528; if(tam < 1.1 || tam > 360) return;
+        var ang = m.abs ? m.rot : (Math.atan2(q.uy, q.ux)*180/Math.PI + m.rot), ra = ang*Math.PI/180;
+        var x = q.x + Math.cos(ra)*m.ox*es - Math.sin(ra)*m.oy*es, y = q.y + Math.sin(ra)*m.ox*es + Math.cos(ra)*m.oy*es;
+        P.texto(T.x(x), T.y(y), m.txt, { tam:tam, rot:ang, align:"left", cor:p.cor, fam:"sans" });
+      });
+    }
   }
   function dxfResumo(){ var g = dxfGeo(); if(!g) return ""; if(g.erro) return "erro: " + g.erro; return g.prims.length + " elementos"; }
   function dxfEscolher(){
@@ -52508,7 +52538,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.19-11';
+window.APP_VERSAO = '2026.10.19-12';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.17-5';
 (function(){
