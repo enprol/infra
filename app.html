@@ -31842,6 +31842,50 @@ function AV_gerarDescSituacao(){
       analisar(); OPC.escala = escLer(); sincronizarBarras(); renderTudo(); agendarPreview(60);
     }
   };
+  /* 19/10/2026: UM PDF com todas as pranchas — com e sem satélite. Vários perímetros: planta geral e depois cada área na ordem do
+     estaqueamento; em cada uma, as pranchas com satélite seguidas das sem satélite. As páginas são juntadas com a pdf-lib. */
+  window.MDP_pdfPranchas = async function(){
+    var a = analisar(); if(a.erro){ alert(a.erro); return; }
+    if(!window.PDFLib){ alert("A biblioteca de PDF (pdf-lib) ainda não carregou. Tente de novo em instantes."); return; }
+    var load = $("mdp_comp_load"), aviso = function(t){ if(load){ load.textContent = t; load.style.display = "block"; } };
+    var multi = ANEIS.length > 1;
+    var est0 = { geral:ST.geral, area:ST.area, esc:OPC.escala, ini:ST.inicio, inv:ST.inverter };
+    var modos = multi ? [{ g:true }].concat(ordemIdx().map(function(i){ return { g:false, i:i }; })) : [{ atual:true }];
+    var vars = [{ sobre:{ satelite:true }, suf:"_COM-SATELITE", rot:"com satélite" }, { sobre:{ satelite:false, ortofoto:false }, suf:"_SEM-SATELITE", rot:"sem satélite" }];
+    var blobs = [];
+    try{
+      for(var k = 0; k < modos.length; k++){
+        var m = modos[k];
+        if(!m.atual){
+          ST.geral = m.g;
+          if(!m.g){ ST.area = m.i; if(m.i === est0.area){ ST.inicio = est0.ini; ST.inverter = est0.inv; } else { ST.inicio = 0; ST.inverter = false; } }
+          G = null; PAN.x = 0; PAN.y = 0; CACHE_SAT.chave = ""; OPC.folha = 0; analisar(); OPC.escala = escLer();
+        }
+        for(var v = 0; v < vars.length; v++){
+          aviso("PDF das pranchas… " + (multi ? (ST.geral ? "planta geral" : ("Área " + numArea(ST.area))) + " — " : "") + vars[v].rot);
+          var r = await window.MDP_pdfPlanta({ sobre:vars[v].sobre, sufixo:vars[v].suf, retornar:true });
+          if(r && r.blob) blobs.push(r.blob);
+        }
+      }
+    } finally {
+      if(multi){
+        ST.geral = est0.geral; ST.area = est0.area; ST.inicio = est0.ini; ST.inverter = est0.inv; G = null; PAN.x = 0; PAN.y = 0; CACHE_SAT.chave = "";
+        try{ analisar(); OPC.escala = escLer(); sincronizarBarras(); renderTudo(); agendarPreview(60); }catch(e){}
+      }
+    }
+    if(!blobs.length){ if(load) load.style.display = "none"; return; }
+    aviso("juntando as pranchas em um PDF…");
+    var out = await window.PDFLib.PDFDocument.create();
+    for(var b = 0; b < blobs.length; b++){
+      var src = await window.PDFLib.PDFDocument.load(await blobs[b].arrayBuffer());
+      (await out.copyPages(src, src.getPageIndices())).forEach(function(p){ out.addPage(p); });
+    }
+    var c = doCadastro();
+    var nome = "PLANTA_SITUACAO_INFRA_" + (c.ferrovia || "FTN") + "_CTD-" + (c.ctd || "000") + "_PRANCHAS.pdf";
+    var blob = new Blob([await out.save()], { type:"application/pdf" });
+    if(load) load.style.display = "none";
+    await window.FS_salvar(blob, nome);
+  };
   window.MDP_render = function(){
     var ex = extras();
     if(ex.formato && FORMATOS[ex.formato]) OPC.formato = ex.formato;
@@ -32653,7 +32697,7 @@ function AV_gerarDescSituacao(){
      clicar abre a conferência. O portão de antes de gerar (v2Gate) continua valendo. */
   var EXP_ITENS = [
     ["PRANCHA"],
-    ["pdfSat", "PDF da prancha — com satélite"], ["pdf", "PDF da prancha — sem satélite"], ["jpg", "JPG do quadro do mapa"],
+    ["pdfTudo", "PDF das pranchas — com e sem satélite (um arquivo)"], ["jpg", "JPG do quadro do mapa"],
     ["CAD"],
     ["dxf", "DXF — UTM, uma camada por elemento"], ["dwg", "DWG — AutoCAD 2010 (pelo CADCraft)"],
     ["MEMORIAL DESCRITIVO"],
@@ -32662,7 +32706,7 @@ function AV_gerarDescSituacao(){
     ["dossie", "Dossiê ZIP — planta, DXF, memorial e KML"]
   ];
   var EXP_FN = {
-    pdfSat:function(){ return window.MDP_pdfPlantaCom(); }, pdf:function(){ return window.MDP_pdfPlantaSem(); },
+    pdfTudo:function(){ return window.MDP_pdfPranchas(); },
     jpg:function(){ return window.MDP_jpgQuadro(); }, dxf:function(){ return window.MDP_exportarDxf(); },
     dwg:function(){ return window.MDP_exportarDxf({ dwg:true }); }, memPdf:function(){ return window.MDP_pdfMemorial(); },
     memWord:function(){ return window.MDP_wordMemorial(); }, dossie:function(){ return window.MDP_v2Dossie(); }
@@ -52392,7 +52436,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.19-5';
+window.APP_VERSAO = '2026.10.19-6';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.17-5';
 (function(){
