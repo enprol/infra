@@ -9764,6 +9764,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 .v2-toast{ position:fixed; left:50%; bottom:26px; transform:translate(-50%,12px); background:#0e2329; color:#e8f1f3; padding:9px 18px; border-radius:22px; font:600 12.5px/1 "Segoe UI",Arial,sans-serif; z-index:2000200; opacity:0; pointer-events:none; transition:opacity .2s, transform .2s; box-shadow:0 10px 30px rgba(0,0,0,.4); }
 .v2-toast.on{ opacity:1; transform:translate(-50%,0); }
 .v2-tab input.v2-txt{ width:100%; min-width:170px; box-sizing:border-box; font:inherit; padding:5px 7px; border:1px solid #c5d3e0; border-radius:6px; background:#fff; } .v2-tab input.v2-txt:focus{ outline:2px solid #175a9f55; border-color:#175a9f; } .v2-tab em.igual{ color:#7a8797; font-style:normal; font-size:11px; }
+.mz-per{ display:flex; flex-wrap:wrap; gap:4px; flex:1 1 100%; margin:0 0 6px; border-bottom:1px solid #dbe6f0; } .mz-per-b{ font:inherit; font-size:12px; font-weight:700; padding:6px 11px; border:1px solid #dbe6f0; border-bottom:0; border-radius:7px 7px 0 0; background:#f3f7fb; color:#516479; cursor:pointer; } .mz-per-b.on{ background:#fff; color:#175a9f; border-color:#175a9f; box-shadow:inset 0 2px 0 #175a9f; } .mz-per-b:hover:not(.on){ background:#e8f0f8; }
 </style>
 <div class="wrap">
 <h1>Planta e Memorial Descritivo</h1>
@@ -25662,6 +25663,8 @@ function AV_gerarDescSituacao(){
     try{ o = JSON.parse(gv("mdp_extras") || "{}") || {}; }catch(e){}
     return o;
   }
+  // 19/10/2026: com vários perímetros, os limites manuais (NORTE/SUL/LESTE/OESTE) são de cada área; a Área 1 mantém as chaves antigas
+  function limK(k){ return (ANEIS.length > 1 && ST.area > 0) ? (k + "__a" + ST.area) : k; }
   function setExtra(k, v){
     var o = extras(); o[k] = v;
     var el = $("mdp_extras"); if(!el) return;
@@ -26008,7 +26011,7 @@ function AV_gerarDescSituacao(){
   // limites por rumo: usa o azimute de cada segmento (a face olha 90° à direita do caminhamento horário)
   function limites(){
     var ex = extras();
-    var man = { N:ex.lim_n||"", S:ex.lim_s||"", L:ex.lim_l||"", O:ex.lim_o||"" };
+    var man = { N:ex[limK("lim_n")]||"", S:ex[limK("lim_s")]||"", L:ex[limK("lim_l")]||"", O:ex[limK("lim_o")]||"" };
     if(!G) return man;
     // agrupa TRECHOS CONTÍGUOS com o mesmo confrontante e usa a normal externa do grupo
     // (caminhamento horário → a face olha para az-90). Lado de ponta às vezes pede ajuste:
@@ -26033,7 +26036,7 @@ function AV_gerarDescSituacao(){
     return r;
   }
   window.MDP_limitesAuto = function(){
-    var ex = extras(); ["lim_n","lim_s","lim_l","lim_o"].forEach(function(k){ setExtra(k, ""); });
+    var ex = extras(); ["lim_n","lim_s","lim_l","lim_o"].forEach(function(k){ setExtra(limK(k), ""); });
     return limites();
   };
   window.MDP_limites = limites;
@@ -30938,9 +30941,15 @@ function AV_gerarDescSituacao(){
       ent(sp, "CIRCLE", lay, e, ["100","AcDbCircle","10",nf(c[0]),"20",nf(c[1]),"30","0","40",nf(r)]);
     };
     // ha: 0 esquerda, 1 centro, 2 direita; va: 0 linha de base, 3 topo
-    D.texto = function(sp, lay, e, x, y, h, txt, rot, ha, va, estilo){
+    // larg (opcional) = largura do texto na unidade do espaço: com ele, o ponto de inserção (10) de um texto centralizado/à direita
+    // já é o início REAL do texto (âncora − largura/2 ou − largura) e a âncora vai só no ponto de alinhamento (11).
+    // 19/10/2026: o CADCraft grava o DWG com o texto justificado mas o AutoCAD ancora pela inserção (10) = a âncora, como se fosse à
+    // esquerda — valores da tabela vazavam da moldura e títulos do carimbo batiam no logo. Assim as duas leituras coincidem.
+    D.texto = function(sp, lay, e, x, y, h, txt, rot, ha, va, estilo, larg){
       txt = String(txt).replace(/[\r\n\t]+/g, " ").replace(/%%/g, "%%%");
-      var c = ["100","AcDbText","10",nf(x),"20",nf(y),"30","0","40",nf(h),"1",txt,"50",nf(rot || 0),"7",estilo || "ENP_ARIAL"];
+      var x0 = x, y0 = y;
+      if(ha && larg > 0){ var rr = (rot || 0)*Math.PI/180, dd = ha === 1 ? larg/2 : larg; x0 = x - dd*Math.cos(rr); y0 = y - dd*Math.sin(rr); }
+      var c = ["100","AcDbText","10",nf(x0),"20",nf(y0),"30","0","40",nf(h),"1",txt,"50",nf(rot || 0),"7",estilo || "ENP_ARIAL"];
       if(ha || va) c.push("72", String(ha || 0), "11", nf(x), "21", nf(y), "31", "0");
       c.push("100", "AcDbText");
       if(va) c.push("73", String(va));
@@ -31255,7 +31264,7 @@ function AV_gerarDescSituacao(){
         var pt = o.tam || 2, h = L(pt*.35278*.716), p = XY([x, y]), cor = o.cor || COR.carimbo;
         var ha = o.align === "center" ? 1 : (o.align === "right" ? 2 : 0), st = o.mono ? "ENP_MONO" : (o.bold ? "ENP_ARIAL_NEGRITO" : "ENP_ARIAL");
         if(o.halo) D.textoMascara(sp(), lay(cor), est(cor, null, o.opac), p[0], p[1], h, txt, o.rot || 0, ha, st);
-        else D.texto(sp(), lay(cor), est(cor, null, o.opac), p[0], p[1], h, txt, o.rot || 0, ha, 0, st);
+        else D.texto(sp(), lay(cor), est(cor, null, o.opac), p[0], p[1], h, txt, o.rot || 0, ha, 0, st, (ha && !o.mono) ? L(P.largura(txt, { tam:pt, bold:o.bold })) : 0);
       },
       largura: function(txt, o){
         o = o || {}; var pt = o.tam || 2;
@@ -31435,12 +31444,36 @@ function AV_gerarDescSituacao(){
       '</div></details>';
     return h;
   }
+  // Dados do memorial por perímetro: uma aba por área (limites e confrontantes são de cada uma)
+  function perAbasHtml(){
+    if(ANEIS.length < 2) return "";
+    return '<div class="mz-per" role="tablist" aria-label="Perímetros do cadastro">' + ANEIS.map(function(a, i){
+      var on = (i === ST.area && !ST.geral);
+      return '<button type="button" role="tab" class="mz-per-b' + (on ? ' on' : '') + '" aria-selected="' + on + '" onclick="MDP_usarArea(' + i + ')">Área ' + (i + 1) + (a.nome ? ' — ' + esc(a.nome) : '') + '</button>';
+    }).join("") + '</div><p class="mz-gav-s" style="flex:1 1 100%;margin:0 0 6px">' + (ST.geral ? 'Planta geral: escolha uma área para editar os limites e confrontantes dela.' :
+      'Limites e confrontantes da <b>Área ' + (ST.area + 1) + '</b> — cada perímetro tem os seus.') + '</p>';
+  }
+  function confGruposHtml(){
+    if(ANEIS.length < 2 || !G) return "";
+    var gr = gruposConf(confrontantes());
+    var t = '<div class="mz-gav-sub" style="flex:1 1 100%;margin-top:6px">Confrontantes da Área ' + (ST.area + 1) + '</div>';
+    if(!gr.length) return t + '<p class="mz-gav-s" style="flex:1 1 100%">Nenhum confrontante informado nesta área. Preencha na tabela de vértices ou use “Sugerir confrontantes por vizinhança”.</p>';
+    return t + gr.map(function(g, k){
+      var a = G.segs[g.segs[0]], z = G.segs[g.segs[g.segs.length - 1]];
+      return '<div class="vfield grow"><label>' + esc(G.v[a.de].nome + ' → ' + G.v[z.para].nome) + '</label><input type="text" value="' + esc(g.nome) + '" onchange="MDP_setGrupoConf(' + k + ',this.value)"></div>';
+    }).join("");
+  }
+  window.MDP_setGrupoConf = function(k, v){
+    if(!G) return; var g = gruposConf(confrontantes())[k]; if(!g) return;
+    var c = conf(); g.segs.forEach(function(i){ c[i] = c[i] || {}; c[i].c = String(v).trim(); });
+    setConf(c); renderTabela(); renderMemorial(); renderCampos(); agendarPreview(200);
+  };
   function inputEx(k, rot, ph){
     var v = extras()[k] || "";
     return '<div class="vfield grow"><label>' + esc(rot) + '</label><input type="text" value="' + esc(v) + '" placeholder="' + esc(ph||"") + '" oninput="MDP_setEx(\'' + k + '\',this.value)"></div>';
   }
   window.MDP_setEx = function(k, v){ setExtra(k, v); if(/^lim_/.test(k)) renderTabela(); if(k === "expropriado_fonte") renderCampos(); renderMemorial(); agendarPreview(1000); };
-  window.MDP_limparLim = function(){ ["lim_n","lim_s","lim_l","lim_o"].forEach(function(k){ setExtra(k, ""); }); renderCampos(); renderTabela(); };
+  window.MDP_limparLim = function(){ ["lim_n","lim_s","lim_l","lim_o"].forEach(function(k){ setExtra(limK(k), ""); }); renderCampos(); renderTabela(); };
   window.MDP_setObs = function(i, v){
     var o = extras().obs || []; o[i] = v; setExtra("obs", o);
     // a mesma observação aparece na tabela do painel e na gaveta da Mesa: mantém as cópias iguais sem tirar o foco de quem digita
@@ -31707,7 +31740,7 @@ function AV_gerarDescSituacao(){
       if(a) a.innerHTML = hMem;
       if(a2) a2.innerHTML = hMem;                              // Mesa, gaveta Memorial › Dados: os mesmos campos
     }
-    var lm = $("mdp_campos_lim"), hLim = CAMPOS_LIM.map(function(f){ return inputEx(f[0], f[1], f[3]); }).join("");
+    var lm = $("mdp_campos_lim"), hLim = perAbasHtml() + CAMPOS_LIM.map(function(f){ return inputEx(limK(f[0]), f[1], f[3]); }).join("") + confGruposHtml();
     if(lm) lm.innerHTML = hLim;
     if(lm2) lm2.innerHTML = hLim;
     if(b) b.innerHTML = camposCarimbo();
@@ -52338,7 +52371,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.19-3';
+window.APP_VERSAO = '2026.10.19-4';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.17-5';
 (function(){
