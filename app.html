@@ -27709,17 +27709,20 @@ function AV_gerarDescSituacao(){
       var e = EST(tipo === "est" ? "app_est" : tipo);
       CAMDXF(P, camada + "_AREA");
       if(ROT_P !== P){ ROT_P = P; ROT_OCUP = []; }              // rótulos já postos nesta folha
-      pecas.forEach(function(r){
+      pecas.forEach(function(r, pi){
         var ha = Math.abs(areaAnel(r))/10000; if(ha < .00005) return;
         var pt = pontoRotulo(r), q = [T.x(pt[0]), T.y(pt[1])];
+        var kRot = "i" + tipo + pi, man = rotPosDe(kRot);          // 19/10/2026: movido à mão na composição (centro do rótulo)
+        if(man) q = [T.x(man.E), T.y(man.N)];
         if(!noMapa(q, 0)) return;
         // título em cima (nome da camada) e a área embaixo, em corpo maior (13/10/2026)
         var t1 = String(rotulo), t2 = br(ha, 4) + " ha", tt = TAM.conf*1.5, ta = TAM.conf*1.4;
         var o1 = { tam:tt, bold:true, align:"center", cor:e.cor || "#111111", halo:true }, o2 = { tam:ta, bold:true, align:"center", cor:"#111111", halo:true };
         var h1 = tt*.3528*.78, h2 = ta*.3528*.78, w = Math.max(P.largura(t1, o1), P.largura(t2, o2)), hL = h1 + 1.2 + h2 + 1.2, y = q[1];
         function bate(yy){ return ROT_OCUP.some(function(b){ return Math.abs(b.x - q[0]) < (b.w + w)/2 && Math.abs(b.y - yy) < (b.h + hL)/2; }); }
-        for(var k = 1; k <= 8 && bate(y); k++) y = q[1] + (k % 2 ? 1 : -1)*Math.ceil(k/2)*hL;   // desce/sobe até ficar livre
+        if(!man) for(var k = 1; k <= 8 && bate(y); k++) y = q[1] + (k % 2 ? 1 : -1)*Math.ceil(k/2)*hL;   // desce/sobe até ficar livre
         ROT_OCUP.push({ x:q[0], y:y, w:w, h:hL });
+        hitAdd({ tipo:"rot", key:kRot, cx:q[0], cy:y, w:w, h:hL, ang:0 });
         P.texto(q[0], y - hL/2 + h1 + .6, t1, o1);
         P.texto(q[0], y + hL/2 - .6, t2, o2);
       });
@@ -27839,6 +27842,22 @@ function AV_gerarDescSituacao(){
     ROT_OCUP.push({ x:q[0], y:y, w:w, h:hL });
     P.texto(q[0], y - hL/2 + h1 + .6, t1, o1);
     P.texto(q[0], y + hL/2 - .6, t2, o2);
+  }
+  /* 19/10/2026: Hidrografia (fonte hídrica) — o KML enviado em Técnica › Imóvel › Hidrografia (e listado na gaveta Fontes) sai na
+     prancha com o símbolo "Córrego / lagoa"; linha que cruza a área desapropriada leva o rótulo CURSO D'ÁGUA com a extensão. */
+  function desenharHidroImovel(P, T){
+    var txt = gv("imv_kml_hidro_dados"); if(!txt || !G) return;
+    var REC = recortesDesap();
+    CAMDXF(P, "ENP_HIDROGRAFIA");
+    aneisDoKml(txt).forEach(function(a){
+      var l = a.pts.map(function(p){ var u = utm(p[0], p[1], G.fuso); return [u.E, u.N]; });
+      var linha = a.tag === "LineString";
+      if(!linha && l.length > 2){ var f0 = l[0], z0 = l[l.length - 1]; if(Math.abs(f0[0] - z0[0]) > 1e-6 || Math.abs(f0[1] - z0[1]) > 1e-6) l.push(f0); }
+      var mm = l.map(function(p){ return [T.x(p[0]), T.y(p[1])]; });
+      if(mm.length < 2 || !caixaCruzaMapa(mm, 60)) return;
+      recortar(mm, 3).forEach(function(r){ if(r.length > 1) tracar(P, r, "corrego"); });
+      if(linha && REC.length) interLinha(P, T, l, REC);
+    });
   }
   function desenharExtras(P, T){
     var REC = recortesDesap();
@@ -28145,7 +28164,7 @@ function AV_gerarDescSituacao(){
   }
   function desenharNomesAreas(P, T){ CAMDXF(P, "ENP_AREA_TEXTO");
     var ESC_GERAL_TXT = geralAtivo() ? 2 : 1;   // planta geral: identificação das áreas bem maior
-    var tam = TAM.confMapa*.9*ESC_GERAL_TXT, tam2 = TAM.dist*(ESC_GERAL_TXT > 1 ? 1.8 : 1);
+    var tam = TAM.confMapa*.9*ESC_GERAL_TXT*1.5, tam2 = TAM.dist*(ESC_GERAL_TXT > 1 ? 1.8 : 1)*1.5;   // 19/10/2026: identificação da área 1,5x maior
     aneisUtm().forEach(function(a){
       var pol = a.v.map(function(q){ return [T.x(q.E), T.y(q.N)]; });
       var x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
@@ -29259,6 +29278,7 @@ function AV_gerarDescSituacao(){
     // estaqueamento acompanha o eixo: aparece se "Projeto revisado" OU "Faixa e eixo" estiver ligado
     if((op.projeto || op.fixo) && CTX.proj) desenharEstacas(P, T, CTX.proj, op.limGeo);
     if(op.extras) desenharExtras(P, T);
+    if(op.hidro !== false) desenharHidroImovel(P, T);
     if(quadroDxfAtivo()){ var gDxf = dxfGeo(); if(gDxf && gDxf.prims && gDxf.prims.length) desenharDxfQuadro(P, T, gDxf); }
 
     // malha de coordenadas
@@ -29790,12 +29810,13 @@ function AV_gerarDescSituacao(){
   /* =======================================================================
      PRÉ-VISUALIZAÇÃO NO PAINEL + JANELA DA PLANTA + PDF A3
      ======================================================================= */
-  var OPC = { satelite:false, ortofoto:false, solos:"", projeto:false, fixo:true, extras:false, ambiental:true, malha:true, vertices:true, rotulos:true, medidas:false, confMapa:true, cotas:false, perimTotal:true, escala:0, formato:"a3", folha:0 };
+  var OPC = { satelite:false, ortofoto:false, solos:"", projeto:false, fixo:true, extras:false, ambiental:true, malha:true, vertices:true, rotulos:true, medidas:false, confMapa:true, cotas:false, perimTotal:true, hidro:true, escala:0, formato:"a3", folha:0 };
   var CACHE_SAT = { chave:"", url:null };
   var SOLOS_USADOS = [];     // classes de solo desenhadas no último raster (para a chave dentro do mapa)
   var BARRA = [["satelite","Satélite","Imagem de satélite (Esri World Imagery)"], ["ortofoto","Ortofoto","Recorte da ortofoto do acervo (servidor) — precisa do GDAL com driver ECW"],
                ["projeto","Projeto revisado","Camadas do projeto revisado (aterro, corte, ferrovia, rodovia, estacas…)"], ["perimTotal","Perímetro do imóvel","Contorno total do imóvel (KML Área total), como limite de propriedade sem cerca"], ["fixo","Faixa e eixo","Faixa de domínio (verde) e eixo (laranja) do SPS, com as cotas de 40/80 m"],
                ["extras","Camadas extras","Camadas enviadas em GeoPackage/KML"],
+               ["hidro","Hidrografia","Fonte hídrica: KML de Hidrografia enviado na aba Fontes (Imóvel)"],
                ["ambiental","APP e reserva legal","Reserva legal e APP do CAR, mais a APP estimada enviada em Imóvel"],
                ["malha","Malha UTM","Malha de coordenadas"], ["medidas","Medidas","Distâncias sobre os lados"],
                ["confMapa","Confrontantes","Nome do confrontante ao longo do perímetro"],
@@ -30334,7 +30355,7 @@ function AV_gerarDescSituacao(){
     var dica = '<span class="mdp-sel-dica">arraste para mover</span>';
     if(h.tipo === "rot"){
       var man = !!rotPosDe(h.key);
-      return '<b>' + (h.key.charAt(0) === "a" ? "Rótulo da área" : "Nome do confrontante") + '</b>' + dica +
+      return '<b>' + (h.key.charAt(0) === "a" ? "Rótulo da área" : (h.key.charAt(0) === "i" ? "Rótulo da camada" : "Nome do confrontante")) + '</b>' + dica +
         '<button type="button" data-acao="auto"' + (man ? "" : " disabled") + ' title="Volta ao lugar escolhido automaticamente (Del)">↺ Posição automática</button>';
     }
     if(h.tipo === "leader"){
@@ -52487,7 +52508,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.19-9';
+window.APP_VERSAO = '2026.10.19-10';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.17-5';
 (function(){
