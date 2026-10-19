@@ -36561,7 +36561,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     const rg=g("rel_rg"), cpf=g("rel_cpf"), end=g("rel_endereco"), mun=g("rel_municipio"), cep=g("rel_cep");
     const imovel=g("rel_prop_id"), at=g("rel_area_total"), ad=g("rel_area_desap"), matr=g("rel_matricula"), cib=g("rel_cib"), cart=g("rel_cartorio");
     const ferro=g("rel_ferrovia"), lote=g("rel_lote"), subtr=g("rel_subtrecho"), proc=g("rel_processo"), sei=g("rel_sei"), contr=g("rel_contrato"), os=g("rel_os");
-    const grau=g("rel_grau_vuln")||"moderada";
+    const grau=REL_fraseGrau();
 
     if(qual==="apresentacao"){
       let t="O Contrato nº "+(contr||"____")+(sei?(" (SEI nº "+sei+")"):"")+" tem como objeto a contratação de empresa especializada em serviços de engenharia consultiva, destinada à execução de atividades relacionadas à desapropriação, ocupação temporária ou constituição de servidão administrativa de imóveis, bem como à gestão fundiária e à regularização de passivos de desapropriação. Essas atividades estão organizadas em produtos específicos, vinculados aos empreendimentos de infraestrutura que compõem o portfólio da INFRA S.A., sob responsabilidade regimental da Superintendência de Gestão Ambiental e Territorial (SUGAT), subordinada à Diretoria de Empreendimentos da estatal.\n\n";
@@ -36590,7 +36590,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
       setF("rel_34_sintese",t); return;
     }
     if(qual==="conclusao"){
-      let t="A partir da aplicação dos Critérios de Avaliação de Vulnerabilidade Socioeconômica, em conformidade com as diretrizes da Política Nacional de Assistência Social (PNAS) e da Lei Orgânica da Assistência Social – LOAS (Lei nº 8.742/1993), bem como considerando os indicadores do IVS/IPEA e dados do Cadastro Único (MDS), fontes oficiais para identificação de situações de risco e vulnerabilidade social e os parâmetros estabelecidos no Art. 2º e 3º da Resolução Normativa INFRA S.A. nº 07/2023/DIREX-INFRASA/CONSAD-INFRASA/AG-INFRASA, conclui-se que "+(nome?("o(a) proprietário(a) "):"")+"enquadra-se em situação de vulnerabilidade social "+grau+".\n\n";
+      let t="A partir da aplicação dos Critérios de Avaliação de Vulnerabilidade Socioeconômica, em conformidade com as diretrizes da Política Nacional de Assistência Social (PNAS) e da Lei Orgânica da Assistência Social – LOAS (Lei nº 8.742/1993), bem como considerando os indicadores do IVS/IPEA e dados do Cadastro Único (MDS), fontes oficiais para identificação de situações de risco e vulnerabilidade social e os parâmetros estabelecidos no Art. 2º e 3º da Resolução Normativa INFRA S.A. nº 07/2023/DIREX-INFRASA/CONSAD-INFRASA/AG-INFRASA, conclui-se que "+(nome?("o(a) proprietário(a) "):"")+"enquadra-se em situação de **"+grau+"**.\n\n";
       t+="A desapropriação não compromete a subsistência do(s) proprietário(s)/herdeiro(s) nem acarreta prejuízos significativos às suas condições de vida.";
       setF("rel_conclusao",t); return;
     }
@@ -36659,6 +36659,29 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     const grau=["ausência de vulnerabilidade","baixa","moderada","alta"][faixa];
     const gv=document.getElementById("rel_grau_vuln");
     if(gv && (!gv.value || gv.dataset.auto==="1")){ gv.value=grau; gv.dataset.auto="1"; }
+    aplicarGrauTextos();
+  }
+  // Faixa do IVS (0 ausência, 1 baixa, 2 moderada, 3 alta) a partir das respostas "Sim" da Tabela 1; null se a tabela estiver vazia
+  function faixaIVS(){
+    const t=tabelas[1]||[]; if(!t.length) return null;
+    const sims=t.filter(l=>(l.resp||"")==="Sim").length;
+    return sims===0?0:(sims<=2?1:(sims<=5?2:3));
+  }
+  const FRASES_IVS=["ausência de vulnerabilidade social","vulnerabilidade social baixa","vulnerabilidade social moderada","vulnerabilidade social alta"];
+  window.REL_fraseGrau=function(){
+    const fx=faixaIVS(); if(fx!==null) return FRASES_IVS[fx];
+    const m=g("rel_grau_vuln").toLowerCase();
+    return m==="baixa"?FRASES_IVS[1]:(m==="alta"?FRASES_IVS[3]:(m.indexOf("aus")===0?FRASES_IVS[0]:FRASES_IVS[2]));
+  };
+  // Mantém os textos automáticos coerentes com a Classificação do IVS (Tabela 1): troca a expressão do grau, em negrito
+  function aplicarGrauTextos(){
+    const fx=faixaIVS(); if(fx===null) return;
+    const re=/\*{0,2}(ausência de vulnerabilidade social|vulnerabilidade social (baixa|moderada|alta))\*{0,2}/g;
+    ["rel_texto_normativo","rel_tab2_coment"].forEach(function(id){
+      const e=document.getElementById(id); if(!e||!e.value) return;
+      const novo=e.value.replace(re,"**"+FRASES_IVS[fx]+"**");
+      if(novo!==e.value) setF(id,novo);
+    });
   }
   window.REL_atualizarIVS=atualizarIVS;
   window.REL_getTabela=function(n){ return tabelas[n]; };
@@ -37309,6 +37332,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     setF("rel_texto_normativo", TXT_NORMATIVO);
     setF("rel_tab2_coment", TXT_TAB2_COMENT);
     setF("rel_premissas", TXT_PREMISSAS);
+    aplicarGrauTextos();
   }
   // ---- 3.4 Síntese: texto padrão DINÂMICO (não aparece na web, entra no PDF) ----
   function textoPadraoSintese(){
@@ -37320,6 +37344,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
   // ---- Prepara os campos ocultos imediatamente antes de gerar PDF/Word ----
   function prepararParaDoc(){
     try{ aplicarAutoFill(); }catch(e){}
+    try{ atualizarIVS(); }catch(e){}
     // textos automáticos (ocultos na web) — sempre regerados a partir dos dados atuais
     ["apresentacao","qualificacao","atividade","objetivo","conclusao"].forEach(function(q){ try{ REL_gerarTexto(q); }catch(e){} });
     // 3.4 = texto padrão dinâmico + relato de campo digitado pelo usuário
@@ -52316,7 +52341,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.18-3';
+window.APP_VERSAO = '2026.10.19-1';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.17-5';
 (function(){
