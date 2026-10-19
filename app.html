@@ -9763,6 +9763,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 .v2-box .k{ color:#5a6b7c; }
 .v2-toast{ position:fixed; left:50%; bottom:26px; transform:translate(-50%,12px); background:#0e2329; color:#e8f1f3; padding:9px 18px; border-radius:22px; font:600 12.5px/1 "Segoe UI",Arial,sans-serif; z-index:2000200; opacity:0; pointer-events:none; transition:opacity .2s, transform .2s; box-shadow:0 10px 30px rgba(0,0,0,.4); }
 .v2-toast.on{ opacity:1; transform:translate(-50%,0); }
+.v2-tab input.v2-txt{ width:100%; min-width:170px; box-sizing:border-box; font:inherit; padding:5px 7px; border:1px solid #c5d3e0; border-radius:6px; background:#fff; } .v2-tab input.v2-txt:focus{ outline:2px solid #175a9f55; border-color:#175a9f; } .v2-tab em.igual{ color:#7a8797; font-style:normal; font-size:11px; }
 </style>
 <div class="wrap">
 <h1>Planta e Memorial Descritivo</h1>
@@ -29341,22 +29342,7 @@ function AV_gerarDescSituacao(){
           y += 3.4;
         }
       }
-      // confrontações + KM — só os trechos com confrontante informado (sem "P01–P01: —" nem NORTE/SUL/LESTE/OESTE)
-      y += 4;
-      // 1ª e última divisa com o mesmo confrontante = um grupo só (perímetro circular) — 05/10/2026
-      var grupos = geral ? [] : gruposConf(cs).map(function(g){
-        var a0 = G.segs[g.segs[0]], z0 = G.segs[g.segs[g.segs.length-1]];
-        return { nome:g.nome, de:G.v[a0.de].nome, para:G.v[z0.para].nome };
-      });
-      if(grupos.length){ P.texto(TAB.x + 2, y, "CONFRONTAÇÕES", { tam:5.8, bold:true }); y += 3.9; }
-      var espaco = TAB.y + TAB.h - 3 - y, nlin = grupos.length + ((op.km && !geral) ? 1 : 0), passo = Math.min(3.9, Math.max(2.6, espaco/nlin));
-      var tc = Math.min(TAM.conf, passo*1.5);
-      grupos.slice(0, 10).forEach(function(g){
-        P.texto(TAB.x + 2, y, g.de + "–" + g.para + ":", { tam:tc, bold:true });
-        P.texto(TAB.x + 22, y, g.nome, { tam:tc });
-        y += passo;
-      });
-      if(op.km && !geral){ P.texto(TAB.x + 2, y, "KM inicial / final:", { tam:tc, bold:true }); P.texto(TAB.x + 30, y, op.km.txt.replace(" ao ", "  /  "), { tam:tc }); }
+      // 19/10/2026: sem o bloco CONFRONTAÇÕES (pontos, nome do confrontante, KM inicial/final) abaixo da tabela
     })();
 
     /* ---------- carimbo ---------- */
@@ -29533,12 +29519,11 @@ function AV_gerarDescSituacao(){
       ls.forEach(function(t, k){ P.texto(xc + 7.8, oy + k*oLH, t, { tam:oTam }); });
     });
     var areasC = [["ÁREA DA RESERVA LEGAL:", (ex.reserva || "0,0000") + " ha"],
-     ["ÁREA DE APP:", (ex.app || "0,0000") + " ha"],
-     ["REFERÊNCIA BASE DO CAR:", ex.car_ref || ""]];
+     ["ÁREA DE APP:", (ex.app || "0,0000") + " ha"]];   // 19/10/2026: sem a referência base do CAR
     if(largo){
       P.linha(xAreas, y, xAreas, y + h, { peso:.25 });
-      P.texto(xAreas + 1.8, y + 4.4, "ÁREAS E REFERÊNCIA:", { tam:6.9, bold:true });
-      var hA = (y + h - (y + hcab))/3;
+      P.texto(xAreas + 1.8, y + 4.4, "ÁREAS:", { tam:6.9, bold:true });
+      var hA = (y + h - (y + hcab))/areasC.length;
       areasC.forEach(function(r, i){
         var by = y + hcab + i*hA;
         if(i) P.linha(xAreas, by, c1, by, { cor:"#9aa7b5", peso:.1 });
@@ -30497,7 +30482,7 @@ function AV_gerarDescSituacao(){
       carCel("aprovacao", "Aprovação", "", "nome de quem aprova") + carCel("rev", "Revisão", "", "0") +
       carFixo("Data", dataImpressao(), "DA IMPRESSÃO") + carFixo("Folha", folhasTxt(nf), "AUTOMÁTICA") + '</div></section>';
     h += '<section class="car-bloco"><header><i>05</i> Ambiental</header><div class="car-grade">' +
-      carCel("reserva", "Área da reserva legal (ha)", "", "0,0000") + carCel("app", "Área de APP (ha)", "", "0,0000") + carCel("car_ref", "Referência base do CAR", "", "AGOSTO/2026") + '</div></section>';
+      carCel("reserva", "Área da reserva legal (ha)", "", "0,0000") + carCel("app", "Área de APP (ha)", "", "0,0000") + '</div></section>';
     var obsLivres = (ex.obs || []).filter(Boolean), obsBnf = obsBenfeitorias(), nObs = 0;
     function nObsTxt(){ nObs++; return String(nObs).padStart(2, "0"); }
     h += '<section class="car-bloco"><header><i>06</i> Observações <small>são as benfeitorias lançadas na Técnica (itens 12 e 13), numeradas e com a quantidade — sem valor</small></header>' +
@@ -31409,8 +31394,7 @@ function AV_gerarDescSituacao(){
     ["car_folha","Folha (desenho)","text","1/1"],
     ["rev","Rev.","text","0"],
     ["reserva","Área da reserva legal (ha)","text","0,0000"],
-    ["app","Área de APP (ha)","text","0,0000"],
-    ["car_ref","Referência base do CAR","text","AGOSTO/2026"]
+    ["app","Área de APP (ha)","text","0,0000"]
   ];
   // tópico 5 (05/10/2026): modelo do carimbo + campos que dependem dele. Em branco = preenchimento automático
   // (o valor que vai sair aparece em cinza); o que você digitar vale no lugar do automático.
@@ -31442,7 +31426,6 @@ function AV_gerarDescSituacao(){
     h += inputEx("rev", "Rev.", "0");
     h += inputEx("reserva", "Área da reserva legal (ha)", "0,0000");
     h += inputEx("app", "Área de APP (ha)", "0,0000");
-    h += inputEx("car_ref", "Referência base do CAR", "AGOSTO/2026");
     var nf = G ? contagemFolhas() : null;
     h += '<details style="flex:1 1 100%;margin-top:6px"><summary style="cursor:pointer;font-weight:700;color:#175a9f;font-size:12.5px">Automáticos — não precisam de ajuste (clique para ver ou substituir)</summary><div class="vrow" style="margin-top:10px">' +
       inputEx("trecho", "Trecho", ph(au.trecho, "vem do SPS (lote) da Ficha de Assistência Social")) +
@@ -32194,32 +32177,46 @@ function AV_gerarDescSituacao(){
     V2.viz.sug = S; v2Overlay();
     var linhas = S.map(function(x, k){
       var atual = cs[x.i] || "", est = !atual ? "novo" : (atual.toUpperCase() === x.nome.toUpperCase() ? "igual" : "diferente");
-      return '<tr class="' + est + '"><td><input type="checkbox" data-k="' + k + '"' + (est === "novo" ? " checked" : "") + (est === "igual" ? " disabled" : "") + '></td>' +
+      var ini = est === "igual" ? atual : x.nome;     // 19/10/2026: o texto é editável; "já está" vem marcado e desmarcar remove do mapa
+      return '<tr class="' + est + '"><td><input type="checkbox" data-k="' + k + '"' + (est !== "diferente" ? " checked" : "") + '></td>' +
         '<td><b>' + x.a + '</b> → ' + x.b + '<br><small>' + br(x.dist, 2) + ' m</small></td>' +
         '<td><b>CTD ' + esc(x.ctd) + '</b> — ' + esc(x.nome) + '<br><small>' + Math.round(x.f*100) + '% do trecho encostado</small></td>' +
-        '<td>' + (atual ? esc(atual) : "—") + '</td><td><em class="' + est + '">' + (est === "novo" ? "novo" : (est === "igual" ? "já está" : "difere")) + '</em></td></tr>';
+        '<td><input type="text" class="v2-txt" data-t="' + k + '" value="' + esc(ini) + '" aria-label="Texto do confrontante"></td>' +
+        '<td><em class="' + est + '">' + (est === "novo" ? "novo" : (est === "igual" ? "já está (desmarque p/ remover)" : "difere do atual: " + (atual ? esc(atual) : "—"))) + '</em></td></tr>';
     }).join("");
     var cab = '<p class="v2-p">Cruzei o perímetro com os KMLs dos outros cadastros do <b>SPS-' + (V2.viz.sps || spsAtual() || "?") + '</b> (' + V2.viz.lista.length + ' vizinho(s) carregado(s)). ' +
       'Um trecho é sugerido quando ao menos 30% dele encosta no polígono do vizinho, dentro da tolerância abaixo.</p>' +
       '<label class="v2-tol">Tolerância de encosto: <input type="range" id="v2_tol" min="1" max="10" step="0.5" value="' + tol + '"> <b id="v2_tol_v">' + br(tol, 1) + ' m</b></label>';
-    var corpo = cab + (S.length ? '<table class="v2-tab"><thead><tr><th></th><th>Trecho</th><th>Sugestão</th><th>Hoje</th><th></th></tr></thead><tbody>' + linhas + '</tbody></table>'
+    var corpo = cab + (S.length ? '<table class="v2-tab"><thead><tr><th></th><th>Trecho</th><th>Sugestão</th><th>Texto do confrontante</th><th></th></tr></thead><tbody>' + linhas + '</tbody></table>'
       : '<p class="v2-p">Nenhum trecho encosta em outro cadastro com esta tolerância. Aumente-a ou digite os confrontantes à mão.</p>');
     var ov = v2Modal("v2_viz_ov", "🧭 Confrontantes por vizinhança", corpo,
-      '<button type="button" class="vbtn vbtn-ghost" data-v2x>Fechar</button><button type="button" class="vbtn vbtn-ghost" id="v2_v_todos">Marcar todos</button><button type="button" class="vbtn" id="v2_v_ap">Aplicar selecionados</button>', true);
+      '<button type="button" class="vbtn vbtn-ghost" data-v2x>Fechar</button><button type="button" class="vbtn vbtn-ghost" id="v2_v_todos">Marcar todos</button><button type="button" class="vbtn vbtn-ghost" id="v2_v_nenhum">Desmarcar todos</button><button type="button" class="vbtn" id="v2_v_ap">Aplicar selecionados</button>', true);
     var tr = ov.querySelector("#v2_tol");
     tr.oninput = function(){ ov.querySelector("#v2_tol_v").textContent = br(+tr.value, 1) + " m"; };
     tr.onchange = function(){ V2.viz.tol = +tr.value; v2SugestaoModal(); };
-    ov.querySelector("#v2_v_todos").onclick = function(){ ov.querySelectorAll('input[data-k]:not([disabled])').forEach(function(c){ c.checked = true; }); };
+    ov.querySelector("#v2_v_todos").onclick = function(){ ov.querySelectorAll('input[data-k]').forEach(function(c){ c.checked = true; }); };
+    ov.querySelector("#v2_v_nenhum").onclick = function(){ ov.querySelectorAll('input[data-k]').forEach(function(c){ c.checked = false; }); };
+    Array.prototype.forEach.call(ov.querySelectorAll("input.v2-txt"), function(t){   // editar o texto marca a linha
+      t.oninput = function(){ var ck = ov.querySelector('input[data-k="' + t.dataset.t + '"]'); if(ck) ck.checked = true; };
+    });
     Array.prototype.forEach.call(ov.querySelectorAll("tbody tr"), function(trw, k){
       trw.onmouseenter = function(){ V2.hoverSeg = S[k].i; v2Overlay(); };
       trw.onmouseleave = function(){ V2.hoverSeg = -1; v2Overlay(); };
     });
     ov.querySelector("#v2_v_ap").onclick = function(){
-      var sel = []; ov.querySelectorAll('input[data-k]:checked').forEach(function(c){ sel.push(S[+c.dataset.k]); });
-      if(!sel.length){ v2Toast("nada selecionado"); return; }
-      var c = conf(); sel.forEach(function(x){ c[x.i] = c[x.i] || {}; c[x.i].c = x.nome; });
+      var c = conf(), nAp = 0, nRem = 0;
+      ov.querySelectorAll('input[data-k]').forEach(function(ck){
+        var x = S[+ck.dataset.k], ti = ov.querySelector('input[data-t="' + ck.dataset.k + '"]'), txt = ti ? ti.value.trim() : x.nome, atual = (cs[x.i] || "");
+        if(ck.checked){
+          if(!txt || txt === atual) return;
+          c[x.i] = c[x.i] || {}; c[x.i].c = txt; nAp++;
+        } else if(atual && atual.toUpperCase() === x.nome.toUpperCase()){      // era o confrontante aplicado por esta sugestão: desmarcar remove
+          c[x.i] = c[x.i] || {}; c[x.i].c = ""; nRem++;
+        }
+      });
+      if(!nAp && !nRem){ v2Toast("nada alterado"); return; }
       setConf(c); renderTabela(); renderMemorial(); agendarPreview(200); v2Trilha();
-      ov.remove(); v2Toast(sel.length + " confrontante(s) aplicado(s) — Ctrl+Z desfaz");
+      ov.remove(); v2Toast((nAp ? nAp + " aplicado(s)" : "") + (nAp && nRem ? " · " : "") + (nRem ? nRem + " removido(s)" : "") + " — Ctrl+Z desfaz");
     };
   }
 
@@ -52341,7 +52338,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.19-2';
+window.APP_VERSAO = '2026.10.19-3';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.17-5';
 (function(){
