@@ -27325,6 +27325,52 @@ function AV_gerarDescSituacao(){
   var CORES = { fd:"#00c800", eixo:"#ff8c1a", vermelho:"#e60000", cerca:"#000000", ant:"#8a8f98", acesso:"#d97a00", corrego:"#19b8e6", area:"#1a2fd0",
                 hachura:"#ffb000", verde:"#00a800" };
   function xis(P, x, y, s, cor, peso){ P.linha(x-s, y-s, x+s, y+s, { cor:cor, peso:peso }); P.linha(x-s, y+s, x+s, y-s, { cor:cor, peso:peso }); }
+  /* 19/10/2026: símbolo "DIVISA ENTRE PROPRIEDADES" automático. Percorre o perímetro TOTAL do imóvel e acha os trechos que ficam
+     FORA da área desapropriada; em cada ponta desses trechos (onde a divisa do imóvel com o confrontante sai da área), um pouco para
+     fora, desenha a seta dupla atravessando a linha da divisa (o mesmo desenho da legenda). Vários perímetros: vale o contorno
+     ativo (ou todos, na planta geral). */
+  function simbolosDivisa(P, T, aneisTot){
+    if(!G || !aneisTot || !aneisTot.length) return;
+    var conts = contornos().map(function(c){ var a = c.map(function(p){ return [p.E, p.N]; }); a.push(a[0]); return a; });
+    var mmPorM = Math.abs(T.x(G.v[0].E + 1) - T.x(G.v[0].E)) || 1;
+    var Dm = 4.5/mmPorM, passo = Math.max(.25, Math.min(1, .4/mmPorM)), tol = Math.max(.3, .25/mmPorM);
+    function naArea(E, N){ for(var k = 0; k < conts.length; k++){ if(ptEmPoli(E, N, conts[k]) || distPolilinha(conts[k], E, N) <= tol) return true; } return false; }
+    var e = EST("divisa"), C = e.cor, W = Math.min(e.peso*.8, .45), pos = [];
+    aneisTot.forEach(function(r){
+      var p = r.slice(); if(p.length < 3) return;
+      var f0 = p[0], l0 = p[p.length - 1]; if(Math.abs(f0[0] - l0[0]) > 1e-6 || Math.abs(f0[1] - l0[1]) > 1e-6) p.push(f0);
+      var cum = [0]; for(var i = 1; i < p.length; i++) cum.push(cum[i-1] + Math.hypot(p[i][0] - p[i-1][0], p[i][1] - p[i-1][1]));
+      var L = cum[cum.length - 1]; if(L < 1) return;
+      function em(sv){
+        sv = ((sv % L) + L) % L; var i = 1; while(i < cum.length - 1 && cum[i] < sv) i++;
+        var a = p[i-1], b = p[i], d = (cum[i] - cum[i-1]) || 1, t = (sv - cum[i-1])/d;
+        return { E:a[0] + (b[0] - a[0])*t, N:a[1] + (b[1] - a[1])*t, ux:(b[0] - a[0])/d, uy:(b[1] - a[1])/d };
+      }
+      var n = Math.ceil(L/passo), st = new Array(n);
+      for(var j = 0; j < n; j++){ var q = em(j*L/n); st[j] = noMapa([T.x(q.E), T.y(q.N)], 40) ? naArea(q.E, q.N) : false; }
+      var j0 = st.indexOf(false); if(j0 < 0 || st.indexOf(true) < 0) return;
+      // trechos do perímetro total FORA da área: [saída, entrada] (a partir de uma amostra de fora, duas voltas para fechar o circuito)
+      var ini = null, iniK = -1;
+      for(var k = 1; k <= 2*n; k++){
+        var a1 = st[(j0 + k - 1) % n], b1 = st[(j0 + k) % n];
+        if(a1 && !b1){ ini = (j0 + k)*L/n; iniK = k; }
+        if(!a1 && b1 && ini != null){
+          if(iniK <= n){ var fimS = (j0 + k)*L/n, Lr = fimS - ini; if(Lr >= 1){ var d = Math.min(Dm, Lr/2); pos.push(em(ini + d)); pos.push(em(fimS - d)); } }
+          ini = null;
+        }
+      }
+    });
+    var feitos = [];
+    pos.forEach(function(q){
+      var x = T.x(q.E), y = T.y(q.N); if(!noMapa([x, y], -4)) return;
+      if(feitos.some(function(f){ return Math.hypot(f[0] - x, f[1] - y) < 6; })) return; feitos.push([x, y]);
+      var ux = T.x(q.E + q.ux) - x, uy = T.y(q.N + q.uy) - y, l = Math.hypot(ux, uy) || 1; ux /= l; uy /= l;
+      var nx = -uy, ny = ux, h = 3.4;
+      P.linha(x - nx*h, y - ny*h, x + nx*h, y + ny*h, { cor:C, peso:W });                 // atravessa a divisa
+      seta(P, x + nx*h, y + ny*h, nx, ny, C); seta(P, x - nx*h, y - ny*h, -nx, -ny, C);   // uma ponta para cada propriedade
+      P.linha(x - ux*1.4, y - uy*1.4, x + ux*1.4, y + uy*1.4, { cor:C, peso:W });         // traço sobre a linha da divisa
+    });
+  }
   function seta(P, x, y, ux, uy, cor){                          // ponta de seta em (x,y) apontando (ux,uy)
     var l = 2.2, w = .9;
     P.poli([[x, y], [x - ux*l - uy*w, y - uy*l + ux*w], [x - ux*l + uy*w, y - uy*l - ux*w]], { cor:cor, peso:.1, fill:cor });
@@ -29266,6 +29312,11 @@ function AV_gerarDescSituacao(){
           var f0 = po[0], l0 = po[po.length - 1]; if(Math.abs(f0[0] - l0[0]) > 1e-6 || Math.abs(f0[1] - l0[1]) > 1e-6) po.push(f0);
           recortar(po, 5).forEach(function(r){ if(r.length > 1) P.poli(r, { cor:EST("sem").cor, peso:EST("sem").peso*.5, fechar:false }); });   // símbolo "sem cerca", linha mais fina
         });
+        // 19/10/2026: símbolo "divisa entre propriedades" onde o perímetro total sai da área desapropriada (divisa imóvel × confrontante)
+        try{
+          CAMDXF(P, "ENP_DIVISA_SIMBOLO");
+          simbolosDivisa(P, T, aneisDoKml(kAT).map(function(a){ return a.pts.map(function(p){ var u = utm(p[0], p[1], G.fuso); return [u.E, u.N]; }); }));
+        }catch(e){ console.warn("planta/divisa:", e); }
       }
     }
     // demais poligonais do mesmo cadastro, como contorno de contexto
@@ -29603,7 +29654,7 @@ function AV_gerarDescSituacao(){
       P.linha(c2 + 2.2, lin, cd - 2.2, lin, { cor:"#8a97a4", peso:.18 });
       if(b[1] && i === 0 && assinImg){
         // assinatura (imagem) sobre a linha e o nome logo abaixo dela
-        var aw = wN*.92, ah = aw*assinImg.h/assinImg.w, amax = hB - 9.6;
+        var aw = wN*.92*.7, ah = aw*assinImg.h/assinImg.w, amax = hB - 9.6;   // 19/10/2026: assinatura do Desenhista a 0,7x
         if(ah > amax){ ah = amax; aw = ah*assinImg.w/assinImg.h; }
         P.img({ el:assinImg.el, url:assinImg.url }, cm - aw/2, lin - ah + .8, aw, ah);
         var n0 = caber(P, b[1], wN, 5.6, true, 3.8); P.texto(cm, lin + 3.2, n0.txt, { tam:n0.tam, bold:true, align:"center" });
@@ -52436,7 +52487,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.19-7';
+window.APP_VERSAO = '2026.10.19-8';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.17-5';
 (function(){
