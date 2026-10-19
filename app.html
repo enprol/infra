@@ -26253,6 +26253,8 @@ function AV_gerarDescSituacao(){
   }
 
   // vários perímetros no mesmo cadastro: título e nome do arquivo identificam a área (antes todos saíam com o mesmo nome)
+  // 19/10/2026: título do memorial = "FAIXA DE DOMÍNIO - " + o Subtítulo do carimbo (Carimbo › 01), se houver; senão o texto de sempre
+  function tituloMemorial(){ var sb = String(extras().subtitulo || "").trim().toUpperCase(); return "FAIXA DE DOMÍNIO - " + (sb || "A SER DESAPROPRIADA") + tituloArea(); }
   function tituloArea(){ return ANEIS.length > 1 ? " – ÁREA " + String(numArea(ST.area)).padStart(2,"0") : ""; }
   function sufixoArea(){ return ANEIS.length > 1 ? "_AREA-" + String(numArea(ST.area)).padStart(2,"0") : ""; }
 
@@ -26380,7 +26382,7 @@ function AV_gerarDescSituacao(){
     pdf.setFont("helvetica","normal"); pdf.setFontSize(10.5);
     pdf.text("M E M O R I A L   D E S C R I T I V O", W/2, y, {align:"center"}); y += 5.2;
     pdf.setFontSize(8.6);
-    pdf.text("FAIXA DE DOMÍNIO - A SER DESAPROPRIADA" + tituloArea(), W/2, y, {align:"center"}); y += 3;
+    pdf.text(tituloMemorial(), W/2, y, {align:"center"}); y += 3;
 
     topico("i.", "DADOS GERAIS:");
     b.dados.forEach(function(d){ rot(d[0], d[1]); });
@@ -26479,7 +26481,7 @@ function AV_gerarDescSituacao(){
     var rotW = function(l, v, ind){ if(v==="" || v==null) return; K.push(lin([R(l + ": "), R(v, {bold:true})], {ind:ind})); };
 
     K.push(lin([R("M E M O R I A L   D E S C R I T I V O", {size:21})], {al:AL.CENTER}));
-    K.push(lin([R("FAIXA DE DOMÍNIO - A SER DESAPROPRIADA" + tituloArea())], {al:AL.CENTER, after:180}));
+    K.push(lin([R(tituloMemorial())], {al:AL.CENTER, after:180}));
     K.push(lin([R("i.    "), R("DADOS GERAIS:", {bold:true})]));
     b.dados.forEach(function(d){ rotW(d[0], d[1]); });
     rotW("SITUAÇÃO", " ");
@@ -52552,7 +52554,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.19-14';
+window.APP_VERSAO = '2026.10.19-15';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.17-5';
 (function(){
