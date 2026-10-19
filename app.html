@@ -27333,7 +27333,7 @@ function AV_gerarDescSituacao(){
     if(!G || !aneisTot || !aneisTot.length) return;
     var conts = contornos().map(function(c){ var a = c.map(function(p){ return [p.E, p.N]; }); a.push(a[0]); return a; });
     var mmPorM = Math.abs(T.x(G.v[0].E + 1) - T.x(G.v[0].E)) || 1;
-    var Dm = 4.5/mmPorM, passo = Math.max(.25, Math.min(1, .4/mmPorM)), tol = Math.max(.3, .25/mmPorM);
+    var SD = 1.5, Dm = 9/mmPorM,   /* 19/10/2026: 9 mm da área (era 4,5) e símbolo 1,5x */ passo = Math.max(.25, Math.min(1, .4/mmPorM)), tol = Math.max(.3, .25/mmPorM);
     function naArea(E, N){ for(var k = 0; k < conts.length; k++){ if(ptEmPoli(E, N, conts[k]) || distPolilinha(conts[k], E, N) <= tol) return true; } return false; }
     var e = EST("divisa"), C = e.cor, W = Math.min(e.peso*.8, .45), pos = [];
     aneisTot.forEach(function(r){
@@ -27363,16 +27363,16 @@ function AV_gerarDescSituacao(){
     var feitos = [];
     pos.forEach(function(q){
       var x = T.x(q.E), y = T.y(q.N); if(!noMapa([x, y], -4)) return;
-      if(feitos.some(function(f){ return Math.hypot(f[0] - x, f[1] - y) < 6; })) return; feitos.push([x, y]);
+      if(feitos.some(function(f){ return Math.hypot(f[0] - x, f[1] - y) < 6*SD; })) return; feitos.push([x, y]);
       var ux = T.x(q.E + q.ux) - x, uy = T.y(q.N + q.uy) - y, l = Math.hypot(ux, uy) || 1; ux /= l; uy /= l;
-      var nx = -uy, ny = ux, h = 3.4;
+      var nx = -uy, ny = ux, h = 3.4*SD;
       P.linha(x - nx*h, y - ny*h, x + nx*h, y + ny*h, { cor:C, peso:W });                 // atravessa a divisa
-      seta(P, x + nx*h, y + ny*h, nx, ny, C); seta(P, x - nx*h, y - ny*h, -nx, -ny, C);   // uma ponta para cada propriedade
-      P.linha(x - ux*1.4, y - uy*1.4, x + ux*1.4, y + uy*1.4, { cor:C, peso:W });         // traço sobre a linha da divisa
+      seta(P, x + nx*h, y + ny*h, nx, ny, C, SD); seta(P, x - nx*h, y - ny*h, -nx, -ny, C, SD);   // uma ponta para cada propriedade
+      P.linha(x - ux*1.4*SD, y - uy*1.4*SD, x + ux*1.4*SD, y + uy*1.4*SD, { cor:C, peso:W });   // traço sobre a linha da divisa
     });
   }
-  function seta(P, x, y, ux, uy, cor){                          // ponta de seta em (x,y) apontando (ux,uy)
-    var l = 2.2, w = .9;
+  function seta(P, x, y, ux, uy, cor, esc){                     // ponta de seta em (x,y) apontando (ux,uy); esc = escala (padrão 1)
+    var l = 2.2*(esc || 1), w = .9*(esc || 1);
     P.poli([[x, y], [x - ux*l - uy*w, y - uy*l + ux*w], [x - ux*l + uy*w, y - uy*l - ux*w]], { cor:cor, peso:.1, fill:cor });
   }
   function tracos(P, pts, passo, meio, cor, peso, ini){
@@ -52487,7 +52487,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.19-8';
+window.APP_VERSAO = '2026.10.19-9';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.17-5';
 (function(){
