@@ -25784,6 +25784,22 @@ function AV_gerarDescSituacao(){
   }
 
   /* ---------------- análise ---------------- */
+  /* 19/10/2026: a numeração dos vértices continua pela ORDEM DO ESTAQUEAMENTO (numArea), não pelo índice do KML (maior área primeiro):
+     o P01 do cadastro está na Área 1 (menor KM), a Área 2 continua do último vértice dela, e assim por diante. */
+  function deslocVertices(){
+    var nAt = numArea(ST.area), d = 0, mesmo = function(a, b){ return Math.abs(a[0]-b[0]) < 1e-9 && Math.abs(a[1]-b[1]) < 1e-9; };
+    ANEIS.forEach(function(a, ka){
+      if(ka === ST.area || numArea(ka) >= nAt) return;
+      var pa = a.pts.slice(); while(pa.length > 1 && mesmo(pa[0], pa[pa.length-1])) pa.pop();
+      var la = []; pa.forEach(function(q){ if(!la.length || !mesmo(la[la.length-1], q)) la.push(q); });
+      if(la.length >= 3) d += la.length;
+    });
+    return d;
+  }
+  function renomearVertices(){        // a ordem do estaqueamento chega depois (KM no eixo): renomeia os vértices já lidos, sem refazer a geometria
+    if(!G || !G.v || ANEIS.length < 2) return;
+    var d = deslocVertices(); G.v.forEach(function(v, k){ v.nome = "P" + String(k + 1 + d).padStart(2, "0"); });
+  }
   function analisar(){
     var kml = gv("rel_kml_dados");
     if(!kml){ G = null; ANEIS = []; return { erro:"Nenhum KML inserido em Técnica › Áreas de Locação." }; }
@@ -25801,12 +25817,7 @@ function AV_gerarDescSituacao(){
     pts = limpo;
     if(pts.length < 3){ G = null; return { erro:"O perímetro tem menos de 3 vértices." }; }
     // 13/10/2026: com vários perímetros a numeração continua (Área 2 começa depois do último vértice da Área 1)
-    var deslocV = 0;
-    for(var ka = 0; ka < ST.area; ka++){
-      var pa = ANEIS[ka].pts.slice(); while(pa.length > 1 && mesmo(pa[0], pa[pa.length-1])) pa.pop();
-      var la = []; pa.forEach(function(q){ if(!la.length || !mesmo(la[la.length-1], q)) la.push(q); });
-      if(la.length >= 3) deslocV += la.length;
-    }
+    var deslocV = deslocVertices();
 
     var fuso = fusoDe(pts[0][0]);
     // 15/10/2026: coordenada fixada no milímetro (3 casas, o que a tabela e o memorial mostram) ANTES de qualquer conta —
@@ -27232,7 +27243,7 @@ function AV_gerarDescSituacao(){
     }
     CTX.proj = proj; CTX.fixo = fixo; CTX.km = calcularKm(proj, fixo); CTX.pronto = true;
     G.km = CTX.km;
-    try{ ordCalcular(); }catch(e){}
+    try{ ordCalcular(); renomearVertices(); }catch(e){}
     return CTX;
   }
 
@@ -29729,7 +29740,7 @@ function AV_gerarDescSituacao(){
     if(li){ var pi = li.w/li.h; P.img({ el:li.el, url:li.url }, tx + 3, ly, lh*pi, lh); }
     if(le){ var pe = le.w/le.h, he = lh*.92; P.img({ el:le.el, url:le.url }, x + w - 3 - he*pe, ly + (lh - he)/2, he*pe, he); }
     P.texto(tm, y + 7*V, "PLANTA DE SITUAÇÃO", { tam:14, bold:true, align:"center" });
-    P.texto(tm, y + 13.2*V, "ÁREA A DESAPROPRIAR", { tam:11.2, bold:true, align:"center" });
+    P.texto(tm, y + 13.2*V, (ex.subtitulo || "").trim() || "ÁREA A DESAPROPRIAR", { tam:11.2, bold:true, align:"center" });   // 19/10/2026: 2ª linha do título editável (Carimbo › 01)
     P.texto(tm, y + 19*V, ex.ferrovia_tit || "FERROVIA TRANSNORDESTINA - EF - 232", { tam:10, align:"center" });
     P.linha(tx, y + 22*V, x + w, y + 22*V, { peso:.25 });
 
@@ -30587,6 +30598,7 @@ function AV_gerarDescSituacao(){
     h += '<div class="car-head"><h3>Carimbo da planta</h3><p>Campo em branco sai <b>automático</b> (valor em cinza); o que você digitar vale no lugar — o <b>↺</b> devolve ao automático. A prancha ao lado mostra o resultado.</p><span class="car-chip" id="car_chip"></span></div>';
     h += '<div class="car-modelo" role="group" aria-label="Modelo do carimbo">' + MODELOS_CAR.map(function(m){ return '<button type="button" class="' + (m[0] === mod ? "on" : "") + '" onclick="MDP_carModelo(\'' + m[0] + '\')">' + esc(m[1]) + '</button>'; }).join("") + '</div>';
     h += '<section class="car-bloco"><header><i>01</i> Título</header><div class="car-grade">' +
+      carCel("subtitulo", "Subtítulo (2ª linha do título)", "", "ÁREA A DESAPROPRIAR", { larga:true }) +
       carCel("ferrovia_tit", "Ferrovia (3ª linha do título)", "", "FERROVIA TRANSNORDESTINA - EF - 232", { larga:true }) + '</div></section>';
     h += '<section class="car-bloco"><header><i>02</i> Trecho <small>sai da Ficha e do eixo</small></header><div class="car-grade">' +
       carCel("trecho", "Trecho", au.trecho, "vem do SPS (lote) da Assistência Social", { larga:true }) +
@@ -31513,6 +31525,7 @@ function AV_gerarDescSituacao(){
     ["data_reg","Data do registro","text","dd/mm/aaaa"]
   ];
   var CAMPOS_CAR = [
+    ["subtitulo","Subtítulo (2ª linha do título)","text","ÁREA A DESAPROPRIAR"],
     ["ferrovia_tit","Ferrovia (3ª linha do título)","text","FERROVIA TRANSNORDESTINA - EF - 232"],
     ["trecho","Trecho","text",TRECHO_SPS04],
     ["segmento","Segmento","text","KM=227+574,41 ao KM=227+872,41 = 298m"],
@@ -31536,6 +31549,7 @@ function AV_gerarDescSituacao(){
     var vem = function(rot, v, onde){ return '<div class="vfield grow"><label>' + esc(rot) + ' <span class="hint-auto">' + esc(onde) + '</span></label><input type="text" class="bloqueado" readonly value="' + esc(v || "—") + '"></div>'; };
     var h = '<div class="vfield grow"><label>Modelo do carimbo</label><select onchange="MDP_carModelo(this.value)">' +
       MODELOS_CAR.map(function(m){ return '<option value="' + m[0] + '"' + (m[0] === mod ? " selected" : "") + '>' + esc(m[1]) + '</option>'; }).join("") + '</select></div>';
+    h += inputEx("subtitulo", "Subtítulo (2ª linha do título)", "ÁREA A DESAPROPRIAR");
     h += inputEx("ferrovia_tit", "Ferrovia (3ª linha do título)", "FERROVIA TRANSNORDESTINA - EF - 232");
     // 06/10/2026: o que não precisa de ajuste fica recolhido; o que depende de um dado de origem fica à vista, com aviso se faltar
     var aviso = function(msg){ return '<p class="hint-inline" style="flex:1 1 100%;margin:-4px 0 4px;color:#b3141b;font-weight:600">⚠ ' + esc(msg) + '</p>'; };
@@ -52538,7 +52552,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.19-13';
+window.APP_VERSAO = '2026.10.19-14';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.17-5';
 (function(){
