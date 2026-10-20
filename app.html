@@ -21295,7 +21295,7 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
     const cx = (ctx.ML + ctx.MR)/2, L = ctx.MR - ctx.ML; let y = 170;
     // título = identificação do cadastro (ex.: "CTD 001 - SPS-04 – PE")
     // título: CTD + SPS + UF montados dos campos do processo (iguais ao "Nº do processo" da Ficha) — vale para qualquer cadastro
-    const proc = val("fv_processo") || val("fb_processo") || val("fb_proc_preview");
+    const proc = proc0;
     const ident = window.AVFTN_ident("MATERIAL TÉCNICO");
     doc.setFont("helvetica","bold"); doc.setFontSize(8); doc.setTextColor(122,133,148);
     doc.text("MATERIAL TÉCNICO DO CADASTRO", cx, y, {align:"center", charSpace:1.4});
@@ -21309,19 +21309,25 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
       doc.setDrawColor(31,111,192); doc.setFillColor(31,111,192); doc.setLineWidth(1.1);
       doc.line(x, ym, x + 11, ym); doc.triangle(x + 10, ym - 3.2, x + 15.5, ym, x + 10, ym + 3.2, "F");
     }
-    (grupos || []).forEach(function(g){
-      if(!(g.itens && g.itens.length)) return;
-      doc.setFont("helvetica","bold"); doc.setFontSize(12); doc.setTextColor(27,58,92);
-      doc.text(g.t, x0, y); y += 20;
-      g.itens.forEach(function(t){
-        const lin = doc.splitTextToSize(String(t), wl);
-        flecha(x0 + 16, y);
-        doc.setFont("helvetica","normal"); doc.setFontSize(10.5); doc.setTextColor(36,52,71);
-        lin.forEach(function(l, q){ doc.text(l, xt, y + q * 14); });
-        y += lin.length * 14 + 6;
+    const yLim = ctx.MB - 84 - 16;   // a lista termina acima do quadro do processo
+    function lista(k, desenhar){
+      let yy = y;
+      (grupos || []).forEach(function(g){
+        if(!(g.itens && g.itens.length)) return;
+        doc.setFont("helvetica","bold"); doc.setFontSize(12*k); doc.setTextColor(27,58,92);
+        if(desenhar) doc.text(g.t, x0, yy); yy += 20*k;
+        g.itens.forEach(function(t){
+          doc.setFont("helvetica","normal"); doc.setFontSize(10.5*k); doc.setTextColor(36,52,71);
+          const lin = doc.splitTextToSize(String(t), wl);
+          if(desenhar){ flecha(x0 + 16, yy); doc.setFont("helvetica","normal"); doc.setFontSize(10.5*k); doc.setTextColor(36,52,71); lin.forEach(function(l, q){ doc.text(l, xt, yy + q*14*k); }); }
+          yy += lin.length*14*k + 6*k;
+        });
+        yy += 12*k;
       });
-      y += 12;
-    });
+      return yy - 12*k;
+    }
+    let kL = 1; while(kL > 0.62 && lista(kL, false) > yLim) kL -= 0.04;
+    lista(kL, true);
     const yb = ctx.MB - 84, mun = [val("av_municipio") || val("fb_prop_mun"), val("av_uf") || val("fb_prop_uf")].filter(Boolean).join("/");
     doc.setFillColor(244,248,252); doc.setDrawColor(188,214,240); doc.setLineWidth(0.6); doc.roundedRect(ctx.ML, yb, L, 70, 3, 3, "FD");
     doc.setFillColor(31,111,192); doc.rect(ctx.ML, yb, 4, 70, "F");
@@ -45547,8 +45553,9 @@ window.UFOTO_rodapeHTML=rodapeHTML;
   function docBytes(d){ var b=atob(docB64(d)), u=new Uint8Array(b.length); for(var i=0;i<b.length;i++) u[i]=b.charCodeAt(i); return u; }
   window.PAR_docEhPdf=docEhPdf; window.PAR_docBytes=docBytes;
   /* Escolha "com ou sem o tópico Anexos – Checklist Documental" no PDF (15/10/2026): uma caixa na barra do Parecer
-     (ao lado de Pré-visualizar / Gerar PDF). Vale para a pré-visualização, o Gerar PDF, o menu Download e o
-     Material técnico. Fica lembrada nesta máquina; padrão = incluir. */
+     (ao lado de Pré-visualizar / Gerar PDF). Vale para a pré-visualização, o Gerar PDF e o menu Download. Fica lembrada
+     nesta máquina; padrão = incluir. No Material técnico (20/10/2026) o parecer sai sempre sem os anexos e o
+     Checklist Documental é um item à parte (js/173). */
   var ANX_PDF_KEY="par_anexos_no_pdf";
   window.PAR_anexosNoPdf=function(){ try{ return localStorage.getItem(ANX_PDF_KEY)!=="0"; }catch(e){ return true; } };
   function contarDocs(){ var n=0; Object.keys(tabelasPAR).forEach(function(k){ (tabelasPAR[k]||[]).forEach(function(l){ n+=(l.docs||[]).length; }); }); return n; }
@@ -46319,11 +46326,12 @@ window.UFOTO_rodapeHTML=rodapeHTML;
        cada item, uma folha de abertura seguida dos documentos (imagem = uma página com cabeçalho; PDF = as
        páginas do próprio arquivo, inseridas depois pelo pdf-lib e carimbadas com o item e o nº da página). */
     var INF=new Map();   // dados de montagem de cada documento (fora do objeto salvo no cadastro)
-    var ANX_INS=[];   // { depoisDe: nº de páginas do jsPDF quando o PDF entra, bytes, item, nome, pg0 }
+    var ANX_INS=[], anxFeito=false;   // anxFeito: a folha de rosto dos anexos foi desenhada (20/10/2026) · ANX_INS: { depoisDe: nº de páginas do jsPDF quando o PDF entra, bytes, item, nome, pg0 }
     async function anexosChecklist(){
       var itens=[];
       CHECKLIST_TABS.forEach(function(tab,n){ (tabelasPAR[n]||[]).forEach(function(lin,i){ if(lin.docs&&lin.docs.length) itens.push({ n:n, num:numItem(n,i), crit:lin.crit, docs:lin.docs }); }); });
       if(!itens.length) return;
+      anxFeito=true;
       // páginas de cada documento (PDF: lê o arquivo; imagem: 1; PDF ilegível: 1 folha de aviso)
       for(var a=0;a<itens.length;a++){
         for(var b=0;b<itens[a].docs.length;b++){
@@ -46501,7 +46509,12 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     }
     // 15/10/2026: com ou sem o tópico dos anexos — opts.anexos (true/false) manda; sem ele, vale a escolha da tela ("Incluir anexos do check list")
     var _comAnexos = (opts && opts.anexos !== undefined) ? !!opts.anexos : !_sel.semAnexos;
-    if(_comAnexos) try{ await anexosChecklist(); }catch(e){ console.error("anexos do check list:", e); alert("O parecer foi gerado, mas os anexos do check list não puderam ser incluídos: "+(e&&e.message||e)); ANX_INS=[]; }
+    if(_comAnexos) try{ await anexosChecklist(); }catch(e){ console.error("anexos do check list:", e); alert("O parecer foi gerado, mas os anexos do check list não puderam ser incluídos: "+(e&&e.message||e)); ANX_INS=[]; anxFeito=false; }
+    // 20/10/2026: só os anexos (sem o parecer) e eles não saíram — não devolve uma página só com cabeçalho e rodapé
+    if(_sel.semParecer && !anxFeito){
+      if(opts&&opts.retornar) return null;
+      alert("Nenhum anexo do check list para gerar."); return;
+    }
 
     rod();
     var blob=pdf.output("blob");
@@ -46536,7 +46549,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
   /* ================= Download do Parecer (16/10/2026) =================
      Janela igual à do "Baixar material técnico": escolhe as partes que saem no PDF (tópicos do parecer e,
      por tópico do check list, os anexos), "Visualizar PDF" (nova aba, sem baixar) e "Gerar e baixar".
-     A escolha fica lembrada nesta máquina e vale também para a pré-visualização e o material técnico. */
+     A escolha fica lembrada nesta máquina e vale também para a pré-visualização (o Material técnico tem itens próprios: js/173). */
   var SEL_KEY="par_pdf_sel";
   function selSalva(){
     var s=null; try{ s=JSON.parse(localStorage.getItem(SEL_KEY)||"null"); }catch(e){}
@@ -60253,9 +60266,9 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.20-3';
+window.APP_VERSAO = '2026.10.20-4';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
-window.SERVIDOR_RECOMENDADO = '2026.10.17-5';
+window.SERVIDOR_RECOMENDADO = '2026.10.20-4';
 (function(){
   var SEM_VERSAO = '0000.00.00-0';
   var LEGADO_LAYOUT = '2026.10.07-0';   // servidor que já tem layout_antigo no health, mas ainda sem número de versão
