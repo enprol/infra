@@ -49037,6 +49037,10 @@ window.DRL_gerarPDF=async function(opts){
     var velho = _("campo_lightbox"); if(velho) velho.remove();
     document.body.appendChild(ov);
   };
+  window.CAMPO_legPorSrc = function(src, v){                                // descrição editada no relatório volta para a foto do Campo
+    if(!CAMPO) return; var k = chaveFoto(src);
+    todasFotos(CAMPO).forEach(function(o){ if(chaveFoto(o.p.src) === k){ o.p.leg = v; } }); marcarSujo();
+  };
   window.CAMPO_setLeg = function(i, v){
     if(!CAMPO) return;
     var fotos = todasFotos(CAMPO);
@@ -51713,17 +51717,24 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
   // Fotos que o 6.1 imprime (30/09/2026): as da própria DESP-2 quando houver; senão, automaticamente
   // as fotografias da Assistência Social (Ficha de Vistoria 5.3) — vivas, não copiadas: foto nova lá
   // entra aqui sem reimportar. auto=true indica que vieram da Ficha.
+  // 20/10/2026: sem fotos próprias, o relatório usa TODAS as fotos disponíveis — as do Campo (menos o arquivo morto) e as da
+  // Ficha de Vistoria (5.3), sem repetir a mesma imagem. Antes só entravam as 4 da Ficha e as 45 do Campo ficavam de fora.
   window.D2_fotosRelatorio=function(){
     var proprias=D2_fotos.filter(function(f){ return f && f.src; });
     if(proprias.length) return { fotos:D2_fotos, auto:false };
-    var fb=((window.FB_getFotos?window.FB_getFotos():[])||[]).filter(function(f){ return f && f.src; });
-    return { fotos:fb.map(function(f){ return {src:f.src, legenda:f.legenda||""}; }), auto:fb.length>0 };
+    var out=[], vistos={}, nC=0, nF=0;
+    function add(src, leg, extra){ if(!src) return false; var k=D2_chave(src); if(vistos[k]) return false; vistos[k]=1; var o={src:src, legenda:leg||""}; for(var q in extra) o[q]=extra[q]; out.push(o); return true; }
+    ((window.CAMPO_getFotos?window.CAMPO_getFotos():[])||[]).forEach(function(f){ if(f && add(f.src, f.legenda, {_campo:true})) nC++; });
+    ((window.FB_getFotos?window.FB_getFotos():[])||[]).forEach(function(f){ if(f && f.src && add(f.src, f.legenda, {_fb:f})) nF++; });
+    return { fotos:out, auto:out.length>0, nCampo:nC, nFicha:nF };
   };
   // legenda editada no modo "Conteúdo": em foto automática grava na própria Ficha de Vistoria (mesma foto, mesma descrição)
   window.D2_setFotoLegendaRel=function(i,v){
-    if(window.D2_fotosRelatorio().auto){
-      var fb=((window.FB_getFotos?window.FB_getFotos():[])||[]).filter(function(f){ return f && f.src; });
-      if(fb[i]) fb[i].legenda=v;
+    var rel=window.D2_fotosRelatorio();
+    if(rel.auto){
+      var it=rel.fotos[i];                                                    // a legenda volta para a origem da foto (mesma foto, mesma descrição)
+      if(it && it._fb) it._fb.legenda=v;
+      else if(it && it._campo && window.CAMPO_legPorSrc) window.CAMPO_legPorSrc(it.src, v);
       try{ if(window.CAD_marcarSujo) window.CAD_marcarSujo(); }catch(e){}
     } else window.D2_setFotoLegenda(i,v);
   };
@@ -51788,7 +51799,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     }).join('') : (function(){
       var r=window.D2_fotosRelatorio();
       return r.auto
-        ? '<p class="hint-auto" style="margin:4px 0;">📷 Nenhuma foto própria da DESP-2 — o relatório usa <b>automaticamente as '+r.fotos.length+' fotografia(s) da Assistência Social</b> (Ficha de Vistoria, 5.3). Para usar outras, adicione ou importe acima.</p>'
+        ? '<p class="hint-auto" style="margin:4px 0;">📷 Nenhuma foto própria da DESP-2 — o relatório usa <b>automaticamente as '+r.fotos.length+' fotografia(s)</b> ('+[r.nCampo?r.nCampo+' do Campo':'', r.nFicha?r.nFicha+' da Ficha de Vistoria':''].filter(Boolean).join(' · ')+'). Para escolher só uma origem ou acrescentar outras, use as opções acima.</p>'
         : '<p class="hint-auto" style="margin:4px 0;">Nenhuma foto adicionada.</p>';
     })());
   }
@@ -54528,7 +54539,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     if(tp.id==="anexo_2_relat_rio_fotogr_fic"){
       var _rel=window.D2_fotosRelatorio(), fts=_rel.fotos;
       var n=0;
-      if(_rel.auto) h+='<div class="dd-auto"><span class="dd-auto-rot">automático · fotografias da Assistência Social (Ficha de Vistoria, 5.3)</span></div>';
+      if(_rel.auto) h+='<div class="dd-auto"><span class="dd-auto-rot">automático · fotografias do Campo e da Ficha de Vistoria (5.3)</span></div>';
       h+='<div class="dd-fotos">'+fts.map(function(f,i){ if(!f||!f.src) return ""; n++;
         return '<figure class="dd-foto"><img src="'+f.src+'" alt=""><figcaption>Foto '+n+' – <span class="dd-cap" contenteditable="true" data-foto="'+i+'">'+esc(f.legenda||"")+'</span></figcaption></figure>'; }).join('')+'</div>';
       if(!n) h+='<p class="dd-nota">Sem fotos — no relatório sai “[Sem fotos inseridas.]”.</p>';
@@ -60636,7 +60647,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.20-9';
+window.APP_VERSAO = '2026.10.20-10';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.20-4';
 (function(){
