@@ -7267,7 +7267,12 @@ igual DESP 3) */
         #panel-desp2-relatorio .dd-acts,#panel-desp1-parecer .dd-acts,#panel-desp1-campo .dd-acts,#panel-util-marcos .dd-acts{ opacity:1; }
         #panel-desp2-relatorio .dd-bar-dica,#panel-desp1-parecer .dd-bar-dica,#panel-desp1-campo .dd-bar-dica,#panel-util-marcos .dd-bar-dica{ display:none; }
       }
-    </style>
+    
+      /* 20/10/2026: resumo das fotos importadas do Campo / Ficha (a lista com descrições saiu do formulário) */
+      #panel-desp2-relatorio .d2-imp-resumo, #panel-desp1-tecnica .d2-imp-resumo{ margin:10px 0; padding:10px 12px; border:1px solid #bcd6f0; border-left:4px solid #1F6FC0; border-radius:8px; background:#f4f8fc; font-size:13.5px; color:#243447; }
+      #panel-desp2-relatorio .d2-imp-resumo span, #panel-desp1-tecnica .d2-imp-resumo span{ color:#5d6b7a; }
+      #panel-desp2-relatorio .d2-imp-resumo p, #panel-desp1-tecnica .d2-imp-resumo p{ margin:6px 0 8px; font-size:12.5px; line-height:1.45; color:#4a5867; }
+</style>
     <div class="wrap">
       <h1>Relatório de Análise de Impacto e Transposição da Faixa de Domínio — DESP-2</h1>
       <p class="sub">Os tópicos abaixo reproduzem o modelo Word validado — cada um é um campo editável. O texto padrão é carregado automaticamente; edite o que for necessário (use <b>**texto**</b> para negrito). Os campos de <b class="hint-desp1">Identificação</b> vêm da DESP&nbsp;1 e alimentam os tópicos ao gerar/atualizar os textos.</p>
@@ -51615,9 +51620,33 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     r.onerror=function(){ var st=document.getElementById("d2_foto_status_"+i); if(st) st.textContent="Não foi possível ler o arquivo de imagem."; };
     r.readAsDataURL(f);
   };
+  /* 20/10/2026: fotos que vieram do Campo ou da Ficha de Vistoria NÃO são listadas aqui (a lista com descrições era redundante:
+     as descrições são feitas na aba Campo e o relatório as imprime por tópico). Ficam só um resumo e, abaixo, as fotos MANUAIS. */
+  var D2_chaveCache = {};
+  function D2_chave(src){ var k = src.length + ":" + src.slice(0, 40) + src.slice(-40); return D2_chaveCache[k] || (D2_chaveCache[k] = window.FOTO_chave(src)); }
+  function D2_classificaFotos(){
+    var orig = {}, cam = ((window.CAMPO_getFotos ? window.CAMPO_getFotos() : []) || []), fic = ((window.FB_getFotos ? window.FB_getFotos() : []) || []);
+    fic.forEach(function(x){ var sr = (typeof x === "string") ? x : (x && x.src) || ""; if(sr) orig[D2_chave(sr)] = "ficha"; });
+    cam.forEach(function(x){ if(x && x.src) orig[D2_chave(x.src)] = "campo"; });
+    var imp = {}, nC = 0, nF = 0;
+    D2_fotos.forEach(function(ft, i){ var o = ft && ft.src ? orig[D2_chave(ft.src)] : null; if(o){ imp[i] = o; if(o === "campo") nC++; else nF++; } });
+    return { imp:imp, nC:nC, nF:nF, n:nC + nF };
+  }
+  window.D2_remImportadas = function(){
+    var c = D2_classificaFotos(); if(!c.n) return;
+    if(!confirm("Remover do relatório as " + c.n + " fotografia(s) importadas do Campo / da Ficha de Vistoria? As fotos continuam nas abas de origem.")) return;
+    for(var i = D2_fotos.length - 1; i >= 0; i--){ if(c.imp[i]){ D2_fotos.splice(i, 1); if(window.D2_fotoNome) window.D2_fotoNome.splice(i, 1); } }
+    D2_renderFotos(); if(window.D2_renderImportarFotos) window.D2_renderImportarFotos();
+  };
   function D2_renderFotos(){
     var host=document.getElementById("d2_fotos"); if(!host) return;
-    host.innerHTML = D2_fotos.length ? D2_fotos.map(function(ft,i){
+    var cls = D2_classificaFotos();
+    var resumo = cls.n ? ('<div class="d2-imp-resumo" role="status"><b>✓ ' + cls.n + ' fotografia' + (cls.n > 1 ? 's' : '') + ' no Anexo 1</b>'
+        + ' <span>(' + [cls.nC ? cls.nC + ' do Campo' : '', cls.nF ? cls.nF + ' da Ficha de Vistoria' : ''].filter(Boolean).join(' · ') + ')</span>'
+        + '<p>Entram no relatório por tópico (Imóvel — vista geral, Acesso, Área abrangida pelo projeto), com o mapa de localização e as descrições feitas na aba Campo — nada a editar aqui.</p>'
+        + '<button type="button" class="vbtn vbtn-ghost vbtn-sm" onclick="D2_remImportadas()">Remover as importadas</button></div>') : '';
+    host.innerHTML = resumo + (D2_fotos.length ? D2_fotos.map(function(ft,i){
+      if(cls.imp[i]) return '';
       var has=!!ft.src, fname=(window.D2_fotoNome&&window.D2_fotoNome[i])||"";
       var imgField = has
         ? '<div class="d2-ress-img-row"><img class="d2-ress-thumb" src="'+ft.src+'" alt="Prévia — Foto '+pad2(i+1)+'">'
@@ -51639,7 +51668,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       return r.auto
         ? '<p class="hint-auto" style="margin:4px 0;">📷 Nenhuma foto própria da DESP-2 — o relatório usa <b>automaticamente as '+r.fotos.length+' fotografia(s) da Assistência Social</b> (Ficha de Vistoria, 5.3). Para usar outras, adicione ou importe acima.</p>'
         : '<p class="hint-auto" style="margin:4px 0;">Nenhuma foto adicionada.</p>';
-    })();
+    })());
   }
   window.D2_renderFotos=D2_renderFotos;
 
@@ -60485,7 +60514,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.20-7';
+window.APP_VERSAO = '2026.10.20-8';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.20-4';
 (function(){
