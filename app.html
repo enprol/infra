@@ -5472,6 +5472,8 @@ body.ativ-pesquisa #topTabs, body.ativ-util #topTabs, body.ativ-pesquisa .fab-un
 body.ativ-pesquisa .app-header .btn-cad, body.ativ-util .app-header .btn-cad,
 body.ativ-pesquisa .top-dl, body.ativ-util .top-dl,
 body.ativ-pesquisa .btn-unir, body.ativ-util .btn-unir, body.ativ-pesquisa .unir-status, body.ativ-util .unir-status{ display:none !important; }
+/* 20/10/2026: "Baixar material técnico" vale para o cadastro aberto — fora do Painel Geral (lista de cadastros) */
+body.modo-painel .btn-unir, body.modo-painel .fab-unir{ display:none !important; }
 body.ativ-util .app-sidebar .sb-link[data-alvo="panel-util-pesquisa"]{ display:none !important; }
 body.ativ-pesquisa #panel-util-pesquisa, body.ativ-util #panel-util-pesquisa{ height:calc(100vh - var(--ativ-hdr,64px)); }
 /* só a Pesquisa de Mercado rola dentro do painel; as ferramentas de Utilitários rolam a página (11/10/2026) */
@@ -16857,7 +16859,7 @@ if(document.readyState === "loading") document.addEventListener("DOMContentLoade
 // alterna entre as seções principais do topo (INFRA / SANEAGO / UTILITÁRIOS)
 // "Unificar todo o material" só faz sentido dentro da DESP 3 (laudo de avaliação) — some nas outras seções/grupos
 function UNIR_atualizarVisibilidade(grupo){
-  var mostrar = (grupo === 'laudo');
+  var mostrar = (grupo === 'laudo' || grupo === 'desp1');   // 20/10/2026: também na DESP 1
   var b1 = document.getElementById('btnUnirTudo');
   var b2 = document.getElementById('fabUnir');
   if(b1) b1.style.display = mostrar ? '' : 'none';
@@ -19391,7 +19393,7 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
     doc.setFont("helvetica","normal"); doc.setFontSize(7); doc.setTextColor(90,90,90);
     const idt = ctx.relTitulo + (ctx.procRef ? (": " + ctx.procRef) : "");
     doc.text(doc.splitTextToSize(idt, MR-ML-70)[0] || "", ML, 23*MM);
-    doc.text("Página | " + ctx.pg, MR, 23*MM, {align:"right"});
+    if(!ctx.semPagina) doc.text("Página | " + ctx.pg, MR, 23*MM, {align:"right"});   // capa: sem número de página
     doc.setDrawColor(31,111,192); doc.setLineWidth(0.5); doc.line(ML, 25*MM, MR, 25*MM);
   }
   function footerRel(doc,ctx){
@@ -21284,10 +21286,13 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
     if(!ident){ const at = window.__CAD_ATUAL || {}; ident = (ctdN ? "CTD " + ctdN : (at.ctd ? String(at.ctd).split(" - ")[0] : (padrao || "CADASTRO"))).toUpperCase(); }
     return ident;
   };
+  // 20/10/2026: moldura padrão dos relatórios (margens 30/20 mm, cabeçalho e rodapé DESP), sem número de página
   window.AVFTN_folhaRosto = function(grupos){
-    const {jsPDF} = window.jspdf, doc = new jsPDF({unit:"pt",format:"a4",compress:true}), ctx = makeCtx(doc);
-    ctx.rodapePadrao = true; novaPagina(doc,ctx);
-    const cx = ctx.W/2, L = ctx.MR - ctx.ML; let y = 170;
+    const {jsPDF} = window.jspdf, doc = new jsPDF({unit:"pt",format:"a4",compress:true});
+    const proc0 = val("fv_processo") || val("fb_processo") || val("fb_proc_preview");
+    const ctx = ctxRel(doc, proc0, "Material Técnico do Cadastro", 0); ctx.semPagina = true;
+    novaPagina(doc,ctx);
+    const cx = (ctx.ML + ctx.MR)/2, L = ctx.MR - ctx.ML; let y = 170;
     // título = identificação do cadastro (ex.: "CTD 001 - SPS-04 – PE")
     // título: CTD + SPS + UF montados dos campos do processo (iguais ao "Nº do processo" da Ficha) — vale para qualquer cadastro
     const proc = val("fv_processo") || val("fb_processo") || val("fb_proc_preview");
@@ -21296,20 +21301,23 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
     doc.text("MATERIAL TÉCNICO DO CADASTRO", cx, y, {align:"center", charSpace:1.4});
     let fs = 40; doc.setFontSize(fs); while(fs > 18 && doc.getTextWidth(ident) > L - 20){ fs -= 1; doc.setFontSize(fs); }
     y += 54; doc.setTextColor(27,58,92); doc.text(ident, cx, y, {align:"center"});
-    y += 30; doc.setFontSize(14.5); doc.setTextColor(30,40,55);
-    doc.text("RELATÓRIOS E PEÇAS TÉCNICAS", cx, y, {align:"center", charSpace:0.6});
-    y += 52;
-    const x0 = cx - 185, wl = 330;
+    y += 70;
+    // 20/10/2026: DESP sem número nem símbolo; subitens com flecha (desenhada: a fonte padrão do PDF não tem o caractere)
+    const x0 = ctx.ML, xt = x0 + 40, wl = ctx.MR - xt;
+    function flecha(x, yb){
+      const ym = yb - 3.6;
+      doc.setDrawColor(31,111,192); doc.setFillColor(31,111,192); doc.setLineWidth(1.1);
+      doc.line(x, ym, x + 11, ym); doc.triangle(x + 10, ym - 3.2, x + 15.5, ym, x + 10, ym + 3.2, "F");
+    }
     (grupos || []).forEach(function(g){
       if(!(g.itens && g.itens.length)) return;
       doc.setFont("helvetica","bold"); doc.setFontSize(12); doc.setTextColor(27,58,92);
-      doc.text(g.n + "   " + g.t, x0, y); y += 20;
-      g.itens.forEach(function(t, k){
+      doc.text(g.t, x0, y); y += 20;
+      g.itens.forEach(function(t){
         const lin = doc.splitTextToSize(String(t), wl);
-        doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(31,111,192);
-        doc.text(g.n + "." + (k + 1), x0 + 8, y);
+        flecha(x0 + 16, y);
         doc.setFont("helvetica","normal"); doc.setFontSize(10.5); doc.setTextColor(36,52,71);
-        lin.forEach(function(l, q){ doc.text(l, x0 + 40, y + q * 14); });
+        lin.forEach(function(l, q){ doc.text(l, xt, y + q * 14); });
         y += lin.length * 14 + 6;
       });
       y += 12;
@@ -46569,6 +46577,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
   }
   // 16/10/2026: só duas escolhas — Parte I (o parecer inteiro) e Parte II (todos os anexos do check list)
   function totalDocs(){ var k=0; CHECKLIST_TABS.forEach(function(t,n){ k+=docsDaAba(n); }); return k; }
+  window.PAR_totalDocs=totalDocs;   // 20/10/2026: "Baixar material técnico" (item Checklist Documental)
   function dlMontar(){
     var s=dl.sel, nd=totalDocs();
     var h='<section class="mtec-parte" data-num="I"><header><span class="rot">Parte I</span><h3>Parecer</h3></header>'+
@@ -57879,6 +57888,8 @@ section.tab-panel .doc-barra-tit .doc-grupo{ display:block; font-size:11px; font
 section.tab-panel .doc-barra-tit h1, section.tab-panel .doc-barra-tit .doc-h{ margin:0 !important; font-size:19px !important; line-height:1.3 !important; color:var(--doc-navy) !important; letter-spacing:.2px; font-weight:700; }
 section.tab-panel .doc-barra-tit .sub, section.tab-panel .doc-barra-tit p{ margin:4px 0 0 !important; font-size:13px !important; color:var(--doc-sub) !important; line-height:1.5; max-width:820px; }
 section.tab-panel .doc-barra-acoes{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+/* 20/10/2026: nota das abas só com pré-visualização (impressas pelo Parecer) */
+section.tab-panel .doc-barra-acoes .doc-nota-prev{ margin:0; max-width:430px; padding:7px 10px; border-left:3px solid var(--doc-navy, #1B3A5C); background:rgba(27,58,92,.06); border-radius:4px; font-size:12px; line-height:1.45; color:var(--doc-sub, #4a5a6c); }
 /* aba que já tinha o fundo do padrão de 13/10 */
 section.tab-panel.rel-pad{ background:#e9eef3 repeating-linear-gradient(135deg, rgba(10,77,124,.025) 0 2px, transparent 2px 16px) !important; padding-top:16px !important; }
 section.tab-panel.rel-pad .dd-sw{ display:inline-grid !important; grid-template-columns:auto auto !important; margin:0 0 12px !important; padding:3px !important; border-radius:11px !important; }
@@ -58066,11 +58077,11 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     { painel:"panel-desp1-campo", grupo:D1 + " · Campo", docs:[
       { id:"campo", nome:"Relatório de Campo (ficha, mapa e fotos)", formatos:{ pdf:{ fn:"CAMPO_pdfRelatorio", previa:"retornar" } } } ] },
     { painel:"panel-desp1-vist", grupo:D1 + " · Assistência Social", docs:[
-      { id:"ficha", nome:"Ficha de Vistoria e Cadastro Socioeconômico (Anexo B)", formatos:{ pdf:{ fn:"FB_gerarPDF", previa:"retornar" }, word:{ fn:"WORD_anexoB" } } } ] },
+      { id:"ficha", nome:"Ficha de Vistoria e Cadastro Socioeconômico (Anexo B)", soPrevia:true, formatos:{ pdf:{ fn:"FB_gerarPDF", previa:"retornar" }, word:{ fn:"WORD_anexoB" } } } ] },
     { painel:"panel-desp1-drl", grupo:D1 + " · Assistência Social", docs:[
       { id:"drl", nome:"DRL — Declaração de Respeito de Limites", formatos:{ pdf:{ fn:"DRL_gerarPDF", previa:"retornar" }, word:{ fn:"DRL_gerarWord" } } } ] },
     { painel:"panel-desp1-rel", grupo:D1 + " · Assistência Social", docs:[
-      { id:"rel", nome:"Relatório Técnico de Caracterização Socioeconômica", formatos:{ pdf:{ fn:"REL_gerarPDF", previa:"retornar" }, word:{ fn:"REL_gerarWord" } } } ] },
+      { id:"rel", nome:"Relatório Técnico de Caracterização Socioeconômica", soPrevia:true, formatos:{ pdf:{ fn:"REL_gerarPDF", previa:"retornar" }, word:{ fn:"REL_gerarWord" } } } ] },
     { painel:"panel-desp1-planta", grupo:D1 + " · Técnica", titulo:"Planta e Memorial Descritivo", docs:[
       { id:"planta-com", nome:"Planta (com satélite)", legado:"manter", formatos:{ pdf:{ fn:"MDP_pdfPlantaCom", previa:"captura" } } },
       { id:"planta-sem", nome:"Planta (sem satélite)", legado:"manter", formatos:{ pdf:{ fn:"MDP_pdfPlantaSem", previa:"captura" } } },
@@ -58287,8 +58298,11 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     barra.appendChild(tit);
     var ac = document.createElement("div"); ac.className = "doc-barra-acoes"; ac.setAttribute("role", "toolbar"); ac.setAttribute("aria-label", "Documento desta aba");
     var temPrevia = docs.length === 1 && docs[0].formatos.pdf && docs[0].formatos.pdf.previa;
-    ac.innerHTML = (temPrevia ? '<button type="button" class="doc-btn" data-a="previa" title="Mostra como o PDF vai ficar, sem salvar nada">' + ICO.olho + 'Pré-visualizar</button>' : '') +
-      '<button type="button" class="doc-btn pri" data-a="baixar" aria-haspopup="dialog" title="Escolher formato e baixar">' + ICO.baixar + 'Baixar…</button>';
+    // 20/10/2026: documentos impressos pelo Parecer (Jurídico) — aqui só a pré-visualização, com a nota do porquê
+    var soPrevia = temPrevia && docs[0].soPrevia;
+    ac.innerHTML = (temPrevia ? '<button type="button" class="doc-btn' + (soPrevia ? ' pri' : '') + '" data-a="previa" title="Mostra como o PDF vai ficar, sem salvar nada">' + ICO.olho + 'Pré-visualizar</button>' : '') +
+      (soPrevia ? '<p class="doc-nota-prev" role="note"><b>Somente pré-visualização.</b> Este documento é impresso pela aba <b>Parecer para Regularização Fundiária e Documental</b> (Jurídico), no botão <b>Baixar material técnico</b>, para que saia uma única versão oficial junto com o DESP 1.</p>'
+        : '<button type="button" class="doc-btn pri" data-a="baixar" aria-haspopup="dialog" title="Escolher formato e baixar">' + ICO.baixar + 'Baixar…</button>');
     ac.addEventListener("click", function(ev){
       var b = ev.target.closest && ev.target.closest("button[data-a]"); if(!b) return;
       if(b.getAttribute("data-a") === "previa") previa(docs[0], docs[0].partes ? partesPadrao(docs[0]) : null, b);
@@ -58313,7 +58327,8 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     if(ov.parentNode !== document.body) document.body.appendChild(ov);
     var meu = ++prev.gen;
     prev.voltar = origem || document.activeElement;
-    prev.salvar = function(){ return baixar(doc, "pdf", partes); };
+    prev.salvar = doc.soPrevia ? null : function(){ return baixar(doc, "pdf", partes); };
+    var bs = $("relprev_salvar"); if(bs) bs.hidden = !!doc.soPrevia;   // sem "Gerar e salvar" nos documentos só de pré-visualização
     $("relprev_tit").textContent = "Pré-visualização — " + nomeDoc(doc);
     var msg = $("relprev_msg"), fr = $("relprev_if");
     msg.textContent = "Gerando a pré-visualização…"; msg.hidden = false; fr.hidden = true; ov.hidden = false; $("relprev_x").focus();
@@ -59739,12 +59754,16 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
   function $(id){ return document.getElementById(id); }
   function esc(s){ return String(s == null ? "" : s).replace(/[&<>"]/g, function(c){ return { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[c]; }); }
   function v(id){ var e = $(id); return e ? String(e.value || "").trim() : ""; }
+  // 20/10/2026: o Parecer sai sem os anexos do check list; o Checklist Documental é um item à parte. DESP 2 passou para a Parte II.
   var P1 = [
     { k:"fb",  fn:"FB_gerarPDF",  t:"Ficha de Vistoria e Cadastro Socioeconômico (Anexo B)" },
     { k:"rel", fn:"REL_gerarPDF", t:"Relatório Socioeconômico" },
-    { k:"par", fn:"PAR_gerarPDF", t:"Relatório Jurídico" },
-    { k:"d2",  fn:"D2_gerarPDF",  t:"Relatório de Análise de Impacto e Transposição da Faixa de Domínio" }
+    { k:"par", fn:"PAR_gerarPDF", t:"Relatório Jurídico", op:{ sel:{ semParecer:false, semAnexos:true } } },
+    { k:"ckd", fn:"PAR_gerarPDF", t:"Checklist Documental (folha de rosto e documentos anexados)", op:{ sel:{ semParecer:true, semAnexos:false } } }
   ];
+  var D2 = { k:"d2", fn:"D2_gerarPDF", t:"Relatório de Análise de Impacto e Transposição da Faixa de Domínio" };
+  function semDocs(it){ return it.k === "ckd" && typeof window.PAR_totalDocs === "function" && !window.PAR_totalDocs(); }
+  function todos(){ return P1.concat([D2, MEM], ANX); }
   var MEM = { k:"memorial", t:"Memorial de Cálculo de Terra Nua e Benfeitorias" };
   var MOTIVO = { pla:"sem KML da área em Técnica › Áreas de Locação", orc:"sem benfeitorias com tabela do RGV", met:"sem valores de terra nua ou benfeitorias", est:"sem amostra de terra nua (SisDEA)", amo:"sem amostra de terra nua (SisDEA)" };
   var ROMANO = ["I","II","III","IV","V","VI","VII","VIII"];
@@ -59763,21 +59782,22 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     var at = window.__CAD_ATUAL || {}, ctd = at.ctd ? String(at.ctd).split(" - ")[0] : (v("fb_proc_ctd") ? "CTD " + v("fb_proc_ctd") : "cadastro sem número");
     var dono = v("av_nome") || v("fb_nome") || "";
     $("mtec_ident").innerHTML = "<b>" + esc(ctd) + "</b>" + (dono ? " · " + esc(dono) : "") + (v("fv_processo") ? " · " + esc(v("fv_processo")) : "");
-    var h = '<section class="mtec-parte" data-num="I"><header><span class="rot">Parte I</span><h3>Relatórios e peças técnicas</h3><button type="button" class="todos" data-todos="1">Marcar todos</button></header>';
-    P1.forEach(function(it){ h += linha(it, typeof window[it.fn] === "function" ? null : { off:"gerador indisponível" }); });
-    h += '</section><section class="mtec-parte" data-num="II"><header><span class="rot">Parte II</span><h3>Avaliação e anexos</h3><button type="button" class="todos" data-todos="2">Marcar todos</button></header>';
+    var h = '<section class="mtec-parte" data-num="I"><header><span class="rot">Parte I</span><h3>DESP 1</h3><button type="button" class="todos" data-todos="1">Marcar todos</button></header>';
+    P1.forEach(function(it){ h += linha(it, typeof window[it.fn] !== "function" ? { off:"gerador indisponível" } : (semDocs(it) ? { off:"nenhum documento anexado ao check list" } : null)); });
+    h += '</section><section class="mtec-parte" data-num="II"><header><span class="rot">Parte II</span><h3>DESP 2 e DESP 3</h3><button type="button" class="todos" data-todos="2">Marcar todos</button></header>';
+    h += linha(D2, typeof window[D2.fn] === "function" ? null : { off:"gerador indisponível" });
     h += linha(MEM);
     ANX.forEach(function(a){ h += linha(a, { anx:true, sub:true, off: disp[a.k] ? "" : ("não se aplica — " + (MOTIVO[a.k] || "sem dados")) }); });
     h += '</section>';
     $("mtec_corpo").innerHTML = h;
     atualizar();
   }
-  function marcados(){ return P1.concat([MEM], ANX).filter(function(it){ return sel[it.k] && (it.fn ? typeof window[it.fn] === "function" : (it.k === "memorial" || disp[it.k])); }); }
+  function marcados(){ return todos().filter(function(it){ return sel[it.k] && !semDocs(it) && (it.fn ? typeof window[it.fn] === "function" : (it.k === "memorial" || disp[it.k])); }); }
   function atualizar(){
     var num = numeracao();
     Array.prototype.forEach.call(document.querySelectorAll("#mtec_corpo [data-anx]"), function(e){ var k = e.getAttribute("data-anx"); e.textContent = num[k] ? "Anexo " + num[k] : "Anexo —"; });
     Array.prototype.forEach.call(document.querySelectorAll("#mtec_corpo [data-todos]"), function(b){
-      var lista = b.getAttribute("data-todos") === "1" ? P1 : [MEM].concat(ANX);
+      var lista = b.getAttribute("data-todos") === "1" ? P1 : [D2, MEM].concat(ANX);
       var tudo = lista.every(function(it){ var c = document.querySelector('#mtec_corpo input[data-k="' + it.k + '"]'); return !c || c.disabled || c.checked; });
       b.textContent = tudo ? "Desmarcar todos" : "Marcar todos";
     });
@@ -59791,7 +59811,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     if(gerando){ $("mtec_ov").hidden = false; return; }
     disp = window.AVFTN_disponiveis ? window.AVFTN_disponiveis() : { rot:true };
     ANX = anexos();
-    P1.concat([MEM], ANX).forEach(function(it){ if(!(it.k in sel)) sel[it.k] = true; });
+    todos().forEach(function(it){ if(!(it.k in sel)) sel[it.k] = true; });
     montar();
     $("mtec_ov").hidden = false; document.body.classList.add("modal-aberto");
     setTimeout(function(){ try{ $("mtec_ir").focus(); }catch(e){} }, 30);
@@ -59816,7 +59836,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
         var it = m[i], bytes = null;
         chip(it.k, "wk", "gerando"); $("mtec_bar").style.width = Math.round(i / (m.length + 1) * 100) + "%";
         try{
-          if(it.fn){ var r = await window[it.fn]({ retornar:true }); if(r && r.blob) bytes = await bytesDe(r.blob); }
+          if(it.fn){ var r = await window[it.fn](Object.assign({ retornar:true }, it.op || {})); if(r && r.blob) bytes = await bytesDe(r.blob); }
           else if(it.k === "memorial"){ bytes = await window.AVFTN_buildBytes({ sel:anxSel, so:"nenhum" }); }
           else { bytes = await window.AVFTN_buildBytes({ sel:anxSel, memorial:false, so:it.k }); }
         }catch(e){ console.error("material técnico — " + it.t + ":", e); }
@@ -59830,15 +59850,15 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
       var base = "Material_Tecnico_" + (sufixo() || "cadastro").replace(/\s+/g, "_");
       var blob, nome;
       if(zip){
-        var ent = [], cont = { 1:0, 2:0 }, pasta = { 1:"Parte I - Relatórios e peças técnicas", 2:"Parte II - Avaliação e anexos" };
+        var ent = [], cont = { 1:0, 2:0 }, pasta = { 1:"Parte I - DESP 1", 2:"Parte II - DESP 2 e DESP 3" };
         feitos.forEach(function(f){ cont[f.parte]++; ent.push({ path:pasta[f.parte] + "/" + String(cont[f.parte]).padStart(2, "0") + " - " + nomeArq(f.rot) + ".pdf", blob:new Blob([f.bytes], { type:"application/pdf" }) }); });
         blob = await window.ZIP_build(ent); nome = base + ".zip";
       } else {
         var out = await PDFLib.PDFDocument.create();
-        // capa única (a numeração é o tipo de produto e NÃO muda quando um grupo não é selecionado): 1 DESP 1 (ficha, relatório socioeconômico, jurídico) · 2 DESP 2 · 3 DESP 3 (memorial + anexos incluídos)
-        var d1 = feitos.filter(function(f){ return f.it.k === "fb" || f.it.k === "rel" || f.it.k === "par"; }),
+        // capa única: DESP 1 (ficha, relatório socioeconômico, jurídico, checklist) · DESP 2 · DESP 3 (memorial + anexos incluídos)
+        var d1 = feitos.filter(function(f){ return f.parte === 1; }),
             d2 = feitos.filter(function(f){ return f.it.k === "d2"; }),
-            d3 = feitos.filter(function(f){ return f.parte === 2; });
+            d3 = feitos.filter(function(f){ return f.parte === 2 && f.it.k !== "d2"; });
         var grupos = [];
         if(d1.length) grupos.push({ n:1, t:"DESP 1", itens:d1.map(function(f){ return f.rot; }) });
         if(d2.length) grupos.push({ n:2, t:"DESP 2", itens:d2.map(function(f){ return f.rot; }) });
@@ -59876,7 +59896,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
 
   document.addEventListener("change", function(ev){
     var t = ev.target; if(!t || !t.closest || !t.closest("#mtec_ov")) return;
-    if(t.dataset && t.dataset.k){ sel[t.dataset.k] = t.checked; P1.concat([MEM], ANX).forEach(function(it){ chip(it.k, null); }); }
+    if(t.dataset && t.dataset.k){ sel[t.dataset.k] = t.checked; todos().forEach(function(it){ chip(it.k, null); }); }
     atualizar();
   });
   document.addEventListener("click", function(ev){
@@ -59885,7 +59905,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     if(t.closest("#mtec_ir")){ gerar(); return; }
     if(t.closest("#mtec_ver")){ gerar("ver"); return; }
     var b = t.closest("[data-todos]"); if(!b || gerando) return;
-    var lista = b.getAttribute("data-todos") === "1" ? P1 : [MEM].concat(ANX);
+    var lista = b.getAttribute("data-todos") === "1" ? P1 : [D2, MEM].concat(ANX);
     var algum = lista.some(function(it){ var c = document.querySelector('#mtec_corpo input[data-k="' + it.k + '"]'); return c && !c.disabled && !c.checked; });
     lista.forEach(function(it){ var c = document.querySelector('#mtec_corpo input[data-k="' + it.k + '"]'); if(c && !c.disabled){ c.checked = algum; sel[it.k] = algum; } });
     b.textContent = algum ? "Desmarcar todos" : "Marcar todos";
@@ -60233,7 +60253,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.20-2';
+window.APP_VERSAO = '2026.10.20-3';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.17-5';
 (function(){
