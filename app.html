@@ -43409,7 +43409,9 @@ function AV_gerarDescSituacao(){
 
   window.FB_gerarPDF = async function(opts){
     // 20/10/2026: mapa geral das fotos de campo incorporadas a esta ficha (numeradas como saem aqui)
-    var __mapaF = null; try{ __mapaF = window.CAMPO_mapaPara ? await window.CAMPO_mapaPara((window.FB_getFotos ? window.FB_getFotos() : []) || []) : null; }catch(e){}   /* campoMapa */
+    // 20/10/2026: fotos por tópico do Campo (a ordem de impressão é a do mapa)
+    var __orgF = null; try{ __orgF = window.CAMPO_organizarFotos ? window.CAMPO_organizarFotos((window.FB_getFotos ? window.FB_getFotos() : []) || []) : null; }catch(e){}
+    var __mapaF = null; try{ __mapaF = (window.CAMPO_mapaPara && __orgF) ? await window.CAMPO_mapaPara(__orgF.itens.map(function(o){ return o.src; })) : null; }catch(e){}   /* campoMapa */
     if(!(window.jspdf||window.jsPDF)){
       alert("Biblioteca de PDF ainda carregando. Tente novamente em instantes."); return;
     }
@@ -43868,7 +43870,7 @@ function AV_gerarDescSituacao(){
       garantir(6 + (_fp.length ? _fhp : 0));
     }
     h2("5.4 Fotografias do imóvel:");
-    const fotos = (window.FB_getFotos?window.FB_getFotos():[]) || [];
+    const fotos = __orgF ? __orgF.itens : ((window.FB_getFotos?window.FB_getFotos():[]) || []);
     if(fotos.length && __mapaF){                                                 // mapa geral da localização das fotografias
       const mw = contentW, mh = mw*__mapaF.h/__mapaF.w;
       if(y + mh + 6 > botY){ rodape(); novaPagina(); }
@@ -43877,11 +43879,16 @@ function AV_gerarDescSituacao(){
     }
     if(fotos.length){
       const fw=(contentW-6)/2, fh=fw*0.72, lh=4;
-      let col=0, linTem=false;
+      let col=0, linTem=false, topAnt=null;
       // com o mapa, cada foto leva o número do alfinete ("Foto 01 – legenda")
       const capF=function(i, l){ l=String(l||"").trim(); return __mapaF ? ("Foto "+(i+1<10?"0":"")+(i+1)+(l?" – "+l:"")) : l; };
       for(let i=0;i<fotos.length;i++){
-        const ft=fotos[i]||{}, cap=capF(i, ft.legenda);
+        const ft=fotos[i]||{}, cap=capF(i, ft.legenda), tp=ft.topico||"";
+        if(tp!==topAnt){                                                           // título do tópico (Imóvel — vista geral, Acesso, Área abrangida pelo projeto…)
+          if(col===1){ col=0; y+=fh+(linTem?lh:0)+5; linTem=false; }
+          if(tp){ if(y+8+fh+lh>botY){ rodape(); novaPagina(); } F("bold"); pdf.setFontSize(FS); C(NAVY); pdf.text(tp, mL, y+3.6); pdf.setDrawColor(190,200,212); pdf.setLineWidth(0.2); pdf.line(mL, y+5, mL+contentW, y+5); F("normal"); C(BLK); y+=8; }
+          topAnt=tp;
+        }
         if(y+fh+(cap?lh:0)>botY){ rodape(); novaPagina(); }
         const x=mL+col*(fw+6);
         try{ pdf.addImage(ft.src,"JPEG",x,y,fw,fh); }catch(e){}
@@ -44607,7 +44614,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
   window.REL_setTabela=function(n,arr){ tabelas[n]=Array.isArray(arr)?arr:[]; renderTab(n); if(n===1 && typeof atualizarIVS==="function") atualizarIVS(); };
 
   // ---- Fotos: 20/10/2026 — escolha da origem (Campo, sem o arquivo morto, e/ou Ficha de Vistoria 5.3), sem repetir a mesma imagem ----
-  const fotos=[], fotosLeg=[];
+  const fotos=[], fotosLeg=[], fotosTop=[];
   function renderFotos(){ const host=document.getElementById("rel_fotos_prev"); if(!host) return; host.innerHTML="";
     fotos.forEach((src,i)=>{ const d=document.createElement("div"); d.className="foto"; d.innerHTML='<img src="'+src+'">'; host.appendChild(d); }); }
   // Espelha as fotos da Ficha de Vistoria e bloqueia o upload manual aqui.
@@ -44615,10 +44622,14 @@ window.UFOTO_rodapeHTML=rodapeHTML;
   window.REL_syncFotos=function(){
     const usaCampo=chk("rel_fotos_campo", false), usaFicha=chk("rel_fotos_ficha", true), vistos={};
     let nC=0, nF=0;
-    fotos.length=0; fotosLeg.length=0;
-    function add(src, leg){ if(!src) return false; const k=window.FOTO_chave?window.FOTO_chave(src):src; if(vistos[k]) return false; vistos[k]=1; fotos.push(src); fotosLeg.push(String(leg||"").trim()); return true; }
+    fotos.length=0; fotosLeg.length=0; fotosTop.length=0;
+    const lista=[];
+    function add(src, leg){ if(!src) return false; const k=window.FOTO_chave?window.FOTO_chave(src):src; if(vistos[k]) return false; vistos[k]=1; lista.push({src:src, legenda:String(leg||"").trim()}); return true; }
     if(usaCampo) ((window.CAMPO_getFotos?window.CAMPO_getFotos():[])||[]).forEach(f=>{ if(f && add(f.src, f.legenda)) nC++; });
     if(usaFicha) ((window.FB_getFotos?window.FB_getFotos():[])||[]).forEach(it=>{ const s=typeof it==="string"?it:(it&&it.src)||""; if(add(s, it&&it.legenda)) nF++; });
+    // 20/10/2026: por tópico do Campo (Imóvel — vista geral, Acesso, Área abrangida pelo projeto…), sem o arquivo morto
+    const org = window.CAMPO_organizarFotos ? window.CAMPO_organizarFotos(lista) : null;
+    (org ? org.itens : lista).forEach(o=>{ fotos.push(o.src); fotosLeg.push(o.legenda||""); fotosTop.push(org&&org.temTopicos ? (o.topico||"") : ""); });
     const rs=document.getElementById("rel_fotos_resumo");
     if(rs) rs.innerHTML = (!usaCampo && !usaFicha) ? "Nenhuma origem marcada — o relatório sai sem o item 6 (Relatório Fotográfico)."
       : ("<b>"+fotos.length+"</b> fotografia(s) no item 6"+(usaCampo?" · "+nC+" do Campo":"")+(usaFicha?" · "+nF+" da Ficha de Vistoria":"")+(usaCampo&&usaFicha?" (a mesma imagem nas duas entra uma vez só)":"")+".");
@@ -44630,6 +44641,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
   };
   window.REL_getFotos=function(){ return fotos; };
   window.REL_getFotosLeg=function(){ return fotosLeg; };
+  window.REL_getFotosTop=function(){ return fotosTop; };
   document.addEventListener("change", function(ev){ const t=ev.target; if(t && (t.id==="rel_fotos_campo" || t.id==="rel_fotos_ficha")) window.REL_syncFotos(); });
   document.addEventListener("click", function(ev){ const b=ev.target && ev.target.closest && ev.target.closest('.sb-link[data-alvo="panel-desp1-rel"]'); if(b) setTimeout(function(){ try{ window.REL_syncFotos(); }catch(e){} }, 0); });
   function bindFotos(){ const drop=document.getElementById("rel_fotos_drop"); if(drop){ drop.style.opacity="0.5"; drop.style.pointerEvents="none"; } if(window.REL_syncFotos) window.REL_syncFotos(); }
@@ -45250,10 +45262,17 @@ window.UFOTO_rodapeHTML=rodapeHTML;
       { var __mp = null; try{ __mp = window.CAMPO_mapaPara ? await window.CAMPO_mapaPara(fotos) : null; }catch(e){}   // mapa geral das fotos de campo deste relatório (20/10/2026)
         if(__mp){ const mw = cw, mh = mw*__mp.h/__mp.w; if(yc + mh + 6 > botY){ rod(); nova(); } try{ pdf.addImage(__mp.url, "JPEG", mL, yc, mw, mh); }catch(e){} yc += mh + 1.5; pdf.setFont(FONT,"italic"); pdf.setFontSize(8.5); pdf.setTextColor(70,70,70); pdf.text("Mapa de localização das fotografias", mL + cw/2, yc + 2.6, {align:"center"}); pdf.setFont(FONT,"normal"); pdf.setTextColor(0,0,0); yc += 7; } }
       // com o mapa, cada foto leva o número do alfinete ("Foto 01 – legenda")
-      const fw=(cw-6)/2, fh=fw*0.72, capH=__mp?5:0; let col=0;
-      const capR=function(i){ const l=fotosLeg[i]||""; return "Foto "+(i+1<10?"0":"")+(i+1)+(l?" – "+l:""); };
-      for(let i=0;i<fotos.length;i++){ if(col===0 && yc+fh+capH>botY){ rod(); nova(); } const x=mL+col*(fw+6); try{ pdf.addImage(fotos[i],"JPEG",x,yc,fw,fh); }catch(e){}
-        if(__mp){ pdf.setFont(FONT,"italic"); pdf.setFontSize(8.5); pdf.setTextColor(70,70,70); pdf.text(pdf.splitTextToSize(capR(i), fw)[0], x+fw/2, yc+fh+3.4, {align:"center"}); pdf.setFont(FONT,"normal"); pdf.setTextColor(0,0,0); }
+      const temLeg=fotosLeg.some(Boolean), fw=(cw-6)/2, fh=fw*0.72, capH=(__mp||temLeg)?5:0; let col=0, topAnt=null;
+      const capR=function(i){ const l=fotosLeg[i]||""; return __mp ? ("Foto "+(i+1<10?"0":"")+(i+1)+(l?" – "+l:"")) : l; };
+      for(let i=0;i<fotos.length;i++){
+        const tp=fotosTop[i]||"";
+        if(tp!==topAnt){                                                           // título do tópico
+          if(col===1){ col=0; yc+=fh+5+capH; }
+          if(tp){ if(yc+8+fh+capH>botY){ rod(); nova(); } pdf.setFont(FONT,"bold"); pdf.setFontSize(11); pdf.setTextColor(27,58,92); pdf.text(tp, mL, yc+4); pdf.setDrawColor(190,200,212); pdf.setLineWidth(0.2); pdf.line(mL, yc+5.4, mL+cw, yc+5.4); pdf.setFont(FONT,"normal"); pdf.setTextColor(0,0,0); yc+=8; }
+          topAnt=tp;
+        }
+        if(col===0 && yc+fh+capH>botY){ rod(); nova(); } const x=mL+col*(fw+6); try{ pdf.addImage(fotos[i],"JPEG",x,yc,fw,fh); }catch(e){}
+        if(capH && capR(i)){ pdf.setFont(FONT,"italic"); pdf.setFontSize(8.5); pdf.setTextColor(70,70,70); pdf.text(pdf.splitTextToSize(capR(i), fw)[0], x+fw/2, yc+fh+3.4, {align:"center"}); pdf.setFont(FONT,"normal"); pdf.setTextColor(0,0,0); }
         col++; if(col===2){ col=0; yc+=fh+5+capH; } }
       if(col===1) yc+=fh+5+capH; }
     rod();
@@ -48465,11 +48484,15 @@ window.DRL_gerarPDF=async function(opts){
   function galerias(f){
     var out = [];
     function add(id, t, arr, fixa){ out.push({ id:id, t:t, arr:arr, fixa:!!fixa }); }
-    if((f.fotosImovel||[]).length || f._semArquivo) add("fotosImovel", "Imóvel — vista geral", f.fotosImovel = f.fotosImovel || []);   /* campoVazio */
+    // 20/10/2026: tópicos do relatório fotográfico = Imóvel — vista geral, Acesso, Área desapropriada (sempre presentes).
+    // "Benfeitorias (imóvel como um todo)" e "Benfeitorias na faixa de domínio" foram desativados: só aparecem enquanto
+    // ainda tiverem fotos (cadastros antigos) — esvaziadas, somem; as fotos nunca ficam órfãs.
+    add("fotosImovel", "Imóvel — vista geral", f.fotosImovel = f.fotosImovel || []);
     add("fotosAcesso", GAL_FIXAS[0][1], f.fotosAcesso = f.fotosAcesso || [], true);
-    if((f.fotosAreaDesap||[]).length || f._semArquivo) add("fotosAreaDesap", "Área desapropriada", f.fotosAreaDesap = f.fotosAreaDesap || []);
-    add("fotosBenfTotal", GAL_FIXAS[1][1], f.fotosBenfTotal = f.fotosBenfTotal || [], true);
-    add("fotosBenfFaixa", GAL_FIXAS[2][1], f.fotosBenfFaixa = f.fotosBenfFaixa || [], true);
+    add("fotosAreaDesap", "Área desapropriada", f.fotosAreaDesap = f.fotosAreaDesap || []);
+    f.fotosBenfTotal = f.fotosBenfTotal || []; f.fotosBenfFaixa = f.fotosBenfFaixa || [];
+    if(f.fotosBenfTotal.length) add("fotosBenfTotal", GAL_FIXAS[1][1], f.fotosBenfTotal, true);
+    if(f.fotosBenfFaixa.length) add("fotosBenfFaixa", GAL_FIXAS[2][1], f.fotosBenfFaixa, true);
     [["reprodutivas","benfeitoria","Benfeitoria reprodutiva "],["pastagem","variedade","Pastagem "],
      ["naoReprodutivas","benfeitoria","Benfeitoria não reprodutiva "],["acessorias","benfeitoria","Benfeitoria acessória "]].forEach(function(d){
       (f[d[0]]||[]).forEach(function(it, i){
@@ -49412,6 +49435,36 @@ window.DRL_gerarPDF=async function(opts){
   /* 20/10/2026: mapa geral de localização para UM relatório. lista = as fotos do relatório, na ordem em que saem; entram no
      mapa as que são do Campo (mesma imagem) e têm coordenada, com o número da foto NO RELATÓRIO. Fotos do arquivo morto
      não estão em todasFotos, então nunca aparecem. Guardado só em memória (por assinatura), não infla o cadastro. */
+  /* 20/10/2026: organiza as fotos de um relatório por TÓPICO do Campo (mesma divisão da aba: Imóvel — vista geral, Acesso,
+     Área desapropriada…; o arquivo morto não entra). Devolve { itens:[{src,legenda,topico}], temTopicos } na ordem de
+     impressão (tópico, depois a ordem de cada um). "Área desapropriada" sai como "Área abrangida pelo projeto".
+     Foto que não é do Campo (ex.: digitada na Ficha) vai no fim, em "Demais fotografias" se houver tópicos.
+     A legenda que for só o nome do tópico (preenchida sozinha antes) é descartada: o título do tópico já a diz. */
+  function norm(s){ return String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim().toLowerCase(); }
+  function topicoPDF(t){ t = String(t || "").split(" (")[0]; return /^área desapropriada$/i.test(t) ? "Área abrangida pelo projeto" : t; }
+  window.CAMPO_organizarFotos = function(lista){
+    var itens = (lista || []).map(function(x, i){
+      var src = (typeof x === "string") ? x : (x && x.src) || "";
+      return { src:src, legenda:(typeof x === "string") ? "" : String((x && x.legenda) || "").trim(), topico:"", rank:9999, i:i };
+    }).filter(function(o){ return o.src || o.legenda; });
+    var tem = false;
+    if(CAMPO){
+      var mapa = {};
+      galerias(CAMPO).forEach(function(g, ri){
+        g.arr.forEach(function(p){ if(p && p.src){ var k = chaveFoto(p.src); (mapa[k] = mapa[k] || []).push({ t:topicoPDF(g.t), orig:String(g.t).split(" (")[0], r:ri }); } });
+      });
+      var usou = {};   // a mesma imagem em dois tópicos do Campo: a 1ª cópia da lista vai no 1º tópico, a 2ª no 2º…
+      itens.forEach(function(o){
+        var k = o.src ? chaveFoto(o.src) : null, arr = k ? mapa[k] : null; if(!arr) return;
+        var m = arr[Math.min(usou[k] || 0, arr.length - 1)]; usou[k] = (usou[k] || 0) + 1;
+        o.topico = m.t; o.rank = m.r; tem = true;
+        var l = norm(o.legenda); if(l && (l === norm(m.t) || l === norm(m.orig))) o.legenda = "";
+      });
+    }
+    itens.sort(function(a, b){ return (a.rank - b.rank) || (a.i - b.i); });
+    if(tem) itens.forEach(function(o){ if(!o.topico) o.topico = "Demais fotografias"; });
+    return { itens:itens, temTopicos:tem };
+  };
   var MAPAS_REL = {}, MAPAS_REL_N = [];
   window.CAMPO_mapaPara = async function(lista){
     if(!CAMPO || !lista || !lista.length) return null;
@@ -49428,7 +49481,7 @@ window.DRL_gerarPDF=async function(opts){
     var sig = pts.map(function(q){ return q.n + ":" + q.gid + ":" + q.z + ":" + q.E + ":" + q.N; }).join("|") + "#" + desapAssin();
     if(MAPAS_REL[sig]) return MAPAS_REL[sig];
     try{
-      var m = await mapaEstatico(CAMPO, false, pts);
+      var m = await mapaEstatico(CAMPO, false, pts, true);
       if(m){ MAPAS_REL[sig] = m; MAPAS_REL_N.push(sig); if(MAPAS_REL_N.length > 6) delete MAPAS_REL[MAPAS_REL_N.shift()]; }
       return m || null;
     }catch(e){ console.warn("mapa das fotos do relatório:", e); return null; }
@@ -50364,11 +50417,26 @@ window.DRL_gerarPDF=async function(opts){
     g.fillText(String(txt), x, cy + r*.04);
     g.restore();
   }
-  async function mapaEstatico(f, usarFicha, ptsDados){
+  async function mapaEstatico(f, usarFicha, ptsDados, enquadrar){
     var grupos = agruparPontos(ptsDados || pontosFotos(f)); if(!grupos.length) return null;
+    var dpoly = desapPolys(), fora = [];
+    /* 20/10/2026 (relatórios): o enquadramento é a ÁREA DESAPROPRIADA (KML) com uma folga; só entram no mapa as fotos até
+       400 m dela — as mais distantes (ex.: o acesso a km do imóvel) ficariam fora do quadro e deixavam o mapa longe demais.
+       Elas não somem em silêncio: o mapa avisa "Foto(s) NN fora do enquadramento". Sem KML da desapropriada: tudo como antes. */
+    if(enquadrar && dpoly.length){
+      var bx0 = 1e9, bx1 = -1e9, by0 = 1e9, by1 = -1e9;
+      dpoly.forEach(function(r){ r.forEach(function(q){ if(q[0] < bx0) bx0 = q[0]; if(q[0] > bx1) bx1 = q[0]; if(q[1] < by0) by0 = q[1]; if(q[1] > by1) by1 = q[1]; }); });
+      var dLat = 400/111320, dLon = dLat/Math.max(.2, Math.cos(((by0 + by1)/2)*Math.PI/180));
+      grupos = grupos.filter(function(g){
+        var dentro = g.lon >= bx0 - dLon && g.lon <= bx1 + dLon && g.lat >= by0 - dLat && g.lat <= by1 + dLat;
+        if(!dentro) g.pts.forEach(function(q){ fora.push(q.n); });
+        return dentro;
+      });
+    }
     var W = 1500, H = 1050, pts = grupos.map(function(g){ return [g.lon, g.lat]; });
     if(usarFicha && f.gps && isFinite(f.gps.lat)) pts.push([f.gps.lon, f.gps.lat]);
-    var dpoly = desapPolys(); dpoly.forEach(function(r){ r.forEach(function(q){ pts.push([q[0], q[1]]); }); });   /* campoMapa */
+    dpoly.forEach(function(r){ r.forEach(function(q){ pts.push([q[0], q[1]]); }); });   /* campoMapa */
+    if(!pts.length) return null;
     var minLon = Math.min.apply(null, pts.map(function(q){ return q[0]; })), maxLon = Math.max.apply(null, pts.map(function(q){ return q[0]; }));
     var minLat = Math.min.apply(null, pts.map(function(q){ return q[1]; })), maxLat = Math.max.apply(null, pts.map(function(q){ return q[1]; }));
     var z = 18;
@@ -50405,6 +50473,13 @@ window.DRL_gerarPDF=async function(opts){
       var p = xy(gr.lon, gr.lat), n0 = Math.min.apply(null, gr.pts.map(function(q){ return q.n; }));
       desenharPin(g, p[0], p[1], r, corGaleria(gr.gid), n0);
     });
+    if(fora.length){                                                          // fotos distantes, fora do quadro
+      fora.sort(function(a, b){ return a - b; });
+      var tf = "Foto" + (fora.length > 1 ? "s " : " ") + fora.map(function(n){ return (n < 10 ? "0" : "") + n; }).join(", ") + " fora do enquadramento";
+      g.font = "600 17px Arial"; var tw = g.measureText(tf).width + 24;
+      g.fillStyle = "rgba(0,0,0,.55)"; g.fillRect(20, dpoly.length ? 74 : 20, tw, 34);
+      g.fillStyle = "#fff"; g.textAlign = "left"; g.textBaseline = "middle"; g.fillText(tf, 32, (dpoly.length ? 74 : 20) + 17);
+    }
     if(dpoly.length){                                                         // legenda da área desapropriada
       g.fillStyle = "rgba(0,0,0,.55)"; g.fillRect(20, 20, 292, 46);
       g.fillStyle = "rgba(255,230,0,.35)"; g.fillRect(32, 32, 34, 22); g.lineWidth = 4; g.strokeStyle = "#ffe600"; g.strokeRect(32, 32, 34, 22);
@@ -53421,7 +53496,9 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
   window.D2_gerarPDF=async function(opts){
     opts=opts||{}; await D2DOC_prepararImgs(); window.D2_puxar(false);
     // 20/10/2026: mapa geral das fotos de campo incorporadas ao 6.1, com o número de cada foto no relatório
-    var __mapaF = null; try{ __mapaF = window.CAMPO_mapaPara ? await window.CAMPO_mapaPara((window.D2_fotosRelatorio ? window.D2_fotosRelatorio().fotos : []).filter(function(f){ return f && (f.src || f.legenda); })) : null; }catch(e){}   /* campoMapa */
+    // 20/10/2026: fotos por tópico do Campo; a ordem de impressão é a do mapa
+    var __orgD2 = null; try{ __orgD2 = window.CAMPO_organizarFotos ? window.CAMPO_organizarFotos((window.D2_fotosRelatorio ? window.D2_fotosRelatorio().fotos : []).filter(function(f){ return f && (f.src || f.legenda); })) : null; }catch(e){}
+    var __mapaF = null; try{ __mapaF = (window.CAMPO_mapaPara && __orgD2) ? await window.CAMPO_mapaPara(__orgD2.itens.filter(function(o){ return o.src; }).map(function(o){ return o.src; })) : null; }catch(e){}   /* campoMapa */
     // item c) é 100% derivado da Ficha 4.9.1 (DESP-1) — regenera na hora de gerar o PDF
     if(window.D2_rebuild) window.D2_rebuild("descri_o_do_tipo_de_atividad");
     DESP2_TOPICOS.forEach(function(tp){ var v=document.getElementById('d2_view_'+tp.id); if(v && v.getAttribute('contenteditable')==='true') window.D2_syncFromView(tp.id); });
@@ -53768,7 +53845,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       // INTEIRA logo abaixo da foto e a linha (fotos + descrições) nunca é partida entre páginas.
       // Tamanho único para todas as páginas, calculado para caberem 3 linhas já na 1ª (abaixo do "6.1").
       if(tp.id==="anexo_2_relat_rio_fotogr_fic"){
-        var D2fts=(window.D2_fotosRelatorio?window.D2_fotosRelatorio().fotos:[]).filter(function(f){ return f && (f.src || f.legenda); });
+        var D2fts=__orgD2 ? __orgD2.itens : (window.D2_fotosRelatorio?window.D2_fotosRelatorio().fotos:[]).filter(function(f){ return f && (f.src || f.legenda); });
         if(!D2fts.length){ parRich("[Sem fotos inseridas.]"); }
         else {
           if(__mapaF){                                                           // mapa geral da localização das fotografias, antes das fotos
@@ -53789,20 +53866,34 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
           var disp=botY-yc, fh=Math.min(fwMax*0.72, disp/3-capH-rowGap);
           if(fh<44) fh=Math.min(fwMax*0.72, (botY-topY)/3-capH-rowGap);
           var fw=Math.min(fwMax, fh/0.72), rowH=alturaLinha(fh), x0=mL+(cw-(fw*2+gap))/2, linhasPag=0;
-          for(var fi=0; fi<D2fts.length; fi+=2){
+          // 20/10/2026: grupos por tópico do Campo (título + linhas de 2 fotos); sem tópicos = um grupo só, como antes
+          var temTop=!!(__orgD2 && __orgD2.temTopicos), grpD2=[];
+          D2fts.forEach(function(ff, ii){ var tt=temTop?(ff.topico||"Demais fotografias"):""; var gg=grpD2[grpD2.length-1]; if(!gg||gg.t!==tt){ gg={t:tt, idx:[]}; grpD2.push(gg); } gg.idx.push(ii); });
+          for(var gi=0; gi<grpD2.length; gi++){
+          var gr=grpD2[gi];
+          if(gr.t){
+            if(linhasPag===3 || yc+8+rowH-rowGap>botY+0.01){ rod(); nova(); linhasPag=0; }   // título nunca fica sozinho no fim da página
+            pdf.setFont(FONT,"bold"); pdf.setFontSize(11); pdf.setTextColor(27,58,92); pdf.text(gr.t, mL, yc+4);
+            pdf.setDrawColor(190,200,212); pdf.setLineWidth(0.2); pdf.line(mL, yc+5.4, mL+cw, yc+5.4);
+            pdf.setFont(FONT,"normal"); pdf.setTextColor(0,0,0); yc+=8;
+          }
+          for(var gp=0; gp<gr.idx.length; gp+=2){
+            var fi=gr.idx[gp];
             if(linhasPag===3 || yc+rowH-rowGap>botY+0.01){ rod(); nova(); linhasPag=0; }   // 6 por página, linha inteira
-            for(var k=0; k<2 && fi+k<D2fts.length; k++){
-              var f=D2fts[fi+k], fx=x0+k*(fw+gap), fy=yc;
+            for(var k=0; k<2 && gp+k<gr.idx.length; k++){
+              var fiK=gr.idx[gp+k];
+              var f=D2fts[fiK], fx=x0+k*(fw+gap), fy=yc;
               if(f.src){ try{ pdf.addImage(f.src, /^data:image\/png/i.test(f.src)?"PNG":"JPEG", fx, fy, fw, fh); }catch(e){} }
               pdf.setDrawColor(150,150,150); pdf.setLineWidth(0.2); pdf.rect(fx,fy,fw,fh);
-              var fs=CAP_FS, lg=capLinhas(fi+k,fw,fs);
-              while(lg.length>nCap && fs>6.5){ fs-=0.5; lg=capLinhas(fi+k,fw,fs); }
+              var fs=CAP_FS, lg=capLinhas(fiK,fw,fs);
+              while(lg.length>nCap && fs>6.5){ fs-=0.5; lg=capLinhas(fiK,fw,fs); }
               if(lg.length>nCap){ lg=lg.slice(0,nCap); lg[nCap-1]=lg[nCap-1].replace(/.{0,2}$/,"…"); }
               pdf.setFont(FONT,"normal"); pdf.setFontSize(fs); pdf.setTextColor(70,70,70);
               lg.forEach(function(l,li){ pdf.text(l, fx+fw/2, fy+fh+2.2+CAP_LH*0.8+li*CAP_LH*(fs/CAP_FS), {align:"center"}); });
               pdf.setTextColor(0,0,0);
             }
             yc+=rowH; linhasPag++;
+          }
           }
         }
       }
@@ -60375,7 +60466,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.20-5';
+window.APP_VERSAO = '2026.10.20-6';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.20-4';
 (function(){
