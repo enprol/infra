@@ -42950,7 +42950,9 @@ function AV_gerarDescSituacao(){
     K.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:0,line:264},children:[R("FICHA DE VISTORIA E CADASTRO SOCIOECONÔMICO",{bold:true,size:24})]}));
     K.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:120,line:264},children:[R("(ANEXO B)",{bold:true,size:22})]}));
     const proc=gvW("fb_processo")||gvW("fb_proc_preview");
-    K.push(P([R("PROCESSO Nº: "),R(proc,{bold:true})]));
+    { const _pp=window.PROC_partes(proc);
+      K.push(P([R("Nº DO CADASTRO: "),R(_pp.cad||proc,{bold:true})]));
+      if(_pp.sei) K.push(P([R("PROCESSO ADMINISTRATIVO (SEI Nº): "),R(_pp.sei,{bold:true})])); }
     K.push(new Paragraph({spacing:{after:120,line:264},tabStops:[{type:TabStopType.RIGHT,position:CWa}],children:[R("NOME DO APLICADOR (A): "),R((gvW("fb_aplicador")||"").toUpperCase(),{bold:true}),new TextRun({text:"\t"}),R("Data: "),R(gvW("fb_data"),{bold:true})]}));
 
     // ---------- 1 - IDENTIFICAÇÃO ----------
@@ -43157,6 +43159,16 @@ function AV_gerarDescSituacao(){
   // máscara SEI: 99999.999999/9999-99
   window.FB_maskLaudo = function(el){ if(!el) return; var d=(el.value||"").replace(/\D/g,"").slice(0,8); var o=d; if(d.length>=6){ o=d.charAt(0)+"."+d.slice(1,4)+"."+d.slice(4,6); if(d.length>=7) o+=" Rev "+d.slice(6,8); } else if(d.length>=5){ o=d.charAt(0)+"."+d.slice(1,4)+"."+d.slice(4); } else if(d.length>=2){ o=d.charAt(0)+"."+d.slice(1); } el.value=o; };
   window.FB_maskSEI = function(el){ if(!el) return; var d=(el.value||"").replace(/\D/g,"").slice(0,17); var o=""; if(d.length>0)o=d.slice(0,5); if(d.length>=6)o+="."+d.slice(5,11); if(d.length>=12)o+="/"+d.slice(11,15); if(d.length>=16)o+="-"+d.slice(15,17); el.value=o; };
+  /* 20/10/2026: o "processo" montado (INFRA S.A. CTD 001 - SPS-04 – PE - 50050.003131/2026-79) junta duas coisas que os relatórios
+     passam a informar à parte: Nº do cadastro (CTD 001 - SPS-04 – PE) e Processo administrativo (SEI nº 50050.003131/2026-79). */
+  window.PROC_partes = function(proc, sei){
+    proc = String(proc || "").trim(); sei = String(sei || (document.getElementById("fb_proc_sei") || {}).value || "").trim();
+    if(!sei){ var m = /\d{5}\.\d{6}[\/-]\d{4}-\d{2}/.exec(proc); if(m) sei = m[0]; }
+    var cad = proc;
+    if(sei){ var i = cad.lastIndexOf(sei); if(i >= 0) cad = cad.slice(0, i); }
+    cad = cad.replace(/[\s\-–]+$/, "").replace(/^INFRA S\.A\.\s*/i, "").trim();
+    return { cad:cad, sei:sei };
+  };
   window.FB_montarProcesso = function(){
     const ctd=(document.getElementById("fb_proc_ctd")||{}).value||"";
     const lote=(document.getElementById("fb_proc_lote")||{}).value||"";
@@ -43677,8 +43689,12 @@ function AV_gerarDescSituacao(){
     const apl=gv("fb_aplicador");
     const dtv=gv("fb_data");
     pdf.setFontSize(FS);
-    F("normal"); C(BLK); pdf.text("Processo n°: ", mL, y); let wp=pdf.getTextWidth("Processo n°: "); F("bold");
-    { const _pl=pdf.splitTextToSize(String(proc||""), Math.max(RX-(mL+wp),20)); for(let i=0;i<_pl.length;i++) pdf.text(_pl[i], mL+wp, y+i*LH); y+=Math.max(1,_pl.length)*LH+0.6; }
+    { const _pp=window.PROC_partes(proc);
+      [["Nº do cadastro: ", _pp.cad||proc], ["Processo administrativo (SEI nº): ", _pp.sei]].forEach(function(par){
+        if(!par[1]) return;
+        F("normal"); C(BLK); pdf.text(par[0], mL, y); const wp=pdf.getTextWidth(par[0]); F("bold");
+        const _pl=pdf.splitTextToSize(String(par[1]), Math.max(RX-(mL+wp),20)); for(let i=0;i<_pl.length;i++) pdf.text(_pl[i], mL+wp, y+i*LH); y+=Math.max(1,_pl.length)*LH+0.6;
+      }); }
     F("normal"); C(BLK); pdf.text("Nome do aplicador(a): ", mL, y); let wa=pdf.getTextWidth("Nome do aplicador(a): "); F("bold");
     let _aln=1;
     { const _al=pdf.splitTextToSize(String(apl||"").toUpperCase(), Math.max(RX-(mL+wa),20)); _aln=Math.max(1,_al.length); for(let i=0;i<_al.length;i++) pdf.text(_al[i], mL+wa, y+i*LH); }
@@ -44490,7 +44506,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     const grau=REL_fraseGrau();
 
     if(qual==="apresentacao"){
-      let t="O Contrato nº "+(contr||"____")+(sei?(" (SEI nº "+sei+")"):"")+" tem como objeto a contratação de empresa especializada em serviços de engenharia consultiva, destinada à execução de atividades relacionadas à desapropriação, ocupação temporária ou constituição de servidão administrativa de imóveis, bem como à gestão fundiária e à regularização de passivos de desapropriação. Essas atividades estão organizadas em produtos específicos, vinculados aos empreendimentos de infraestrutura que compõem o portfólio da INFRA S.A., sob responsabilidade regimental da Superintendência de Gestão Ambiental e Territorial (SUGAT), subordinada à Diretoria de Empreendimentos da estatal.\n\n";
+      let t="O Contrato nº "+(contr||"____")+(String(contr||"").trim()==="037/2024"?" (SEI nº 50050.001354/2022-78)":"")+" tem como objeto a contratação de empresa especializada em serviços de engenharia consultiva, destinada à execução de atividades relacionadas à desapropriação, ocupação temporária ou constituição de servidão administrativa de imóveis, bem como à gestão fundiária e à regularização de passivos de desapropriação. Essas atividades estão organizadas em produtos específicos, vinculados aos empreendimentos de infraestrutura que compõem o portfólio da INFRA S.A., sob responsabilidade regimental da Superintendência de Gestão Ambiental e Territorial (SUGAT), subordinada à Diretoria de Empreendimentos da estatal.\n\n";
       t+="O presente relatório trata da condição socioeconômica do proprietário do imóvel diretamente afetado pela "+(ferro||"ferrovia")+(lote?(", lote "+lote):"")+", o qual integra o produto RELATÓRIO DE CARACTERIZAÇÃO SOCIOECONÔMICO (DESP-1)"+(os?(", solicitado por meio da Ordem de Serviço "+os):"")+".";
       setF("rel_apresentacao",t); return;
     }
@@ -44499,7 +44515,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
       if(nome){ t+=nome; if(estciv) t+=", "+estciv.toLowerCase(); if(rg) t+=", portador(a) da cédula de identidade RG nº "+rg; if(cpf) t+=" e inscrito(a) no CPF sob o nº "+cpf; if(end) t+=", residente e domiciliado(a) na "+end; if(mun) t+=", "+mun; if(cep) t+=", CEP "+cep; t+=". "; }
       if(imovel){ t+="O imóvel em questão, denominado "+imovel+(at?(", possui uma área total de "+at+" ha"):"")+(cib?(", encontrando-se cadastrado no ITR sob o CIB nº "+cib):"")+". "; }
       if(cart){ t+="A propriedade apresenta registro formal no "+cart+(matr?(", sob a Matrícula nº "+matr):"")+". "; }
-      if(ad){ t+="A área abrangida pela atual desapropriação é de "+ad+" ha, destinada a faixa de domínio da ferrovia"+(subtr?(" no trecho "+subtr):"")+(proc?(", por meio do processo administrativo "+proc):"")+((sei && proc.indexOf(sei)<0)?(" (SEI nº: "+sei+")"):"")+". "; }
+      if(ad){ t+="A área abrangida pela atual desapropriação é de "+ad+" ha, destinada a faixa de domínio da ferrovia"+(subtr?(" no trecho "+subtr):"")+(proc?(()=>{ const pp=window.PROC_partes(proc,sei); return ", por meio do processo administrativo "+(pp.cad||proc)+(pp.sei?(" (SEI nº "+pp.sei+")"):""); })():"")+". "; }
       const at2=areasTexto(); if(at2){ t+="O imóvel encontra-se inserido no seguinte segmento do traçado: "+at2+"."; }
       setF("rel_qualificacao",t.trim()); return;
     }
@@ -44782,7 +44798,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
         areasArr.forEach((a,i)=>K.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:60},children:[R("ÁREA "+(i+1)+": "+a,{bold:true})]})));
       }
       // quadro de identificação (dentro do item 2)
-      const dados=[["ENTREVISTADO:",g("rel_expropriado")||g("rel_nome")],["EMPREENDIMENTO:",g("rel_ferrovia")],["LOTE:",g("rel_lote")],["Nº DO PROCESSO:",g("rel_processo")],["DENOMINAÇÃO DO IMÓVEL:",g("rel_prop_id")],["MATRÍCULA:",g("rel_matricula")],["ÁREA TOTAL (ha):",g("rel_area_total")],["ÁREA DE DESAPROPRIAÇÃO (ha):",g("rel_area_desap")],["CIB/ITR:",g("rel_cib")],["CARTÓRIO / REGISTRO:",g("rel_cartorio")]].filter(d=>d[1]);
+      const dados=[["ENTREVISTADO:",g("rel_expropriado")||g("rel_nome")],["EMPREENDIMENTO:",g("rel_ferrovia")],["LOTE:",g("rel_lote")],["Nº DO CADASTRO:",window.PROC_partes(g("rel_processo"),g("rel_sei")).cad],["PROCESSO ADMINISTRATIVO (SEI Nº):",window.PROC_partes(g("rel_processo"),g("rel_sei")).sei],["DENOMINAÇÃO DO IMÓVEL:",g("rel_prop_id")],["MATRÍCULA:",g("rel_matricula")],["ÁREA TOTAL (ha):",g("rel_area_total")],["ÁREA DE DESAPROPRIAÇÃO (ha):",g("rel_area_desap")],["CIB/ITR:",g("rel_cib")],["CARTÓRIO / REGISTRO:",g("rel_cartorio")]].filter(d=>d[1]);
       if(dados.length){
         K.push(new Paragraph({spacing:{before:160,after:60},border:{bottom:{style:BorderStyle.SINGLE,size:4,color:BLK,space:1}},children:[R("Expropriado e processo de desapropriação de referência:",{bold:true,size:21})]}));
         // Estilo A (zebra suave): rótulo tonalizado, valores com zebra, só separadores horizontais
@@ -44857,7 +44873,9 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     if(fts.length){
       K.push(new Paragraph({children:[R("")],pageBreakBefore:true,spacing:{after:0}}));
       titulo("6. RELATÓRIO FOTOGRÁFICO DO IMÓVEL");
-      if(g("rel_processo")) K.push(new Paragraph({spacing:{after:20},children:[R("Nº do Processo / Lote: ",{}),R(g("rel_processo"),{bold:true})]}));
+      { const _pp=window.PROC_partes(g("rel_processo"),g("rel_sei"));
+        if(_pp.cad) K.push(new Paragraph({spacing:{after:20},children:[R("Nº do cadastro: ",{}),R(_pp.cad,{bold:true})]}));
+        if(_pp.sei) K.push(new Paragraph({spacing:{after:20},children:[R("Processo administrativo (SEI nº): ",{}),R(_pp.sei,{bold:true})]})); }
       if(g("rel_expropriado")) K.push(new Paragraph({spacing:{after:120},children:[R("Nome do Expropriado: ",{}),R(g("rel_expropriado"),{bold:true})]}));
       // 2 fotos por linha (espelho do PDF: fw=77mm≈291px, fh=55mm≈209px)
       const frows=[];
@@ -45124,7 +45142,8 @@ window.UFOTO_rodapeHTML=rodapeHTML;
         ["ENTREVISTADO:", g("rel_expropriado")||g("rel_nome")],
         ["EMPREENDIMENTO:", g("rel_ferrovia")],
         ["LOTE:", g("rel_lote")],
-        ["Nº DO PROCESSO:", g("rel_processo")],
+        ["Nº DO CADASTRO:", window.PROC_partes(g("rel_processo"),g("rel_sei")).cad],
+        ["PROCESSO ADMINISTRATIVO (SEI Nº):", window.PROC_partes(g("rel_processo"),g("rel_sei")).sei],
         ["DENOMINAÇÃO DO IMÓVEL:", g("rel_prop_id")],
         ["MATRÍCULA:", g("rel_matricula")],
         ["ÁREA TOTAL (ha):", g("rel_area_total")],
@@ -45258,7 +45277,8 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     if(g("rel_resp_cargo")){ pdf.text(g("rel_resp_cargo"), W/2, yc, {align:"center"}); yc+=5; }
     if(g("rel_resp_reg")){ pdf.text(g("rel_resp_reg"), W/2, yc, {align:"center"}); yc+=5; }
     if(fotos.length){ rod(); nova(); titulo("6. RELATÓRIO FOTOGRÁFICO DO IMÓVEL");
-      campo("Nº do Processo / Lote", g("rel_processo")); campo("Nome do Expropriado", g("rel_expropriado")); yc+=2;
+      { const _pp=window.PROC_partes(g("rel_processo"),g("rel_sei")); campo("Nº do cadastro", _pp.cad); campo("Processo administrativo (SEI nº)", _pp.sei); }
+      campo("Nome do Expropriado", g("rel_expropriado")); yc+=2;
       { var __mp = null; try{ __mp = window.CAMPO_mapaPara ? await window.CAMPO_mapaPara(fotos) : null; }catch(e){}   // mapa geral das fotos de campo deste relatório (20/10/2026)
         if(__mp){ const mw = cw, mh = mw*__mp.h/__mp.w; if(yc + mh + 6 > botY){ rod(); nova(); } try{ pdf.addImage(__mp.url, "JPEG", mL, yc, mw, mh); }catch(e){} yc += mh + 1.5; pdf.setFont(FONT,"italic"); pdf.setFontSize(8.5); pdf.setTextColor(70,70,70); pdf.text("Mapa de localização das fotografias", mL + cw/2, yc + 2.6, {align:"center"}); pdf.setFont(FONT,"normal"); pdf.setTextColor(0,0,0); yc += 7; } }
       // com o mapa, cada foto leva o número do alfinete ("Foto 01 – legenda")
@@ -46265,8 +46285,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     function tituloSec(tp){ tituloRom((tp.num ? tp.num+" – " : "")+tp.head); }
 
     function identificacao(){
-      campo("Processo Administrativo", pf("par_processo"));
-      campo("SEI nº", pf("par_sei"));
+      { const _pp=window.PROC_partes(pf("par_processo"), pf("par_sei")); campo("Nº do cadastro", _pp.cad||pf("par_processo")); campo("Processo administrativo (SEI nº)", _pp.sei); }
       campo("Interessado", pf("par_interessado"));
       campo("Proprietária(o)", pf("par_prop"));
       campo("Contato", pf("par_contato"));
@@ -60466,7 +60485,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.20-6';
+window.APP_VERSAO = '2026.10.20-7';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.20-4';
 (function(){
