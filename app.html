@@ -50255,7 +50255,7 @@ window.DRL_gerarPDF=async function(opts){
     });
     return lista;
   }
-  var COR_GAL = { fotosAcesso:"#1f6fc0", fotosBenfTotal:"#e0962b", fotosBenfFaixa:"#d8372c" };
+  var COR_GAL = { fotosImovel:"#2f9e6a", fotosAcesso:"#1f6fc0", fotosAreaDesap:"#d8372c", fotosBenfTotal:"#e0962b", fotosBenfFaixa:"#8e5bd0" };
   function corGaleria(gid){ return COR_GAL[gid] || "#5b6b7b"; }
   function legendaGalerias(f){
     var vis = {}, out = [];
@@ -50463,16 +50463,17 @@ window.DRL_gerarPDF=async function(opts){
     if(!pts.length) return null;
     var minLon = Math.min.apply(null, pts.map(function(q){ return q[0]; })), maxLon = Math.max.apply(null, pts.map(function(q){ return q[0]; }));
     var minLat = Math.min.apply(null, pts.map(function(q){ return q[1]; })), maxLat = Math.max.apply(null, pts.map(function(q){ return q[1]; }));
-    var z = 18;
-    for(; z > 8; z--){
-      var a = mercPx(minLon, maxLat, z), b = mercPx(maxLon, minLat, z);
-      if((b[0] - a[0]) <= W*.78 && (b[1] - a[1]) <= H*.74) break;
-    }
-    // pontos muito juntos: passa do zoom nativo do satélite (18) ampliando os tiles, até 3x, para os alfinetes não se atropelarem
-    var esc = 1;
-    if(z === 18){
-      var a18 = mercPx(minLon, maxLat, 18), b18 = mercPx(maxLon, minLat, 18);
-      esc = Math.max(1, Math.min(3, W*.7/Math.max(1, b18[0] - a18[0]), H*.62/Math.max(1, b18[1] - a18[1])));
+    /* 20/10/2026: zoom FRACIONÁRIO. Com zoom inteiro, o recorte sobrava até 2× (área pequena no meio do quadro). Agora o conteúdo
+       (área desapropriada + fotos) ocupa ~90% do quadro: pega o nível de tile logo acima do ideal e reduz (esc < 1, nítido);
+       passando do nível 18 amplia até 3×, como antes. Sem KML da desapropriada o preenchimento é o antigo (mais folgado). */
+    var fx = enquadrar && dpoly.length ? [.9, .86] : [.78, .74];
+    var a18 = mercPx(minLon, maxLat, 18), b18 = mercPx(maxLon, minLat, 18);
+    var razao = Math.min(W*fx[0]/Math.max(1, b18[0] - a18[0]), H*fx[1]/Math.max(1, b18[1] - a18[1]));
+    var zf = Math.max(8, Math.min(18 + Math.log(3)/Math.LN2, 18 + Math.log(razao)/Math.LN2));
+    var z = Math.max(8, Math.min(18, Math.ceil(zf - 1e-9))), esc = Math.pow(2, zf - z);
+    if(!(enquadrar && dpoly.length)){                                          // comportamento anterior (zoom inteiro)
+      z = 18; for(; z > 8; z--){ var a = mercPx(minLon, maxLat, z), b = mercPx(maxLon, minLat, z); if((b[0] - a[0]) <= W*.78 && (b[1] - a[1]) <= H*.74) break; }
+      esc = 1; if(z === 18) esc = Math.max(1, Math.min(3, W*.7/Math.max(1, b18[0] - a18[0]), H*.62/Math.max(1, b18[1] - a18[1])));
     }
     var c0 = mercPx((minLon + maxLon)/2, (minLat + maxLat)/2, z), vw = W/esc, vh = H/esc, x0 = c0[0] - vw/2, y0 = c0[1] - vh/2;
     var cv = document.createElement("canvas"); cv.width = W; cv.height = H;
@@ -50487,27 +50488,148 @@ window.DRL_gerarPDF=async function(opts){
     }
     if(ok < fila.length*.5) return null;                       // sem internet / serviço fora do ar: o PDF segue sem o mapa
     function xy(lon, lat){ var p = mercPx(lon, lat, z); return [(p[0] - x0)*esc, (p[1] - y0)*esc]; }
-    dpoly.forEach(function(rg){                                                // área desapropriada (KML)
-      g.beginPath(); rg.forEach(function(q, i){ var a = xy(q[0], q[1]); if(i) g.lineTo(a[0], a[1]); else g.moveTo(a[0], a[1]); }); g.closePath();
-      g.fillStyle = "rgba(255,230,0,.22)"; g.fill(); g.lineWidth = 5; g.lineJoin = "round"; g.strokeStyle = "#ffe600"; g.stroke();
-    });
-    var r = 30;
-    if(usarFicha && f.gps && isFinite(f.gps.lat)){ var pf = xy(f.gps.lon, f.gps.lat); desenharPin(g, pf[0], pf[1], r, "#111", "★"); }
-    grupos.slice().sort(function(p, q){ return q.lat - p.lat; }).forEach(function(gr){       // de cima para baixo: o de baixo fica por cima
-      var p = xy(gr.lon, gr.lat), n0 = Math.min.apply(null, gr.pts.map(function(q){ return q.n; }));
-      desenharPin(g, p[0], p[1], r, corGaleria(gr.gid), n0);
-    });
-    if(fora.length){                                                          // fotos distantes, fora do quadro
-      fora.sort(function(a, b){ return a - b; });
-      var tf = "Foto" + (fora.length > 1 ? "s " : " ") + fora.map(function(n){ return (n < 10 ? "0" : "") + n; }).join(", ") + " fora do enquadramento";
-      g.font = "600 17px Arial"; var tw = g.measureText(tf).width + 24;
-      g.fillStyle = "rgba(0,0,0,.55)"; g.fillRect(20, dpoly.length ? 74 : 20, tw, 34);
-      g.fillStyle = "#fff"; g.textAlign = "left"; g.textBaseline = "middle"; g.fillText(tf, 32, (dpoly.length ? 74 : 20) + 17);
+    var r = 30, destaque = !!(enquadrar && dpoly.length);
+    function caminhoDesap(){ g.beginPath(); dpoly.forEach(function(rg){ rg.forEach(function(q, i){ var a = xy(q[0], q[1]); if(i) g.lineTo(a[0], a[1]); else g.moveTo(a[0], a[1]); }); g.closePath(); }); }
+    if(destaque){                                                              // 20/10/2026: tudo fora da área desapropriada escurece; ela fica clara, com contorno em halo
+      g.save(); g.beginPath(); g.rect(0, 0, W, H);
+      dpoly.forEach(function(rg){ rg.forEach(function(q, i){ var a = xy(q[0], q[1]); if(i) g.lineTo(a[0], a[1]); else g.moveTo(a[0], a[1]); }); g.closePath(); });
+      g.fillStyle = "rgba(6,14,24,.42)"; g.fill("evenodd"); g.restore();
+      caminhoDesap(); g.fillStyle = "rgba(255,230,0,.20)"; g.fill();
+      caminhoDesap(); g.lineJoin = "round"; g.lineWidth = 11; g.strokeStyle = "rgba(0,0,0,.55)"; g.stroke();
+      caminhoDesap(); g.lineWidth = 5.5; g.strokeStyle = "#ffe600"; g.stroke();
+    } else {
+      dpoly.forEach(function(rg){                                              // área desapropriada (KML)
+        g.beginPath(); rg.forEach(function(q, i){ var a = xy(q[0], q[1]); if(i) g.lineTo(a[0], a[1]); else g.moveTo(a[0], a[1]); }); g.closePath();
+        g.fillStyle = "rgba(255,230,0,.22)"; g.fill(); g.lineWidth = 5; g.lineJoin = "round"; g.strokeStyle = "#ffe600"; g.stroke();
+      });
     }
-    if(dpoly.length){                                                         // legenda da área desapropriada
-      g.fillStyle = "rgba(0,0,0,.55)"; g.fillRect(20, 20, 292, 46);
-      g.fillStyle = "rgba(255,230,0,.35)"; g.fillRect(32, 32, 34, 22); g.lineWidth = 4; g.strokeStyle = "#ffe600"; g.strokeRect(32, 32, 34, 22);
-      g.fillStyle = "#fff"; g.font = "700 19px Arial"; g.textAlign = "left"; g.textBaseline = "middle"; g.fillText("Área desapropriada", 78, 43);
+    // ---- legenda única (canto superior esquerdo): área do projeto, tópicos das fotos e aviso de fotos fora do quadro ----
+    var tit = {}; galerias(f).forEach(function(gl){ tit[gl.id] = topicoPDF(gl.t); });
+    var vistoG = {}, tops = [];
+    grupos.forEach(function(gr){ if(!vistoG[gr.gid]){ vistoG[gr.gid] = 1; tops.push({ cor:corGaleria(gr.gid), t:tit[gr.gid] || String(gr.gid) }); } });
+    var linhasLeg = [];
+    if(dpoly.length) linhasLeg.push({ tipo:"area", t:"Área abrangida pelo projeto" });
+    if(tops.length > 1 || (tops.length === 1 && dpoly.length)) tops.forEach(function(t){ linhasLeg.push({ tipo:"topico", t:t.t, cor:t.cor }); });
+    if(fora.length){
+      fora.sort(function(a, b){ return a - b; });
+      linhasLeg.push({ tipo:"fora", t:"Foto" + (fora.length > 1 ? "s " : " ") + fora.map(function(n){ return (n < 10 ? "0" : "") + n; }).join(", ") + " fora do enquadramento" });
+    }
+    var LH = 36, PAD = 12, legW = 0;
+    linhasLeg.forEach(function(l){ g.font = (l.tipo === "fora" ? "600 17px" : "700 19px") + " Arial"; legW = Math.max(legW, g.measureText(l.t).width + (l.tipo === "fora" ? 0 : 52)); });
+    var legR = linhasLeg.length ? { x:20, y:20, w:legW + PAD*2, h:linhasLeg.length*LH + PAD } : null;
+    // ---- marcadores (20/10/2026, v2): uma BOLINHA numerada por foto, LIGADA por uma linha fina ao ponto real (efeito "teia").
+    //      Fotos próximas formam um aglomerado: as bolinhas saem para fora dele, num anel em volta, na ordem angular dos pontos
+    //      (as linhas não se cruzam). Fotos isoladas levam a bolinha logo ao lado do ponto. Nada se sobrepõe.
+    var BR = 19, itens = [], polyPx = dpoly.map(function(rg){ return rg.map(function(q){ return xy(q[0], q[1]); }); });
+    grupos.forEach(function(gr){ gr.pts.forEach(function(q){ var p = xy(q.lon, q.lat); itens.push({ n:q.n, ax:p[0], ay:p[1], x:p[0], y:p[1], cor:corGaleria(q.gid) }); }); });
+    itens.sort(function(a, b){ return a.n - b.n; });
+    var obst = [];
+    if(legR) obst.push({ x:legR.x + legR.w/2, y:legR.y + legR.h/2, w:legR.w + 10, h:legR.h + 10 });
+    obst.push({ x:W - 46, y:50, w:84, h:100 });                               // norte
+    obst.push({ x:160, y:H - 44, w:320, h:60 });                              // escala
+    (function organizar(){
+      var n = itens.length, i, j, pai = itens.map(function(_, k){ return k; });
+      function raiz(a){ while(pai[a] !== a){ pai[a] = pai[pai[a]]; a = pai[a]; } return a; }
+      var LIM = BR*3.4;                                                       // pontos mais perto que isso (px) formam um aglomerado
+      for(i = 0; i < n; i++) for(j = i + 1; j < n; j++) if(Math.hypot(itens[i].ax - itens[j].ax, itens[i].ay - itens[j].ay) < LIM) pai[raiz(i)] = raiz(j);
+      var cl = {}; itens.forEach(function(it, k){ (cl[raiz(k)] = cl[raiz(k)] || []).push(it); });
+      Object.keys(cl).forEach(function(k){
+        var L = cl[k], m = L.length, cx = 0, cy = 0;
+        L.forEach(function(it){ cx += it.ax; cy += it.ay; }); cx /= m; cy /= m;
+        if(m === 1){ var a0 = -Math.PI/3; L[0].cx = L[0].ax; L[0].cy = L[0].ay; L[0].th = a0; L[0].x = L[0].ax + Math.cos(a0)*BR*2.1; L[0].y = L[0].ay + Math.sin(a0)*BR*2.1; return; }
+        var rMax = 0; L.forEach(function(it){ it.fi = Math.atan2(it.ay - cy, it.ax - cx); it.d = Math.hypot(it.ax - cx, it.ay - cy); if(it.d > rMax) rMax = it.d; });
+        L.sort(function(a, b){ return a.fi - b.fi; });
+        var passo = Math.PI*2/m, sx = 0, sy = 0;                              // ângulo inicial do anel = média circular de (fi_i − i·passo)
+        L.forEach(function(it, ii){ var d = it.fi - ii*passo; sx += Math.cos(d); sy += Math.sin(d); });
+        var th0 = Math.atan2(sy, sx), anel = Math.max(rMax + BR*3.6, m*(BR*2 + 9)/(Math.PI*2));
+        L.forEach(function(it, ii){ var th = th0 + ii*passo; it.cx = cx; it.cy = cy; it.th = th; it.x = cx + Math.cos(th)*anel; it.y = cy + Math.sin(th)*anel; });
+      });
+      /* 21/10/2026: as bolinhas NÃO podem cobrir a área desapropriada. Cada bolinha que cai sobre o polígono (ou a menos de
+         TOL px da borda) é levada, ao longo do raio do seu aglomerado e girando para os lados, para o ponto livre mais próximo —
+         livre = fora do polígono + folga, sem tocar outra bolinha, a legenda, o norte, a escala nem a borda do quadro.
+         Sem lugar livre (polígono enorme em volta), fica onde estava. */
+      var TOL = 12, segs = [], polis = polyPx;
+      polis.forEach(function(rg){ for(var q = 0; q < rg.length; q++){ var a = rg[q], b = rg[(q + 1) % rg.length]; segs.push([a[0], a[1], b[0], b[1]]); } });
+      function dentroPoli(x, y){ var c = false; polis.forEach(function(rg){ for(var q = 0, w = rg.length - 1; q < rg.length; w = q++){ if(((rg[q][1] > y) !== (rg[w][1] > y)) && (x < (rg[w][0] - rg[q][0])*(y - rg[q][1])/(rg[w][1] - rg[q][1]) + rg[q][0])) c = !c; } }); return c; }
+      function sobreArea(x, y){
+        if(!segs.length) return false;
+        var lim = BR + TOL, lim2 = lim*lim;
+        for(var q = 0; q < segs.length; q++){
+          var sg = segs[q]; if(Math.max(sg[0], sg[2]) < x - lim || Math.min(sg[0], sg[2]) > x + lim || Math.max(sg[1], sg[3]) < y - lim || Math.min(sg[1], sg[3]) > y + lim) continue;
+          var vx = sg[2] - sg[0], vy = sg[3] - sg[1], l2 = vx*vx + vy*vy, t = l2 ? ((x - sg[0])*vx + (y - sg[1])*vy)/l2 : 0; t = t < 0 ? 0 : (t > 1 ? 1 : t);
+          var ex = sg[0] + t*vx - x, ey = sg[1] + t*vy - y; if(ex*ex + ey*ey < lim2) return true;
+        }
+        return dentroPoli(x, y);
+      }
+      function livre(it, x, y){
+        if(x < BR + 6 || x > W - BR - 6 || y < BR + 6 || y > H - BR - 6) return false;
+        if(sobreArea(x, y)) return false;
+        for(var q = 0; q < itens.length; q++){ var o = itens[q]; if(o !== it && Math.hypot(o.x - x, o.y - y) < BR*2 + 7) return false; }
+        for(var k = 0; k < obst.length; k++){ var ob = obst[k]; if(Math.abs(x - ob.x) < ob.w/2 + BR + 4 && Math.abs(y - ob.y) < ob.h/2 + BR + 4) return false; }
+        return true;
+      }
+      function afastarDaArea(){
+        if(!segs.length) return;
+        itens.forEach(function(it){
+          if(livre(it, it.x, it.y)) return;
+          var rr0 = Math.hypot(it.x - it.cx, it.y - it.cy) || BR*2.1, achou = false;
+          for(var dr = 0; dr <= 90 && !achou; dr++){
+            var rad = rr0 + dr*7;
+            for(var da = 0; da <= 180 && !achou; da += 10){
+              var sinais = da === 0 ? [0] : [1, -1];
+              for(var sI = 0; sI < sinais.length && !achou; sI++){
+                var th = it.th + sinais[sI]*da*Math.PI/180, nx = it.cx + Math.cos(th)*rad, ny = it.cy + Math.sin(th)*rad;
+                if(livre(it, nx, ny)){ it.x = nx; it.y = ny; achou = true; }
+              }
+            }
+          }
+        });
+      }
+      afastarDaArea();
+      // aglomerados vizinhos: afasta bolinhas que ainda se tocam e as tira de cima da legenda/norte/escala
+      for(var it2 = 0; it2 < 300; it2++){
+        var mov = false;
+        for(i = 0; i < n; i++){
+          for(j = i + 1; j < n; j++){
+            var dx = itens[j].x - itens[i].x, dy = itens[j].y - itens[i].y, d = Math.hypot(dx, dy) || .01, need = BR*2 + 7;
+            if(d < need){ var k2 = (need - d)/2/d; itens[i].x -= dx*k2; itens[i].y -= dy*k2; itens[j].x += dx*k2; itens[j].y += dy*k2; mov = true; }
+          }
+          obst.forEach(function(o){
+            var ox = itens[i].x - o.x, oy = itens[i].y - o.y, px = o.w/2 + BR + 4 - Math.abs(ox), py = o.h/2 + BR + 4 - Math.abs(oy);
+            if(px > 0 && py > 0){ if(px < py) itens[i].x += (ox >= 0 ? 1 : -1)*px; else itens[i].y += (oy >= 0 ? 1 : -1)*py; mov = true; }
+          });
+          itens[i].x = Math.max(BR + 6, Math.min(W - BR - 6, itens[i].x)); itens[i].y = Math.max(BR + 6, Math.min(H - BR - 6, itens[i].y));
+        }
+        if(!mov) break;
+      }
+      afastarDaArea();                                                        // a relaxação pode ter empurrado alguma de volta
+    })();
+    if(usarFicha && f.gps && isFinite(f.gps.lat)){ var pf = xy(f.gps.lon, f.gps.lat); desenharPin(g, pf[0], pf[1], r, "#111", "★"); }
+    g.save(); g.lineCap = "round";
+    itens.forEach(function(it){                                               // linha fina (fio branco por baixo p/ contraste sobre o satélite)
+      g.beginPath(); g.moveTo(it.ax, it.ay); g.lineTo(it.x, it.y); g.lineWidth = 4.2; g.strokeStyle = "rgba(0,0,0,.5)"; g.stroke();
+      g.beginPath(); g.moveTo(it.ax, it.ay); g.lineTo(it.x, it.y); g.lineWidth = 1.7; g.strokeStyle = "rgba(255,255,255,.96)"; g.stroke();
+    });
+    itens.forEach(function(it){                                               // ponto real da foto
+      g.beginPath(); g.arc(it.ax, it.ay, 5.2, 0, 7); g.fillStyle = "#fff"; g.fill(); g.lineWidth = 2.6; g.strokeStyle = it.cor; g.stroke();
+    });
+    itens.forEach(function(it){                                               // bolinha numerada
+      g.shadowColor = "rgba(0,0,0,.5)"; g.shadowBlur = 7; g.shadowOffsetY = 2;
+      g.beginPath(); g.arc(it.x, it.y, BR, 0, 7); g.fillStyle = it.cor; g.fill();
+      g.shadowColor = "transparent"; g.lineWidth = 3.4; g.strokeStyle = "#fff"; g.stroke();
+      g.fillStyle = "#fff"; g.textAlign = "center"; g.textBaseline = "middle";
+      g.font = "800 " + (it.n > 99 ? 15 : (it.n > 9 ? 20 : 22)) + "px Arial, sans-serif"; g.fillText(String(it.n), it.x, it.y + 1);
+    });
+    g.restore();
+    if(legR){                                                                  // painel da legenda
+      g.fillStyle = "rgba(0,0,0,.62)"; g.fillRect(legR.x, legR.y, legR.w, legR.h);
+      linhasLeg.forEach(function(l, k){
+        var cy = legR.y + PAD/2 + k*LH + LH/2;
+        if(l.tipo === "area"){ g.fillStyle = "rgba(255,230,0,.35)"; g.fillRect(legR.x + PAD, cy - 11, 34, 22); g.lineWidth = 4; g.strokeStyle = "#ffe600"; g.strokeRect(legR.x + PAD, cy - 11, 34, 22); }
+        else if(l.tipo === "topico"){ g.beginPath(); g.arc(legR.x + PAD + 17, cy, 11, 0, 7); g.fillStyle = l.cor; g.fill(); g.lineWidth = 3; g.strokeStyle = "#fff"; g.stroke(); }
+        g.fillStyle = "#fff"; g.textAlign = "left"; g.textBaseline = "middle"; g.font = (l.tipo === "fora" ? "600 17px" : "700 19px") + " Arial";
+        g.fillText(l.t, legR.x + PAD + (l.tipo === "fora" ? 0 : 46), cy);
+      });
     }
     // escala e norte
     var mpp = 156543.03392*Math.cos(((minLat + maxLat)/2)*Math.PI/180)/Math.pow(2, z)/esc, alvo = mpp*220, nice = [10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000], m = nice[0];
@@ -60514,7 +60636,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.20-8';
+window.APP_VERSAO = '2026.10.20-9';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.20-4';
 (function(){
