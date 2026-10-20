@@ -43427,8 +43427,8 @@ function AV_gerarDescSituacao(){
   window.FB_gerarPDF = async function(opts){
     // 20/10/2026: mapa geral das fotos de campo incorporadas a esta ficha (numeradas como saem aqui)
     // 20/10/2026: fotos por tópico do Campo (a ordem de impressão é a do mapa)
-    var __orgF = null; try{ __orgF = window.CAMPO_organizarFotos ? window.CAMPO_organizarFotos((window.FB_getFotos ? window.FB_getFotos() : []) || []) : null; }catch(e){}
-    var __mapaF = null; try{ __mapaF = (window.CAMPO_mapaPara && __orgF) ? await window.CAMPO_mapaPara(__orgF.itens.map(function(o){ return o.src; })) : null; }catch(e){}   /* campoMapa */
+    var __orgF = null; try{ __orgF = window.CAMPO_organizarFotos ? await window.CAMPO_organizarFotos((window.FB_getFotos ? window.FB_getFotos() : []) || []) : null; }catch(e){}
+    var __mapaF = null; try{ __mapaF = (window.CAMPO_mapaPara && __orgF) ? await window.CAMPO_mapaPara(__orgF.itens) : null; }catch(e){}   /* campoMapa */
     if(!(window.jspdf||window.jsPDF)){
       alert("Biblioteca de PDF ainda carregando. Tente novamente em instantes."); return;
     }
@@ -44635,22 +44635,22 @@ window.UFOTO_rodapeHTML=rodapeHTML;
   window.REL_setTabela=function(n,arr){ tabelas[n]=Array.isArray(arr)?arr:[]; renderTab(n); if(n===1 && typeof atualizarIVS==="function") atualizarIVS(); };
 
   // ---- Fotos: 20/10/2026 — escolha da origem (Campo, sem o arquivo morto, e/ou Ficha de Vistoria 5.3), sem repetir a mesma imagem ----
-  const fotos=[], fotosLeg=[], fotosTop=[];
+  const fotos=[], fotosLeg=[], fotosTop=[], fotosItens=[];
   function renderFotos(){ const host=document.getElementById("rel_fotos_prev"); if(!host) return; host.innerHTML="";
     fotos.forEach((src,i)=>{ const d=document.createElement("div"); d.className="foto"; d.innerHTML='<img src="'+src+'">'; host.appendChild(d); }); }
   // Espelha as fotos da Ficha de Vistoria e bloqueia o upload manual aqui.
   function chk(id, padrao){ const e=document.getElementById(id); return e ? !!e.checked : padrao; }
-  window.REL_syncFotos=function(){
+  window.REL_syncFotos=async function(){
     const usaCampo=chk("rel_fotos_campo", false), usaFicha=chk("rel_fotos_ficha", true), vistos={};
     let nC=0, nF=0;
-    fotos.length=0; fotosLeg.length=0; fotosTop.length=0;
     const lista=[];
     function add(src, leg){ if(!src) return false; const k=window.FOTO_chave?window.FOTO_chave(src):src; if(vistos[k]) return false; vistos[k]=1; lista.push({src:src, legenda:String(leg||"").trim()}); return true; }
     if(usaCampo) ((window.CAMPO_getFotos?window.CAMPO_getFotos():[])||[]).forEach(f=>{ if(f && add(f.src, f.legenda)) nC++; });
     if(usaFicha) ((window.FB_getFotos?window.FB_getFotos():[])||[]).forEach(it=>{ const s=typeof it==="string"?it:(it&&it.src)||""; if(add(s, it&&it.legenda)) nF++; });
     // 20/10/2026: por tópico do Campo (Imóvel — vista geral, Acesso, Área abrangida pelo projeto…), sem o arquivo morto
-    const org = window.CAMPO_organizarFotos ? window.CAMPO_organizarFotos(lista) : null;
-    (org ? org.itens : lista).forEach(o=>{ fotos.push(o.src); fotosLeg.push(o.legenda||""); fotosTop.push(org&&org.temTopicos ? (o.topico||"") : ""); });
+    let org=null; try{ org = window.CAMPO_organizarFotos ? await window.CAMPO_organizarFotos(lista) : null; }catch(e){}
+    fotos.length=0; fotosLeg.length=0; fotosTop.length=0; fotosItens.length=0;   // troca tudo de uma vez (chamadas concorrentes não se misturam)
+    (org ? org.itens : lista).forEach(o=>{ fotos.push(o.src); fotosLeg.push(o.legenda||""); fotosTop.push(org&&org.temTopicos ? (o.topico||"") : ""); fotosItens.push(o); });
     const rs=document.getElementById("rel_fotos_resumo");
     if(rs) rs.innerHTML = (!usaCampo && !usaFicha) ? "Nenhuma origem marcada — o relatório sai sem o item 6 (Relatório Fotográfico)."
       : ("<b>"+fotos.length+"</b> fotografia(s) no item 6"+(usaCampo?" · "+nC+" do Campo":"")+(usaFicha?" · "+nF+" da Ficha de Vistoria":"")+(usaCampo&&usaFicha?" (a mesma imagem nas duas entra uma vez só)":"")+".");
@@ -44671,7 +44671,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
   // ---- PDF com capa ----
   // Word (.doc) do Relatório com o layout aprovado (capa faixa azul + índice + seções + tabelas)
   window.REL_gerarWord=async function(opts){
-    if(window.REL_syncFotos) window.REL_syncFotos();
+    if(window.REL_syncFotos) await window.REL_syncFotos();
     // Espelha a paginação de tópicos do PDF: roda uma passagem de medição (sem salvar) para obter as quebras.
     try{ if(typeof window.REL_gerarPDF==='function' && (window.jspdf||window.jsPDF)) await window.REL_gerarPDF({retornar:true, medir:true}); }catch(e){}
     const TB=window.__REL_TB||{};
@@ -44915,7 +44915,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     await window.FS_salvar(_blob, _nome);
   };
   window.REL_gerarPDF=async function(opts){
-    if(window.REL_syncFotos) window.REL_syncFotos();
+    if(window.REL_syncFotos) await window.REL_syncFotos();
     if(!(window.jspdf||window.jsPDF)){ alert("Biblioteca de PDF ainda carregando. Tente novamente."); return; }
     const J=(window.jspdf&&window.jspdf.jsPDF)?window.jspdf.jsPDF:window.jsPDF;
     const pdf=new J({orientation:"portrait",unit:"mm",format:"a4"});
@@ -45284,7 +45284,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     if(fotos.length){ rod(); nova(); titulo("6. RELATÓRIO FOTOGRÁFICO DO IMÓVEL");
       { const _pp=window.PROC_partes(g("rel_processo"),g("rel_sei")); campo("Nº do cadastro", _pp.cad); campo("Processo administrativo (SEI nº)", _pp.sei); }
       campo("Nome do Expropriado", g("rel_expropriado")); yc+=2;
-      { var __mp = null; try{ __mp = window.CAMPO_mapaPara ? await window.CAMPO_mapaPara(fotos) : null; }catch(e){}   // mapa geral das fotos de campo deste relatório (20/10/2026)
+      { var __mp = null; try{ __mp = window.CAMPO_mapaPara ? await window.CAMPO_mapaPara(fotosItens) : null; }catch(e){}   // mapa geral das fotos de campo deste relatório (20/10/2026)
         if(__mp){ const mw = cw, mh = mw*__mp.h/__mp.w; if(yc + mh + 6 > botY){ rod(); nova(); } try{ pdf.addImage(__mp.url, "JPEG", mL, yc, mw, mh); }catch(e){} yc += mh + 1.5; pdf.setFont(FONT,"italic"); pdf.setFontSize(8.5); pdf.setTextColor(70,70,70); pdf.text("Mapa de localização das fotografias", mL + cw/2, yc + 2.6, {align:"center"}); pdf.setFont(FONT,"normal"); pdf.setTextColor(0,0,0); yc += 7; } }
       // com o mapa, cada foto leva o número do alfinete ("Foto 01 – legenda")
       const temLeg=fotosLeg.some(Boolean), fw=(cw-6)/2, fh=fw*0.72, capH=(__mp||temLeg)?5:0; let col=0, topAnt=null;
@@ -48487,7 +48487,8 @@ window.DRL_gerarPDF=async function(opts){
   /* 20/10/2026: ARQUIVO MORTO — fotos do campo guardadas, fora dos relatórios e dos mapas. Ficam em f.fotosArquivoMorto,
      que NÃO é uma galeria (galerias() não a devolve): todasFotos, os PDFs, os mapas e o envio à Ficha não a enxergam. */
   var GAL_MORTO = "fotosArquivoMorto";
-  function chaveFoto(src){ return window.FOTO_chave ? window.FOTO_chave(src) : String(src || "").length + ":" + String(src || "").slice(-80); }
+  var CHAVE_C = {};   // 20/10/2026: cache da chave (tamanho + fim do texto) — o hash do texto inteiro de 40 fotos custava centenas de ms por chamada
+  function chaveFoto(src){ src = String(src || ""); var kc = src.length + ":" + src.slice(-48); return CHAVE_C[kc] || (CHAVE_C[kc] = window.FOTO_chave ? window.FOTO_chave(src) : kc); }
   // ao arquivar: a mesma imagem sai também da Ficha de Vistoria (5.3) e do Relatório Fotográfico da DESP 2
   function aoArquivar(p){
     var k = chaveFoto(p && p.src), tirou = 0;
@@ -49470,41 +49471,92 @@ window.DRL_gerarPDF=async function(opts){
      A legenda que for só o nome do tópico (preenchida sozinha antes) é descartada: o título do tópico já a diz. */
   function norm(s){ return String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim().toLowerCase(); }
   function topicoPDF(t){ t = String(t || "").split(" (")[0]; return /^área desapropriada$/i.test(t) ? "Área abrangida pelo projeto" : t; }
-  window.CAMPO_organizarFotos = function(lista){
+  /* ---- casamento de fotos entre abas (20/10/2026) ----
+     A mesma foto pode estar na DESP 2 / Ficha / Relatório como CÓPIA com bytes diferentes (gravada em outra hora, recomprimida):
+     o hash exato não a reconhece. Então o casamento é: 1º igualdade exata; 2º PARECIDO VISUAL (dHash, até DH_CASA bits de diferença).
+     Resultado: a foto herda tópico e coordenada da foto do Campo; se for cópia de foto do ARQUIVO MORTO, sai do relatório. */
+  var DH_CASA = 6, DH_C = {}, IDX_C = null;
+  function dhCached(src){ var kc = String(src).length + ":" + String(src).slice(-48); if(DH_C[kc] !== undefined) return Promise.resolve(DH_C[kc]); return dHashImg(src).then(function(h){ return (DH_C[kc] = h); }); }
+  async function indiceCampo(){
+    if(!CAMPO) return null;
+    var ativos = [], mortos = [];
+    galerias(CAMPO).forEach(function(g, ri){ g.arr.forEach(function(p){ if(p && p.src) ativos.push({ p:p, g:g, ri:ri, k:chaveFoto(p.src) }); }); });
+    (CAMPO[GAL_MORTO] || []).forEach(function(p){ if(p && p.src) mortos.push({ p:p, k:chaveFoto(p.src) }); });
+    var sig = ativos.map(function(a){ return a.k + a.ri; }).join(",") + "|" + mortos.map(function(a){ return a.k; }).join(",");
+    if(IDX_C && IDX_C.sig === sig) return IDX_C;
+    for(var q = 0, tot = ativos.concat(mortos); q < tot.length; q++) tot[q].dh = await dhCached(tot[q].p.src);
+    return (IDX_C = { sig:sig, ativos:ativos, mortos:mortos });
+  }
+  // candidatos (ordenados por distância) de uma foto qualquer entre as ativas e as do arquivo morto
+  async function candidatosCampo(src, ix){
+    var k = chaveFoto(src), at = ix.ativos.filter(function(a){ return a.k === k; }), mo = ix.mortos.filter(function(a){ return a.k === k; });
+    if(!at.length && !mo.length){
+      var dh = await dhCached(src);
+      if(dh){
+        ix.ativos.forEach(function(a){ var d = dhDist(dh, a.dh); if(d <= DH_CASA) at.push({ a:a, d:d }); });
+        ix.mortos.forEach(function(a){ var d = dhDist(dh, a.dh); if(d <= DH_CASA) mo.push({ a:a, d:d }); });
+        at.sort(function(x, y){ return x.d - y.d || x.a.ri - y.a.ri; }); mo.sort(function(x, y){ return x.d - y.d; });
+        return { ativas:at.map(function(x){ return x.a; }), mortas:mo.map(function(x){ return x.a; }), dmin:Math.min(at.length ? at[0].d : 99, mo.length ? mo[0].d : 99), noArq:(mo.length && (!at.length || mo[0].d < at[0].d)) };
+      }
+      return { ativas:[], mortas:[], dmin:99 };
+    }
+    return { ativas:at, mortas:mo, dmin:0, noArq:false };
+  }
+  // sincronamente: o que já se sabe de uma foto (preenchido por CAMPO_aquecer): "campo" | "morta" | null | undefined (ainda não sabe)
+  window.CAMPO_origemRapida = function(src){
+    if(!CAMPO || !src) return null;
+    var k = chaveFoto(src), kc = String(src).length + ":" + String(src).slice(-48), ativo = false, morto = false, ix = IDX_C;
+    galerias(CAMPO).forEach(function(g){ g.arr.forEach(function(p){ if(p && p.src && chaveFoto(p.src) === k) ativo = true; }); });
+    if(ativo) return "campo";
+    (CAMPO[GAL_MORTO] || []).forEach(function(p){ if(p && p.src && chaveFoto(p.src) === k) morto = true; });
+    if(morto) return "morta";
+    if(!ix || DH_C[kc] === undefined) return undefined;
+    var dh = DH_C[kc], da = 99, dm = 99;
+    ix.ativos.forEach(function(a){ var d = dhDist(dh, a.dh); if(d < da) da = d; }); ix.mortos.forEach(function(a){ var d = dhDist(dh, a.dh); if(d < dm) dm = d; });
+    if(da <= DH_CASA && da <= dm) return "campo"; if(dm <= DH_CASA) return "morta"; return null;
+  };
+  var AQUECENDO = false;
+  window.CAMPO_aquecer = function(srcs, depois){                              // calcula, em segundo plano, as impressões visuais; chama depois() ao terminar
+    if(!CAMPO || AQUECENDO) return Promise.resolve();
+    AQUECENDO = true;
+    return indiceCampo().then(async function(){ for(var q = 0; q < srcs.length; q++) if(srcs[q]) await dhCached(srcs[q]); }).catch(function(){}).then(function(){ AQUECENDO = false; if(depois) depois(); });
+  };
+  window.CAMPO_organizarFotos = async function(lista){
     var itens = (lista || []).map(function(x, i){
       var src = (typeof x === "string") ? x : (x && x.src) || "";
-      return { src:src, legenda:(typeof x === "string") ? "" : String((x && x.legenda) || "").trim(), topico:"", rank:9999, i:i };
+      return { src:src, legenda:(typeof x === "string") ? "" : String((x && x.legenda) || "").trim(), topico:"", rank:9999, i:i, ref:null };
     }).filter(function(o){ return o.src || o.legenda; });
     var tem = false;
     if(CAMPO){
-      var mapa = {};
-      galerias(CAMPO).forEach(function(g, ri){
-        g.arr.forEach(function(p){ if(p && p.src){ var k = chaveFoto(p.src); (mapa[k] = mapa[k] || []).push({ t:topicoPDF(g.t), orig:String(g.t).split(" (")[0], r:ri }); } });
-      });
-      var usou = {};   // a mesma imagem em dois tópicos do Campo: a 1ª cópia da lista vai no 1º tópico, a 2ª no 2º…
-      itens.forEach(function(o){
-        var k = o.src ? chaveFoto(o.src) : null, arr = k ? mapa[k] : null; if(!arr) return;
-        var m = arr[Math.min(usou[k] || 0, arr.length - 1)]; usou[k] = (usou[k] || 0) + 1;
-        o.topico = m.t; o.rank = m.r; tem = true;
-        var l = norm(o.legenda); if(l && (l === norm(m.t) || l === norm(m.orig))) o.legenda = "";
-      });
+      var ix = await indiceCampo(), usou = {};   // a mesma imagem em dois tópicos do Campo: a 1ª cópia da lista vai no 1º tópico, a 2ª no 2º…
+      for(var q = 0; q < itens.length; q++){
+        var o = itens[q]; if(!o.src) continue;
+        var c = await candidatosCampo(o.src, ix);
+        if(c.ativas.length && !c.noArq){
+          var g0 = c.ativas[0].k + ":" + c.ativas[0].ri, ch = c.ativas[Math.min(usou[g0] || 0, c.ativas.length - 1)]; usou[g0] = (usou[g0] || 0) + 1;
+          o.topico = topicoPDF(ch.g.t); o.rank = ch.ri; o.ref = { p:ch.p, gid:ch.g.id, grupo:ch.g.t }; tem = true;
+          var l = norm(o.legenda); if(l && (l === norm(topicoPDF(ch.g.t)) || l === norm(String(ch.g.t).split(" (")[0]))) o.legenda = "";
+        } else if(c.mortas.length) o.morta = true;                            // é cópia de foto do arquivo morto: não vai para o relatório
+      }
+      itens = itens.filter(function(o){ return !o.morta; });
     }
     itens.sort(function(a, b){ return (a.rank - b.rank) || (a.i - b.i); });
     if(tem) itens.forEach(function(o){ if(!o.topico) o.topico = "Demais fotografias"; });
     return { itens:itens, temTopicos:tem };
   };
   var MAPAS_REL = {}, MAPAS_REL_N = [];
-  window.CAMPO_mapaPara = async function(lista){
+  window.CAMPO_mapaPara = async function(lista){                              // lista: srcs OU itens de CAMPO_organizarFotos ({src, ref})
     if(!CAMPO || !lista || !lista.length) return null;
-    var porChave = {}, sul = !(CAMPO.gps && CAMPO.gps.lat > 0), pts = [];
-    todasFotos(CAMPO).forEach(function(o){ var k = chaveFoto(o.p.src); if(!porChave[k]) porChave[k] = o; });
-    lista.forEach(function(x, i){
-      var src = (typeof x === "string") ? x : (x && x.src) || ""; if(!src) return;
-      var o = porChave[chaveFoto(src)]; if(!o) return;
-      var g = o.p.gps; if(!g || g.st === "nao" || !isFinite(g.E) || !isFinite(g.N)) return;
+    var sul = !(CAMPO.gps && CAMPO.gps.lat > 0), pts = [], ix = await indiceCampo();
+    for(var i = 0; i < lista.length; i++){
+      var x = lista[i], src = (typeof x === "string") ? x : (x && x.src) || ""; if(!src) continue;
+      var ref = (x && x.ref) || null;
+      if(!ref){ var c = await candidatosCampo(src, ix); if(c.ativas.length && !c.noArq) ref = { p:c.ativas[0].p, gid:c.ativas[0].g.id, grupo:c.ativas[0].g.t }; }
+      if(!ref) continue;
+      var g = ref.p.gps; if(!g || g.st === "nao" || !isFinite(g.E) || !isFinite(g.N)) continue;
       var ll = utmInvF(g.E, g.N, g.z, sul);
-      pts.push({ n:i + 1, p:o.p, grupo:o.grupo, gid:o.gid, z:g.z, E:g.E, N:g.N, l:g.l || "", st:g.st, lon:ll[0], lat:ll[1] });
-    });
+      pts.push({ n:i + 1, p:ref.p, grupo:ref.grupo, gid:ref.gid, z:g.z, E:g.E, N:g.N, l:g.l || "", st:g.st, lon:ll[0], lat:ll[1] });
+    }
     if(!pts.length) return null;
     var sig = pts.map(function(q){ return q.n + ":" + q.gid + ":" + q.z + ":" + q.E + ":" + q.N; }).join("|") + "#" + desapAssin();
     if(MAPAS_REL[sig]) return MAPAS_REL[sig];
@@ -51721,7 +51773,11 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
   // Ficha de Vistoria (5.3), sem repetir a mesma imagem. Antes só entravam as 4 da Ficha e as 45 do Campo ficavam de fora.
   window.D2_fotosRelatorio=function(){
     var proprias=D2_fotos.filter(function(f){ return f && f.src; });
-    if(proprias.length) return { fotos:D2_fotos, auto:false };
+    if(proprias.length){
+      // cópia (mesmo parecido visual) de foto do ARQUIVO MORTO do Campo não vai para o relatório
+      var vivas=D2_fotos.filter(function(f){ return !(f && f.src && window.CAMPO_origemRapida && window.CAMPO_origemRapida(f.src)==="morta"); });
+      return { fotos:vivas, auto:false };
+    }
     var out=[], vistos={}, nC=0, nF=0;
     function add(src, leg, extra){ if(!src) return false; var k=D2_chave(src); if(vistos[k]) return false; vistos[k]=1; var o={src:src, legenda:leg||""}; for(var q in extra) o[q]=extra[q]; out.push(o); return true; }
     ((window.CAMPO_getFotos?window.CAMPO_getFotos():[])||[]).forEach(function(f){ if(f && add(f.src, f.legenda, {_campo:true})) nC++; });
@@ -51762,8 +51818,16 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     fic.forEach(function(x){ var sr = (typeof x === "string") ? x : (x && x.src) || ""; if(sr) orig[D2_chave(sr)] = "ficha"; });
     cam.forEach(function(x){ if(x && x.src) orig[D2_chave(x.src)] = "campo"; });
     var imp = {}, nC = 0, nF = 0;
-    D2_fotos.forEach(function(ft, i){ var o = ft && ft.src ? orig[D2_chave(ft.src)] : null; if(o){ imp[i] = o; if(o === "campo") nC++; else nF++; } });
-    return { imp:imp, nC:nC, nF:nF, n:nC + nF };
+    var nM = 0;
+    D2_fotos.forEach(function(ft, i){
+      var o = ft && ft.src ? orig[D2_chave(ft.src)] : null;
+      if(!o && ft && ft.src && window.CAMPO_origemRapida){ var ov = window.CAMPO_origemRapida(ft.src); if(ov === "campo") o = "campo"; else if(ov === "morta"){ imp[i] = "morta"; nM++; return; } }
+      if(o){ imp[i] = o; if(o === "campo") nC++; else nF++; }
+    });
+    // cópias ainda não reconhecidas: calcula em segundo plano e redesenha uma vez
+    if(window.CAMPO_aquecer && D2_fotos.some(function(ft){ return ft && ft.src && !imp[D2_fotos.indexOf(ft)] && window.CAMPO_origemRapida && window.CAMPO_origemRapida(ft.src) === undefined; }))
+      window.CAMPO_aquecer(D2_fotos.map(function(ft){ return ft && ft.src; }), function(){ D2_renderFotos(); });
+    return { imp:imp, nC:nC, nF:nF, nM:nM, n:nC + nF + nM };
   }
   window.D2_remImportadas = function(){
     var c = D2_classificaFotos(); if(!c.n) return;
@@ -51774,8 +51838,8 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
   function D2_renderFotos(){
     var host=document.getElementById("d2_fotos"); if(!host) return;
     var cls = D2_classificaFotos();
-    var resumo = cls.n ? ('<div class="d2-imp-resumo" role="status"><b>✓ ' + cls.n + ' fotografia' + (cls.n > 1 ? 's' : '') + ' no Anexo 1</b>'
-        + ' <span>(' + [cls.nC ? cls.nC + ' do Campo' : '', cls.nF ? cls.nF + ' da Ficha de Vistoria' : ''].filter(Boolean).join(' · ') + ')</span>'
+    var resumo = cls.n ? ('<div class="d2-imp-resumo" role="status"><b>✓ ' + (cls.n - cls.nM) + ' fotografia' + ((cls.n - cls.nM) !== 1 ? 's' : '') + ' no Anexo 1</b>'
+        + ' <span>(' + [cls.nC ? cls.nC + ' do Campo' : '', cls.nF ? cls.nF + ' da Ficha de Vistoria' : '', cls.nM ? cls.nM + ' cópia(s) do arquivo morto — não saem no relatório' : ''].filter(Boolean).join(' · ') + ')</span>'
         + '<p>Entram no relatório por tópico (Imóvel — vista geral, Acesso, Área abrangida pelo projeto), com o mapa de localização e as descrições feitas na aba Campo — nada a editar aqui.</p>'
         + '<button type="button" class="vbtn vbtn-ghost vbtn-sm" onclick="D2_remImportadas()">Remover as importadas</button></div>') : '';
     host.innerHTML = resumo + (D2_fotos.length ? D2_fotos.map(function(ft,i){
@@ -53678,8 +53742,8 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     opts=opts||{}; await D2DOC_prepararImgs(); window.D2_puxar(false);
     // 20/10/2026: mapa geral das fotos de campo incorporadas ao 6.1, com o número de cada foto no relatório
     // 20/10/2026: fotos por tópico do Campo; a ordem de impressão é a do mapa
-    var __orgD2 = null; try{ __orgD2 = window.CAMPO_organizarFotos ? window.CAMPO_organizarFotos((window.D2_fotosRelatorio ? window.D2_fotosRelatorio().fotos : []).filter(function(f){ return f && (f.src || f.legenda); })) : null; }catch(e){}
-    var __mapaF = null; try{ __mapaF = (window.CAMPO_mapaPara && __orgD2) ? await window.CAMPO_mapaPara(__orgD2.itens.filter(function(o){ return o.src; }).map(function(o){ return o.src; })) : null; }catch(e){}   /* campoMapa */
+    var __orgD2 = null; try{ __orgD2 = window.CAMPO_organizarFotos ? await window.CAMPO_organizarFotos((window.D2_fotosRelatorio ? window.D2_fotosRelatorio().fotos : []).filter(function(f){ return f && (f.src || f.legenda); })) : null; }catch(e){}
+    var __mapaF = null; try{ __mapaF = (window.CAMPO_mapaPara && __orgD2) ? await window.CAMPO_mapaPara(__orgD2.itens.filter(function(o){ return o.src; })) : null; }catch(e){}   /* campoMapa */
     // item c) é 100% derivado da Ficha 4.9.1 (DESP-1) — regenera na hora de gerar o PDF
     if(window.D2_rebuild) window.D2_rebuild("descri_o_do_tipo_de_atividad");
     DESP2_TOPICOS.forEach(function(tp){ var v=document.getElementById('d2_view_'+tp.id); if(v && v.getAttribute('contenteditable')==='true') window.D2_syncFromView(tp.id); });
@@ -60647,7 +60711,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.20-10';
+window.APP_VERSAO = '2026.10.20-11';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.20-4';
 (function(){
