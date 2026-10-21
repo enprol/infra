@@ -40325,18 +40325,29 @@ function AV_gerarDescSituacao(){
     var o = {}; BARRA.forEach(function(b){ o[b[0]] = !!OPC[b[0]]; });
     return { opc:o, formato:OPC.formato, estilos:extras().estilos || null };
   }
+  /* 21/10/2026: as camadas ligadas/desligadas e o formato da Mesa são DO CADASTRO (extras.opc). Antes valia "a última configuração
+     usada no SPS" (localStorage) e o OPC em memória passava de um cadastro para o seguinte; agora cada cadastro abre com o que foi
+     gravado nele ou, se nunca foi mexido, com o padrão. */
+  var OPC_PADRAO = Object.assign({}, OPC);
+  function v2OpcAtual(){ var o = {}; BARRA.forEach(function(b){ o[b[0]] = !!OPC[b[0]]; }); o.solos = OPC.solos || ""; return o; }
   function v2UltimoSalvar(){
-    var sps = spsAtual(); if(!sps) return;
-    try{ localStorage.setItem("mdp_ultimo_sps_" + sps, JSON.stringify(v2RecAtual())); }catch(e){}
+    if(!V2.opcRec) return;                                                       // ainda não restaurou o deste cadastro: não grava por cima
+    var atual = JSON.stringify(v2OpcAtual());
+    if(JSON.stringify(extras().opc || null) === atual) return;
+    setExtra("opc", v2OpcAtual());
   }
   function v2UltimoAplicar(){
-    var sps = spsAtual(); if(!sps || V2.ultSpsRec === sps + "|" + (doCadastro().ctd || "")) return;
-    V2.ultSpsRec = sps + "|" + (doCadastro().ctd || "");
-    var ex = extras(); if(ex.formato || ex.escala || ex.estilos) return;          // cadastro já configurado: não mexe
-    try{
-      var r = JSON.parse(localStorage.getItem("mdp_ultimo_sps_" + sps) || "null");
-      if(r){ v2RecAplicar(r); v2Toast("configuração usada por último no SPS-" + sps + " aplicada"); }
-    }catch(e){}
+    var chave = String(doCadastro().ctd || "") + "|" + String(spsAtual() || "");
+    if(V2.opcRec === chave) return;
+    V2.opcRec = chave;
+    var ex = extras(), o = (ex.opc && typeof ex.opc === "object") ? ex.opc : null;
+    BARRA.forEach(function(b){ OPC[b[0]] = !!(o && o[b[0]] != null ? o[b[0]] : OPC_PADRAO[b[0]]); });
+    if(o && o.ambiental != null && o.rl == null && o.app == null){ OPC.rl = OPC.app = !!o.ambiental; }
+    OPC.solos = (o && o.solos != null) ? String(o.solos) : (OPC_PADRAO.solos || "");
+    var fm = (ex.formato && FORMATOS[ex.formato]) ? ex.formato : OPC_PADRAO.formato;
+    if(OPC.formato !== fm){ OPC.formato = fm; OPC.folha = 0; aplicarFormato(fm); }
+    OPC.escala = escLer();
+    CACHE_SAT.chave = ""; sincronizarBarras(); v2ContaCamadas(); agendarPreview(60);
   }
   function v2RecMenu(){
     var us = v2RecLer(), h = '<div class="v2-pop-t">Receitas prontas</div>';
@@ -60913,7 +60924,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.21-4';
+window.APP_VERSAO = '2026.10.21-5';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.20-4';
 (function(){
