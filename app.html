@@ -34207,6 +34207,7 @@ function AV_gerarDescSituacao(){
     a1:  { nome:"A1",           W:841,  H:594 },
     a0:  { nome:"A0",           W:1189, H:841 }
   };
+  var TAB_LARG = 80;
   var FL   = { id:"a3", nome:"A3", W:420, H:297, m:6 };
   var MAPA = { x:6, y:6, w:306, h:227 };                             // janela do desenho
   var TAB  = { x:314, y:6, w:100, h:227 };
@@ -34216,7 +34217,7 @@ function AV_gerarDescSituacao(){
   var KC = 1, KV = 1;                                                // fatores do carimbo (horizontal / vertical)
   // medidas do quadro do mapa / tabela de um formato, SEM mexer no estado (o plano de pranchas precisa delas por prancha)
   function geomFmt(id){
-    var f = FORMATOS[id] || FORMATOS.a3, m = 6, tabw = 100, carh = 62;
+    var f = FORMATOS[id] || FORMATOS.a3, m = 6, tabw = TAB_LARG, carh = 62;
     var mw = f.W - m*2 - tabw - 2, mh = f.H - m*2 - carh - 2;
     return { mw:mw, mh:mh, tabh:Math.min(mh, 227), tabw:tabw };
   }
@@ -34225,7 +34226,7 @@ function AV_gerarDescSituacao(){
     FL.id = FORMATOS[id] ? id : "a3"; FL.nome = f.nome; FL.W = f.W; FL.H = f.H;
     FL.m = 6;                                                        // 13/10/2026: margem da borda = a do A3 em todos os formatos
     CAR.h  = 62;                                                     // 13/10/2026: carimbo e tabela com as MEDIDAS do A3 em qualquer formato — só o quadro da planta cresce
-    TAB.w  = 100;
+    TAB.w  = TAB_LARG;                                               // 21/10/2026: tabela de coordenadas mais estreita (100 → 80 mm) em todos os formatos; a planta ganha a diferença
     var ext = (FL.id === "a3x" || FL.id === "a2x");                  // estendidos: o quadro OBSERVAÇÃO se alonga (largura do carimbo do A3 estendido)
     MAPA.x = FL.m; MAPA.y = FL.m;
     MAPA.w = gF.mw;
@@ -35056,6 +35057,14 @@ function AV_gerarDescSituacao(){
   /* 20/10/2026: LEG_USO = tipos que REALMENTE foram desenhados na folha atual (a legenda mostra só esses + os fixos) */
   var LEG_USO = null;
   function usou(tipo){ if(LEG_USO && tipo) LEG_USO[tipo] = 1; }
+  var LEG_USO_ULT = {};                                                    // o que a última folha desenhada usou (a aba Legenda do Carimbo mostra como "automático")
+  var LEG_FIXOS = { fd:1, eixo:1, area_d:1, divisa:1 };
+  /* seleção manual dos símbolos da legenda: extras.leg_sel = "fd,eixo,..." ("-" = nenhum); vazio = automático */
+  function legSelecao(){
+    var v = extras().leg_sel; if(v == null || v === "") return null;
+    var o = {}; String(v).split(",").forEach(function(k){ if(k && k !== "-") o[k] = 1; });
+    return o;
+  }
   function tracar(P, pts, tipo){
     if(pts.length < 2) return;
     usou(tipo);
@@ -36279,9 +36288,18 @@ function AV_gerarDescSituacao(){
      pego). Sem entrada, o rótulo continua no lugar automático. HIT só existe enquanto o quadro da
      composição é pintado: cada objeto desenhado se registra ali (em mm de papel) para ser clicado. */
   var HIT = null;
-  function hitAdd(o){ if(HIT) HIT.push(o); }
+  /* 21/10/2026: a posição do rótulo é POR PRANCHA. A chave guardada é "<rótulo>@<escopo>", escopo = modo (geral / área N) + nº da folha
+     (ROT_ESC, fixado em desenharFolha). Posições antigas, sem "@", valem como ponto de partida em toda prancha até esta ser movida;
+     "↺ Posição automática" grava um marcador ({auto:1}) só nesta prancha. */
+  var ROT_ESC = "";
+  function hitAdd(o){ if(o && o.tipo === "rot") o.sc = ROT_ESC; if(HIT) HIT.push(o); }
   function rotPos(){ var r = extras().rotPos; return (r && typeof r === "object" && !Array.isArray(r)) ? r : {}; }
-  function rotPosDe(k){ var r = rotPos()[k]; return (r && isFinite(r.E) && isFinite(r.N)) ? r : null; }
+  function rotPosDe(k, sc){
+    var m = rotPos(), r = m[k + "@" + (sc == null ? ROT_ESC : sc)];
+    if(r === undefined) r = m[k];
+    return (r && isFinite(r.E) && isFinite(r.N)) ? r : null;
+  }
+  function rotPosGravar(k, sc, v){ var o = Object.assign({}, rotPos()); o[k + "@" + sc] = v; setExtra("rotPos", o); }
   function confManual(P, T, g, tam, caixas){
     var k = "c" + g.segs[0], r = rotPosDe(k); if(!r) return false;
     var tz = tam*(+r.esc || 1), hz = tz*.3528*.78, stp = hz*1.35;
@@ -36423,7 +36441,7 @@ function AV_gerarDescSituacao(){
   /* ---- grade de coordenadas: um bloco de linhas em qualquer retângulo ----
      Colunas em % da largura: vért. | vért. | azimute | distância | N | E.
      Distância e coordenadas foram estreitadas para sobrar largura à planta. */
-  var COL_P = [0, 9, 18, 40, 60, 80, 100];
+  var COL_P = [0, 8, 16, 34, 49, 75, 100];
   var ALT_LIN_MIN = 2.9, ALT_LIN_MAX = 4.7, ALT_CAB = 4.2;
   function capacidadeTabela(hDisp){ return Math.max(1, Math.floor((hDisp - ALT_CAB)/ALT_LIN_MIN)); }
   function desenharGradeCoords(P, x, y, larg, de, ate, hDisp){
@@ -36436,7 +36454,10 @@ function AV_gerarDescSituacao(){
     var n = Math.max(1, ate - de);
     var alt = Math.min(ALT_LIN_MAX, Math.max(ALT_LIN_MIN, (hDisp - ALT_CAB)/n));
     var tam = Math.min(TAM.tab, Math.max(3.8, alt*1.46));
-    var csT = confrontantesBrutos(), dvT = divisasDe(), cfT = conf(), COR_TIPO = { rem:"#1565c0", faixa:"#d32f2f", area:EST("area").cor };
+    // 21/10/2026: com a tabela mais estreita, o corpo diminui até o maior azimute/dist./N/E caber na própria coluna
+    var maiores = [null, null, "359°59'59\"", "9.999,99", "9.999.999,999", "999.999,999"];
+    for(var kf = 2; kf < 6; kf++){ var cw = CF[kf] - CX[kf] - 2; while(tam > 3.2 && P.largura(maiores[kf], { tam:tam }) > cw) tam -= .1; }
+    var csT =confrontantesBrutos(), dvT = divisasDe(), cfT = conf(), COR_TIPO = { rem:"#1565c0", faixa:"#d32f2f", area:EST("area").cor };
     for(var j = de; j < ate && j < G.segs.length; j++){
       var s = G.segs[j], a = G.v[s.de], b = G.v[s.para];
       if(j % 2) P.ret(x, y, larg, alt, { peso:0, fill:"#f5f8fb" });
@@ -36641,6 +36662,7 @@ function AV_gerarDescSituacao(){
   function desenharFolha(P, T, op, pg){
     var T0 = Object.assign({}, TAM);
     LEG_USO = {};                                                            // zera o registro do que esta folha desenhou
+    ROT_ESC = (geralAtivo() ? "g" : "a" + ST.area) + "#" + ((pg && pg.n) || 1);   // posição dos rótulos é de cada prancha
     Object.keys(EST_TXT).forEach(function(k){
       var prop = EST_TXT[k], m = EST(k).tam;
       if(TAM[prop] != null && isFinite(m) && m > 0) TAM[prop] = TAM[prop]*m/100;
@@ -37464,8 +37486,11 @@ function AV_gerarDescSituacao(){
     /* 20/10/2026: a legenda mostra os 4 itens FIXOS (faixa de domínio, eixo projetado, área a desapropriar, divisa) e só os demais
        que foram desenhados NESTA folha (camadas do GeoPackage/KML, CAR, hidrografia, benfeitorias…). Os itens ocupam, em ordem, as
        posições da legenda aprovada: 1ª coluna de cima para baixo, depois a 2ª. Sem registro (LEG_USO nulo): todos, como antes. */
-    var LEG_FIXOS = { fd:1, eixo:1, area_d:1, divisa:1 };
-    var vaiLeg = LEG1.concat(LEG2).filter(function(it){ return !LEG_USO || LEG_FIXOS[it[0]] || LEG_USO[it[0]]; });
+    /* 21/10/2026: aba LEGENDA do Carimbo — quando o desenhista marca os símbolos (extras.leg_sel), valem SÓ os marcados;
+       sem marcação (automático) vale a regra acima */
+    var selLeg = legSelecao();
+    if(LEG_USO) LEG_USO_ULT = Object.assign({}, LEG_USO);
+    var vaiLeg = LEG1.concat(LEG2).filter(function(it){ return selLeg ? selLeg[it[0]] : (!LEG_USO || LEG_FIXOS[it[0]] || LEG_USO[it[0]]); });
     var slots = LEG1.map(function(it){ return { dy:it[2], xs:XX(-97), ws:8.4*fx, xt:XX(-85.7) }; })
       .concat(LEG2.map(function(it){ return { dy:it[2], xs:XX(-67.8), ws:9.4*fx, xt:XX(-55.5) }; }));
     var usoLeg = LEG_USO; LEG_USO = null;                                    // as amostras da legenda não contam como uso
@@ -38120,7 +38145,7 @@ function AV_gerarDescSituacao(){
     t = t < 0 ? 0 : (t > 1 ? 1 : t);
     return Math.hypot(a[0] + t*vx - p[0], a[1] + t*vy - p[1]);
   }
-  function selMesmo(h, s){ s = s || COMP.sel; return !!s && !!h && s.tipo === h.tipo && (h.tipo === "rot" ? s.key === h.key : s.i === h.i); }
+  function selMesmo(h, s){ s = s || COMP.sel; return !!s && !!h && s.tipo === h.tipo && (h.tipo === "rot" ? (s.key === h.key && s.sc === h.sc) : s.i === h.i); }
   function selAtual(){ var H = COMP.hit || []; for(var k = H.length - 1; k >= 0; k--) if(selMesmo(H[k])) return H[k]; return null; }
   function selHit(mm){
     var H = COMP.hit || [];
@@ -38179,7 +38204,7 @@ function AV_gerarDescSituacao(){
   function selBarraHtml(h){
     var dica = '<span class="mdp-sel-dica">arraste para mover</span>';
     if(h.tipo === "rot"){
-      var man = !!rotPosDe(h.key);
+      var man = !!rotPosDe(h.key, h.sc);
       return '<b>' + (h.key.charAt(0) === "a" ? "Rótulo da área" : (h.key.charAt(0) === "i" ? "Rótulo da camada" : "Nome do confrontante")) + '</b>' + dica +
         '<button type="button" data-acao="auto"' + (man ? "" : " disabled") + ' title="Volta ao lugar escolhido automaticamente (Del)">↺ Posição automática</button>';
     }
@@ -38203,7 +38228,7 @@ function AV_gerarDescSituacao(){
       bar.addEventListener("input", function(ev){ var s = COMP.sel; if(s && s.tipo === "leader" && ev.target.tagName === "TEXTAREA") window.MDP_leaderTxt(s.i, ev.target.value); });
       bar.addEventListener("click", function(ev){ var b = ev.target.closest && ev.target.closest("[data-acao]"); if(b && !b.disabled) selAcao(b.getAttribute("data-acao")); });
     }
-    var chave = h.tipo + ":" + (h.tipo === "rot" ? h.key + ":" + (rotPosDe(h.key) ? 1 : 0) : h.i);
+    var chave = h.tipo + ":" + (h.tipo === "rot" ? h.key + ":" + (rotPosDe(h.key, h.sc) ? 1 : 0) + ":" + h.sc : h.i);
     var ta = bar.querySelector("textarea"), editando = ta && document.activeElement === ta;
     if(bar.dataset.chave !== chave && !editando){ bar.dataset.chave = chave; bar.innerHTML = selBarraHtml(h); }
     bar.style.display = "";
@@ -38217,7 +38242,7 @@ function AV_gerarDescSituacao(){
   }
   function selAcao(acao){
     var s = COMP.sel; if(!s) return;
-    if(acao === "auto" && s.tipo === "rot"){ var o = Object.assign({}, rotPos()); delete o[s.key]; setExtra("rotPos", o); agendarPreview(30); return; }
+    if(acao === "auto" && s.tipo === "rot"){ rotPosGravar(s.key, s.sc, { auto:1 }); agendarPreview(30); return; }
     if(acao === "lado" && s.tipo === "leader") return window.MDP_leaderLado(s.i);
     if(acao === "ladoCota" && s.tipo === "cota") return window.MDP_cotaLado(s.i);
     if(acao === "del"){
@@ -38231,9 +38256,9 @@ function AV_gerarDescSituacao(){
     var h = a.h, T = COMP.T, r2 = function(v){ return Math.round(v*100)/100; };
     if(!T){ COMP.arr = null; return; }
     if(h.tipo === "rot"){
-      var o = Object.assign({}, rotPos()), v = { E:r2(T.E(h.cx + a.dx)), N:r2(T.N(h.cy + a.dy)) };
+      var v = { E:r2(T.E(h.cx + a.dx)), N:r2(T.N(h.cy + a.dy)) };
       if(h.key.charAt(0) === "c"){ v.ang = r2(h.ang); v.esc = h.esc || 1; v.larg = Math.round((h.larg || 60)*10)/10; }
-      o[h.key] = v; setExtra("rotPos", o); agendarPreview(30); return;
+      rotPosGravar(h.key, h.sc, v); agendarPreview(30); return;
     }
     if(h.tipo === "leader"){
       var L = leadersLer(), c = L[h.i];
@@ -38256,7 +38281,7 @@ function AV_gerarDescSituacao(){
       if(!hit){ if(COMP.sel){ COMP.sel = null; compSelDesenhar(); } return; }   // no vazio segue o arrasto do mapa
       ev.stopImmediatePropagation(); ev.preventDefault();
       if(document.activeElement && document.activeElement.blur) document.activeElement.blur();
-      COMP.sel = hit.h.tipo === "rot" ? { tipo:"rot", key:hit.h.key } : { tipo:hit.h.tipo, i:hit.h.i };
+      COMP.sel = hit.h.tipo === "rot" ? { tipo:"rot", key:hit.h.key, sc:hit.h.sc } : { tipo:hit.h.tipo, i:hit.h.i };
       COMP.arr = { h:hit.h, parte:hit.parte || "", x0:ev.clientX, y0:ev.clientY, mm0:mm, dx:0, dy:0, moveu:false, cur:null, fim:false };
       compSelDesenhar();
     }, true);
@@ -38372,13 +38397,69 @@ function AV_gerarDescSituacao(){
   function carFixo(rot, v, tag){
     return '<div class="car-cel car-lock"><label>' + esc(rot) + ' <span class="car-tag t-fixo" style="display:inline">' + esc(tag || "DO CADASTRO") + '</span></label><input type="text" readonly tabindex="-1" value="' + esc(v || "—") + '"></div>';
   }
+  /* ---- sub-aba LEGENDA do Carimbo (21/10/2026): lista os símbolos da legenda da prancha; só aparecem os marcados ---- */
+  var CAR_SUB = "dados";
+  function carSubBar(){
+    return '<style>#mdp_aba_car .car-sub{display:flex;gap:6px;margin:0 0 12px;}' +
+      '#mdp_aba_car .car-sub button{border:1px solid #10283a;background:#fff;color:#10283a;border-radius:99px;padding:6px 16px;font:700 12px Bahnschrift,sans-serif;letter-spacing:.07em;text-transform:uppercase;cursor:pointer;}' +
+      '#mdp_aba_car .car-sub button.on{background:#c8791a;border-color:#c8791a;color:#fff;}' +
+      '#mdp_aba_car .leg-lista{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));}' +
+      '#mdp_aba_car .leg-item{display:flex;align-items:center;gap:10px;padding:7px 12px;border-right:1px solid #d6dee6;border-bottom:1px solid #d6dee6;cursor:pointer;background:#fff;}' +
+      '#mdp_aba_car .leg-item:hover{background:#fff8e8;}' +
+      '#mdp_aba_car .leg-item input{width:16px;height:16px;accent-color:#10283a;flex:none;}' +
+      '#mdp_aba_car .leg-item canvas{width:72px;height:26px;flex:none;border:1px solid #e1e7ed;background:#fff;}' +
+      '#mdp_aba_car .leg-item span{font:600 12.5px Bahnschrift,sans-serif;line-height:1.2;}' +
+      '#mdp_aba_car .leg-item em{display:block;font:500 10px Bahnschrift,sans-serif;color:#7a8ea0;font-style:normal;margin-top:1px;}' +
+      '#mdp_aba_car .leg-acoes{display:flex;flex-wrap:wrap;gap:6px;padding:8px 12px;background:#f4f6f8;border-top:1px solid #d6dee6;}' +
+      '#mdp_aba_car .leg-acoes button{border:1px solid #9fb0bf;background:#fff;border-radius:99px;padding:5px 12px;font:600 12px Bahnschrift,sans-serif;cursor:pointer;color:#10283a;}' +
+      '</style><div class="car-sub" role="tablist">' +
+      '<button type="button" role="tab" class="' + (CAR_SUB === "dados" ? "on" : "") + '" onclick="MDP_carSub(\'dados\')">Dados do carimbo</button>' +
+      '<button type="button" role="tab" class="' + (CAR_SUB === "leg" ? "on" : "") + '" onclick="MDP_carSub(\'leg\')">Legenda</button></div>';
+  }
+  function legAutoSet(){ var o = {}; Object.keys(LEG_FIXOS).forEach(function(k){ o[k] = 1; }); Object.keys(LEG_USO_ULT || {}).forEach(function(k){ o[k] = 1; }); return o; }
+  function legGravar(o){
+    var ks = LEG1.concat(LEG2).map(function(it){ return it[0]; }).filter(function(k){ return o[k]; });
+    window.MDP_setEx("leg_sel", ks.length ? ks.join(",") : "-");
+  }
+  function renderLegendaPainel(){
+    var box = $("mdp_aba_car"); if(!box) return;
+    var sel = legSelecao(), efe = sel || legAutoSet(), itens = LEG1.concat(LEG2), nMarc = itens.filter(function(it){ return efe[it[0]]; }).length;
+    var h = carCss() + carSubBar();
+    h += '<div class="car-head"><h3>Legenda da prancha</h3><p>Marque os símbolos que devem aparecer na legenda: <b>só os marcados</b> saem na prancha. ' +
+      (sel ? 'Seleção <b>manual</b>.' : 'Hoje está <b>automático</b> (os 4 fixos + o que foi desenhado na folha); ao marcar ou desmarcar algo a seleção passa a ser sua.') +
+      '</p><span class="car-chip"><b>' + nMarc + '</b> de ' + itens.length + ' na prancha</span></div>';
+    h += '<section class="car-bloco"><header><i>L</i> Símbolos <small>' + (sel ? "manual" : "automático") + '</small></header><div class="leg-lista">' +
+      itens.map(function(it){
+        return '<label class="leg-item"><input type="checkbox" data-k="' + it[0] + '"' + (efe[it[0]] ? " checked" : "") + ' onchange="MDP_legMarca(this)">' +
+          '<canvas width="144" height="52" data-leg="' + it[0] + '"></canvas><span>' + esc(it[1].join(" ")) + (LEG_FIXOS[it[0]] ? '<em>fixo no modelo</em>' : (LEG_USO_ULT && LEG_USO_ULT[it[0]] ? '<em>desenhado nesta folha</em>' : '')) + '</span></label>';
+      }).join("") + '</div><div class="leg-acoes">' +
+      '<button type="button" onclick="MDP_legTodos(1)">Marcar todos</button><button type="button" onclick="MDP_legTodos(0)">Só os 4 fixos</button>' +
+      '<button type="button" onclick="MDP_legAuto()">↺ Voltar ao automático</button></div></section>';
+    box.innerHTML = h;
+    var uso = LEG_USO; LEG_USO = null;                                    // as amostras não contam como uso
+    try{
+      Array.prototype.forEach.call(box.querySelectorAll("canvas[data-leg]"), function(cv){
+        var ctx = cv.getContext("2d"), s = 144/18; ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, cv.width, cv.height);
+        var Pc = pintorCanvas(ctx, s); amostraLegenda(Pc, cv.getAttribute("data-leg"), 1.2, 52/s/2, 15.6);
+      });
+    }catch(e){ console.warn("legenda amostras:", e && e.message || e); }
+    LEG_USO = uso;
+  }
+  window.MDP_carSub = function(k){ CAR_SUB = (k === "leg") ? "leg" : "dados"; renderCarimboPainel(); };
+  window.MDP_legMarca = function(el){
+    var o = Object.assign({}, legSelecao() || legAutoSet()); if(el.checked) o[el.getAttribute("data-k")] = 1; else delete o[el.getAttribute("data-k")];
+    legGravar(o); renderLegendaPainel();
+  };
+  window.MDP_legTodos = function(t){ var o = {}; LEG1.concat(LEG2).forEach(function(it){ if(t || LEG_FIXOS[it[0]]) o[it[0]] = 1; }); legGravar(o); renderLegendaPainel(); };
+  window.MDP_legAuto = function(){ window.MDP_setEx("leg_sel", ""); renderLegendaPainel(); };
   function renderCarimboPainel(){
     var box = $("mdp_aba_car"); if(!box) return;
     if(!G){ box.innerHTML = carCss() + '<div class="car-head"><h3>Carimbo da planta</h3><p>Insira o KML em Técnica › Áreas de Locação para preencher o carimbo.</p></div>'; return; }
+    if(CAR_SUB === "leg"){ renderLegendaPainel(); return; }
     var c = doCadastro(), ex = extras(), mod = modeloCarimbo(), au = autoCarimbo(c), nf = contagemFolhas();
     var mun = (c.municipio || "") + (c.uf ? " – " + c.uf : "");
     var vd = ex.desenhista || "", nomes = DESENHISTAS.map(function(d){ return d.nome; });
-    var h = carCss();
+    var h = carCss() + carSubBar();
     h += '<div class="car-head"><h3>Carimbo da planta</h3><p>Campo em branco sai <b>automático</b> (valor em cinza); o que você digitar vale no lugar — o <b>↺</b> devolve ao automático. A prancha ao lado mostra o resultado.</p><span class="car-chip" id="car_chip"></span></div>';
     h += '<div class="car-modelo" role="group" aria-label="Modelo do carimbo">' + MODELOS_CAR.map(function(m){ return '<button type="button" class="' + (m[0] === mod ? "on" : "") + '" onclick="MDP_carModelo(\'' + m[0] + '\')">' + esc(m[1]) + '</button>'; }).join("") + '</div>';
     h += '<section class="car-bloco"><header><i>01</i> Título</header><div class="car-grade">' +
@@ -60788,7 +60869,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.21-1';
+window.APP_VERSAO = '2026.10.21-2';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.20-4';
 (function(){
