@@ -43592,7 +43592,7 @@ function AV_gerarDescSituacao(){
     // 20/10/2026: mapa geral das fotos de campo incorporadas a esta ficha (numeradas como saem aqui)
     // 20/10/2026: fotos por tópico do Campo (a ordem de impressão é a do mapa)
     var __orgF = null; try{ __orgF = window.CAMPO_organizarFotos ? await window.CAMPO_organizarFotos((window.FB_getFotos ? window.FB_getFotos() : []) || []) : null; }catch(e){}
-    var __mapaF = null; try{ __mapaF = (window.CAMPO_mapaPara && __orgF) ? await window.CAMPO_mapaPara(__orgF.itens) : null; }catch(e){}   /* campoMapa */
+    var __mapaF = null;   // 21/10/2026: a Ficha (5.3 Fotografias do imóvel) não leva mapa de localização; ele fica para as fotos da aba Campo nos relatórios   /* campoMapa */
     if(!(window.jspdf||window.jsPDF)){
       alert("Biblioteca de PDF ainda carregando. Tente novamente em instantes."); return;
     }
@@ -44814,6 +44814,9 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     // 20/10/2026: por tópico do Campo (Imóvel — vista geral, Acesso, Área abrangida pelo projeto…), sem o arquivo morto
     let org=null; try{ org = window.CAMPO_organizarFotos ? await window.CAMPO_organizarFotos(lista) : null; }catch(e){}
     fotos.length=0; fotosLeg.length=0; fotosTop.length=0; fotosItens.length=0;   // troca tudo de uma vez (chamadas concorrentes não se misturam)
+    const soFicha={}; ((usaFicha && window.FB_getFotos)?window.FB_getFotos():[]).forEach(it=>{ const s=typeof it==="string"?it:(it&&it.src)||""; if(s) soFicha[s]=1; });
+    ((window.CAMPO_getFotos&&usaCampo)?window.CAMPO_getFotos():[]).forEach(f=>{ if(f && f.src) delete soFicha[f.src]; });
+    (org ? org.itens : lista).forEach(o=>{ if(soFicha[o.src]) o.semMapa=true; });   // 21/10/2026: mapa só para as fotos do Campo
     (org ? org.itens : lista).forEach(o=>{ fotos.push(o.src); fotosLeg.push(o.legenda||""); fotosTop.push(org&&org.temTopicos ? (o.topico||"") : ""); fotosItens.push(o); });
     const rs=document.getElementById("rel_fotos_resumo");
     if(rs) rs.innerHTML = (!usaCampo && !usaFicha) ? "Nenhuma origem marcada — o relatório sai sem o item 6 (Relatório Fotográfico)."
@@ -49744,6 +49747,7 @@ window.DRL_gerarPDF=async function(opts){
     var sul = !(CAMPO.gps && CAMPO.gps.lat > 0), pts = [], ix = await indiceCampo();
     for(var i = 0; i < lista.length; i++){
       var x = lista[i], src = (typeof x === "string") ? x : (x && x.src) || ""; if(!src) continue;
+      if(x && x.semMapa) continue;                                            // 21/10/2026: foto só da Ficha de Vistoria (5.3) não leva alfinete; só as da aba Campo
       var ref = (x && x.ref) || null;
       if(!ref){ var c = await candidatosCampo(src, ix); if(c.ativas.length && !c.noArq) ref = { p:c.ativas[0].p, gid:c.ativas[0].g.id, grupo:c.ativas[0].g.t }; }
       if(!ref) continue;
@@ -53937,7 +53941,11 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     // 20/10/2026: mapa geral das fotos de campo incorporadas ao 6.1, com o número de cada foto no relatório
     // 20/10/2026: fotos por tópico do Campo; a ordem de impressão é a do mapa
     var __orgD2 = null; try{ __orgD2 = window.CAMPO_organizarFotos ? await window.CAMPO_organizarFotos((window.D2_fotosRelatorio ? window.D2_fotosRelatorio().fotos : []).filter(function(f){ return f && (f.src || f.legenda); })) : null; }catch(e){}
-    var __mapaF = null; try{ __mapaF = (window.CAMPO_mapaPara && __orgD2) ? await window.CAMPO_mapaPara(__orgD2.itens.filter(function(o){ return o.src; })) : null; }catch(e){}   /* campoMapa */
+    var __mapaF = null; try{
+      // 21/10/2026: fotos que vieram só da Ficha de Vistoria (5.3) não entram no mapa; só as da aba Campo
+      var __soFb={}; ((window.D2_fotosRelatorio ? window.D2_fotosRelatorio().fotos : [])||[]).forEach(function(f){ if(f && f._fb && f.src) __soFb[f.src]=1; });
+      if(__orgD2) __orgD2.itens.forEach(function(o){ if(o.src && __soFb[o.src]) o.semMapa=true; });
+      __mapaF = (window.CAMPO_mapaPara && __orgD2) ? await window.CAMPO_mapaPara(__orgD2.itens.filter(function(o){ return o.src; })) : null; }catch(e){}   /* campoMapa */
     // item c) é 100% derivado da Ficha 4.9.1 (DESP-1) — regenera na hora de gerar o PDF
     if(window.D2_rebuild) window.D2_rebuild("descri_o_do_tipo_de_atividad");
     DESP2_TOPICOS.forEach(function(tp){ var v=document.getElementById('d2_view_'+tp.id); if(v && v.getAttribute('contenteditable')==='true') window.D2_syncFromView(tp.id); });
@@ -60905,7 +60913,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.21-3';
+window.APP_VERSAO = '2026.10.21-4';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.20-4';
 (function(){
