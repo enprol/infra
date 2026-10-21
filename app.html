@@ -37366,7 +37366,7 @@ function AV_gerarDescSituacao(){
   }
 
   // trecho do SPS-04 (Salgueiro → Suape): vale para todos os cadastros do lote enquanto o campo estiver em branco
-  var TRECHO_SPS04 = "Salgueiro/PE, km 348+956,000 AO km 402+384,698 - Suape/PE";
+  var TRECHO_SPS04 = "Salgueiro/PE, km 178+800 AO km 252+214,196 - Suape/PE";   // 21/10/2026: corrigido (antes saía o km do SPS-07)
   var TRECHO_SPS07 = "Cachoeirinha/PE, km 348+956,00 AO km 402+384,698 - São Joaquim do Monte/PE";
   /* Modelos de carimbo (05/10/2026). "padrao" = a disposição da planta aprovada do modelo geral; "sps04_006" = a que vinha
      sendo usada só nos CTD 006A a 006Z do SPS-04 (e é a escolhida sozinha para eles, enquanto nada for selecionado). */
@@ -37878,6 +37878,7 @@ function AV_gerarDescSituacao(){
     var T = enquadrarPg(pgAtual);
     aplicarFmtPg(pgAtual);                                       // formato da prancha mostrada (pode diferir do padrão)
     var dpr = Math.min(2, window.devicePixelRatio || 1);
+    dpr = Math.min(dpr, 12000/Math.max(1, larguraCss));                  // lupa (21/10/2026): o canvas não passa de ~12 mil px
     var s = (larguraCss/FL.W) * dpr;
     cv.width = Math.round(FL.W*s); cv.height = Math.round(FL.H*s);
     cv.style.width = (FL.W*s/dpr) + "px"; cv.style.height = (FL.H*s/dpr) + "px";
@@ -38001,6 +38002,7 @@ function AV_gerarDescSituacao(){
       var lx = folha ? FL.W : MAPA.w, ly = folha ? FL.H : MAPA.h;
       var cx = esq.clientWidth - 64, cy = esq.clientHeight - 64;
       var larg = Math.max(240, Math.min(cx, cy*lx/ly));
+      if(folha) larg *= LUPA.k;                                      // lupa da vista Prancha: desenha já na resolução do zoom
       var T = folha
         ? await pintarNoCanvas(cv, larg, aviso, 150, function(){ return meu !== COMP.tok; })
         : await pintarQuadroNoCanvas(cv, larg, 150, aviso, function(){ return meu !== COMP.tok; });
@@ -38021,13 +38023,14 @@ function AV_gerarDescSituacao(){
       }
       if(load) load.style.display = "none";
     }catch(e){ console.warn("planta/composição:", e); aviso("Não consegui desenhar: " + (e.message || e)); }
-    compCotasLista(); compLeadersLista();
+    compCotasLista(); compLeadersLista(); lupaSync();
     if(meu === COMP.tok){ if(COMP.arr && COMP.arr.fim) COMP.arr = null; compSelDesenhar(); mesaModoSync(); }
   }
   /* alterna entre o quadro do mapa (onde se compõe) e a folha montada (como vai imprimir).
      As cotas são marcadas por coordenada na janela do mapa, então só valem na vista do quadro. */
   function compVista(v){
     COMP.vista = (v === "folha") ? "folha" : "quadro";
+    lupaZerar();
     if(COMP.vista === "folha"){ if(COMP.cota) compCotaModo(false); if(COMP.leader) compLeaderModo(false); }
     var bt = $("mdp_bt_vista"), btc = $("mdp_bt_cota");
     if(bt){
@@ -40596,10 +40599,86 @@ function AV_gerarDescSituacao(){
     }
     v2Overlay(); v2Hud(ev);
   }
+  /* ---- LUPA da vista Prancha (21/10/2026) ----
+     A prancha montada (mapa + tabela + carimbo) cabia inteira na tela e não dava para ler o carimbo. Agora: roda = zoom no ponto do
+     cursor (100% a 800%), arrastar = mover a folha, duplo clique = aproxima 3× / volta a caber, e a barra − % + Ajustar.
+     Na hora a folha é esticada (resposta imediata) e, parada a roda, é redesenhada na resolução do zoom (texto nítido). */
+  var LUPA = { k:1, t:0, drag:null };
+  function lupaBarra(){
+    var ov = $("mdp_comp_ov"), esq = $("mdp_comp_esq"); if(!ov || !esq) return null;
+    var b = $("mdp_lupa");
+    if(!b){
+      b = document.createElement("div"); b.id = "mdp_lupa"; b.className = "mdp-lupa";
+      b.innerHTML = '<style>' +
+        '.mdp-lupa{position:fixed;z-index:2000001;display:flex;align-items:center;gap:2px;padding:4px;border-radius:999px;background:rgba(10,27,32,.92);border:1px solid #2c4d57;box-shadow:0 8px 24px rgba(0,0,0,.45);font:600 12px Bahnschrift,"Segoe UI",sans-serif;color:#d8e6ec;backdrop-filter:blur(6px);user-select:none;}' +
+        '.mdp-lupa button{border:0;background:transparent;color:#d8e6ec;min-width:30px;height:28px;border-radius:999px;font:700 15px Bahnschrift,sans-serif;cursor:pointer;transition:background .15s,color .15s;}' +
+        '.mdp-lupa button:hover{background:#1e3d46;color:#fff;}' +
+        '.mdp-lupa button:focus-visible{outline:2px solid #f2b24a;outline-offset:1px;}' +
+        '.mdp-lupa .pct{min-width:58px;text-align:center;font:700 12px ui-monospace,Consolas,monospace;color:#f2b24a;letter-spacing:.04em;}' +
+        '.mdp-lupa .aj{font:700 11px Bahnschrift,sans-serif;letter-spacing:.08em;text-transform:uppercase;padding:0 12px;}' +
+        '.mdp-lupa .sep{width:1px;height:18px;background:#2c4d57;margin:0 4px;}' +
+        '.mdp-lupa .dica{padding:0 10px 0 4px;font:500 11px Bahnschrift,sans-serif;color:#8fb0bc;white-space:nowrap;}' +
+        '#panel-desp1-planta .mdp-comp-esq.lupa{display:block;overflow:auto;cursor:grab;}' +
+        '#panel-desp1-planta .mdp-comp-esq.lupa .mdp-comp-pal{margin:24px auto;width:max-content;}' +
+        '#panel-desp1-planta .mdp-comp-esq.lupa.movendo{cursor:grabbing;}' +
+        '</style>' +
+        '<button type="button" data-l="-" title="Afastar" aria-label="Afastar">−</button>' +
+        '<span class="pct" aria-live="polite">100%</span>' +
+        '<button type="button" data-l="+" title="Aproximar" aria-label="Aproximar">+</button>' +
+        '<span class="sep"></span><button type="button" class="aj" data-l="0" title="Mostrar a prancha inteira">Ajustar</button>' +
+        '<span class="dica">roda = zoom · arraste = mover · 2 cliques = aproximar</span>';
+      b.addEventListener("mousedown", function(ev){ ev.stopPropagation(); });
+      b.addEventListener("click", function(ev){
+        var bt = ev.target.closest && ev.target.closest("[data-l]"); if(!bt) return;
+        var r = $("mdp_comp_esq").getBoundingClientRect(), cx = r.left + r.width/2, cy = r.top + r.height/2, l = bt.getAttribute("data-l");
+        if(l === "0") lupaPara(1, cx, cy); else lupaZoom(l === "+" ? 1.5 : 1/1.5, cx, cy);
+      });
+      ov.appendChild(b);
+    }
+    return b;
+  }
+  function lupaSync(){
+    var b = lupaBarra(), esq = $("mdp_comp_esq"); if(!b || !esq) return;
+    var vis = COMP.vista === "folha" && compAberto();
+    b.style.display = vis ? "flex" : "none"; if(!vis) return;
+    var r = esq.getBoundingClientRect();
+    b.style.left = (r.left + r.width/2 - b.offsetWidth/2) + "px"; b.style.top = (r.top + 12) + "px";
+    b.querySelector(".pct").textContent = Math.round(LUPA.k*100) + "%";
+  }
+  function lupaZerar(){
+    LUPA.k = 1; var esq = $("mdp_comp_esq"); if(esq){ esq.classList.remove("lupa"); esq.scrollLeft = esq.scrollTop = 0; }
+    setTimeout(lupaSync, 0);
+  }
+  function lupaPara(k1, cx, cy){
+    var esq = $("mdp_comp_esq"), cv = $("mdp_comp_cv"); if(!esq || !cv) return;
+    k1 = Math.max(1, Math.min(8, k1)); var k0 = LUPA.k; if(Math.abs(k1 - k0) < .001) return;
+    var r = cv.getBoundingClientRect(); if(!r.width) return;
+    var fx = (cx - r.left)/r.width, fy = (cy - r.top)/r.height, w1 = r.width*k1/k0, h1 = r.height*k1/k0;
+    LUPA.k = k1; esq.classList.toggle("lupa", k1 > 1.001);
+    cv.style.width = w1 + "px"; cv.style.height = h1 + "px";                    // resposta imediata: estica o que já está desenhado
+    var r2 = cv.getBoundingClientRect();
+    esq.scrollLeft += (r2.left + fx*w1) - cx; esq.scrollTop += (r2.top + fy*h1) - cy;   // o ponto sob o cursor fica parado
+    lupaSync();
+    clearTimeout(LUPA.t); LUPA.t = setTimeout(compPintar, 280);   // depois, nítido
+  }
+  function lupaZoom(f, cx, cy){ lupaPara(LUPA.k*f, cx, cy); }
+  function lupaLigar(pal){
+    var esq = $("mdp_comp_esq"); if(!esq || esq.__lupa) return; esq.__lupa = true;
+    esq.addEventListener("mousedown", function(ev){
+      if(COMP.vista !== "folha" || LUPA.k <= 1.001 || ev.button !== 0) return;
+      LUPA.drag = { x:ev.clientX, y:ev.clientY, sl:esq.scrollLeft, st:esq.scrollTop }; esq.classList.add("movendo"); ev.preventDefault();
+    });
+    window.addEventListener("mousemove", function(ev){ var d = LUPA.drag; if(!d) return; esq.scrollLeft = d.sl - (ev.clientX - d.x); esq.scrollTop = d.st - (ev.clientY - d.y); });
+    window.addEventListener("mouseup", function(){ if(LUPA.drag){ LUPA.drag = null; esq.classList.remove("movendo"); } });
+    pal.addEventListener("dblclick", function(ev){ if(COMP.vista !== "folha") return; ev.preventDefault(); if(LUPA.k > 1.001) lupaPara(1, ev.clientX, ev.clientY); else lupaPara(3, ev.clientX, ev.clientY); });
+    window.addEventListener("resize", lupaSync);
+  }
   function v2LigarPal(pal){
     if(pal.__v2) return; pal.__v2 = true;
+    lupaLigar(pal);
     pal.addEventListener("wheel", function(ev){
-      if(COMP.vista === "folha" || !COMP.T || !G) return;
+      if(COMP.vista === "folha"){ ev.preventDefault(); lupaZoom(ev.deltaY < 0 ? 1.25 : 1/1.25, ev.clientX, ev.clientY); return; }
+      if(!COMP.T || !G) return;
       ev.preventDefault();
       var agora = Date.now(); if(agora - V2.zoomLast < 70) return; V2.zoomLast = agora;
       var mm = compMm(ev); if(!mm) return;
@@ -61092,7 +61171,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.21-6';
+window.APP_VERSAO = '2026.10.21-7';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.20-4';
 (function(){
