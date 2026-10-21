@@ -10821,7 +10821,13 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
         <p style="margin:0 0 4px;">É o parecer, salvo melhor juízo.</p>
         <div class="dt" id="par_prev_data">Brasília/DF, 00 de mês de 0000.</div>
         <div class="as">
-          Sávio Túlio Saraiva
+          <label for="par_aplicador" style="display:block;font-size:11px;font-weight:700;color:var(--label);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px;">Nome do Aplicador(a)</label>
+          <select id="par_aplicador" onchange="PAR_aplicadorMudou()" style="max-width:280px;margin-bottom:6px;">
+            <option value="Sávio Túlio Saraiva">Sávio Túlio Saraiva</option>
+            <option value="Gabriel Vinícius Leal">Gabriel Vinícius Leal</option>
+          </select>
+          <div id="par_ass_prev" style="min-height:0;"></div>
+          <span id="par_aplicador_nome">Sávio Túlio Saraiva</span>
           <b>Analista de Regularização Fundiária</b>
         </div>
       </div>
@@ -46516,7 +46522,16 @@ window.UFOTO_rodapeHTML=rodapeHTML;
       if(dataTxt){ pdf.setFont(FONT,"italic"); pdf.setFontSize(10.5); pdf.text(dataTxt, W-mR, yc, {align:"right"}); }
       yc+=20;
 
-      yc=DOCPDF.assinatura(pdf, { fonte:FONT, cx:W/2, y:yc, nome:"Sávio Túlio Saraiva", cargo:"Analista de Regularização Fundiária" });
+      // 21/10/2026: Nome do Aplicador(a) escolhido na tela; a rubrica (quando houver) vai pequena, sobre o nome
+      var apl=PAR_aplicadorAtual();
+      if(apl.img){
+        try{
+          var iw=34, ih=iw*apl.img.h/apl.img.w;
+          if(ih>10){ ih=10; iw=ih*apl.img.w/apl.img.h; }          // pequena: no máximo 34 × 10 mm
+          pdf.addImage(apl.img.src, /^data:image\/png/.test(apl.img.src)?"PNG":"JPEG", W/2-iw/2, yc-ih-0.5, iw, ih);
+        }catch(e){ console.warn("assinatura do aplicador:", e); }
+      }
+      yc=DOCPDF.assinatura(pdf, { fonte:FONT, cx:W/2, y:yc, nome:apl.nome, cargo:"Analista de Regularização Fundiária" });
     }
 
     // ---------- Corpo ----------
@@ -47120,8 +47135,29 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     finally{ if(btn){ btn.disabled=false; btn.textContent=textoOriginal; } }
   };
 
+  /* ---- Nome do Aplicador(a) do fecho (21/10/2026) ----
+     A rubrica não fica no código (repositório público): vem de window.__ASSIN_APLICADORES__[nome] (GET /api/assinaturas,
+     CONFIG/ASSINATURAS/indice.json, grupo "aplicadores"). Sem rubrica cadastrada, o fecho sai só com o nome e o cargo. */
+  var _assDim={};
+  function PAR_aplicadorAtual(){
+    var el=document.getElementById("par_aplicador"), nome=(el&&el.value)||"Sávio Túlio Saraiva";
+    var a=window.__ASSIN_APLICADORES__, src=(a&&a[nome])||"", d=_assDim[nome];
+    if(src && !d){ var im=new Image(); im.onload=function(){ _assDim[nome]={w:im.naturalWidth,h:im.naturalHeight}; PAR_aplicadorMudou(); }; im.src=src; }
+    return { nome:nome, img: src ? { src:src, w:d?d.w:330, h:d?d.h:88 } : null };
+  }
+  window.PAR_aplicadorAtual=PAR_aplicadorAtual;
+  window.PAR_aplicadorMudou=function(){
+    var ap=PAR_aplicadorAtual(), n=document.getElementById("par_aplicador_nome"), pv=document.getElementById("par_ass_prev");
+    if(n) n.textContent=ap.nome;
+    if(pv) pv.innerHTML=ap.img?('<img src="'+ap.img.src+'" alt="Assinatura" style="height:34px;width:auto;display:block;margin:0 auto 2px;">'):"";
+  };
+
   // ---- Inicialização ----
   function init(){
+    window.PAR_aplicadorMudou();
+    // a rubrica chega do servidor depois da abertura e o cadastro restaura o seletor sem evento: reconfere de leve
+    var _ultApl="";
+    setInterval(function(){ var e=document.getElementById("par_aplicador"), a=window.__ASSIN_APLICADORES__, k=((e&&e.value)||"")+"|"+(a&&e&&a[e.value]?1:0); if(k!==_ultApl){ _ultApl=k; window.PAR_aplicadorMudou(); } }, 2000);
     initTabelasPAR();
     renderChecklist();
     atualizarPendencias();
@@ -60869,7 +60905,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.21-2';
+window.APP_VERSAO = '2026.10.21-3';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.20-4';
 (function(){
