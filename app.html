@@ -9084,6 +9084,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
           <select id="drl_modelo" onchange="DRL_trocarModelo()">
             <option value="anuencia">Com anuência dos confrontantes — declarante, “De acordo” e anexos</option>
             <option value="sem_anuencia">Propriedade sem necessidade de anuência — declaração da ENPROL (1 página)</option>
+            <option value="nota">Nota de Respeito de Limites e Confrontações — itens numerados, SIGEF e assinatura do responsável técnico</option>
           </select>
           <p class="hint-inline" id="drl_modelo_aviso" style="margin:6px 0 0;"></p>
         </div>
@@ -39962,6 +39963,26 @@ function AV_gerarDescSituacao(){
     });
     return new Tb({ width:{ size:100, type:WD.PERCENTAGE }, rows:rows });
   };
+  /* 21/10/2026: DRL modelo "Nota" — confrontações por trecho contínuo de divisa (mesmo confrontante e matrícula seguidos viram uma
+     linha): vértice inicial com E/N, vértice final, matrícula e confrontante. O último trecho emenda no primeiro quando é o mesmo. */
+  window.MDP_drlConfrontacoes = function(){
+    var t = window.MDP_tabela(); if(!t || !t.length) return null;
+    var ch = function(r){ return String(r.conf || "").trim().toUpperCase() + "|" + String(r.mat || "").trim(); }, g = [];
+    // sem nome digitado: o tipo da divisa dá o confrontante (faixa de domínio → ferrovia; área remanescente → o próprio cadastro)
+    var dv = divisasDe(), nmRem = nomeRemanescente(), matProp = String(doCadastro().matricula || "").trim();
+    t = t.map(function(r, i){
+      var o = Object.assign({}, r), c = String(r.conf || "").trim();
+      if(!c) o.conf = r.fd ? NOME_FAIXA_EF : ((dv[i] === "area" || dv[i] === "rem") ? nmRem : "");
+      if(!String(o.mat || "").trim() && nmRem && o.conf === nmRem) o.mat = matProp;   // área remanescente: matrícula do próprio imóvel
+      return o; });
+    t.forEach(function(r){
+      var u = g[g.length - 1];
+      if(u && u.k === ch(r)) u.para = r.para;
+      else g.push({ k:ch(r), de:r.de, E:r.E, N:r.N, para:r.para, mat:String(r.mat || "").trim(), conf:String(r.conf || "").trim() });
+    });
+    if(g.length > 1 && g[0].k === g[g.length - 1].k){ var z = g.pop(); g[0].de = z.de; g[0].E = z.E; g[0].N = z.N; }
+    return g;
+  };
   window.MDP_temTabela = function(){ if(!G) analisar(); return !!(G && G.segs && G.segs.length); };
 
   /* ---- liga o painel ---- */
@@ -48222,7 +48243,54 @@ window.DRL_dados=function(){
 // Modelo do DRL (30/09/2026): "anuencia" = declaração do proprietário com "De acordo" dos
 // confrontantes e página de anexos (padrão); "sem_anuencia" = propriedade que dispensa anuência —
 // declaração em nome da ENPROL, uma página só, sem campos de assinatura/anuência.
-function DRL_modelo(){ var e=document.getElementById('drl_modelo'); return (e && e.value==='sem_anuencia') ? 'sem_anuencia' : 'anuencia'; }
+function DRL_modelo(){ var e=document.getElementById('drl_modelo'); return (e && (e.value==='sem_anuencia' || e.value==='nota')) ? e.value : 'anuencia'; }
+/* ---- modelo "nota" (21/10/2026, padrão aprovado pelo cliente): Ref./Ass., itens 1 a 3 numerados, link da parcela no SIGEF,
+   tabela "Confrontações" por trecho de divisa (da Mesa), local e data e assinatura do responsável técnico (Antônio Célito) ---- */
+var DRL_RESP = { nome:"ANTÔNIO CÉLITO DE ARAÚJO JÚNIOR", cargo:"ENGENHEIRO AGRÔNOMO", crea:"CREA 351993 V/MG" };
+var DRL_KM = { chave:"", ini:"", fim:"" };
+async function DRL_carregarKm(){
+  try{ var k = window.MDP_kmEixo ? await window.MDP_kmEixo() : null;
+    DRL_KM.ini = (k && k.ini && k.ini.km) || ""; DRL_KM.fim = (k && k.fim && k.fim.km) || ""; }catch(e){}
+}
+// parcela do SIGEF: só vira link quando há o identificador da parcela (uuid) ou a própria URL
+function DRL_sigefUrl(){
+  var ids=['fb_sigef','av_geo_cod','av_incra'];
+  for(var i=0;i<ids.length;i++){ var e=document.getElementById(ids[i]), v=e?String(e.value||'').trim():'';
+    var u=/https?:\/\/sigef\.incra\.gov\.br\/\S+/i.exec(v); if(u) return u[0];
+    var m=/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i.exec(v); if(m) return 'https://sigef.incra.gov.br/geo/parcela/detalhe/'+m[0].toLowerCase()+'/';
+  }
+  return '';
+}
+function DRL_codIncra(d){
+  var c=[d.incra, DRL_sigefCodigo(d.sigef)].filter(function(x){ return x && !/[0-9a-f]{8}-[0-9a-f]{4}-/i.test(x) && !/^https?:/i.test(x); });
+  return c[0]||'';
+}
+function DRL_ferroviaTxt(){ var f=((document.getElementById('fb_proc_ferrovia')||{}).value||'FTN').trim().toUpperCase(); return f==='FTN' ? 'Ferrovia Transnordestina – EF-232' : ('Ferrovia '+f); }
+function DRL_textoNota(d){
+  var inc=DRL_codIncra(d), url=DRL_sigefUrl();
+  function doc(num, tipo){ return (num && num.trim()) ? ', inscrito(a) no '+DRL_docRotulo({cpfTipo:tipo})+' nº '+num.trim() : ''; }
+  var p1='1. O processo supracitado foi instaurado para indenizar a terra nua e as benfeitorias do imóvel '+DRL_bl(d.propId)+
+    ', matrícula(s) nº '+DRL_bl(d.matricula)+(inc ? ', cadastrado no INCRA sob o código '+inc : '')+
+    ', situado no município de '+DRL_bl(d.municipio)+(d.uf ? '-'+d.uf : '')+', interceptado pela '+DRL_ferroviaTxt()+
+    ', cujo(a) proprietário(a) é '+DRL_bl(d.nome)+doc(d.cpf, d.cpfTipo)+
+    (d.ocupDif && d.ocupNome ? ', e ocupado por '+d.ocupNome+doc(d.ocupCpf, d.ocupCpfTipo) : '')+'.';
+  var p2='2. Para a instrução processual é necessária a Declaração de Respeito de Limites, que, na ausência desta, tomou como base os dados que constam na certidão de inteiro teor do imóvel, matrícula nº '+DRL_bl(d.matricula)+
+    (url ? ', e os documentos técnicos disponíveis no SIGEF, através do endereço eletrônico:\n'+url : ', e o levantamento técnico de campo.');
+  var p3='3. Assim, em ambiente GIS e CAD, utilizando os dados vetoriais do levantamento de campo da área atingida pelo traçado da ferrovia, determinaram-se os limites Norte/Sul e as confrontações Leste/Oeste da área em questão'+
+    ((DRL_KM.ini && DRL_KM.fim) ? ', entre o KM '+DRL_KM.ini+' e o KM '+DRL_KM.fim+' do eixo projetado' : '')+'.';
+  return p1+'\n\n'+p2+'\n\n'+p3;
+}
+// texto salvo: se for o automático (com ou sem o KM, que chega depois), refaz com os dados atuais; editado à mão, vale como está
+async function DRL_textoNotaAtual(t, d){
+  var sem=Object.assign({}, DRL_KM); DRL_KM.ini=DRL_KM.fim=''; var auto0=DRL_textoNota(d).trim(); Object.assign(DRL_KM, sem);
+  var auto1=DRL_textoNota(d).trim(); await DRL_carregarKm(); var novo=DRL_textoNota(d);
+  t=(t||'').trim(); return (!t || t===auto0 || t===auto1) ? novo : t;
+}
+function DRL_refNota(){
+  function v(){ for(var i=0;i<arguments.length;i++){ var e=document.getElementById(arguments[i]); var x=e?String(e.value||'').trim():''; if(x) return x; } return ''; }
+  var pp = window.PROC_partes ? window.PROC_partes(v('rel_processo','par_processo','fb_processo'), v('rel_sei','fb_proc_sei')) : { cad:'', sei:'' };
+  return 'Processo '+(pp.sei||'____________')+(pp.cad ? ' – '+pp.cad : '')+'.';
+}
 // SIGEF da aba Técnica: só entra no texto se for um código (não "Não possui", "N/A"…)
 function DRL_sigefCodigo(s){ s=(s||'').trim(); return (!s || /^(n[ãa]o\b|n\/?a\b|sem\b|inexist|-+$)/i.test(s)) ? '' : s; }
 function DRL_docRotulo(d){ return d.cpfTipo==='cnpj' ? 'Cadastro Nacional da Pessoa Jurídica – CNPJ' : 'Cadastro de Pessoa Física – CPF'; }
@@ -48277,18 +48345,21 @@ function DRL_paragrafoSemAnuenciaV1(d){
     (sig ? ', cadastrado no INCRA sob o código nº '+sig : '')+
     ', declara, sob as penas da lei, que foram respeitados os limites das divisas in loco com os confrontantes abaixo relacionados durante a execução dos trabalhos técnicos na citada propriedade, não havendo qualquer litígio entre as partes.';
 }
-function DRL_textoAuto(d, modelo){ return (modelo||DRL_modelo())==='sem_anuencia' ? DRL_paragrafoSemAnuencia(d) : DRL_paragrafo(d); }
+function DRL_textoAuto(d, modelo){ modelo=modelo||DRL_modelo(); return modelo==='nota' ? DRL_textoNota(d) : modelo==='sem_anuencia' ? DRL_paragrafoSemAnuencia(d) : DRL_paragrafo(d); }
 window.DRL_avisoModelo=function(){
   var av=document.getElementById('drl_modelo_aviso'); if(!av) return;
+  if(DRL_modelo()==='nota'){ av.innerHTML='Nota da ENPROL com <b>Ref.</b> do processo, itens 1 a 3 (imóvel, base documental com o link do SIGEF e método GIS/CAD com os KMs), tabela <b>Confrontações</b> montada da Mesa de Desenho, local e data e a <b>assinatura do Antônio Célito</b>. O link do SIGEF só sai se o código da parcela (ex.: 867995c4-aaaa-…) estiver na Ficha (SIGEF).'; return; }
   av.innerHTML = DRL_modelo()==='sem_anuencia'
     ? 'Declaração em nome da ENPROL, em <b>uma página</b>: texto, vértices das propriedades do SIGEF (envie a <b>imagem da tabela</b> no quadro abaixo) e local e data. Sem assinatura do declarante, sem “De acordo” e sem anexos.'
     : 'Declaração do(a) proprietário(a)/possuidor(a), com assinatura, “De acordo” dos confrontantes e página de anexos.';
 };
-window.DRL_trocarModelo=function(){
+window.DRL_trocarModelo=async function(){
+  var antes=DRL_textoNota(window.DRL_dados()).trim();
+  await DRL_carregarKm();
   var e=document.getElementById('drl_texto'), d=window.DRL_dados();
   if(e){
     var t=(e.value||'').trim();
-    var auto = !t || t===DRL_paragrafo(d).trim() || t===DRL_paragrafoSemAnuencia(d).trim() || DRL_ehAutoAntigoSemAnuencia(t, d);
+    var auto = !t || t===DRL_paragrafo(d).trim() || t===DRL_paragrafoSemAnuencia(d).trim() || DRL_ehAutoAntigoSemAnuencia(t, d) || t===antes || t===DRL_textoNota(d).trim();
     if(auto || confirm('O texto da declaração foi editado.\n\nSubstituir pelo texto automático do modelo escolhido?')){
       e.value=DRL_textoAuto(d); e.dispatchEvent(new Event('input',{bubbles:true}));
     }
@@ -48314,8 +48385,9 @@ function DRL_localDataPadrao(d){
   var lugar = (d && d.municipio) ? (d.municipio + (d.uf ? (' – '+d.uf) : '')) : '________';
   return lugar + ', ________ de __________________ de ' + ((d && d.ano) || '________');
 }
-window.DRL_gerarTexto=function(){
+window.DRL_gerarTexto=async function(){
   var e=document.getElementById('drl_texto'); if(!e) return;
+  if(DRL_modelo()==='nota') await DRL_carregarKm();
   e.value=DRL_textoAuto(window.DRL_dados());
   e.dispatchEvent(new Event('input',{bubbles:true}));
 };
@@ -48363,6 +48435,73 @@ window.DRL_gerarPDF=async function(opts){
   }
   function linha(txt){ garantir(6); pdf.setFont('helvetica','normal'); pdf.setFontSize(11); pdf.setTextColor(0,0,0); pdf.text(txt, mL, y); y+=6; }
   function assinatura(){ garantir(8); pdf.setFont('helvetica','normal'); pdf.setFontSize(11); pdf.text('__________________________________________________', W/2, y, {align:'center'}); y+=8; }
+
+  // ---- modelo NOTA (21/10/2026): Ref./Ass., itens numerados, link do SIGEF, Confrontações, data e assinatura do Célito ----
+  if(modelo==='nota'){
+    texto = await DRL_textoNotaAtual(DRL_gv('drl_texto'), d);
+    cabecalho(); y=40; pdf.setLineHeightFactor(1.5);
+    bloco('DECLARAÇÃO DE RESPEITO DE LIMITES', {bold:true, size:13, center:true}); y+=6;
+    pdf.setFont('helvetica','bold'); pdf.setFontSize(11); pdf.text('Ref.:', mL, y);
+    pdf.setFont('helvetica','normal'); pdf.text(DRL_refNota(), mL+11, y); y+=9;
+    pdf.setFont('helvetica','bold'); pdf.text('Ass.:', mL, y);
+    var _ass='Nota de Declaração de Respeito de Limites e Confrontações'; pdf.setFont('helvetica','normal'); pdf.text(_ass+'.', mL+11, y);
+    pdf.setDrawColor(0,0,0); pdf.setLineWidth(.2); pdf.line(mL+11, y+.8, mL+11+pdf.getTextWidth(_ass), y+.8); y+=11;
+    texto.split(/\n\s*\n/).forEach(function(par){
+      par.split('\n').forEach(function(ln){
+        if(/^https?:\/\//i.test(ln.trim())){                               // link do SIGEF: azul e sublinhado, linha própria
+          garantir(8); y+=2; pdf.setFont('helvetica','normal'); pdf.setFontSize(10.5); pdf.setTextColor(10,60,170);
+          var u=ln.trim(); pdf.textWithLink ? pdf.textWithLink(u, mL, y, {url:u}) : pdf.text(u, mL, y);
+          pdf.setDrawColor(10,60,170); pdf.line(mL, y+.8, mL+pdf.getTextWidth(u), y+.8); pdf.setTextColor(0,0,0); y+=6;
+        } else bloco(ln, {justify:true});
+      });
+      y+=4;
+    });
+    var _cf = window.MDP_drlConfrontacoes ? window.MDP_drlConfrontacoes() : null;
+    var assH=34, limN=botY-assH-14;                                         // reserva local/data + assinatura
+    if(_cf && _cf.length){
+      y+=2; garantir(16);
+      pdf.setFont('helvetica','bold'); pdf.setFontSize(11); pdf.text('Confrontações', W/2, y, {align:'center'}); y+=2;
+      var cw=[.11,.19,.21,.11,.13,.25].map(function(f){ return f*RW; }), cab=['Ponto','E','N','Ponto','Matrícula','Confrontante'];
+      var fz=9.5;
+      function altLinha(r, f){ pdf.setFontSize(f); var n=pdf.splitTextToSize(r.conf||'—', cw[5]-2).length; return Math.max(1,n)*f*.42+2.6; }
+      function altTab(f){ return 7 + _cf.reduce(function(s, r){ return s + altLinha(r, f); }, 0); }
+      while(fz>6.5 && y+altTab(fz)>limN) fz-=.5;                           // cabe na página com a assinatura
+      function xs(i){ var s=mL; for(var k=0;k<i;k++) s+=cw[k]; return s; }
+      function cabTab(){
+        pdf.setFont('helvetica','bold'); pdf.setFontSize(fz); pdf.setDrawColor(0,0,0); pdf.setLineWidth(.25);
+        pdf.rect(mL, y, RW, 7); cab.forEach(function(c, i){ pdf.text(c, xs(i)+cw[i]/2, y+4.7, {align:'center'}); if(i) pdf.line(xs(i), y, xs(i), y+7); }); y+=7;
+      }
+      cabTab();
+      _cf.forEach(function(r){
+        var h=altLinha(r, fz); if(y+h>botY){ novaPagina(); cabTab(); }
+        pdf.setFont('helvetica','bold'); pdf.setFontSize(fz);
+        var ls=pdf.splitTextToSize(r.conf||'—', cw[5]-2), yb=y+h/2-(ls.length-1)*fz*.21+fz*.13;
+        [r.de, r.E, r.N, r.para, r.mat||''].forEach(function(t, i){ pdf.text(String(t), xs(i)+cw[i]/2, yb, {align:'center'}); });
+        ls.forEach(function(t, k){ pdf.text(t, xs(5)+cw[5]/2, yb+k*fz*.42, {align:'center'}); });
+        pdf.rect(mL, y, RW, h); for(var i=1;i<6;i++) pdf.line(xs(i), y, xs(i), y+h);
+        y+=h;
+      });
+      y+=8;
+    } else if(confAImg){
+      var _ni=await _drlImg(confAImg);
+      if(_ni && _ni.width){ var iwN=RW, ihN=iwN*_ni.height/_ni.width; if(ihN>limN-y) { ihN=Math.max(limN-y,30); iwN=ihN*_ni.width/_ni.height; }
+        try{ pdf.addImage(confAImg, /^data:image\/png/i.test(confAImg)?'PNG':'JPEG', mL+(RW-iwN)/2, y, iwN, ihN); }catch(e){} y+=ihN+8; }
+    }
+    garantir(6+assH); pdf.setFont('helvetica','normal'); pdf.setFontSize(11); pdf.setTextColor(0,0,0);
+    pdf.text(localData, W-mR, y, {align:'right'}); y+=8;
+    var _as=window.__ASSINATURA_CELITO__, _ai=_as ? await _drlImg(_as) : null;
+    if(_ai && _ai.width){ var aw=48, ah=aw*_ai.height/_ai.width; if(ah>16){ ah=16; aw=ah*_ai.width/_ai.height; }
+      try{ pdf.addImage(_as, /^data:image\/png/i.test(_as)?'PNG':'JPEG', W/2-aw/2, y, aw, ah); }catch(e){} y+=ah+1; }
+    else y+=14;
+    pdf.setDrawColor(60,60,60); pdf.setLineWidth(.3); pdf.line(W/2-38, y, W/2+38, y); y+=4.5;
+    pdf.setFont('helvetica','bold'); pdf.setFontSize(10.5); pdf.text(DRL_RESP.nome, W/2, y, {align:'center'}); y+=4.6;
+    pdf.setFont('helvetica','normal'); pdf.setFontSize(10); pdf.text(DRL_RESP.cargo+' – '+DRL_RESP.crea, W/2, y, {align:'center'});
+    rodape();
+    var blobN=pdf.output('blob'), _nomeN="DRL_"+(window.__CTDsuf?window.__CTDsuf():"CTD 000")+".pdf";
+    if(opts&&opts.retornar) return {blob:blobN, nome:_nomeN};
+    await window.FS_salvar(blobN, _nomeN);
+    return;
+  }
 
   // ---- PÁGINA 1: título + texto + assinatura + De acordo + data ----
   cabecalho();
@@ -51402,6 +51541,34 @@ window.DRL_gerarWord=async function(opts){
   var _confDim = _confImg ? await _imgDim(_confImg) : null;
   var K=[];
   K.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{before:120,after:280},children:[R("DECLARAÇÃO DE RESPEITO DE LIMITES",{bold:true,size:26})]}));
+  if(_modelo==='nota'){                                                     // 21/10/2026: modelo "Nota" (mesmo conteúdo do PDF)
+    var _tn=await DRL_textoNotaAtual(_txtEdit, d);
+    K.push(new Paragraph({spacing:{after:200},children:[R("Ref.: ",{bold:true}), R(DRL_refNota())]}));
+    K.push(new Paragraph({spacing:{after:280},children:[R("Ass.: ",{bold:true}), new TextRun({text:"Nota de Declaração de Respeito de Limites e Confrontações",font:FONT,size:22,underline:{}}), R(".")]}));
+    _tn.split(/\n\s*\n/).forEach(function(par){
+      par.split('\n').forEach(function(ln){
+        if(/^https?:\/\//i.test(ln.trim())) K.push(new Paragraph({spacing:{before:80,after:200},children:[new TextRun({text:ln.trim(),font:FONT,size:21,color:"0A3CAA",underline:{}})]}));
+        else K.push(new Paragraph({alignment:AlignmentType.JUSTIFIED,spacing:{after:200,line:300},children:[R(ln)]}));
+      });
+    });
+    var _cfW = window.MDP_drlConfrontacoes ? window.MDP_drlConfrontacoes() : null;
+    if(_cfW && _cfW.length){
+      var Tb=D.Table, Tr=D.TableRow, Tc=D.TableCell, WD=D.WidthType;
+      var _lw=[11,19,21,11,13,25];
+      var _c=function(t,i,b){ return new Tc({width:{size:_lw[i],type:WD.PERCENTAGE},verticalAlign:(D.VerticalAlign?D.VerticalAlign.CENTER:undefined),children:[new Paragraph({alignment:AlignmentType.CENTER,spacing:{before:40,after:40},children:[R(t,{bold:true,size:19})]})]}); };
+      var _rows=[new Tr({tableHeader:true,cantSplit:true,children:['Ponto','E','N','Ponto','Matrícula','Confrontante'].map(function(t,i){ return _c(t,i); })})];
+      _cfW.forEach(function(r){ _rows.push(new Tr({cantSplit:true,children:[r.de,r.E,r.N,r.para,r.mat||'',r.conf||'—'].map(function(t,i){ return _c(t,i); })})); });
+      K.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{before:120,after:60},children:[R("Confrontações",{bold:true})]}));
+      K.push(new Tb({width:{size:100,type:WD.PERCENTAGE},rows:_rows}));
+    }
+    K.push(new Paragraph({alignment:AlignmentType.RIGHT,spacing:{before:360,after:120},children:[R(_ld)]}));
+    var _asW=b64u8(window.__ASSINATURA_CELITO__), _asD=window.__ASSINATURA_CELITO__ ? await _imgDim(window.__ASSINATURA_CELITO__) : null;
+    if(_asW && _asD && _asD.w){ var _aw=180, _ah=Math.round(_aw*_asD.h/_asD.w); if(_ah>60){ _ah=60; _aw=Math.round(_ah*_asD.w/_asD.h); }
+      try{ K.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:0},children:[new ImageRun({data:_asW,transformation:{width:_aw,height:_ah}})]})); }catch(e){} }
+    K.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:0},children:[R("______________________________________")]}));
+    K.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:0},children:[R(DRL_RESP.nome,{bold:true})]}));
+    K.push(new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:0},children:[R(DRL_RESP.cargo+" – "+DRL_RESP.crea)]}));
+  } else {
   if(_modelo==='sem_anuencia'){
     if(_txtEdit && _txtEdit!==DRL_paragrafoSemAnuencia(d) && !DRL_ehAutoAntigoSemAnuencia(_txtEdit, d)){
       K.push(new Paragraph({alignment:AlignmentType.JUSTIFIED,spacing:{after:220,line:288},children:[R(_txtEdit)]}));
@@ -51452,6 +51619,7 @@ window.DRL_gerarWord=async function(opts){
   _anexos.forEach(function(a){ K.push(new Paragraph({spacing:{after:0},children:[R(a)]})); });
   K.push(new Paragraph({spacing:{before:440,after:0},children:[R(_ld)]}));
   }
+  }   // fim do "else" dos modelos antigos
 
   var headKids=[
     new Paragraph({tabStops:[{type:TabStopType.RIGHT,position:TAB}],spacing:{after:60},children:[ uI?new ImageRun({data:uI,transformation:{width:140,height:40}}):R(""), new TextRun({text:"\t"}), uE?new ImageRun({data:uE,transformation:{width:140,height:40}}):R("") ]}),
@@ -60924,7 +61092,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.21-5';
+window.APP_VERSAO = '2026.10.21-6';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.20-4';
 (function(){
