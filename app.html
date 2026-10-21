@@ -31,7 +31,8 @@ html.pre-logado body:not(.logado)::before{ content:""; position:fixed; inset:0; 
     "assinaturas":       { api: "/api/assinaturas",     tipo: "assin", globais: ["__ASSIN_DESENHISTA__", "__ASSINATURA_CELITO__", "__ASSIN_APLICADORES__"] },
     "docx":              { arq: "docx.min.js",          tipo: "js",   globais: ["docx"] },
     "avvila":            { arq: "avvila-dados.json",    tipo: "json", globais: ["__AVVILA_DADOS__"] },
-    "pesquisa":          { arq: "pesq-mercado.html",    tipo: "bin",  globais: [] }
+    "pesquisa":          { arq: "pesq-mercado.html",    tipo: "bin",  globais: [] },
+    "modelo-gpkg":       { arq: "modelo-legenda-prancha.js", tipo: "js", globais: ["__MODELO_GPKG_B64__"] }   // 20/10/2026: GeoPackage-modelo da legenda
   };
   var GITHUB = "https://enprol.github.io/infra/dados/";
   var feito = {}, falhou = {}, andamento = {};
@@ -9813,6 +9814,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
   <p class="mdp-explica">Envie um <b>GeoPackage (.gpkg)</b> ou <b>KML</b> com cercas, divisas, APP, reserva legal, pastagem, benfeitorias, acessos, córregos… Cada camada é reconhecida pelo nome (aceita os nomes <i>ENP_*</i> do CAD) e você confirma o tipo abaixo; o desenho segue a simbologia da legenda aprovada. Só o que cai perto da área da planta é guardado no cadastro. Também dá para soltar tudo de uma vez na <b>porta de arquivos</b> da aba Técnica (KML, GeoPackage e DXF juntos).</p>
   <div class="vactions" style="margin-top:0;">
     <label class="vbtn vbtn-ghost" style="cursor:pointer;">📁 Enviar GeoPackage / KML<input type="file" id="mdp_cam_file" accept=".gpkg,.kml" multiple style="display:none" onchange="MDP_addCamadas(this)"></label>
+    <button type="button" class="vbtn vbtn-ghost" onclick="MDP_baixarModeloGpkg()" title="Uma camada para cada item da legenda, já com a simbologia da prancha">⬇ Modelo GeoPackage da legenda (QGIS)</button>
     <span class="hint-inline" style="margin:0;" id="mdp_cam_msg"></span>
   </div>
   <div id="mdp_cam_lista" style="margin-top:16px;"></div>
@@ -35051,8 +35053,12 @@ function AV_gerarDescSituacao(){
   function tracos(P, pts, passo, meio, cor, peso, ini){
     percorrer(pts, passo, ini == null ? passo/2 : ini, function(x, y, ux, uy){ P.linha(x - uy*meio, y + ux*meio, x + uy*meio, y - ux*meio, { cor:cor, peso:peso }); });
   }
+  /* 20/10/2026: LEG_USO = tipos que REALMENTE foram desenhados na folha atual (a legenda mostra só esses + os fixos) */
+  var LEG_USO = null;
+  function usou(tipo){ if(LEG_USO && tipo) LEG_USO[tipo] = 1; }
   function tracar(P, pts, tipo){
     if(pts.length < 2) return;
+    usou(tipo);
     var e = EST(tipo), C = e.cor, W = e.peso;          // padrao aprovado ou o que vier do modal "Estilo das camadas"
     switch(tipo){
       case "fd":      P.poli(pts, { cor:C, peso:W, fechar:false }); break;
@@ -35117,6 +35123,7 @@ function AV_gerarDescSituacao(){
   var AREAS = { area_d:1, remanescente:1, pastagem:1, app:1, rl:1, benf:1, mata:1 };
   function preencher(P, aneis, tipo, escala, claro, origem){
     var pol = aneis[0]; if(!pol || pol.length < 3) return;
+    usou(tipo);
     var k = escala || 1, e = EST(tipo), esp = (e.esp || 1)*k, pe = e.peso*k;
     if(claro) e = Object.assign({}, e, { cor:clarear(e.cor, claro), tram:e.tram ? clarear(e.tram, claro) : e.tram });   // parte fora da área desapropriada
     switch(tipo){
@@ -35372,6 +35379,40 @@ function AV_gerarDescSituacao(){
       return out.length ? out : rings;
     }catch(e){ console.warn("planta/fechar APP:", e); return rings; }
   }
+  /* 20/10/2026: áreas (ha) de reserva legal e de APP dentro da área desapropriada — soma de TODOS os perímetros, sem contar duas vezes o que
+     se sobrepõe (união Clipper). APP = APP do CAR + APP estimada + camadas "APP" importadas, com o mesmo fechamento de faixa estreita
+     da prancha; RL = CAR + camadas "Reserva legal" importadas. Devolve null quando nada de RL/APP foi carregado (aí vale o campo digitado). */
+  function uniaoHa(rings){
+    var CL = window.ClipperLib; if(!rings.length) return 0;
+    if(!CL){ return rings.reduce(function(sm, r){ return sm + Math.abs(areaAnel(r)); }, 0)/10000; }
+    var o = rings[0][0], S = 100, toP = function(a){ return a.map(function(p){ return { X:Math.round((p[0] - o[0])*S), Y:Math.round((p[1] - o[1])*S) }; }); };
+    var cl = new CL.Clipper(); cl.AddPaths(rings.map(toP), CL.PolyType.ptSubject, true);
+    var U = new CL.Paths(); cl.Execute(CL.ClipType.ctUnion, U, CL.PolyFillType.pftNonZero, CL.PolyFillType.pftNonZero);
+    var a = 0; U.forEach(function(p){ a += CL.Clipper.Area(p); });
+    return Math.abs(a)/(S*S)/10000;
+  }
+  function areasAmbDesap(op){
+    if(!G) return null;
+    if(op && op._ambAreas !== undefined) return op._ambAreas;
+    var A = op && op.ambientais, REC = aneisUtm().map(function(a){ return a.v.map(function(q){ return [q.E, q.N]; }); });
+    if(!REC.length) REC = recortesDesap();
+    var rl = [], app = [], tem = false;
+    function corta(lista, alvo){ (lista || []).forEach(function(an){ if(an && an.length >= 3){ tem = true; interVarios(an, REC).forEach(function(r){ if(r.length >= 3) alvo.push(r); }); } }); }
+    if(A){ corta(A.rl, rl); corta(A.app, app); corta(A.est, app); }
+    camadasLer().arquivos.forEach(function(arq){ (arq.camadas || []).forEach(function(c){
+      if(c.tipo !== "app" && c.tipo !== "rl") return;
+      (c.f || []).forEach(function(fe){ if(fe.k === "pl") fe.c.forEach(function(aneis){ corta([aneis[0]], c.tipo === "app" ? app : rl); }); });
+    }); });
+    var res = null;
+    if(tem){
+      var gap = parseFloat(String(extras().app_gap == null || extras().app_gap === "" ? 10 : extras().app_gap).replace(",", ".")); if(!(gap >= 0)) gap = 10;
+      if(gap > 0 && app.length > 1) app = fecharEntreApps(app, REC, gap);
+      res = { rl:uniaoHa(rl), app:uniaoHa(app) };
+    }
+    if(op) op._ambAreas = res;
+    return res;
+  }
+  window.MDP_areasAmbDesap = function(){ return areasAmbDesap(null); };
   function camadaInter(P, T, lista, tipo, camada, rotulo, REC, desenhar, gapFechar){
     var mm = function(an){ return an.map(function(q){ return [T.x(q[0]), T.y(q[1])]; }); };
     desenhar = desenhar || function(P2, po, claro, origem){ preencher(P2, [po], tipo, null, claro, origem); };
@@ -35437,7 +35478,7 @@ function AV_gerarDescSituacao(){
     camadaInter(P, T, A.app, "app", "ENP_APP", "APP", REC, null, gapApp);
     // APP estimada: simbologia idêntica à da APP do carimbo (trama a 45° e contorno contínuo verde) — 13/10/2026
     camadaInter(P, T, A.est, "est", "ENP_APP_ESTIMADA", "APP ESTIMADA", REC, function(P2, po, claro, origem){
-      var ee = EST("app_est");
+      var ee = EST("app_est"); usou("app");
       hachurar(P2, po, 45, ee.esp, { cor:claro ? clarear(ee.tram, claro) : ee.tram, peso:fTram("app_est", .14) }, origem);
       P2.poli(po, { cor:claro ? clarear(ee.cor, claro) : ee.cor, peso:ee.peso });
     }, gapApp);
@@ -35586,7 +35627,14 @@ function AV_gerarDescSituacao(){
     });
   }
   // sugestão automática do tipo pelo nome da camada (nomes ENP_* do CAD e nomes comuns)
+  // nomes das camadas do GeoPackage-modelo da legenda (20/10/2026) — reconhecidos direto
+  var MODELO_TIPOS = { cerca:"cerca", limite_com_cerca:"com", limite_sem_cerca:"sem", faixa_dominio_anterior:"fd_ant", eixo_ferrovia_anterior:"eixo_ant",
+    acesso:"acesso", corrego:"corrego", lagoa:"corrego", area_remanescente:"remanescente", pastagem:"pastagem", app:"app", reserva_legal:"rl",
+    benfeitoria:"benf", area_mata:"mata" };
+  // versão 2 do modelo: UMA camada de linhas e UMA de polígonos, com o campo "tipo" (lista) — cada feição escolhe o seu estilo
+  function tipoModelo(a){ var v = a && (a.tipo != null ? a.tipo : (a.Tipo != null ? a.Tipo : a.TIPO)); v = String(v == null ? "" : v).trim().toLowerCase(); return MODELO_TIPOS[v] ? v : ""; }
   function sugerirTipo(nome){
+    var exato = MODELO_TIPOS[String(nome || "").trim().toLowerCase().replace(/^\d+[_ -]*/, "")]; if(exato) return exato;
     var n = String(nome || "").toUpperCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
     var re = [
       [/ESTACA/, "ignorar"], [/DIVISA.*(VEG|MATA)/, "mata"], [/REMANESC/, "remanescente"], [/AREA.*DESAP|DESAPROP/, "area_d"],
@@ -35613,7 +35661,10 @@ function AV_gerarDescSituacao(){
     return function(x, y){ var ll = utmInv(x, y, z, sul); var u = utm(ll[0], ll[1], f); return [u.E, u.N]; };
   }
   function janelaPlanta(){
-    var xs = G.v.map(function(p){ return p.E; }), ys = G.v.map(function(p){ return p.N; });
+    // 20/10/2026: TODOS os perímetros (antes só o ativo: num cadastro com várias áreas, a camada perto da 2ª/3ª área era descartada)
+    var vv = []; try{ aneisUtm().forEach(function(an){ (an.v || []).forEach(function(p){ vv.push(p); }); }); }catch(e){}
+    if(!vv.length) vv = G.v;
+    var xs = vv.map(function(p){ return p.E; }), ys = vv.map(function(p){ return p.N; });
     var x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs), y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
     var m = Math.max(400, (x1 - x0), (y1 - y0));
     return [x0 - m, y0 - m, x1 + m, y1 + m];
@@ -35641,6 +35692,7 @@ function AV_gerarDescSituacao(){
     });
     return out;
   }
+  window.MDP_gpkgLer = function(buf){ return gpkgLer(buf); };   // diagnóstico (console)
   function importarGpkg(nome, buf){
     var r = gpkgLer(buf), camadas = [];
     r.camadas.forEach(function(t){
@@ -35651,10 +35703,11 @@ function AV_gerarDescSituacao(){
       var grupos = {};
       t.feicoes.forEach(function(f){
         var a = f.a || {}, cam = a.layer != null ? a.layer : (a.Layer != null ? a.Layer : (a.LAYER != null ? a.LAYER : null));
-        var chave = cam != null ? String(cam) : ""; (grupos[chave] = grupos[chave] || []).push(f);
+        var tm = tipoModelo(a);                                              // campo "tipo" do modelo: o valor vira o nome (e o tipo) da camada
+        var chave = tm || (cam != null ? String(cam) : ""); (grupos[chave] = grupos[chave] || []).push(f);
       });
       Object.keys(grupos).forEach(function(ch){
-        var nomeCam = ch ? (t.nome + " · " + ch) : t.nome, fs = empacotarFeicoes(grupos[ch], conv);
+        var nomeCam = ch ? (MODELO_TIPOS[ch] ? ch : (t.nome + " · " + ch)) : t.nome, fs = empacotarFeicoes(grupos[ch], conv);
         if(!fs.length) return;
         camadas.push({ nome:nomeCam, tipo:sugerirTipo(ch || t.nome), n:fs.length, f:fs });
       });
@@ -35704,7 +35757,21 @@ function AV_gerarDescSituacao(){
         if(msg) msg.textContent = "“" + f.name + "”: " + r.camadas.length + " camada(s) lida(s).";
       }catch(e){ console.warn("camadas:", e); if(msg) msg.textContent = "Não consegui ler “" + f.name + "”: " + (e.message || e); }
     }
+    // 20/10/2026: camadas enviadas já entram na prancha (e na legenda): liga "Camadas extras"
+    if(camadasLer().arquivos.length && !OPC.extras){ OPC.extras = true; try{ sincronizarBarras(); }catch(e){} }
     renderCamadas(); agendarPreview(200);
+  };
+  /* 20/10/2026: GeoPackage-modelo da legenda (dados/modelo-legenda-prancha.js): uma camada por item da legenda, já com a simbologia;
+     desenhe no QGIS, salve e envie aqui — cada camada é reconhecida pelo nome e só as que tiverem feições entram na prancha e na legenda. */
+  window.MDP_baixarModeloGpkg = async function(){
+    try{
+      if(window.DADOS && window.DADOS.garantir) await window.DADOS.garantir("modelo-gpkg");
+      var b64 = window.__MODELO_GPKG_B64__; if(!b64) throw new Error("modelo indisponível (sem servidor e sem internet?)");
+      var bin = atob(b64), u = new Uint8Array(bin.length); for(var i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+      var blob = new Blob([u], { type:"application/geopackage+sqlite3" }), nome = "modelo-legenda-prancha.gpkg";
+      if(window.FS_salvar) await window.FS_salvar(blob, nome);
+      else { var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = nome; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function(){ URL.revokeObjectURL(a.href); }, 5000); }
+    }catch(e){ alert("Não foi possível baixar o modelo: " + (e && e.message || e)); }
   };
   window.MDP_camTipo = function(i, j, v){ camadasLer(); CAM.arquivos[i].camadas[j].tipo = v; camadasGravar(); agendarPreview(200); };
   window.MDP_camRemover = function(i){ camadasLer(); CAM.arquivos.splice(i, 1); camadasGravar(); renderCamadas(); agendarPreview(200); };
@@ -36573,6 +36640,7 @@ function AV_gerarDescSituacao(){
   // o TAM como estava (a Figura 3B da DESP-2 mexe no TAM antes de chamar — os dois convivem)
   function desenharFolha(P, T, op, pg){
     var T0 = Object.assign({}, TAM);
+    LEG_USO = {};                                                            // zera o registro do que esta folha desenhou
     Object.keys(EST_TXT).forEach(function(k){
       var prop = EST_TXT[k], m = EST(k).tam;
       if(TAM[prop] != null && isFinite(m) && m > 0) TAM[prop] = TAM[prop]*m/100;
@@ -37360,8 +37428,11 @@ function AV_gerarDescSituacao(){
       P.texto(xc + 4.1, oy, String(i+1).padStart(2,"0"), { tam:Math.min(5.1, oTam*.85), align:"center" });
       ls.forEach(function(t, k){ P.texto(xc + 7.8, oy + k*oLH, t, { tam:oTam }); });
     });
-    var areasC = [["ÁREA DA RESERVA LEGAL:", (ex.reserva || "0,0000") + " ha"],
-     ["ÁREA DE APP:", (ex.app || "0,0000") + " ha"]];   // 19/10/2026: sem a referência base do CAR
+    // 20/10/2026: área TOTAL de reserva legal e de APP DENTRO da área desapropriada (todos os perímetros), calculada; o campo
+    // digitado no Carimbo só vale quando não há dado de RL/APP carregado
+    var amb = areasAmbDesap(op);
+    var areasC = [["ÁREA DA RESERVA LEGAL:", (amb ? br(amb.rl, 4) : (ex.reserva || "0,0000")) + " ha"],
+     ["ÁREA DE APP:", (amb ? br(amb.app, 4) : (ex.app || "0,0000")) + " ha"]];
     if(largo){
       P.linha(xAreas, y, xAreas, y + h, { peso:.25 });
       P.texto(xAreas + 1.8, y + 4.4, "ÁREAS:", { tam:6.9, bold:true });
@@ -37390,16 +37461,21 @@ function AV_gerarDescSituacao(){
     var XY = function(dy){ return y + hcab + (65.1 - dy)*fy; }, XX = function(dx){ return c1 + (dx + 100.3)*fx; };
     P.linha(c1, y + hcab, c2, y + hcab, { peso:.25 });
     P.linha(XX(-70.2), y + hcab, XX(-70.2), y + h, { peso:.25 });
-    LEG1.forEach(function(it){
-      amostraLegenda(P, it[0], XX(-97), XY(it[2]), 8.4*fx);
-      var n = it[1].length, t0 = XY(it[2]) - (n - 1)*legG/2 + legG*.26;
-      it[1].forEach(function(t, k){ P.texto(XX(-85.7), t0 + k*legG, t, { tam:legT }); });
+    /* 20/10/2026: a legenda mostra os 4 itens FIXOS (faixa de domínio, eixo projetado, área a desapropriar, divisa) e só os demais
+       que foram desenhados NESTA folha (camadas do GeoPackage/KML, CAR, hidrografia, benfeitorias…). Os itens ocupam, em ordem, as
+       posições da legenda aprovada: 1ª coluna de cima para baixo, depois a 2ª. Sem registro (LEG_USO nulo): todos, como antes. */
+    var LEG_FIXOS = { fd:1, eixo:1, area_d:1, divisa:1 };
+    var vaiLeg = LEG1.concat(LEG2).filter(function(it){ return !LEG_USO || LEG_FIXOS[it[0]] || LEG_USO[it[0]]; });
+    var slots = LEG1.map(function(it){ return { dy:it[2], xs:XX(-97), ws:8.4*fx, xt:XX(-85.7) }; })
+      .concat(LEG2.map(function(it){ return { dy:it[2], xs:XX(-67.8), ws:9.4*fx, xt:XX(-55.5) }; }));
+    var usoLeg = LEG_USO; LEG_USO = null;                                    // as amostras da legenda não contam como uso
+    vaiLeg.forEach(function(it, k){
+      var sl = slots[k]; if(!sl) return;
+      amostraLegenda(P, it[0], sl.xs, XY(sl.dy), sl.ws);
+      var n = it[1].length, t0 = XY(sl.dy) - (n - 1)*legG/2 + legG*.26;
+      it[1].forEach(function(t, q){ P.texto(sl.xt, t0 + q*legG, t, { tam:legT }); });
     });
-    LEG2.forEach(function(it){
-      amostraLegenda(P, it[0], XX(-67.8), XY(it[2]), 9.4*fx);
-      var n = it[1].length, t0 = XY(it[2]) - (n - 1)*legG/2 + legG*.26;
-      it[1].forEach(function(t, k){ P.texto(XX(-55.5), t0 + k*legG, t, { tam:legT }); });
-    });
+    LEG_USO = usoLeg;
 
     CAMDXF(P, "ENP_CARIMBO");
     /* RESPONSÁVEL + DATA — um quadro só: cada assinatura leva a sua própria data */
@@ -40686,6 +40762,7 @@ function AV_gerarDescSituacao(){
     var gF = mesaEl("div", "mz-gav", '<div class="mz-gav-t">Fontes</div><p class="mz-gav-s">Os arquivos deste cadastro. Para mandar mais, solte aqui — o sistema sugere para onde cada um vai.</p>' +
       '<div class="mz-porta" data-mzporta tabindex="0" role="button" aria-label="Enviar arquivos: KML, GeoPackage ou DXF"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 14v5a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-5"/><path d="M12 15V4"/><path d="m7 9 5-5 5 5"/></svg>' +
         '<div class="mz-porta-t"><b>Solte arquivos aqui</b><span>KML, GeoPackage ou DXF — vários de uma vez</span></div><input type="file" data-mzporta-file multiple accept=".kml,.kmz,.gpkg,.dxf,.dwg" hidden></div>' +
+      '<button type="button" class="vbtn vbtn-ghost vbtn-sm mz-modelo-gpkg" onclick="MDP_baixarModeloGpkg()" title="Uma camada para cada item da legenda, já com a simbologia da prancha. Desenhe no QGIS e solte o arquivo aqui.">⬇ Modelo GeoPackage da legenda (QGIS)</button>' +
       '<div class="mz-triagem" data-mztriagem hidden></div><ul class="mz-fontes" id="mz_fontes"></ul>');
     gF.id = "mz_gav_fontes"; gF.hidden = true;
     var gC = mesaEl("div", "mz-gav", '<div class="mz-gav-t">Camadas</div><p class="mz-gav-s">Liga e desliga o que aparece na planta. Cor, espessura e trama de cada uma ficam no Quadro de camadas.</p>' +
@@ -60711,7 +60788,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.20-11';
+window.APP_VERSAO = '2026.10.21-1';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.20-4';
 (function(){
