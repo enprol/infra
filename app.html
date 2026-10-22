@@ -54081,7 +54081,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
         s+='<line x1="'+sw+'" y1="'+(row-3)+'" x2="'+(sw+sww)+'" y2="'+(row-3)+'" stroke="'+it.cor+'" stroke-width="'+lw+'"'+(it.dash?' stroke-dasharray="'+it.dash+'"':'')+'/>';
         if(it.tracos){ for(var tx=sw+3; tx<sw+sww-1; tx+=6) s+='<line x1="'+tx+'" y1="'+(row-8)+'" x2="'+tx+'" y2="'+(row+2)+'" stroke="'+it.cor+'" stroke-width="1.3"/>'; } }
       else if(it.tipo==='pt') s+='<rect x="'+sw+'" y="'+(row-9)+'" width="11" height="11" fill="'+it.cor+'" stroke="#111"/>';
-      else if(it.tipo==='grad'){ s+='<linearGradient id="d2lgrad'+i+'" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#00ff00"/><stop offset=".5" stop-color="#ffff00"/><stop offset="1" stop-color="#ff0000"/></linearGradient>'
+      else if(it.tipo==='grad'){ s+='<linearGradient id="d2lgrad'+i+'" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#0040ff"/><stop offset=".333" stop-color="#00ff00"/><stop offset=".667" stop-color="#ffff00"/><stop offset="1" stop-color="#ff0000"/></linearGradient>'
         +'<rect x="'+sw+'" y="'+(row-10)+'" width="'+sww+'" height="13" fill="url(#d2lgrad'+i+')" stroke="#6b7782" stroke-width=".8"/>'; }   // hipsometria: rampa verde-amarelo-vermelho
       else if(it.tipo==='hatch'){ s+='<rect x="'+sw+'" y="'+(row-10)+'" width="'+sww+'" height="13" fill="'+it.cor+'" fill-opacity=".18" stroke="none"/><line x1="'+sw+'" y1="'+(row+3)+'" x2="'+(sw+sww)+'" y2="'+(row-10)+'" stroke="'+it.cor+'" stroke-width="1.6"/>'; }
       else s+='<rect x="'+sw+'" y="'+(row-10)+'" width="'+sww+'" height="13" fill="'+it.cor+'" fill-opacity=".45" stroke="'+it.cor+'" stroke-width="1.4"'+(it.dash?' stroke-dasharray="'+it.dash+'"':'')+'/>';
@@ -54425,7 +54425,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
   function d2coletarEstilos(){ var o={}; Object.keys(D2MAP_EST).forEach(function(k){ var e=D2MAP_EST[k]; o[k]={cor:e.cor}; if(e.peso!=null) o[k].peso=e.peso; o[k].dash=e.dash||''; if(e.op!=null) o[k].op=e.op; o[k].sombra=!!e.sombra; }); return { versao:3, atualizado:new Date().toISOString(), estilos:o }; }
   function d2amostra(e){
     var svg='<svg width="64" height="20" viewBox="0 0 64 20" aria-hidden="true"'+(e.sombra?' style="filter:drop-shadow(1px 1.4px 1px rgba(0,0,0,.65))"':'')+'><rect width="64" height="20" rx="4" fill="#5b6b5a"/>';
-    if(e.grad) svg+='<defs><linearGradient id="d2q_grad" x1="0" x2="1"><stop offset="0" stop-color="#00ff00"/><stop offset=".5" stop-color="#ffff00"/><stop offset="1" stop-color="#ff0000"/></linearGradient></defs><rect x="8" y="4" width="48" height="12" fill="url(#d2q_grad)" fill-opacity="'+(e.op==null?.6:e.op)+'"/>';
+    if(e.grad) svg+='<defs><linearGradient id="d2q_grad" x1="0" x2="1"><stop offset="0" stop-color="#0040ff"/><stop offset=".333" stop-color="#00ff00"/><stop offset=".667" stop-color="#ffff00"/><stop offset="1" stop-color="#ff0000"/></linearGradient></defs><rect x="8" y="4" width="48" height="12" fill="url(#d2q_grad)" fill-opacity="'+(e.op==null?.6:e.op)+'"/>';
     else if(e.classes){ var cc=['#2166ac','#67a9cf','#b8dcea','#f8c4a6','#e2694c','#b2182b']; cc.forEach(function(c,i){ svg+='<rect x="'+(8+i*8)+'" y="4" width="8" height="12" fill="'+c+'" fill-opacity="'+(e.op==null?.45:e.op)+'"/>'; }); }
     else if(e.tipo==='fill') svg+='<rect x="8" y="4" width="48" height="12" fill="'+e.cor+'" fill-opacity="'+(e.op==null?.4:e.op)+'" stroke="'+e.cor+'" stroke-width="'+Math.min(3,e.peso||1.5)+'"'+(e.dash?' stroke-dasharray="'+e.dash+'"':'')+'/>';
     else if(e.tipo==='hatch') svg+='<defs><pattern id="d2q_hatch_prev" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse"><line x1="0" y1="0" x2="0" y2="6" stroke="'+e.cor+'" stroke-width="2.4"/></pattern></defs><rect x="8" y="4" width="48" height="12" fill="url(#d2q_hatch_prev)" fill-opacity="'+(e.op==null?1:e.op)+'"/>';
@@ -61597,8 +61597,8 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
   var CAMS = ["hipsometria", "declividade", "curvas", "drenagem"];
   var ROT = { hipsometria:"Hipsometria (altitude)", declividade:"Declividade (EMBRAPA)", curvas:"Curvas de nível (5 m)", drenagem:"Linha de drenagem" };
   var HIPSO_ZOOM_MIN = 11;   // abaixo disso o tile cobriria DEM demais (a hipsometria é pintada aqui, a partir do DEM de 30 m)
-  // hipsometria: banda simples falsa-cor, interpolação linear, verde -> amarelo -> vermelho entre a altitude mínima e a máxima
-  var RAMPA_H = [[0, [0, 255, 0]], [.5, [255, 255, 0]], [1, [255, 0, 0]]];
+  // hipsometria: banda simples falsa-cor, interpolação linear, espectro azul (mais baixo) -> verde -> amarelo -> vermelho (mais alto)
+  var RAMPA_H = [[0, [0, 64, 255]], [1/3, [0, 255, 0]], [2/3, [255, 255, 0]], [1, [255, 0, 0]]];
   function rampaH(t){
     t = t < 0 ? 0 : (t > 1 ? 1 : t);
     for(var i = 1; i < RAMPA_H.length; i++) if(t <= RAMPA_H[i][0]){
@@ -61607,7 +61607,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     }
     return RAMPA_H[RAMPA_H.length - 1][1];
   }
-  var GRAD_CSS = "linear-gradient(90deg,#00ff00,#ffff00,#ff0000)";
+  var GRAD_CSS = "linear-gradient(90deg,#0040ff,#00ff00,#ffff00,#ff0000)";
   var COR_CURVA = "#f2c27b", COR_DREN = "#3ddcff";   // drenagem em ciano: não some sobre o azul do "Plano"
   var CURVAS_ZOOM_MIN = 13, ROT_ZOOM_MIN = 15;
   var meta = null, metaP = null;
@@ -62212,7 +62212,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.22-4';
+window.APP_VERSAO = '2026.10.22-5';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.22-4';
 (function(){
