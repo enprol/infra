@@ -53387,6 +53387,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     car:   { nome:'Feição CAR (intercepta)',     tipo:'fill', cor:'#ffd24a', op:.14, peso:1.3, dash:'5 3' },
     drenagem:{nome:'Linha de drenagem (ANADEM)', tipo:'line', cor:'#37a9ff', peso:2.4, sombra:true },
     curvas:{ nome:'Curvas de nível (5 m)',       tipo:'line', cor:'#f2c27b', peso:.9 },
+    hipso: { nome:'Hipsometria (altitude)',      tipo:'fill', cor:'#ffff00', op:.6, classes:true, grad:true },
     decliv:{ nome:'Declividade (EMBRAPA)',       tipo:'fill', cor:'#e2694c', op:.6, classes:true },
     hidro: { nome:'Hidrografia identificada',    tipo:'line', cor:'#00e5ff', peso:4.5, sombra:true }
   };
@@ -53766,7 +53767,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       var e=D2MAP_EST[cm.cam]||{}, g=cm.geom;
       var sh=e.sombra?' filter="url(#d2sh)"':'';   // sombra projetada (propriedade "Sombra" do estilo da camada)
       // relevo ANADEM: declividade = imagem da grade UTM (1 m) já recortada na área total; posta no mapa por afim dos cantos
-      if(cm.cam==='decliv'){
+      if(cm.cam==='decliv'||cm.cam==='hipso'){
         var im=g.img, q0=PX(im.tl[0],im.tl[1]), q1=PX(im.tr[0],im.tr[1]), q2=PX(im.bl[0],im.bl[1]);
         var mt=[(q1[0]-q0[0])/im.W,(q1[1]-q0[1])/im.W,(q2[0]-q0[0])/im.H,(q2[1]-q0[1])/im.H,q0[0],q0[1]].map(function(v){ return +v.toFixed(6); });
         s+='<image x="0" y="0" width="'+im.W+'" height="'+im.H+'" preserveAspectRatio="none" transform="matrix('+mt.join(' ')+')" opacity="'+(e.op==null?.45:e.op)+'" xlink:href="'+im.url+'"/>';
@@ -54080,6 +54081,8 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
         s+='<line x1="'+sw+'" y1="'+(row-3)+'" x2="'+(sw+sww)+'" y2="'+(row-3)+'" stroke="'+it.cor+'" stroke-width="'+lw+'"'+(it.dash?' stroke-dasharray="'+it.dash+'"':'')+'/>';
         if(it.tracos){ for(var tx=sw+3; tx<sw+sww-1; tx+=6) s+='<line x1="'+tx+'" y1="'+(row-8)+'" x2="'+tx+'" y2="'+(row+2)+'" stroke="'+it.cor+'" stroke-width="1.3"/>'; } }
       else if(it.tipo==='pt') s+='<rect x="'+sw+'" y="'+(row-9)+'" width="11" height="11" fill="'+it.cor+'" stroke="#111"/>';
+      else if(it.tipo==='grad'){ s+='<linearGradient id="d2lgrad'+i+'" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#00ff00"/><stop offset=".5" stop-color="#ffff00"/><stop offset="1" stop-color="#ff0000"/></linearGradient>'
+        +'<rect x="'+sw+'" y="'+(row-10)+'" width="'+sww+'" height="13" fill="url(#d2lgrad'+i+')" stroke="#6b7782" stroke-width=".8"/>'; }   // hipsometria: rampa verde-amarelo-vermelho
       else if(it.tipo==='hatch'){ s+='<rect x="'+sw+'" y="'+(row-10)+'" width="'+sww+'" height="13" fill="'+it.cor+'" fill-opacity=".18" stroke="none"/><line x1="'+sw+'" y1="'+(row+3)+'" x2="'+(sw+sww)+'" y2="'+(row-10)+'" stroke="'+it.cor+'" stroke-width="1.6"/>'; }
       else s+='<rect x="'+sw+'" y="'+(row-10)+'" width="'+sww+'" height="13" fill="'+it.cor+'" fill-opacity=".45" stroke="'+it.cor+'" stroke-width="1.4"'+(it.dash?' stroke-dasharray="'+it.dash+'"':'')+'/>';
       s+='<text x="'+(sw+sww+8)+'" y="'+row+'" font-family="Arial" font-size="'+lfs+'" font-weight="600" fill="#16202b">'+d2esc(it.nome)+'</text>';
@@ -54118,7 +54121,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
   var D2MAP_CAMS=[['area','Área total do imóvel',1],['desap','Área a ser desapropriada',0],['remanescente','Área remanescente (sem a faixa de domínio)',0],['faixa','Faixa de domínio e eixo ferroviário (estacas)',0],
     ['cercas','Cercas',1],['vias','Vias de acesso',1],['appest','APP estimada',1],['appcar','APP (CAR)',0],['rl','Reserva Legal (CAR)',0],['sigef','Parcelas SIGEF',0],['car','Imóveis do CAR',0],
     ['hidro','Hidrografia identificada',1],['culturas','Áreas de culturas',1],['benf','Benfeitorias (camada geral)',1],['benfr','Benfeitorias reprodutivas (por tipo)',1],['benfnr','Benfeitorias não reprodutivas',1],
-    ['decliv','Declividade — EMBRAPA (ANADEM)',0],['curvas','Curvas de nível 5 m (ANADEM)',0],['drenagem','Linha de drenagem (ANADEM)',0]];
+    ['hipso','Hipsometria — altitude (ANADEM)',0],['decliv','Declividade — EMBRAPA (ANADEM)',0],['curvas','Curvas de nível 5 m (ANADEM)',0],['drenagem','Linha de drenagem (ANADEM)',0]];
   function d2camsHtml(fid, regra){
     var padrao=(D2MAP_TXT.cams&&D2MAP_TXT.cams[fid])||((regra.cams||[]).concat(['benf'])), h='<div class="d2m-f d2m-full"><label>Camadas do mapa — marque uma ou mais (as da figura já vêm marcadas)</label><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:4px 14px;margin-top:4px;">';
     D2MAP_CAMS.forEach(function(c){ var tem=true; if(c[2]){ try{ tem=!!d2mapFonteKML(c[0]); }catch(e){ tem=false; } }
@@ -54312,24 +54315,25 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       if(need.appcar){ st('Buscando APP (CAR)…'); try{ var gja=await d2fetchJSON('/api/mapa/car-app?bbox='+d2bboxStr(bb)); var ga=d2geojson(gja,null); if(ga.polys.length) geom.appcar=ga; }catch(e){ falhou.push('APP (CAR)'); } }
       // relevo ANADEM (22/10/2026): recorte da ÁREA TOTAL sobre o DEM reamostrado (cúbica 4×4, 1 m) — declividade EMBRAPA,
       // curvas de 5 m e drenagem só dentro do imóvel (window.RELEVO.recorteImovel); sem área total, a área desapropriada
-      if(need.decliv||need.curvas||need.drenagem){
+      if(need.hipso||need.decliv||need.curvas||need.drenagem){
         var recPolys=d2mapKML(d2mapFonteKML('area')).polys; if(!recPolys.length) recPolys=d2mapKML(d2mapFonteKML('desap')).polys;   // a área total recorta mesmo sem estar marcada para desenho
         if(!window.RELEVO) falhou.push('relevo ANADEM (módulo ausente)');
         else if(!recPolys.length) falhou.push('relevo ANADEM (sem o KML da área total para recortar)');
         else { st('Calculando relevo do imóvel (ANADEM, 1 m)…'); try{
-          var rv=await RELEVO.recorteImovel(recPolys,{declividade:!!need.decliv,curvas:!!need.curvas,drenagem:!!need.drenagem});
+          var rv=await RELEVO.recorteImovel(recPolys,{hipsometria:!!need.hipso,declividade:!!need.decliv,curvas:!!need.curvas,drenagem:!!need.drenagem});
           if(rv.res>1) falhou.push('relevo em '+rv.res+' m (imóvel grande)');
+          if(rv.hipsometria) geom.hipso={img:rv.hipsometria,polys:[],lines:[],pts:[]};
           if(rv.declividade&&rv.declividade.classes.length) geom.decliv={img:rv.declividade,classes:rv.declividade.classes,polys:[],lines:[],pts:[]};
           if(rv.curvas&&(rv.curvas.lines.length||rv.curvas.mestras.length)) geom.curvas={lines:rv.curvas.lines,mestras:rv.curvas.mestras,cotas:rv.curvas.cotas,polys:[],pts:[]};
           if(rv.drenagem&&rv.drenagem.lines.length) geom.drenagem={lines:rv.drenagem.lines,porClasse:rv.drenagem.porClasse,polys:[],pts:[]};
-          ['decliv','curvas','drenagem'].forEach(function(c){ if(need[c]&&!geom[c]) falhou.push((D2MAP_EST[c]||{}).nome+' (nada dentro da área)'); });
+          ['hipso','decliv','curvas','drenagem'].forEach(function(c){ if(need[c]&&!geom[c]) falhou.push((D2MAP_EST[c]||{}).nome+' (nada dentro da área)'); });
         }catch(e){ falhou.push('relevo ANADEM ('+(e&&e.message||e)+')'); } }
       }
       // ---- ordem de desenho (contexto embaixo, destaques em cima) ----
       // metros de cerca dentro da área desapropriada
       var metrosCerca=null;
       if(geom.cercas){ var dpz=d2mapKML(d2mapFonteKML('desap')); if(dpz.polys.length) metrosCerca=d2metrosDentro(geom.cercas.lines.concat(geom.cercas.polys), dpz.polys); }
-      var ORDER=['decliv','curvas','sigef','car','rl','appcar','appest','culturas','drenagem','hidro','faixa','area','remanescente','vias','rota','desap','cercas','benf','benfr','benfnr'];
+      var ORDER=['hipso','decliv','curvas','sigef','car','rl','appcar','appest','culturas','drenagem','hidro','faixa','area','remanescente','vias','rota','desap','cercas','benf','benfr','benfnr'];
       var camadas=[], legend=[];
       var _volta=d2estTrocar(fid);                              // figura extra: estilo só dela (legenda)
       try{
@@ -54337,6 +54341,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
         if(cam==='faixa'){ legend.push({nome:est.nome,tipo:'line',cor:est.cor,peso:est.peso,dash:est.dash}); if(geom.faixa.eixos&&geom.faixa.eixos.length){ var ex=D2MAP_EST.eixo; legend.push({nome:ex.nome,tipo:'line',cor:ex.cor,peso:ex.peso,dash:ex.dash,tracos:true}); } }
         else if(cam==='cercas'){ legend.push({nome:est.nome+(metrosCerca!=null?(' — '+d2fmtM(metrosCerca)+' m (área desapr.)'):''),tipo:'line',cor:est.cor,peso:est.peso,dash:est.dash}); }
         else if(cam==='benfr'){ var cb0=d2benfCores(geom.benfr,'benfr'); Object.keys(cb0).forEach(function(n){ legend.push({nome:'Benf. reprodutiva — '+n,tipo:'fill',cor:cb0[n]}); }); }
+        else if(cam==='hipso'){ var fm=function(v){ return Math.round(v).toLocaleString('pt-BR'); }; legend.push({nome:'Altitude '+fm(geom.hipso.img.min)+'–'+fm(geom.hipso.img.max)+' m',tipo:'grad'}); }
         else if(cam==='decliv'){ geom.decliv.classes.forEach(function(c){ legend.push({nome:'Decliv. '+c.nome.toLowerCase()+' '+c.faixa.replace(' a ','–').replace('acima de ','> '),tipo:'fill',cor:c.cor}); }); }   // curto: cabe na coluna da legenda
         else if(cam==='curvas'){ legend.push({nome:'Curvas de nível 5 m / 25 m',tipo:'line',cor:est.cor,peso:Math.max(1.2,est.peso||1),dash:est.dash}); }
         else legend.push({nome:est.nome,tipo:est.tipo,cor:est.cor,peso:est.peso,dash:est.dash});
@@ -54420,7 +54425,8 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
   function d2coletarEstilos(){ var o={}; Object.keys(D2MAP_EST).forEach(function(k){ var e=D2MAP_EST[k]; o[k]={cor:e.cor}; if(e.peso!=null) o[k].peso=e.peso; o[k].dash=e.dash||''; if(e.op!=null) o[k].op=e.op; o[k].sombra=!!e.sombra; }); return { versao:3, atualizado:new Date().toISOString(), estilos:o }; }
   function d2amostra(e){
     var svg='<svg width="64" height="20" viewBox="0 0 64 20" aria-hidden="true"'+(e.sombra?' style="filter:drop-shadow(1px 1.4px 1px rgba(0,0,0,.65))"':'')+'><rect width="64" height="20" rx="4" fill="#5b6b5a"/>';
-    if(e.classes){ var cc=['#2166ac','#67a9cf','#b8dcea','#f8c4a6','#e2694c','#b2182b']; cc.forEach(function(c,i){ svg+='<rect x="'+(8+i*8)+'" y="4" width="8" height="12" fill="'+c+'" fill-opacity="'+(e.op==null?.45:e.op)+'"/>'; }); }
+    if(e.grad) svg+='<defs><linearGradient id="d2q_grad" x1="0" x2="1"><stop offset="0" stop-color="#00ff00"/><stop offset=".5" stop-color="#ffff00"/><stop offset="1" stop-color="#ff0000"/></linearGradient></defs><rect x="8" y="4" width="48" height="12" fill="url(#d2q_grad)" fill-opacity="'+(e.op==null?.6:e.op)+'"/>';
+    else if(e.classes){ var cc=['#2166ac','#67a9cf','#b8dcea','#f8c4a6','#e2694c','#b2182b']; cc.forEach(function(c,i){ svg+='<rect x="'+(8+i*8)+'" y="4" width="8" height="12" fill="'+c+'" fill-opacity="'+(e.op==null?.45:e.op)+'"/>'; }); }
     else if(e.tipo==='fill') svg+='<rect x="8" y="4" width="48" height="12" fill="'+e.cor+'" fill-opacity="'+(e.op==null?.4:e.op)+'" stroke="'+e.cor+'" stroke-width="'+Math.min(3,e.peso||1.5)+'"'+(e.dash?' stroke-dasharray="'+e.dash+'"':'')+'/>';
     else if(e.tipo==='hatch') svg+='<defs><pattern id="d2q_hatch_prev" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse"><line x1="0" y1="0" x2="0" y2="6" stroke="'+e.cor+'" stroke-width="2.4"/></pattern></defs><rect x="8" y="4" width="48" height="12" fill="url(#d2q_hatch_prev)" fill-opacity="'+(e.op==null?1:e.op)+'"/>';
     else if(e.tipo==='pino') svg+='<path d="M32,18 C30,13 26,11 26,7 A6,6 0 1,1 38,7 C38,11 34,13 32,18 Z" fill="'+e.cor+'"/><circle cx="32" cy="7" r="2.4" fill="#fff"/>';
@@ -61588,17 +61594,52 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
 (function(){
   "use strict";
   var BASE = "/api/relevo";
-  var CAMS = ["declividade", "curvas", "drenagem"];
-  var ROT = { declividade:"Declividade (EMBRAPA)", curvas:"Curvas de nível (5 m)", drenagem:"Linha de drenagem" };
+  var CAMS = ["hipsometria", "declividade", "curvas", "drenagem"];
+  var ROT = { hipsometria:"Hipsometria (altitude)", declividade:"Declividade (EMBRAPA)", curvas:"Curvas de nível (5 m)", drenagem:"Linha de drenagem" };
+  var HIPSO_ZOOM_MIN = 11;   // abaixo disso o tile cobriria DEM demais (a hipsometria é pintada aqui, a partir do DEM de 30 m)
+  // hipsometria: banda simples falsa-cor, interpolação linear, verde -> amarelo -> vermelho entre a altitude mínima e a máxima
+  var RAMPA_H = [[0, [0, 255, 0]], [.5, [255, 255, 0]], [1, [255, 0, 0]]];
+  function rampaH(t){
+    t = t < 0 ? 0 : (t > 1 ? 1 : t);
+    for(var i = 1; i < RAMPA_H.length; i++) if(t <= RAMPA_H[i][0]){
+      var a = RAMPA_H[i-1], b = RAMPA_H[i], u = (t - a[0]) / (b[0] - a[0]);
+      return [a[1][0] + (b[1][0] - a[1][0]) * u, a[1][1] + (b[1][1] - a[1][1]) * u, a[1][2] + (b[1][2] - a[1][2]) * u];
+    }
+    return RAMPA_H[RAMPA_H.length - 1][1];
+  }
+  var GRAD_CSS = "linear-gradient(90deg,#00ff00,#ffff00,#ff0000)";
   var COR_CURVA = "#f2c27b", COR_DREN = "#3ddcff";   // drenagem em ciano: não some sobre o azul do "Plano"
   var CURVAS_ZOOM_MIN = 13, ROT_ZOOM_MIN = 15;
   var meta = null, metaP = null;
-  var estado = { declividade:false, curvas:false, drenagem:false, op:.5 };
+  var estado = { hipsometria:false, declividade:false, curvas:false, drenagem:false, op:.5, opH:.5 };
   try{
     var e0 = JSON.parse(localStorage.getItem("relevo_estado") || "null");
-    if(e0) CAMS.concat("op").forEach(function(k){ if(k in e0) estado[k] = e0[k]; });
-    estado.op = Math.max(.1, Math.min(1, +estado.op || .5));
+    if(e0) CAMS.concat("op", "opH").forEach(function(k){ if(k in e0) estado[k] = e0[k]; });
+    estado.op = Math.max(.1, Math.min(1, +estado.op || .5)); estado.opH = Math.max(.1, Math.min(1, +estado.opH || .5));
   }catch(e){}
+  var hipso = null, hipsoP = null;   // {min,max} de altitude dos lotes (servidor)
+  function carregarHipso(){
+    if(hipso) return Promise.resolve(hipso);
+    if(hipsoP) return hipsoP;
+    hipsoP = fetch(BASE + "/hipso").then(function(r){ if(!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+      .then(function(j){ hipso = j; return j; }).catch(function(e){ hipsoP = null; throw e; });
+    return hipsoP;
+  }
+  // janela do DEM de 30 m (UTM 24S) — {x0,y0,res,nx,ny,escala,nodata,v:Int16Array} ou null fora dos lotes
+  var cacheDem = new Map();
+  function pegarDem(e0, n0, e1, n1){
+    var k = [e0, n0, e1, n1].map(Math.round).join(","), h = cacheDem.get(k);
+    if(h) return h;
+    h = fetch(BASE + "/dem?bbox=" + k).then(function(r){
+      if(r.status === 404) return null;
+      if(!r.ok) return r.json().catch(function(){ return {}; }).then(function(j){ throw new Error(j.erro || ("HTTP " + r.status)); });
+      var g = JSON.parse(r.headers.get("X-Relevo-Grade"));
+      return r.arrayBuffer().then(function(b){ g.v = new Int16Array(b); return g; });
+    });
+    h.catch(function(){ cacheDem.delete(k); });
+    cacheDem.set(k, h); if(cacheDem.size > 120) cacheDem.delete(cacheDem.keys().next().value);
+    return h;
+  }
   function guardar(){ try{ localStorage.setItem("relevo_estado", JSON.stringify(estado)); }catch(e){} }
   var ouvintes = [];
   function avisar(){ ouvintes.slice().forEach(function(f){ try{ f(); }catch(e){} }); }
@@ -61678,9 +61719,38 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     ctx.restore();
   }
 
+  // hipsometria de um tile do mapa: cantos do tile em UTM (o miolo por interpolação bilinear, desvio desprezível em 1 tile),
+  // altitude por interpolação bilinear do DEM de 30 m e cor da rampa entre o mínimo e o máximo dos lotes
+  function pintarHipso(cv, c){
+    var n = Math.pow(2, c.z), ll = function(px, py){ var X = (c.x + px) / n, Y = (c.y + py) / n; return [X * 360 - 180, Math.atan(Math.sinh(Math.PI * (1 - 2 * Y))) * 180 / Math.PI]; };
+    var cs = [ll(0, 0), ll(1, 0), ll(0, 1), ll(1, 1)].map(function(p){ return utm(p[0], p[1]); });
+    var e0 = Math.min(cs[0][0], cs[2][0]), e1 = Math.max(cs[1][0], cs[3][0]), n0 = Math.min(cs[2][1], cs[3][1]), n1 = Math.max(cs[0][1], cs[1][1]);
+    return Promise.all([pegarDem(e0, n0, e1, n1), carregarHipso()]).then(function(rs){
+      var g = rs[0], st = rs[1]; if(!g) return;
+      var W = cv.width, H = cv.height, ctx = cv.getContext("2d"), img = ctx.createImageData(W, H), d = img.data, amp = (st.max - st.min) || 1;
+      for(var py = 0; py < H; py++){
+        var v = (py + .5) / H;
+        var lx = cs[0][0] + (cs[2][0] - cs[0][0]) * v, ly = cs[0][1] + (cs[2][1] - cs[0][1]) * v;   // borda esquerda
+        var rx = cs[1][0] + (cs[3][0] - cs[1][0]) * v, ry = cs[1][1] + (cs[3][1] - cs[1][1]) * v;   // borda direita
+        for(var px = 0; px < W; px++){
+          var u = (px + .5) / W, E = lx + (rx - lx) * u, N = ly + (ry - ly) * u;
+          var gx = (E - g.x0) / g.res - .5, gy = (g.y0 - N) / g.res - .5;
+          if(gx < 0 || gy < 0 || gx > g.nx - 1 || gy > g.ny - 1) continue;
+          var ix = Math.floor(gx), iy = Math.floor(gy), fx = gx - ix, fy = gy - iy, ix1 = Math.min(g.nx - 1, ix + 1), iy1 = Math.min(g.ny - 1, iy + 1);
+          var a = g.v[iy * g.nx + ix], b = g.v[iy * g.nx + ix1], cc = g.v[iy1 * g.nx + ix], dd = g.v[iy1 * g.nx + ix1];
+          if(a === g.nodata || b === g.nodata || cc === g.nodata || dd === g.nodata) continue;
+          var z = ((a * (1 - fx) + b * fx) * (1 - fy) + (cc * (1 - fx) + dd * fx) * fy) * g.escala, col = rampaH((z - st.min) / amp), k = (py * W + px) * 4;
+          d[k] = col[0]; d[k+1] = col[1]; d[k+2] = col[2]; d[k+3] = 255;
+        }
+      }
+      ctx.putImageData(img, 0, 0);
+    }).catch(function(){});
+  }
+
   /* ---------- camadas Leaflet ---------- */
   function criarCamada(mapa){
     var L = window.L; if(!L) throw new Error("Leaflet não carregado");
+    if(!mapa.getPane("relevoHip")){ var p0 = mapa.createPane("relevoHip"); p0.style.zIndex = 282; p0.style.pointerEvents = "none"; }
     if(!mapa.getPane("relevoDecl")){ var p1 = mapa.createPane("relevoDecl"); p1.style.zIndex = 283; p1.style.pointerEvents = "none"; }
     if(!mapa.getPane("relevoLin")){ var p2 = mapa.createPane("relevoLin"); p2.style.zIndex = 287; p2.style.pointerEvents = "none"; }
     function classeCam(cam){
@@ -61688,6 +61758,12 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
         createTile: function(c, pronto){
           var cv = document.createElement("canvas"), tam = this.getTileSize(), dpr = Math.min(2, window.devicePixelRatio || 1);
           cv.width = tam.x * dpr; cv.height = tam.y * dpr;
+          if(cam === "hipsometria"){
+            if(c.z < HIPSO_ZOOM_MIN){ setTimeout(function(){ pronto(null, cv); }, 0); return cv; }
+            if(dpr > 1){ cv.width = tam.x; cv.height = tam.y; }   // o DEM é de 30 m: 256 px por tile bastam
+            pintarHipso(cv, c).then(function(){ pronto(null, cv); });
+            return cv;
+          }
           var mc = meta && meta.camadas[cam];
           if(!mc || (cam === "curvas" && c.z < CURVAS_ZOOM_MIN)){ setTimeout(function(){ pronto(null, cv); }, 0); return cv; }
           var zs = Math.max(mc.zmin, Math.min(c.z, mc.zmax)), d = c.z - zs, ex = meta.extent;
@@ -61710,8 +61786,8 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     var camadas = {};
     CAMS.forEach(function(cam){
       var C = classeCam(cam);
-      camadas[cam] = new C({ pane:cam === "declividade" ? "relevoDecl" : "relevoLin", minZoom:4, maxZoom:21, updateWhenIdle:true, keepBuffer:1,
-        attribution:cam === "declividade" ? "Relevo: ANADEM (ANA/UFRGS)" : "" });
+      camadas[cam] = new C({ pane:cam === "hipsometria" ? "relevoHip" : (cam === "declividade" ? "relevoDecl" : "relevoLin"), minZoom:4, maxZoom:21, updateWhenIdle:true, keepBuffer:1,
+        maxNativeZoom:cam === "hipsometria" ? 16 : undefined, attribution:cam === "declividade" ? "Relevo: ANADEM (ANA/UFRGS)" : "" });
     });
     var api = {
       camadas:camadas, mapa:mapa,
@@ -61719,7 +61795,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
         if(!meta) return;
         CAMS.forEach(function(cam){
           var l = camadas[cam];
-          if(estado[cam]){ if(!mapa.hasLayer(l)) l.addTo(mapa); if(cam === "declividade") l.setOpacity(estado.op); }
+          if(estado[cam]){ if(!mapa.hasLayer(l)) l.addTo(mapa); if(cam === "declividade") l.setOpacity(estado.op); if(cam === "hipsometria") l.setOpacity(estado.opH); }
           else if(mapa.hasLayer(l)) mapa.removeLayer(l);
         });
       }
@@ -61777,6 +61853,13 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
       return '<div class="relevo-li"><i style="background:' + c.cor + '"></i><span>' + esc(c.nome) + ' <span style="opacity:.65">(' + esc(c.faixa) + ')</span></span></div>';
     }).join("");
   }
+  function legendaHipso(){
+    if(!hipso){ carregarHipso().then(function(){ avisar(); }, function(){}); return '<div class="relevo-nota">Lendo altitudes…</div>'; }
+    var fmt = function(v){ return Math.round(v).toLocaleString("pt-BR"); };
+    return '<div style="height:11px;border-radius:2px;background:' + GRAD_CSS + ';box-shadow:inset 0 0 0 1px rgba(0,0,0,.25)"></div>'
+      + '<div style="display:flex;justify-content:space-between;margin-top:2px"><span>' + fmt(hipso.min) + ' m</span><span>' + fmt((hipso.min + hipso.max) / 2) + '</span><span>' + fmt(hipso.max) + ' m</span></div>'
+      + '<div class="relevo-nota">Banda simples falsa-cor, interpolação linear (mín.–máx. dos lotes). Aparece a partir do zoom ' + HIPSO_ZOOM_MIN + '.</div>';
+  }
   function legendaLinhas(cam){
     if(cam === "curvas") return '<div class="relevo-li"><i class="lin" style="border-top:1px solid ' + COR_CURVA + '"></i><span>a cada ' + (meta.camadas.curvas.intervalo || 5) + ' m</span></div>'
       + '<div class="relevo-li"><i class="lin" style="border-top:2px solid ' + COR_CURVA + '"></i><span>mestra a cada ' + (meta.camadas.curvas.mestra || 25) + ' m (com cota)</span></div>'
@@ -61790,7 +61873,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     if(CSS_OK) return; CSS_OK = true;
     var s = document.createElement("style");
     s.textContent = ".relevo-box label{display:flex;align-items:center;gap:6px;cursor:pointer;padding:2px 0}"
-      + ".relevo-op{display:flex;align-items:center;gap:8px;margin:4px 0 2px 22px;font-size:11.5px;opacity:.85}.relevo-op input{flex:1;min-width:60px}"
+      + ".relevo-op{display:flex;align-items:center;gap:8px;margin:4px 0 2px 22px;font-size:11.5px;opacity:.85}.relevo-op input{flex:1;min-width:60px}.relevo-op[hidden],.relevo-leg[hidden]{display:none}"
       + ".relevo-leg{margin:3px 0 4px 22px;padding:5px 7px;border-radius:7px;background:rgba(127,127,127,.12);font-size:11px;line-height:1.3}"
       + ".relevo-li{display:flex;gap:6px;align-items:center;padding:1px 0}.relevo-li i{flex:0 0 14px;height:11px;border-radius:2px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.25)}"
       + ".relevo-li i.lin{height:0;border-radius:0;box-shadow:none}"
@@ -61804,6 +61887,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     CAMS.forEach(function(cam){
       h += '<label><input type="checkbox" data-relevo="' + cam + '"' + (estado[cam] ? " checked" : "") + '> ' + ROT[cam] + '</label>';
       if(cam === "declividade") h += '<div class="relevo-op" data-relevo-so="declividade"' + (estado.declividade ? "" : " hidden") + '><span>Transparência</span><input type="range" min="0" max="90" step="5" data-relevo-op value="' + Math.round((1 - estado.op) * 100) + '"><span data-relevo-opv>' + Math.round((1 - estado.op) * 100) + '%</span></div>';
+      if(cam === "hipsometria") h += '<div class="relevo-op" data-relevo-so="hipsometria"' + (estado.hipsometria ? "" : " hidden") + '><span>Transparência</span><input type="range" min="0" max="90" step="5" data-relevo-oph value="' + Math.round((1 - estado.opH) * 100) + '"><span data-relevo-ophv>' + Math.round((1 - estado.opH) * 100) + '%</span></div>';
       h += '<div class="relevo-leg" data-relevo-leg="' + cam + '" hidden></div>';
     });
     h += '<div class="relevo-nota">Fonte: ANADEM v1 (ANA/UFRGS, Copernicus GLO-30, 30 m), recortado nos lotes SPS-04 e SPS-07 (+3 km). Clique no mapa para ver a classe de declividade.</div><div data-relevo-erro></div></div></details>';
@@ -61816,9 +61900,9 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
       CAMS.forEach(function(cam){
         var cb = det.querySelector('input[data-relevo="' + cam + '"]'); if(cb) cb.checked = !!estado[cam];
         var lg = det.querySelector('[data-relevo-leg="' + cam + '"]');
-        if(lg){ lg.hidden = !(estado[cam] && meta); if(!lg.hidden) lg.innerHTML = cam === "declividade" ? legendaDecl() : legendaLinhas(cam); }
+        if(lg){ lg.hidden = !(estado[cam] && meta); if(!lg.hidden) lg.innerHTML = cam === "hipsometria" ? legendaHipso() : (cam === "declividade" ? legendaDecl() : legendaLinhas(cam)); }
       });
-      var so = det.querySelector('[data-relevo-so="declividade"]'); if(so) so.hidden = !estado.declividade;
+      ["declividade", "hipsometria"].forEach(function(c){ var so = det.querySelector('[data-relevo-so="' + c + '"]'); if(so) so.hidden = !estado[c]; });
     }
     Array.prototype.forEach.call(det.querySelectorAll("input[data-relevo]"), function(cb){
       cb.addEventListener("change", function(){
@@ -61830,6 +61914,8 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
       });
     });
     if(rng) rng.addEventListener("input", function(){ estado.op = 1 - (+rng.value) / 100; if(rv) rv.textContent = rng.value + "%"; guardar(); avisar(); });
+    var rngH = det.querySelector("input[data-relevo-oph]"), rvH = det.querySelector("[data-relevo-ophv]");
+    if(rngH) rngH.addEventListener("input", function(){ estado.opH = 1 - (+rngH.value) / 100; if(rvH) rvH.textContent = rngH.value + "%"; guardar(); avisar(); });
     if(CAMS.some(function(c){ return estado[c]; })) carregarMeta().then(atualizar, function(){});
     var f = function(){ if(!document.body.contains(det)){ var i = ouvintes.indexOf(f); if(i >= 0) ouvintes.splice(i, 1); return; } atualizar(); };
     ouvintes.push(f);
@@ -61988,7 +62074,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     e0 = Math.floor(e0) - 2; n0 = Math.floor(n0) - 2; e1 = Math.ceil(e1) + 2; n1 = Math.ceil(n1) + 2;
     var res = Math.max(1, Math.ceil(Math.sqrt((e1 - e0) * (n1 - n0) / 9e6)));
     var W = Math.ceil((e1 - e0) / res), H = Math.ceil((n1 - n0) / res);
-    var precisaDem = quais.declividade || quais.curvas;
+    var precisaDem = quais.declividade || quais.curvas || quais.hipsometria;
     var pDem = !precisaDem ? Promise.resolve(null) : fetch(BASE + "/dem?bbox=" + [e0, n0, e1, n1].join(",")).then(function(r){
       if(!r.ok) return r.json().catch(function(){ return {}; }).then(function(j){ throw new Error(j.erro || ("HTTP " + r.status)); });
       var g = JSON.parse(r.headers.get("X-Relevo-Grade"));
@@ -61996,7 +62082,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     });
     var pDren = quais.drenagem ? geometrias(bboxLL(e0, n0, e1, n1), { drenagem:true }) : Promise.resolve(null);
     return Promise.all([pDem, pDren, carregarMeta()]).then(function(rs){
-      var g = rs[0], out = { res:res, declividade:null, curvas:null, drenagem:null };
+      var g = rs[0], out = { res:res, hipsometria:null, declividade:null, curvas:null, drenagem:null };
       if(rs[1] && rs[1].drenagem){
         var pc = {}, todas = [];
         Object.keys(rs[1].drenagem.porClasse).forEach(function(v){ var l = recortarLinhas(rs[1].drenagem.porClasse[v], polysLL); if(l.length){ pc[v] = l; todas = todas.concat(l); } });
@@ -62031,6 +62117,18 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
         }
       }
       var tl = utmInv(e0, n1), tr2 = utmInv(e0 + W * res, n1), bl = utmInv(e0, n1 - H * res);
+      // 3a) hipsometria: falsa-cor linear entre a altitude mínima e a máxima DENTRO da área (como o QGIS ao abrir o recorte)
+      if(quais.hipsometria){
+        var zmn = Infinity, zmx = -Infinity;
+        for(k = 0; k < W * H; k++) if(M[k]){ if(Z[k] < zmn) zmn = Z[k]; if(Z[k] > zmx) zmx = Z[k]; }
+        if(zmx >= zmn){
+          var cvh = document.createElement("canvas"); cvh.width = W; cvh.height = H;
+          var cxh = cvh.getContext("2d"), imh = cxh.createImageData(W, H), dh = imh.data, amp = (zmx - zmn) || 1;
+          for(k = 0; k < W * H; k++){ if(!M[k]) continue; var ch = rampaH((Z[k] - zmn) / amp), q4 = k * 4; dh[q4] = ch[0]; dh[q4+1] = ch[1]; dh[q4+2] = ch[2]; dh[q4+3] = 255; }
+          cxh.putImageData(imh, 0, 0);
+          out.hipsometria = { url:cvh.toDataURL("image/png"), W:W, H:H, tl:tl, tr:tr2, bl:bl, min:zmn, max:zmx };
+        }
+      }
       // 3) declividade (Horn) -> classes EMBRAPA -> imagem transparente fora da área
       if(quais.declividade){
         var cls = meta.camadas.declividade.classes, lim = [3, 8, 20, 45, 75], rgb = cls.map(function(c){ return [1, 3, 5].map(function(p){ return parseInt(c.cor.substr(p, 2), 16); }); });
@@ -62098,7 +62196,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
   }
 
   window.RELEVO = {
-    CAMS:CAMS, ROT:ROT, COR_CURVA:COR_CURVA, COR_DREN:COR_DREN, estado:estado,
+    CAMS:CAMS, ROT:ROT, COR_CURVA:COR_CURVA, COR_DREN:COR_DREN, estado:estado, RAMPA_H:RAMPA_H,
     carregarMeta:carregarMeta, criarCamada:criarCamada, htmlControle:htmlControle, ligar:ligar, geometrias:geometrias, identificar:identificar, recorteImovel:recorteImovel,
     meta:function(){ return meta; }, pesoDren:function(v){ return meta ? pesoDren(v) : 1; },
     onMudar:function(f){ ouvintes.push(f); }
@@ -62114,9 +62212,9 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.22-2';
+window.APP_VERSAO = '2026.10.22-3';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
-window.SERVIDOR_RECOMENDADO = '2026.10.22-2';
+window.SERVIDOR_RECOMENDADO = '2026.10.22-3';
 (function(){
   var SEM_VERSAO = '0000.00.00-0';
   var LEGADO_LAYOUT = '2026.10.07-0';   // servidor que já tem layout_antigo no health, mas ainda sem número de versão
