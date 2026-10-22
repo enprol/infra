@@ -24359,6 +24359,7 @@ function AV_gerarDescSituacao(){
     trocarBase(baseSel);
     ligarOrtofoto();
     if(window.SOLOS){ try{ SOLOS.camada = SOLOS.criarCamada(mapa, {pane:'pubPane'}); SOLOS.carregarMeta().then(function(){ SOLOS.camada.aplicar(); }, function(){}); }catch(e){} }   // solos (EMBRAPA)
+    if(window.RELEVO){ try{ RELEVO.camada = RELEVO.criarCamada(mapa); }catch(e){} }   // relevo ANADEM: declividade · curvas 5 m · drenagem
     ligarControlesDem();
     montarV2();
     if(window.ResizeObserver){ new ResizeObserver(function(){ if(mapa) mapa.invalidateSize(); }).observe($('pgmMapa')); }
@@ -24569,11 +24570,13 @@ function AV_gerarDescSituacao(){
     h += htmlIncra();
     h += htmlPublicas();
     if(window.SOLOS) h += SOLOS.htmlControle({classe:'pgm-pub-box'});   // Classificação dos solos (EMBRAPA): ordem · subordem · legenda
+    if(window.RELEVO) h += RELEVO.htmlControle({classe:'pgm-pub-box'});  // Relevo ANADEM: declividade · curvas de nível · drenagem
     var host = $('pgmCamadas'); host.innerHTML = h;
     ligarEventosProj(host);
     ligarEventosIncra(host);
     ligarEventosPub(host);
     if(window.SOLOS) SOLOS.ligar(host);
+    if(window.RELEVO) RELEVO.ligar(host);
     Array.prototype.forEach.call(host.querySelectorAll('input[data-cam]'), function(cb){
       cb.addEventListener('change', function(){
         if(cb.dataset.cam === 'cad'){ visCad = cb.checked; if(visCad) grupoCad.addTo(mapa); else mapa.removeLayer(grupoCad); }
@@ -53382,7 +53385,9 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     benf:  { nome:'Benfeitorias',                tipo:'pt',   cor:'#ffffff', peso:1.4 },
     sigef: { nome:'Parcela SIGEF (intercepta)',  tipo:'fill', cor:'#e879f9', op:.14, peso:1.4 },
     car:   { nome:'Feição CAR (intercepta)',     tipo:'fill', cor:'#ffd24a', op:.14, peso:1.3, dash:'5 3' },
-    drenagem:{nome:'Trecho de drenagem (ANA)',   tipo:'line', cor:'#37a9ff', peso:4, sombra:true },
+    drenagem:{nome:'Linha de drenagem (ANADEM)', tipo:'line', cor:'#37a9ff', peso:2.4, sombra:true },
+    curvas:{ nome:'Curvas de nível (5 m)',       tipo:'line', cor:'#f2c27b', peso:.9 },
+    decliv:{ nome:'Declividade (EMBRAPA)',       tipo:'fill', cor:'#e2694c', op:.6, classes:true },
     hidro: { nome:'Hidrografia identificada',    tipo:'line', cor:'#00e5ff', peso:4.5, sombra:true }
   };
   var D2MAP_EST_PADRAO = JSON.parse(JSON.stringify(D2MAP_EST));
@@ -53760,6 +53765,35 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     (o.camadas||[]).forEach(function(cm){
       var e=D2MAP_EST[cm.cam]||{}, g=cm.geom;
       var sh=e.sombra?' filter="url(#d2sh)"':'';   // sombra projetada (propriedade "Sombra" do estilo da camada)
+      // relevo ANADEM: declividade = imagem da grade UTM (1 m) já recortada na área total; posta no mapa por afim dos cantos
+      if(cm.cam==='decliv'){
+        var im=g.img, q0=PX(im.tl[0],im.tl[1]), q1=PX(im.tr[0],im.tr[1]), q2=PX(im.bl[0],im.bl[1]);
+        var mt=[(q1[0]-q0[0])/im.W,(q1[1]-q0[1])/im.W,(q2[0]-q0[0])/im.H,(q2[1]-q0[1])/im.H,q0[0],q0[1]].map(function(v){ return +v.toFixed(6); });
+        s+='<image x="0" y="0" width="'+im.W+'" height="'+im.H+'" preserveAspectRatio="none" transform="matrix('+mt.join(' ')+')" opacity="'+(e.op==null?.45:e.op)+'" xlink:href="'+im.url+'"/>';
+        return;
+      }
+      // curvas de nível: finas a cada 5 m, mestras (25 m) mais grossas e com a cota
+      if(cm.cam==='curvas'){
+        var pc=e.peso||.9, dc=e.dash?' stroke-dasharray="'+e.dash+'"':'';
+        (g.lines||[]).forEach(function(r){ s+='<polyline points="'+polyStr(r)+'" fill="none" stroke="'+e.cor+'" stroke-width="'+pc+'" stroke-opacity=".8" stroke-linejoin="round"'+dc+'/>'; });
+        (g.mestras||[]).forEach(function(r){ s+='<polyline points="'+polyStr(r)+'" fill="none" stroke="'+e.cor+'" stroke-width="'+(pc*2).toFixed(2)+'" stroke-linejoin="round"'+dc+'/>'; });
+        var feitos=[];
+        (g.mestras||[]).forEach(function(r,i){
+          if(r.length<4) return; var m=r.length>>1, q=PX(r[m][0],r[m][1]), a0=PX(r[m-1][0],r[m-1][1]), a1=PX(r[m+1][0],r[m+1][1]);
+          if(q[0]<mapL+30||q[0]>mapR-30||q[1]<mapT+16||q[1]>mapB-16) return;
+          if(feitos.some(function(f){ return Math.hypot(f[0]-q[0],f[1]-q[1])<90; })) return;
+          var ang=Math.atan2(a1[1]-a0[1],a1[0]-a0[0])*180/Math.PI; if(ang>90) ang-=180; if(ang<-90) ang+=180;
+          feitos.push(q); s+=TH(q[0],q[1]+3.5,String(g.cotas[i])+' m',{size:10,weight:'700',rot:ang,fill:'#ffe3b0',halo:2.6});
+        });
+        return;
+      }
+      // drenagem por classe de área drenada: 1ª ordem mais fina, principal mais grossa; contorno escuro por baixo
+      if(cm.cam==='drenagem' && g.porClasse){
+        var fat={1:.6,2:1,3:1.5}, ks=Object.keys(g.porClasse).sort();
+        ks.forEach(function(v){ var w=(e.peso||2.4)*(fat[v]||1); g.porClasse[v].forEach(function(r){ s+='<polyline points="'+polyStr(r)+'" fill="none" stroke="#06283d" stroke-width="'+(w+1.8).toFixed(1)+'" stroke-linecap="round" stroke-linejoin="round" opacity=".6"/>'; }); });
+        ks.forEach(function(v){ var w=(e.peso||2.4)*(fat[v]||1); g.porClasse[v].forEach(function(r){ s+='<polyline points="'+polyStr(r)+'" fill="none" stroke="'+e.cor+'" stroke-width="'+w.toFixed(1)+'"'+(e.dash?' stroke-dasharray="'+e.dash+'"':'')+' stroke-linecap="round" stroke-linejoin="round"'+sh+'/>'; }); });
+        return;
+      }
       if(cm.cam==='benfr'||cm.cam==='benfnr'){
         var cor0=d2benfCores(g,cm.cam), rot0=[];
         (g.items||[]).forEach(function(it){ var cc=cor0[it.nome||'Sem nome']||e.cor;
@@ -54083,7 +54117,8 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
   // camadas que o usuário pode marcar em qualquer figura (as de KML ficam desabilitadas enquanto o KML não for inserido em Técnica › Arquivos KML do imóvel)
   var D2MAP_CAMS=[['area','Área total do imóvel',1],['desap','Área a ser desapropriada',0],['remanescente','Área remanescente (sem a faixa de domínio)',0],['faixa','Faixa de domínio e eixo ferroviário (estacas)',0],
     ['cercas','Cercas',1],['vias','Vias de acesso',1],['appest','APP estimada',1],['appcar','APP (CAR)',0],['rl','Reserva Legal (CAR)',0],['sigef','Parcelas SIGEF',0],['car','Imóveis do CAR',0],
-    ['hidro','Hidrografia identificada',1],['culturas','Áreas de culturas',1],['benf','Benfeitorias (camada geral)',1],['benfr','Benfeitorias reprodutivas (por tipo)',1],['benfnr','Benfeitorias não reprodutivas',1]];
+    ['hidro','Hidrografia identificada',1],['culturas','Áreas de culturas',1],['benf','Benfeitorias (camada geral)',1],['benfr','Benfeitorias reprodutivas (por tipo)',1],['benfnr','Benfeitorias não reprodutivas',1],
+    ['decliv','Declividade — EMBRAPA (ANADEM)',0],['curvas','Curvas de nível 5 m (ANADEM)',0],['drenagem','Linha de drenagem (ANADEM)',0]];
   function d2camsHtml(fid, regra){
     var padrao=(D2MAP_TXT.cams&&D2MAP_TXT.cams[fid])||((regra.cams||[]).concat(['benf'])), h='<div class="d2m-f d2m-full"><label>Camadas do mapa — marque uma ou mais (as da figura já vêm marcadas)</label><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:4px 14px;margin-top:4px;">';
     D2MAP_CAMS.forEach(function(c){ var tem=true; if(c[2]){ try{ tem=!!d2mapFonteKML(c[0]); }catch(e){ tem=false; } }
@@ -54094,7 +54129,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
      fica em fx.est e só vale no desenho desta figura (d2estTrocar). */
   function d2fxEstHtml(fx){
     var lista = (fx.cams || []).slice(); if(lista.indexOf("faixa") >= 0) lista.push("eixo");
-    lista = lista.filter(function(k){ var e = D2MAP_EST[k]; return e && e.tipo !== "pino" && k !== "benfr"; });
+    lista = lista.filter(function(k){ var e = D2MAP_EST[k]; return e && e.tipo !== "pino" && k !== "benfr" && !e.classes; });
     if(!lista.length) return '<p class="d2m-note">Marque ao menos uma camada acima.</p>';
     var est = fx.est || {};
     return '<table class="d2fx-est"><thead><tr><th>Camada</th><th>Cor</th><th>Espessura</th><th>Linha</th><th>Preench.</th><th>Sombra</th><th></th></tr></thead><tbody>' +
@@ -54275,12 +54310,26 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       if(need.car){ st('Buscando CAR…'); try{ var gjc=await d2fetchJSON('/api/mapa/car?uf='+d2uf()+'&bbox='+d2bboxStr(bb)); var gc=d2geojson(gjc,refPolys,['cod_imovel','codigo']); if(gc.polys.length) geom.car=gc; carCodes=gc.codes; }catch(e){ falhou.push('CAR'); } }
       if(need.rl){ st('Buscando Reserva Legal (CAR)…'); try{ var gjr=await d2fetchJSON('/api/mapa/car-rl?bbox='+d2bboxStr(bb)); var gr=d2geojson(gjr,null); if(gr.polys.length) geom.rl=gr; }catch(e){ falhou.push('Reserva Legal'); } }
       if(need.appcar){ st('Buscando APP (CAR)…'); try{ var gja=await d2fetchJSON('/api/mapa/car-app?bbox='+d2bboxStr(bb)); var ga=d2geojson(gja,null); if(ga.polys.length) geom.appcar=ga; }catch(e){ falhou.push('APP (CAR)'); } }
-      if(need.drenagem) falhou.push('trecho de drenagem (ANA — WMS, próxima etapa)');
+      // relevo ANADEM (22/10/2026): recorte da ÁREA TOTAL sobre o DEM reamostrado (cúbica 4×4, 1 m) — declividade EMBRAPA,
+      // curvas de 5 m e drenagem só dentro do imóvel (window.RELEVO.recorteImovel); sem área total, a área desapropriada
+      if(need.decliv||need.curvas||need.drenagem){
+        var recPolys=d2mapKML(d2mapFonteKML('area')).polys; if(!recPolys.length) recPolys=d2mapKML(d2mapFonteKML('desap')).polys;   // a área total recorta mesmo sem estar marcada para desenho
+        if(!window.RELEVO) falhou.push('relevo ANADEM (módulo ausente)');
+        else if(!recPolys.length) falhou.push('relevo ANADEM (sem o KML da área total para recortar)');
+        else { st('Calculando relevo do imóvel (ANADEM, 1 m)…'); try{
+          var rv=await RELEVO.recorteImovel(recPolys,{declividade:!!need.decliv,curvas:!!need.curvas,drenagem:!!need.drenagem});
+          if(rv.res>1) falhou.push('relevo em '+rv.res+' m (imóvel grande)');
+          if(rv.declividade&&rv.declividade.classes.length) geom.decliv={img:rv.declividade,classes:rv.declividade.classes,polys:[],lines:[],pts:[]};
+          if(rv.curvas&&(rv.curvas.lines.length||rv.curvas.mestras.length)) geom.curvas={lines:rv.curvas.lines,mestras:rv.curvas.mestras,cotas:rv.curvas.cotas,polys:[],pts:[]};
+          if(rv.drenagem&&rv.drenagem.lines.length) geom.drenagem={lines:rv.drenagem.lines,porClasse:rv.drenagem.porClasse,polys:[],pts:[]};
+          ['decliv','curvas','drenagem'].forEach(function(c){ if(need[c]&&!geom[c]) falhou.push((D2MAP_EST[c]||{}).nome+' (nada dentro da área)'); });
+        }catch(e){ falhou.push('relevo ANADEM ('+(e&&e.message||e)+')'); } }
+      }
       // ---- ordem de desenho (contexto embaixo, destaques em cima) ----
       // metros de cerca dentro da área desapropriada
       var metrosCerca=null;
       if(geom.cercas){ var dpz=d2mapKML(d2mapFonteKML('desap')); if(dpz.polys.length) metrosCerca=d2metrosDentro(geom.cercas.lines.concat(geom.cercas.polys), dpz.polys); }
-      var ORDER=['sigef','car','rl','appcar','appest','culturas','drenagem','hidro','faixa','area','remanescente','vias','rota','desap','cercas','benf','benfr','benfnr'];
+      var ORDER=['decliv','curvas','sigef','car','rl','appcar','appest','culturas','drenagem','hidro','faixa','area','remanescente','vias','rota','desap','cercas','benf','benfr','benfnr'];
       var camadas=[], legend=[];
       var _volta=d2estTrocar(fid);                              // figura extra: estilo só dela (legenda)
       try{
@@ -54288,6 +54337,8 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
         if(cam==='faixa'){ legend.push({nome:est.nome,tipo:'line',cor:est.cor,peso:est.peso,dash:est.dash}); if(geom.faixa.eixos&&geom.faixa.eixos.length){ var ex=D2MAP_EST.eixo; legend.push({nome:ex.nome,tipo:'line',cor:ex.cor,peso:ex.peso,dash:ex.dash,tracos:true}); } }
         else if(cam==='cercas'){ legend.push({nome:est.nome+(metrosCerca!=null?(' — '+d2fmtM(metrosCerca)+' m (área desapr.)'):''),tipo:'line',cor:est.cor,peso:est.peso,dash:est.dash}); }
         else if(cam==='benfr'){ var cb0=d2benfCores(geom.benfr,'benfr'); Object.keys(cb0).forEach(function(n){ legend.push({nome:'Benf. reprodutiva — '+n,tipo:'fill',cor:cb0[n]}); }); }
+        else if(cam==='decliv'){ geom.decliv.classes.forEach(function(c){ legend.push({nome:'Decliv. '+c.nome.toLowerCase()+' '+c.faixa.replace(' a ','–').replace('acima de ','> '),tipo:'fill',cor:c.cor}); }); }   // curto: cabe na coluna da legenda
+        else if(cam==='curvas'){ legend.push({nome:'Curvas de nível 5 m / 25 m',tipo:'line',cor:est.cor,peso:Math.max(1.2,est.peso||1),dash:est.dash}); }
         else legend.push({nome:est.nome,tipo:est.tipo,cor:est.cor,peso:est.peso,dash:est.dash});
       });
       if(pinos.length){ var ep=D2MAP_EST.pino; legend.push({nome:ep.nome,tipo:'pino',cor:ep.cor}); }
@@ -54358,6 +54409,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     var velho=!(obj.versao>=2);   // estilos salvos antes de 08/10/2026: hidrografia/drenagem ficam com o padrão novo (mais grosso)
     Object.keys(obj.estilos).forEach(function(k){ var s=obj.estilos[k], d=D2MAP_EST[k]; if(!s||!d) return;
       if(velho && (k==='hidro'||k==='drenagem')) { if(/^#[0-9a-f]{6}$/i.test(s.cor||'')) d.cor=s.cor; return; }
+      if(k==='drenagem' && !(obj.versao>=3)) return;   // 22/10/2026: drenagem passou a ser a do ANADEM (3 espessuras); o estilo da antiga (WMS da ANA) não vale
       if(/^#[0-9a-f]{6}$/i.test(s.cor||'')) d.cor=s.cor;
       if(typeof s.sombra==='boolean') d.sombra=s.sombra;
       if(isFinite(s.peso)&&s.peso>0) d.peso=+s.peso;
@@ -54365,10 +54417,11 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       if(isFinite(s.op)) d.op=Math.max(0,Math.min(1,+s.op));
     });
   }
-  function d2coletarEstilos(){ var o={}; Object.keys(D2MAP_EST).forEach(function(k){ var e=D2MAP_EST[k]; o[k]={cor:e.cor}; if(e.peso!=null) o[k].peso=e.peso; o[k].dash=e.dash||''; if(e.op!=null) o[k].op=e.op; o[k].sombra=!!e.sombra; }); return { versao:2, atualizado:new Date().toISOString(), estilos:o }; }
+  function d2coletarEstilos(){ var o={}; Object.keys(D2MAP_EST).forEach(function(k){ var e=D2MAP_EST[k]; o[k]={cor:e.cor}; if(e.peso!=null) o[k].peso=e.peso; o[k].dash=e.dash||''; if(e.op!=null) o[k].op=e.op; o[k].sombra=!!e.sombra; }); return { versao:3, atualizado:new Date().toISOString(), estilos:o }; }
   function d2amostra(e){
     var svg='<svg width="64" height="20" viewBox="0 0 64 20" aria-hidden="true"'+(e.sombra?' style="filter:drop-shadow(1px 1.4px 1px rgba(0,0,0,.65))"':'')+'><rect width="64" height="20" rx="4" fill="#5b6b5a"/>';
-    if(e.tipo==='fill') svg+='<rect x="8" y="4" width="48" height="12" fill="'+e.cor+'" fill-opacity="'+(e.op==null?.4:e.op)+'" stroke="'+e.cor+'" stroke-width="'+Math.min(3,e.peso||1.5)+'"'+(e.dash?' stroke-dasharray="'+e.dash+'"':'')+'/>';
+    if(e.classes){ var cc=['#2166ac','#67a9cf','#b8dcea','#f8c4a6','#e2694c','#b2182b']; cc.forEach(function(c,i){ svg+='<rect x="'+(8+i*8)+'" y="4" width="8" height="12" fill="'+c+'" fill-opacity="'+(e.op==null?.45:e.op)+'"/>'; }); }
+    else if(e.tipo==='fill') svg+='<rect x="8" y="4" width="48" height="12" fill="'+e.cor+'" fill-opacity="'+(e.op==null?.4:e.op)+'" stroke="'+e.cor+'" stroke-width="'+Math.min(3,e.peso||1.5)+'"'+(e.dash?' stroke-dasharray="'+e.dash+'"':'')+'/>';
     else if(e.tipo==='hatch') svg+='<defs><pattern id="d2q_hatch_prev" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse"><line x1="0" y1="0" x2="0" y2="6" stroke="'+e.cor+'" stroke-width="2.4"/></pattern></defs><rect x="8" y="4" width="48" height="12" fill="url(#d2q_hatch_prev)" fill-opacity="'+(e.op==null?1:e.op)+'"/>';
     else if(e.tipo==='pino') svg+='<path d="M32,18 C30,13 26,11 26,7 A6,6 0 1,1 38,7 C38,11 34,13 32,18 Z" fill="'+e.cor+'"/><circle cx="32" cy="7" r="2.4" fill="#fff"/>';
     else if(e.tipo==='pt') svg+='<rect x="28" y="6" width="8" height="8" fill="'+e.cor+'" stroke="#111"/>';
@@ -54383,8 +54436,8 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       var temLinha=(e.tipo!=='pino'&&e.tipo!=='hatch'), temPeso=(e.tipo!=='pino'&&e.tipo!=='hatch'), temFill=(e.tipo==='fill'||e.tipo==='hatch');
       var dashOpts=D2MAP_DASH.slice(); if(e.dash && !dashOpts.some(function(d){return d[0]===e.dash;})) dashOpts.push([e.dash,'Personalizada ('+e.dash+')']);
       h+='<tr data-k="'+k+'"><td class="d2q-nome">'+d2esc(e.nome)+'</td>'
-        +'<td><input type="color" data-p="cor" value="'+e.cor+'" aria-label="Cor — '+d2esc(e.nome)+'"></td>'
-        +'<td>'+(temPeso?'<input type="number" data-p="peso" min="0.2" max="12" step="0.2" value="'+(e.peso||1)+'" aria-label="Espessura — '+d2esc(e.nome)+'">':'<span class="d2q-na">—</span>')+'</td>'
+        +'<td>'+(e.classes?'<span class="d2q-na" title="Cores fixas das classes EMBRAPA">classes</span>':'<input type="color" data-p="cor" value="'+e.cor+'" aria-label="Cor — '+d2esc(e.nome)+'">')+'</td>'
+        +'<td>'+(e.classes?'<span class="d2q-na">—</span>':temPeso?'<input type="number" data-p="peso" min="0.2" max="12" step="0.2" value="'+(e.peso||1)+'" aria-label="Espessura — '+d2esc(e.nome)+'">':'<span class="d2q-na">—</span>')+'</td>'
         +'<td>'+(temLinha&&e.tipo!=='pt'?('<select data-p="dash" aria-label="Tipo de linha — '+d2esc(e.nome)+'">'+dashOpts.map(function(d){ return '<option value="'+d[0]+'"'+(((e.dash||'')===d[0])?' selected':'')+'>'+d[1]+'</option>'; }).join('')+'</select>'):'<span class="d2q-na">—</span>')+'</td>'
         +'<td>'+(temFill?'<input type="number" data-p="op" min="0" max="100" step="5" value="'+Math.round((e.op==null?.4:e.op)*100)+'" aria-label="Preenchimento % — '+d2esc(e.nome)+'"><span class="d2q-u">%</span>':'<span class="d2q-na">—</span>')+'</td>'
         +'<td>'+((e.tipo==='hatch')?'<span class="d2q-na">—</span>':'<input type="checkbox" data-p="sombra"'+(e.sombra?' checked':'')+' aria-label="Sombra projetada — '+d2esc(e.nome)+'">')+'</td>'
@@ -61523,6 +61576,535 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
 })();
 
 </script>
+<script>/* ===== Relevo ANADEM: Declividade (EMBRAPA) · Curvas de nível (5 m) · Linha de drenagem (22/10/2026) =====
+   Gerado uma vez a partir do ANADEM (ferramentas/relevo/gerar-relevo.mjs: gdaldem slope, gdal_contour, GRASS r.watershed)
+   para o retângulo de cada lote + 3 km; o servidor só entrega os tiles (/api/relevo/meta, /api/relevo/<camada>/<z>/<x>/<y>),
+   no mesmo formato dos solos (feição = [atributo, [partes em deltas]]).
+   API (window.RELEVO):
+     RELEVO.criarCamada(mapa)                 3 camadas Leaflet (canvas) que seguem o estado (.aplicar())
+     RELEVO.htmlControle(opc) / RELEVO.ligar(host)   caixa "Relevo — ANADEM" (3 caixas, transparência, legendas)
+     RELEVO.geometrias(bb, quais)             feições em lon/lat dentro da bbox {w,s,e,n} (mapas da DESP 2)
+   Estado (o que está ligado e a transparência) é lembrado no navegador. */
+(function(){
+  "use strict";
+  var BASE = "/api/relevo";
+  var CAMS = ["declividade", "curvas", "drenagem"];
+  var ROT = { declividade:"Declividade (EMBRAPA)", curvas:"Curvas de nível (5 m)", drenagem:"Linha de drenagem" };
+  var COR_CURVA = "#f2c27b", COR_DREN = "#3ddcff";   // drenagem em ciano: não some sobre o azul do "Plano"
+  var CURVAS_ZOOM_MIN = 13, ROT_ZOOM_MIN = 15;
+  var meta = null, metaP = null;
+  var estado = { declividade:false, curvas:false, drenagem:false, op:.5 };
+  try{
+    var e0 = JSON.parse(localStorage.getItem("relevo_estado") || "null");
+    if(e0) CAMS.concat("op").forEach(function(k){ if(k in e0) estado[k] = e0[k]; });
+    estado.op = Math.max(.1, Math.min(1, +estado.op || .5));
+  }catch(e){}
+  function guardar(){ try{ localStorage.setItem("relevo_estado", JSON.stringify(estado)); }catch(e){} }
+  var ouvintes = [];
+  function avisar(){ ouvintes.slice().forEach(function(f){ try{ f(); }catch(e){} }); }
+  function esc(t){ return String(t == null ? "" : t).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
+
+  function carregarMeta(){
+    if(meta) return Promise.resolve(meta);
+    if(metaP) return metaP;
+    metaP = fetch(BASE + "/meta").then(function(r){
+      if(!r.ok) return r.json().catch(function(){ return {}; }).then(function(j){ throw new Error(j.erro || ("HTTP " + r.status)); });
+      return r.json();
+    }).then(function(j){ meta = j; return j; }).catch(function(e){ metaP = null; throw e; });
+    return metaP;
+  }
+  function classe(cam, v){ var l = (meta.camadas[cam].classes || []); for(var i = 0; i < l.length; i++) if(l[i].v === v) return l[i]; return null; }
+  function corDecl(v){ var c = classe("declividade", v); return c ? c.cor : null; }
+  function pesoDren(v){ var c = classe("drenagem", v); return c ? c.peso : 1; }
+
+  /* ---------- tiles ---------- */
+  var cacheT = new Map();   // "cam/z/x/y" -> Promise<tile|null>; tile = {f:[{a, r:[Int32Array]}]}
+  function decod(j){
+    return { f:j.map(function(ft){
+      return { a:ft[0], r:ft[1].map(function(d){ var o = new Int32Array(d.length), x = 0, y = 0; for(var i = 0; i < d.length; i += 2){ x += d[i]; y += d[i+1]; o[i] = x; o[i+1] = y; } return o; }) };
+    }) };
+  }
+  function pegarTile(cam, z, x, y){
+    var k = cam + "/" + z + "/" + x + "/" + y, h = cacheT.get(k);
+    if(h){ cacheT.delete(k); cacheT.set(k, h); return h; }
+    h = fetch(BASE + "/" + k).then(function(r){
+      if(r.status === 204) return null;
+      if(!r.ok) throw new Error("HTTP " + r.status);
+      return r.json().then(decod);
+    }).catch(function(){ cacheT.delete(k); return null; });
+    cacheT.set(k, h);
+    if(cacheT.size > 240) cacheT.delete(cacheT.keys().next().value);
+    return h;
+  }
+  function caminho(path, r, fechar){ path.moveTo(r[0], r[1]); for(var i = 2; i < r.length; i += 2) path.lineTo(r[i], r[i+1]); if(fechar) path.closePath(); }
+
+  /* ---------- desenho de um tile no canvas (k = px por unidade do tile; dx/dy = deslocamento) ---------- */
+  function pintarDecl(ctx, tl, k, dx, dy){
+    var por = {};
+    tl.f.forEach(function(ft){ var c = corDecl(ft.a); if(!c) return; var p = por[c] || (por[c] = new Path2D()); ft.r.forEach(function(r){ caminho(p, r, true); }); });
+    ctx.save(); ctx.setTransform(k, 0, 0, k, dx, dy); ctx.lineJoin = "round"; ctx.lineWidth = Math.max(.4, .8 / k);
+    Object.keys(por).forEach(function(c){ ctx.fillStyle = c; ctx.strokeStyle = c; ctx.fill(por[c], "evenodd"); ctx.stroke(por[c]); });   // contorno da mesma cor tapa as frestas
+    ctx.restore();
+  }
+  function pintarCurvas(ctx, tl, k, dx, dy, px, rotulos, tam){
+    var fina = new Path2D(), mestra = new Path2D(), mest = (meta.camadas.curvas.mestra || 25), lab = [];
+    tl.f.forEach(function(ft){
+      var m = (ft.a % mest === 0);
+      ft.r.forEach(function(r){ caminho(m ? mestra : fina, r, false); if(m && rotulos) lab.push([ft.a, r]); });
+    });
+    ctx.save(); ctx.setTransform(k, 0, 0, k, dx, dy); ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.strokeStyle = COR_CURVA;
+    ctx.globalAlpha = .75; ctx.lineWidth = .8 * px / k; ctx.stroke(fina);
+    ctx.globalAlpha = 1; ctx.lineWidth = 1.6 * px / k; ctx.stroke(mestra);
+    ctx.restore();
+    // cota das mestras: um rótulo por trecho, no ponto do meio, girado como a linha (longe da borda do tile)
+    lab.forEach(function(q){
+      var r = q[1], n = r.length / 2; if(n < 6) return;
+      var i = (n >> 1) * 2, x = r[i] * k + dx, y = r[i+1] * k + dy, ax = r[i+2] - r[i-2], ay = r[i+3] - r[i-1];
+      if(x < 28 * px || y < 14 * px || x > tam - 28 * px || y > tam - 14 * px) return;
+      var a = Math.atan2(ay, ax); if(a > Math.PI / 2) a -= Math.PI; if(a < -Math.PI / 2) a += Math.PI;
+      ctx.save(); ctx.translate(x, y); ctx.rotate(a);
+      ctx.font = "600 " + (10 * px) + "px system-ui,sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.lineWidth = 3 * px; ctx.strokeStyle = "rgba(40,24,6,.85)"; ctx.strokeText(String(q[0]), 0, 0);
+      ctx.fillStyle = "#ffe3b0"; ctx.fillText(String(q[0]), 0, 0);
+      ctx.restore();
+    });
+  }
+  function pintarDren(ctx, tl, k, dx, dy, px){
+    var por = {};
+    tl.f.forEach(function(ft){ var p = por[ft.a] || (por[ft.a] = new Path2D()); ft.r.forEach(function(r){ caminho(p, r, false); }); });
+    ctx.save(); ctx.setTransform(k, 0, 0, k, dx, dy); ctx.lineCap = "round"; ctx.lineJoin = "round";
+    Object.keys(por).sort().forEach(function(v){ ctx.strokeStyle = "rgba(4,30,60,.7)"; ctx.lineWidth = (pesoDren(+v) + 1.4) * px / k; ctx.stroke(por[v]); });   // contorno escuro: aparece no satélite
+    Object.keys(por).sort().forEach(function(v){ ctx.strokeStyle = COR_DREN; ctx.lineWidth = pesoDren(+v) * px / k; ctx.stroke(por[v]); });
+    ctx.restore();
+  }
+
+  /* ---------- camadas Leaflet ---------- */
+  function criarCamada(mapa){
+    var L = window.L; if(!L) throw new Error("Leaflet não carregado");
+    if(!mapa.getPane("relevoDecl")){ var p1 = mapa.createPane("relevoDecl"); p1.style.zIndex = 283; p1.style.pointerEvents = "none"; }
+    if(!mapa.getPane("relevoLin")){ var p2 = mapa.createPane("relevoLin"); p2.style.zIndex = 287; p2.style.pointerEvents = "none"; }
+    function classeCam(cam){
+      return L.GridLayer.extend({
+        createTile: function(c, pronto){
+          var cv = document.createElement("canvas"), tam = this.getTileSize(), dpr = Math.min(2, window.devicePixelRatio || 1);
+          cv.width = tam.x * dpr; cv.height = tam.y * dpr;
+          var mc = meta && meta.camadas[cam];
+          if(!mc || (cam === "curvas" && c.z < CURVAS_ZOOM_MIN)){ setTimeout(function(){ pronto(null, cv); }, 0); return cv; }
+          var zs = Math.max(mc.zmin, Math.min(c.z, mc.zmax)), d = c.z - zs, ex = meta.extent;
+          if(d < 0){ setTimeout(function(){ pronto(null, cv); }, 0); return cv; }   // antes do zoom mínimo da camada
+          var sx = c.x >> d, sy = c.y >> d, k = tam.x * dpr * Math.pow(2, d) / ex;
+          var ox = (c.x - (sx << d)) * ex / Math.pow(2, d), oy = (c.y - (sy << d)) * ex / Math.pow(2, d);
+          pegarTile(cam, zs, sx, sy).then(function(tl){
+            if(tl){
+              var ctx = cv.getContext("2d");
+              if(cam === "declividade") pintarDecl(ctx, tl, k, -ox * k, -oy * k);
+              else if(cam === "curvas") pintarCurvas(ctx, tl, k, -ox * k, -oy * k, dpr, c.z >= ROT_ZOOM_MIN, cv.width);
+              else pintarDren(ctx, tl, k, -ox * k, -oy * k, dpr);
+            }
+            pronto(null, cv);
+          });
+          return cv;
+        }
+      });
+    }
+    var camadas = {};
+    CAMS.forEach(function(cam){
+      var C = classeCam(cam);
+      camadas[cam] = new C({ pane:cam === "declividade" ? "relevoDecl" : "relevoLin", minZoom:4, maxZoom:21, updateWhenIdle:true, keepBuffer:1,
+        attribution:cam === "declividade" ? "Relevo: ANADEM (ANA/UFRGS)" : "" });
+    });
+    var api = {
+      camadas:camadas, mapa:mapa,
+      aplicar: function(){
+        if(!meta) return;
+        CAMS.forEach(function(cam){
+          var l = camadas[cam];
+          if(estado[cam]){ if(!mapa.hasLayer(l)) l.addTo(mapa); if(cam === "declividade") l.setOpacity(estado.op); }
+          else if(mapa.hasLayer(l)) mapa.removeLayer(l);
+        });
+      }
+    };
+    api._ouv = function(){
+      var ct = mapa.getContainer && mapa.getContainer();
+      if(!ct || !document.body.contains(ct)){ var i = ouvintes.indexOf(api._ouv); if(i >= 0) ouvintes.splice(i, 1); return; }
+      api.aplicar();
+    };
+    ouvintes.push(api._ouv);
+    // clique: classe de declividade do ponto (só com a camada ligada e fora de feições interativas)
+    mapa.on("click", function(e){
+      if(!estado.declividade || !meta) return;
+      var t = e.originalEvent && e.originalEvent.target;
+      if(t && t.closest && t.closest(".leaflet-interactive, .leaflet-marker-icon, .leaflet-popup, .leaflet-control")) return;
+      identificar(e.latlng.lat, e.latlng.lng).then(function(c){
+        if(!c) return;
+        L.popup({ maxWidth:260 }).setLatLng(e.latlng).setContent('<div style="font:12.5px/1.35 system-ui,sans-serif"><span style="display:inline-block;width:11px;height:11px;border-radius:2px;background:'
+          + c.cor + ';margin-right:6px;vertical-align:-1px"></span><b>' + esc(c.nome) + '</b> — ' + esc(c.faixa)
+          + '<div style="margin-top:4px;opacity:.6;font-size:10.5px">Declividade · classes EMBRAPA · ANADEM (30 m)</div></div>').openOn(mapa);
+      });
+    });
+    if(meta) api.aplicar(); else if(CAMS.some(function(c){ return estado[c]; })) carregarMeta().then(function(){ api.aplicar(); }, function(){});
+    return api;
+  }
+
+  function noPoligono(x, y, r){
+    var dentro = false;
+    for(var i = 0, j = r.length - 2; i < r.length; j = i, i += 2){
+      var xi = r[i], yi = r[i+1], xj = r[j], yj = r[j+1];
+      if(((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) dentro = !dentro;
+    }
+    return dentro;
+  }
+  function merc(lon, lat, z){ var n = Math.pow(2, z), s = Math.sin(lat * Math.PI / 180); return [(lon + 180) / 360 * n, (0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * n]; }
+  function identificar(lat, lon){
+    return carregarMeta().then(function(){
+      var mc = meta.camadas.declividade, z = mc.zmax, f = merc(lon, lat, z), tx = Math.floor(f[0]), ty = Math.floor(f[1]), ex = meta.extent;
+      return pegarTile("declividade", z, tx, ty).then(function(tl){
+        if(!tl) return null;
+        var px = (f[0] - tx) * ex, py = (f[1] - ty) * ex;
+        for(var i = 0; i < tl.f.length; i++){
+          var ft = tl.f[i], par = 0;
+          for(var k = 0; k < ft.r.length; k++) if(noPoligono(px, py, ft.r[k])) par ^= 1;
+          if(par) return classe("declividade", ft.a);
+        }
+        return null;
+      });
+    }).catch(function(){ return null; });
+  }
+
+  /* ---------- caixa de controle (Mapa Geral) ---------- */
+  function legendaDecl(){
+    return (meta.camadas.declividade.classes || []).map(function(c){
+      return '<div class="relevo-li"><i style="background:' + c.cor + '"></i><span>' + esc(c.nome) + ' <span style="opacity:.65">(' + esc(c.faixa) + ')</span></span></div>';
+    }).join("");
+  }
+  function legendaLinhas(cam){
+    if(cam === "curvas") return '<div class="relevo-li"><i class="lin" style="border-top:1px solid ' + COR_CURVA + '"></i><span>a cada ' + (meta.camadas.curvas.intervalo || 5) + ' m</span></div>'
+      + '<div class="relevo-li"><i class="lin" style="border-top:2px solid ' + COR_CURVA + '"></i><span>mestra a cada ' + (meta.camadas.curvas.mestra || 25) + ' m (com cota)</span></div>'
+      + '<div class="relevo-nota">Aparecem a partir do zoom ' + CURVAS_ZOOM_MIN + '; a cota, do zoom ' + ROT_ZOOM_MIN + '.</div>';
+    return (meta.camadas.drenagem.classes || []).map(function(c){
+      return '<div class="relevo-li"><i class="lin" style="border-top:' + Math.max(1, Math.round(c.peso * 1.3)) + 'px solid ' + COR_DREN + '"></i><span>' + esc(c.nome) + '</span></div>';
+    }).join("");
+  }
+  var CSS_OK = false;
+  function css(){
+    if(CSS_OK) return; CSS_OK = true;
+    var s = document.createElement("style");
+    s.textContent = ".relevo-box label{display:flex;align-items:center;gap:6px;cursor:pointer;padding:2px 0}"
+      + ".relevo-op{display:flex;align-items:center;gap:8px;margin:4px 0 2px 22px;font-size:11.5px;opacity:.85}.relevo-op input{flex:1;min-width:60px}"
+      + ".relevo-leg{margin:3px 0 4px 22px;padding:5px 7px;border-radius:7px;background:rgba(127,127,127,.12);font-size:11px;line-height:1.3}"
+      + ".relevo-li{display:flex;gap:6px;align-items:center;padding:1px 0}.relevo-li i{flex:0 0 14px;height:11px;border-radius:2px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.25)}"
+      + ".relevo-li i.lin{height:0;border-radius:0;box-shadow:none}"
+      + ".relevo-nota{margin-top:5px;font-size:10.5px;opacity:.65}.relevo-erro{margin-top:5px;font-size:11px;color:#ffb4a8}";
+    document.head.appendChild(s);
+  }
+  function htmlControle(opc){
+    css(); opc = opc || {};
+    var algum = CAMS.some(function(c){ return estado[c]; });
+    var h = '<details class="relevo-box ' + esc(opc.classe || "") + '"' + (algum ? " open" : "") + '><summary>Relevo — ANADEM</summary><div class="relevo-corpo">';
+    CAMS.forEach(function(cam){
+      h += '<label><input type="checkbox" data-relevo="' + cam + '"' + (estado[cam] ? " checked" : "") + '> ' + ROT[cam] + '</label>';
+      if(cam === "declividade") h += '<div class="relevo-op" data-relevo-so="declividade"' + (estado.declividade ? "" : " hidden") + '><span>Transparência</span><input type="range" min="0" max="90" step="5" data-relevo-op value="' + Math.round((1 - estado.op) * 100) + '"><span data-relevo-opv>' + Math.round((1 - estado.op) * 100) + '%</span></div>';
+      h += '<div class="relevo-leg" data-relevo-leg="' + cam + '" hidden></div>';
+    });
+    h += '<div class="relevo-nota">Fonte: ANADEM v1 (ANA/UFRGS, Copernicus GLO-30, 30 m), recortado nos lotes SPS-04 e SPS-07 (+3 km). Clique no mapa para ver a classe de declividade.</div><div data-relevo-erro></div></div></details>';
+    return h;
+  }
+  function ligar(host){
+    var det = host.querySelector("details.relevo-box"); if(!det) return;
+    var rng = det.querySelector("input[data-relevo-op]"), rv = det.querySelector("[data-relevo-opv]"), err = det.querySelector("[data-relevo-erro]");
+    function atualizar(){
+      CAMS.forEach(function(cam){
+        var cb = det.querySelector('input[data-relevo="' + cam + '"]'); if(cb) cb.checked = !!estado[cam];
+        var lg = det.querySelector('[data-relevo-leg="' + cam + '"]');
+        if(lg){ lg.hidden = !(estado[cam] && meta); if(!lg.hidden) lg.innerHTML = cam === "declividade" ? legendaDecl() : legendaLinhas(cam); }
+      });
+      var so = det.querySelector('[data-relevo-so="declividade"]'); if(so) so.hidden = !estado.declividade;
+    }
+    Array.prototype.forEach.call(det.querySelectorAll("input[data-relevo]"), function(cb){
+      cb.addEventListener("change", function(){
+        estado[cb.getAttribute("data-relevo")] = cb.checked; guardar();
+        carregarMeta().then(function(){ if(err) err.innerHTML = ""; atualizar(); avisar(); }).catch(function(e){
+          estado[cb.getAttribute("data-relevo")] = false; guardar(); atualizar();
+          if(err) err.innerHTML = '<div class="relevo-erro">Camada indisponível: ' + esc(e.message) + '</div>';
+        });
+      });
+    });
+    if(rng) rng.addEventListener("input", function(){ estado.op = 1 - (+rng.value) / 100; if(rv) rv.textContent = rng.value + "%"; guardar(); avisar(); });
+    if(CAMS.some(function(c){ return estado[c]; })) carregarMeta().then(atualizar, function(){});
+    var f = function(){ if(!document.body.contains(det)){ var i = ouvintes.indexOf(f); if(i >= 0) ouvintes.splice(i, 1); return; } atualizar(); };
+    ouvintes.push(f);
+  }
+
+  /* ---------- feições em lon/lat dentro de uma bbox (mapas compostos da DESP 2) ----------
+     quais = {declividade:bool, curvas:bool, drenagem:bool}. Devolve Promise<{declividade:[{v,nome,faixa,cor,polys}], curvas:{lines,mestras,rotulos},
+     drenagem:{lines:[[...]], porClasse:{v:[lines]}}}>; cada tile é recortado no próprio limite (sem a sobra de borda, que duplicaria). */
+  function clipEdge(pts, axis, v, keepGE){
+    var out = [], n = pts.length; if(!n) return out;
+    var p = pts[n - 1], pin = keepGE ? p[axis] >= v : p[axis] <= v;
+    for(var i = 0; i < n; i++){
+      var c = pts[i], cin = keepGE ? c[axis] >= v : c[axis] <= v;
+      if(cin !== pin){ var t = (v - p[axis]) / (c[axis] - p[axis]), q = [0, 0]; q[axis] = v; q[1 - axis] = p[1 - axis] + t * (c[1 - axis] - p[1 - axis]); out.push(q); }
+      if(cin) out.push(c);
+      p = c; pin = cin;
+    }
+    return out;
+  }
+  function recortaAnel(r, a, b){
+    r = clipEdge(r, 0, a, true); if(r.length < 3) return null; r = clipEdge(r, 0, b, false); if(r.length < 3) return null;
+    r = clipEdge(r, 1, a, true); if(r.length < 3) return null; r = clipEdge(r, 1, b, false); return r.length < 3 ? null : r;
+  }
+  function recortaLinha(l, a, b){
+    var out = [], cur = null;
+    for(var i = 1; i < l.length; i++){
+      var p = l[i - 1], q = l[i], dx = q[0] - p[0], dy = q[1] - p[1], t0 = 0, t1 = 1, ok = true;
+      var lim = [[-dx, p[0] - a], [dx, b - p[0]], [-dy, p[1] - a], [dy, b - p[1]]];
+      for(var j = 0; j < 4 && ok; j++){
+        var pp = lim[j][0], qq = lim[j][1];
+        if(pp === 0){ if(qq < 0) ok = false; continue; }
+        var t = qq / pp;
+        if(pp < 0){ if(t > t1) ok = false; else if(t > t0) t0 = t; } else { if(t < t0) ok = false; else if(t < t1) t1 = t; }
+      }
+      if(!ok){ cur = null; continue; }
+      var pa = t0 === 0 ? p : [p[0] + t0 * dx, p[1] + t0 * dy], pb = t1 === 1 ? q : [p[0] + t1 * dx, p[1] + t1 * dy];
+      if(!cur || t0 > 0){ cur = [pa]; out.push(cur); }
+      cur.push(pb); if(t1 < 1) cur = null;
+    }
+    return out.filter(function(t){ return t.length > 1; });
+  }
+  function geometrias(bb, quais){
+    return carregarMeta().then(function(){
+      var ex = meta.extent, jobs = [];
+      var res = { declividade:null, curvas:null, drenagem:null };
+      CAMS.forEach(function(cam){
+        if(!quais || !quais[cam]) return;
+        var z = meta.camadas[cam].zmax, n = Math.pow(2, z), a = merc(bb.w, bb.n, z), b = merc(bb.e, bb.s, z);
+        var paraLL = function(tx, ty){ return function(p){ var X = (tx + p[0] / ex) / n, Y = (ty + p[1] / ex) / n;
+          return [X * 360 - 180, Math.atan(Math.sinh(Math.PI * (1 - 2 * Y))) * 180 / Math.PI]; }; };
+        for(var ty = Math.floor(a[1]); ty <= Math.floor(b[1]); ty++) for(var tx = Math.floor(a[0]); tx <= Math.floor(b[0]); tx++){
+          (function(tx, ty){ jobs.push(pegarTile(cam, z, tx, ty).then(function(tl){ return { cam:cam, tl:tl, ll:paraLL(tx, ty) }; })); })(tx, ty);
+        }
+      });
+      return Promise.all(jobs).then(function(lista){
+        var decl = {}, curv = { lines:[], mestras:[], cotas:[] }, dren = { lines:[], porClasse:{} }, mest = meta.camadas.curvas.mestra || 25;
+        lista.forEach(function(q){
+          if(!q.tl) return;
+          q.tl.f.forEach(function(ft){
+            var partes = ft.r.map(function(r){ var o = []; for(var i = 0; i < r.length; i += 2) o.push([r[i], r[i+1]]); return o; });
+            if(q.cam === "declividade"){
+              var c = classe("declividade", ft.a); if(!c) return;
+              var d = decl[c.v] || (decl[c.v] = { v:c.v, nome:c.nome, faixa:c.faixa, cor:c.cor, polys:[] });
+              partes.forEach(function(r){ var k = recortaAnel(r, 0, ex); if(k) d.polys.push(k.map(q.ll)); });
+            } else {
+              partes.forEach(function(r){ recortaLinha(r, 0, ex).forEach(function(t){
+                var ll = t.map(q.ll);
+                if(q.cam === "curvas"){ if(ft.a % mest === 0){ curv.mestras.push(ll); curv.cotas.push(ft.a); } else curv.lines.push(ll); }
+                else { dren.lines.push(ll); (dren.porClasse[ft.a] || (dren.porClasse[ft.a] = [])).push(ll); }
+              }); });
+            }
+          });
+        });
+        if(quais.declividade) res.declividade = Object.keys(decl).sort().map(function(k){ return decl[k]; }).filter(function(d){ return d.polys.length; });
+        if(quais.curvas) res.curvas = curv;
+        if(quais.drenagem) res.drenagem = dren;
+        return res;
+      });
+    });
+  }
+
+  /* ---------- recorte por imóvel em alta resolução (DESP 2, 22/10/2026) ----------
+     Como no QGIS: o DEM de 30 m do lote (servidor: /api/relevo/dem) é reprojetado por convolução cúbica 4×4 (Keys a=-0,5,
+     a "cúbica" do GDAL) para 1 m; desse DEM saem a declividade (Horn, %, classes EMBRAPA) e as curvas de 5 m, só dentro dos
+     polígonos (área total do imóvel). A drenagem continua a do r.watershed de 30 m (precisa da bacia inteira), recortada.
+     Grade em SIRGAS 2000 / UTM 24S, a mesma do DEM. Imóvel muito grande: a resolução sobe (1, 2, 3 m…) para ficar ≤ ~9 mi de pixels. */
+  var UTM_ZONA = 24;
+  function utm(lon, lat){
+    var a = 6378137, f = 1 / 298.257223563, e2 = f * (2 - f), k0 = 0.9996, ep2 = e2 / (1 - e2), lon0 = (UTM_ZONA * 6 - 183) * Math.PI / 180;
+    var p = lat * Math.PI / 180, l = lon * Math.PI / 180, sp = Math.sin(p), cp = Math.cos(p);
+    var N = a / Math.sqrt(1 - e2 * sp * sp), T = Math.tan(p) * Math.tan(p), C = ep2 * cp * cp, A = cp * (l - lon0);
+    var M = a * ((1 - e2/4 - 3*e2*e2/64 - 5*e2*e2*e2/256) * p - (3*e2/8 + 3*e2*e2/32 + 45*e2*e2*e2/1024) * Math.sin(2*p) + (15*e2*e2/256 + 45*e2*e2*e2/1024) * Math.sin(4*p) - (35*e2*e2*e2/3072) * Math.sin(6*p));
+    var E = k0 * N * (A + (1 - T + C) * Math.pow(A, 3) / 6 + (5 - 18*T + T*T + 72*C - 58*ep2) * Math.pow(A, 5) / 120) + 500000;
+    var Nn = k0 * (M + N * Math.tan(p) * (A*A/2 + (5 - T + 9*C + 4*C*C) * Math.pow(A, 4) / 24 + (61 - 58*T + T*T + 600*C - 330*ep2) * Math.pow(A, 6) / 720)) + 10000000;
+    return [E, Nn];
+  }
+  function utmInv(E, N){
+    var a = 6378137, f = 1 / 298.257223563, e2 = f * (2 - f), k0 = 0.9996, ep2 = e2 / (1 - e2), e1 = (1 - Math.sqrt(1 - e2)) / (1 + Math.sqrt(1 - e2));
+    var x = E - 500000, M = (N - 10000000) / k0, mu = M / (a * (1 - e2/4 - 3*e2*e2/64 - 5*e2*e2*e2/256));
+    var p1 = mu + (3*e1/2 - 27*Math.pow(e1, 3)/32) * Math.sin(2*mu) + (21*e1*e1/16 - 55*Math.pow(e1, 4)/32) * Math.sin(4*mu) + (151*Math.pow(e1, 3)/96) * Math.sin(6*mu);
+    var C1 = ep2 * Math.pow(Math.cos(p1), 2), T1 = Math.pow(Math.tan(p1), 2), s1 = Math.sin(p1);
+    var N1 = a / Math.sqrt(1 - e2 * s1 * s1), R1 = a * (1 - e2) / Math.pow(1 - e2 * s1 * s1, 1.5), D = x / (N1 * k0);
+    var lat = p1 - (N1 * Math.tan(p1) / R1) * (D*D/2 - (5 + 3*T1 + 10*C1 - 4*C1*C1 - 9*ep2) * Math.pow(D, 4)/24 + (61 + 90*T1 + 298*C1 + 45*T1*T1 - 252*ep2 - 3*C1*C1) * Math.pow(D, 6)/720);
+    var lon = (UTM_ZONA * 6 - 183) + (D - (1 + 2*T1 + C1) * Math.pow(D, 3)/6 + (5 - 2*C1 + 28*T1 - 3*C1*C1 + 8*ep2 + 24*T1*T1) * Math.pow(D, 5)/120) / Math.cos(p1) * 180 / Math.PI;
+    return [lon, lat * 180 / Math.PI];
+  }
+  function keys(t){ t = Math.abs(t); return t <= 1 ? (1.5*t - 2.5)*t*t + 1 : (t < 2 ? ((-.5*t + 2.5)*t - 4)*t + 2 : 0); }   // núcleo cúbico a = -0,5
+  // pesos e índices dos 4 vizinhos de cada posição (em pixels da grade de origem, centro do pixel = inteiro)
+  function taps(pos, n){
+    var i0 = Math.floor(pos), out = { i:new Int32Array(4), w:new Float32Array(4) }, s = 0;
+    for(var k = 0; k < 4; k++){ var i = i0 - 1 + k; out.i[k] = Math.max(0, Math.min(n - 1, i)); out.w[k] = keys(pos - i); s += out.w[k]; }
+    for(k = 0; k < 4; k++) out.w[k] /= s;
+    return out;
+  }
+  function noPoligonoLL(x, y, anel){
+    var d = false;
+    for(var i = 0, j = anel.length - 1; i < anel.length; j = i++){
+      var xi = anel[i][0], yi = anel[i][1], xj = anel[j][0], yj = anel[j][1];
+      if(((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) d = !d;
+    }
+    return d;
+  }
+  function dentroDe(polys, p){ var par = false; for(var i = 0; i < polys.length; i++) if(noPoligonoLL(p[0], p[1], polys[i])) par = !par; return par; }
+  // trechos de cada linha dentro dos polígonos (densifica a ~3 m para cortar na borda)
+  function recortarLinhas(linhas, polys){
+    var out = [], passo = 3e-5;
+    linhas.forEach(function(l){
+      var cur = null;
+      for(var i = 0; i < l.length; i++){
+        var pts = [l[i]];
+        if(i > 0){ var a = l[i-1], b = l[i], n = Math.ceil(Math.max(Math.abs(b[0]-a[0]), Math.abs(b[1]-a[1])) / passo); pts = []; for(var k = 1; k <= n; k++) pts.push([a[0] + (b[0]-a[0])*k/n, a[1] + (b[1]-a[1])*k/n]); }
+        pts.forEach(function(p){ if(dentroDe(polys, p)){ if(!cur){ cur = []; out.push(cur); } cur.push(p); } else cur = null; });
+      }
+    });
+    return out.filter(function(t){ return t.length > 1; });
+  }
+  function dpSimples(pts, tol){
+    if(pts.length <= 2) return pts;
+    var keep = new Uint8Array(pts.length), st = [0, pts.length - 1], t2 = tol * tol; keep[0] = keep[pts.length - 1] = 1;
+    while(st.length){
+      var b = st.pop(), a = st.pop(), md = -1, mi = -1, ax = pts[a][0], ay = pts[a][1], dx = pts[b][0] - ax, dy = pts[b][1] - ay, L = dx*dx + dy*dy;
+      for(var i = a + 1; i < b; i++){
+        var t = L ? Math.max(0, Math.min(1, ((pts[i][0]-ax)*dx + (pts[i][1]-ay)*dy) / L)) : 0, ex = pts[i][0] - ax - t*dx, ey = pts[i][1] - ay - t*dy, d = ex*ex + ey*ey;
+        if(d > md){ md = d; mi = i; }
+      }
+      if(md > t2){ keep[mi] = 1; st.push(a, mi, mi, b); }
+    }
+    return pts.filter(function(_, i){ return keep[i]; });
+  }
+  function recorteImovel(polysLL, quais){
+    quais = quais || { declividade:true, curvas:true, drenagem:true };
+    var pu = polysLL.map(function(r){ return r.map(function(p){ return utm(p[0], p[1]); }); });
+    var e0 = Infinity, n0 = Infinity, e1 = -Infinity, n1 = -Infinity;
+    pu.forEach(function(r){ r.forEach(function(p){ if(p[0] < e0) e0 = p[0]; if(p[0] > e1) e1 = p[0]; if(p[1] < n0) n0 = p[1]; if(p[1] > n1) n1 = p[1]; }); });
+    if(!isFinite(e0)) return Promise.reject(new Error("sem polígono"));
+    e0 = Math.floor(e0) - 2; n0 = Math.floor(n0) - 2; e1 = Math.ceil(e1) + 2; n1 = Math.ceil(n1) + 2;
+    var res = Math.max(1, Math.ceil(Math.sqrt((e1 - e0) * (n1 - n0) / 9e6)));
+    var W = Math.ceil((e1 - e0) / res), H = Math.ceil((n1 - n0) / res);
+    var precisaDem = quais.declividade || quais.curvas;
+    var pDem = !precisaDem ? Promise.resolve(null) : fetch(BASE + "/dem?bbox=" + [e0, n0, e1, n1].join(",")).then(function(r){
+      if(!r.ok) return r.json().catch(function(){ return {}; }).then(function(j){ throw new Error(j.erro || ("HTTP " + r.status)); });
+      var g = JSON.parse(r.headers.get("X-Relevo-Grade"));
+      return r.arrayBuffer().then(function(b){ g.v = new Int16Array(b); return g; });
+    });
+    var pDren = quais.drenagem ? geometrias(bboxLL(e0, n0, e1, n1), { drenagem:true }) : Promise.resolve(null);
+    return Promise.all([pDem, pDren, carregarMeta()]).then(function(rs){
+      var g = rs[0], out = { res:res, declividade:null, curvas:null, drenagem:null };
+      if(rs[1] && rs[1].drenagem){
+        var pc = {}, todas = [];
+        Object.keys(rs[1].drenagem.porClasse).forEach(function(v){ var l = recortarLinhas(rs[1].drenagem.porClasse[v], polysLL); if(l.length){ pc[v] = l; todas = todas.concat(l); } });
+        if(todas.length) out.drenagem = { lines:todas, porClasse:pc };
+      }
+      if(!g) return out;
+      // 1) DEM reamostrado (cúbica 4×4) na grade de 'res' metros: primeiro nas colunas, depois nas linhas
+      var Z = new Float32Array(W * H), tc = [], tr = [], i, j, k;
+      for(i = 0; i < W; i++) tc.push(taps((e0 + (i + .5) * res - g.x0) / g.res - .5, g.nx));
+      for(j = 0; j < H; j++) tr.push(taps((g.y0 - (n1 - (j + .5) * res)) / g.res - .5, g.ny));
+      var linhaC = {}, esc = g.escala;
+      function linha(rr){
+        var L = linhaC[rr]; if(L) return L;
+        L = linhaC[rr] = new Float32Array(W); var base = rr * g.nx;
+        for(var x = 0; x < W; x++){ var t = tc[x], s = 0; for(var q = 0; q < 4; q++) s += t.w[q] * g.v[base + t.i[q]]; L[x] = s * esc; }
+        return L;
+      }
+      for(j = 0; j < H; j++){
+        var t = tr[j], L0 = linha(t.i[0]), L1 = linha(t.i[1]), L2 = linha(t.i[2]), L3 = linha(t.i[3]), o = j * W;
+        for(i = 0; i < W; i++) Z[o + i] = t.w[0]*L0[i] + t.w[1]*L1[i] + t.w[2]*L2[i] + t.w[3]*L3[i];
+        if(j % 64 === 0) Object.keys(linhaC).forEach(function(r){ if(+r < t.i[0]) delete linhaC[r]; });   // linhas de origem que já ficaram para trás
+      }
+      // 2) máscara: centro do pixel dentro da área (par/ímpar, por varredura de linha)
+      var M = new Uint8Array(W * H);
+      for(j = 0; j < H; j++){
+        var y = n1 - (j + .5) * res, xs = [];
+        pu.forEach(function(r){ for(var a = 0, b = r.length - 1; a < r.length; b = a++){ var ya = r[a][1], yb = r[b][1]; if((ya > y) !== (yb > y)) xs.push(r[a][0] + (y - ya) * (r[b][0] - r[a][0]) / (yb - ya)); } });
+        xs.sort(function(p, q){ return p - q; });
+        for(k = 0; k + 1 < xs.length; k += 2){
+          var c0 = Math.max(0, Math.ceil((xs[k] - e0) / res - .5)), c1 = Math.min(W - 1, Math.floor((xs[k+1] - e0) / res - .5));
+          for(i = c0; i <= c1; i++) M[j * W + i] = 1;
+        }
+      }
+      var tl = utmInv(e0, n1), tr2 = utmInv(e0 + W * res, n1), bl = utmInv(e0, n1 - H * res);
+      // 3) declividade (Horn) -> classes EMBRAPA -> imagem transparente fora da área
+      if(quais.declividade){
+        var cls = meta.camadas.declividade.classes, lim = [3, 8, 20, 45, 75], rgb = cls.map(function(c){ return [1, 3, 5].map(function(p){ return parseInt(c.cor.substr(p, 2), 16); }); });
+        var cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+        var cx = cv.getContext("2d"), img = cx.createImageData(W, H), d = img.data, cont = [0, 0, 0, 0, 0, 0];
+        var z = function(x, yy){ x = x < 0 ? 0 : (x >= W ? W - 1 : x); yy = yy < 0 ? 0 : (yy >= H ? H - 1 : yy); return Z[yy * W + x]; };
+        for(j = 0; j < H; j++) for(i = 0; i < W; i++){
+          if(!M[j * W + i]) continue;
+          var A = z(i-1, j-1), B = z(i, j-1), C = z(i+1, j-1), D = z(i-1, j), F = z(i+1, j), G = z(i-1, j+1), Hh = z(i, j+1), I = z(i+1, j+1);
+          var dzx = ((C + 2*F + I) - (A + 2*D + G)) / (8 * res), dzy = ((G + 2*Hh + I) - (A + 2*B + C)) / (8 * res);
+          var pct = 100 * Math.sqrt(dzx*dzx + dzy*dzy), c = 0; while(c < 5 && pct >= lim[c]) c++;
+          var p4 = (j * W + i) * 4; d[p4] = rgb[c][0]; d[p4+1] = rgb[c][1]; d[p4+2] = rgb[c][2]; d[p4+3] = 255; cont[c]++;
+        }
+        cx.putImageData(img, 0, 0);
+        out.declividade = { url:cv.toDataURL("image/png"), W:W, H:H, tl:tl, tr:tr2, bl:bl,
+          classes:cls.filter(function(c, n){ return cont[n] > 0; }), contagem:cont };
+      }
+      // 4) curvas de nível (marching squares nas células com os 4 cantos dentro), trechos emendados e simplificados
+      if(quais.curvas){
+        var INT = meta.camadas.curvas.intervalo || 5, MEST = meta.camadas.curvas.mestra || 25, porNivel = {};
+        for(j = 0; j < H - 1; j++) for(i = 0; i < W - 1; i++){
+          var o0 = j * W + i; if(!(M[o0] && M[o0+1] && M[o0+W] && M[o0+W+1])) continue;
+          var a0 = Z[o0], a1 = Z[o0+1], a2 = Z[o0+W+1], a3 = Z[o0+W], mn = Math.min(a0, a1, a2, a3), mx = Math.max(a0, a1, a2, a3);
+          for(var Lv = Math.ceil(mn / INT) * INT; Lv <= mx; Lv += INT){
+            if(Lv <= mn) continue;
+            var pts = [];   // [chave da aresta, x, y]
+            if((a0 < Lv) !== (a1 < Lv)) pts.push([2 * o0, i + (Lv - a0) / (a1 - a0), j]);
+            if((a1 < Lv) !== (a2 < Lv)) pts.push([2 * (o0 + 1) + 1, i + 1, j + (Lv - a1) / (a2 - a1)]);
+            if((a3 < Lv) !== (a2 < Lv)) pts.push([2 * (o0 + W), i + (Lv - a3) / (a2 - a3), j + 1]);
+            if((a0 < Lv) !== (a3 < Lv)) pts.push([2 * o0 + 1, i, j + (Lv - a0) / (a3 - a0)]);
+            var lst = porNivel[Lv] || (porNivel[Lv] = []);
+            if(pts.length >= 2) lst.push([pts[0], pts[1]]);
+            if(pts.length === 4) lst.push([pts[2], pts[3]]);
+          }
+        }
+        var linhas = [], mestras = [], cotas = [];
+        Object.keys(porNivel).forEach(function(lv){
+          var segs = porNivel[lv], porChave = new Map(), usado = new Uint8Array(segs.length);
+          segs.forEach(function(s, n){ [0, 1].forEach(function(e){ var ch = s[e][0], l = porChave.get(ch); if(l) l.push(n); else porChave.set(ch, [n]); }); });
+          for(var n = 0; n < segs.length; n++){
+            if(usado[n]) continue; usado[n] = 1;
+            var cad = [segs[n][0], segs[n][1]];
+            [1, 0].forEach(function(lado){   // estende pelas duas pontas
+              for(;;){
+                var ponta = lado ? cad[cad.length - 1] : cad[0], viz = porChave.get(ponta[0]) || [], prox = -1;
+                for(var q = 0; q < viz.length; q++) if(!usado[viz[q]]){ prox = viz[q]; break; }
+                if(prox < 0) break;
+                usado[prox] = 1; var sg = segs[prox], nova = sg[0][0] === ponta[0] ? sg[1] : sg[0];
+                if(lado) cad.push(nova); else cad.unshift(nova);
+              }
+            });
+            var ll = dpSimples(cad.map(function(p){ return [p[1], p[2]]; }), .35).map(function(p){ return utmInv(e0 + (p[0] + .5) * res, n1 - (p[1] + .5) * res); });
+            if(ll.length < 2) continue;
+            if(+lv % MEST === 0){ mestras.push(ll); cotas.push(+lv); } else linhas.push(ll);
+          }
+        });
+        out.curvas = { lines:linhas, mestras:mestras, cotas:cotas };
+      }
+      return out;
+    });
+  }
+  function bboxLL(e0, n0, e1, n1){
+    var c = [utmInv(e0, n0), utmInv(e1, n0), utmInv(e0, n1), utmInv(e1, n1)];
+    return { w:Math.min(c[0][0], c[2][0]), e:Math.max(c[1][0], c[3][0]), s:Math.min(c[0][1], c[1][1]), n:Math.max(c[2][1], c[3][1]) };
+  }
+
+  window.RELEVO = {
+    CAMS:CAMS, ROT:ROT, COR_CURVA:COR_CURVA, COR_DREN:COR_DREN, estado:estado,
+    carregarMeta:carregarMeta, criarCamada:criarCamada, htmlControle:htmlControle, ligar:ligar, geometrias:geometrias, identificar:identificar, recorteImovel:recorteImovel,
+    meta:function(){ return meta; }, pesoDren:function(v){ return meta ? pesoDren(v) : 1; },
+    onMudar:function(f){ ouvintes.push(f); }
+  };
+})();
+</script>
 <!--SOLOS:FIM-->
 <!--APPVER:INICIO-->
 <script>
@@ -61532,9 +62114,9 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.22-1';
+window.APP_VERSAO = '2026.10.22-2';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
-window.SERVIDOR_RECOMENDADO = '2026.10.20-4';
+window.SERVIDOR_RECOMENDADO = '2026.10.22-2';
 (function(){
   var SEM_VERSAO = '0000.00.00-0';
   var LEGADO_LAYOUT = '2026.10.07-0';   // servidor que já tem layout_antigo no health, mas ainda sem número de versão
