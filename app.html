@@ -54794,6 +54794,8 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
   window.D2_normalizarEditor=function(ed){ docNormalizar(ed); };
   window.D2_figMeta=function(fid){ return figMeta(fid); };          // legenda/fonte com a edição do usuário (D2DOC.caps)
   window.D2_figMetaBase=function(fid){ return d2metaBase(fid); };   // legenda/fonte padrão
+  // texto (markdown) que a DESP-2 imprime hoje num tópico, sem a data do dia (modelo 02: ponto de partida da edição própria da Conclusão)
+  window.D2_textoBase=function(id){ return D2DOC.ovr[id]!=null ? window.D2_ajustarOvrAreas006(id, D2DOC.ovr[id]) : textoAuto(id); };
   window.D2_htmlTopico=function(id){ var tp=D2_topicosDoc(true).filter(function(x){ return x.id===id; })[0]; return tp?docMdToHtml(textoImpresso(tp)):""; };
   // altitude mín./máx. e classe de declividade (EMBRAPA) predominante da área total — sem desenhar mapa (texto do modelo 02)
   window.D2_relevoImovel=async function(){
@@ -62278,7 +62280,9 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
       "Considerando os aspectos anteriormente expostos, apresenta-se, a seguir, a caracterização das particularidades do imóvel afetado, com ênfase nas interferências decorrentes da implantação ferroviária e em suas respectivas implicações territoriais e funcionais.",
       v("d2m2_estudo") || "[preencher na aba Modelo 02]"
     ].join("\n") }));
-    L.push(B("conclus_o", "6.", "CONCLUSÃO"));
+    var tc = B("conclus_o", "6.", "CONCLUSÃO");
+    if(ovr("m2_concl")){ tc._extra = true; tc.txt = ovr("m2_concl"); }   // conclusão editada só no Modelo 02 (a da DESP-2 não muda); a data do dia e a assinatura continuam saindo pelo id
+    L.push(tc);
     L.push(X({ id:"m2_anexos", level:1, num:"7.", head:"ANEXOS", txt:"Seguem, como anexos ao presente relatório, o relatório fotográfico (Anexo 1) e a Anotação de Responsabilidade Técnica – ART (Anexo 2)." }));
     var fo = B("anexo_2_relat_rio_fotogr_fic", "7.1", "ANEXO 1 - RELATÓRIO FOTOGRÁFICO"); fo.level = 2; L.push(fo);
     L.push(X({ id:"m2_art", level:2, num:"", head:"ANEXO 2 - ANOTAÇÃO DE RESPONSABILIDADE TÉCNICA (ART)", txt:(artPronta() || artBanco()) ? "A " + ((artBanco() && !artPronta() && artBanco().art.tipo === "RRT") ? "Registro de Responsabilidade Técnica (RRT)" : "Anotação de Responsabilidade Técnica (ART)") + " do responsável pelo presente relatório segue nas páginas seguintes." : "[ART não encontrada — escolha o responsável técnico ou carregue o PDF em Anexo 11 (ART).]" }));
@@ -62586,8 +62590,8 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     P["m2_estudo"] = secao("m2_estudo", 1, NUMS["m2_estudo"] || "", "ESTUDO DAS NECESSIDADES",
       auto("fixo", "A implantação da infraestrutura ferroviária sobre propriedades rurais ou urbanas pode ocasionar impactos significativos, tais como o seccionamento e o isolamento de áreas, dificuldades de acesso, restrições à circulação e exposição à entrada de terceiros. Nesse contexto, torna-se necessário identificar e avaliar os efeitos decorrentes da intervenção sobre cada imóvel, bem como analisar alternativas que possibilitem mitigar os impactos identificados.\nConsiderando os aspectos anteriormente expostos, apresenta-se, a seguir, a caracterização das particularidades do imóvel afetado, com ênfase nas interferências decorrentes da implantação ferroviária e em suas respectivas implicações territoriais e funcionais.", true)
       + h4("Análise do imóvel") + editor("d2m2_estudo", "A área em estudo possui acessos internos destinados ao manejo de animais e máquinas agrícolas, e acesso externo a partir de estrada vicinal. O acesso à remanescente norte será impactado pela construção da ferrovia, gerando a necessidade de alternativas que possam mitigar a situação."));
-    P["m2_s6"] = secao("m2_s6", 1, NUMS["m2_s6"] || "", "CONCLUSÃO", autoD2("igual à DESP-2 — edite o texto lá", "conclus_o")
-      + '<div class="dd-assin"><div class="dd-assin-linha"></div><b>' + esc(campo("responsavel") || "[responsável técnico]") + '</b><span>' + esc(campo("crea") || "[CREA]") + '</span><small>Responsável Técnico · escolha em “Identificação” da DESP-2</small></div>', { auto:true });
+    P["m2_s6"] = secao("m2_s6", 1, NUMS["m2_s6"] || "", "CONCLUSÃO", (ovr("m2_concl") ? autoBloco("m2_concl", "") : autoBloco("m2_concl", "igual à DESP-2 — para mudar só no Modelo 02, use “✎ Editar o texto”"))
+      + '<div class="dd-assin"><div class="dd-assin-linha"></div><b>' + esc(campo("responsavel") || "[responsável técnico]") + '</b><span>' + esc(campo("crea") || "[CREA]") + '</span><small>Responsável Técnico · escolha em “Identificação” da DESP-2</small></div>', { auto:!ovr("m2_concl"), manual:!!ovr("m2_concl") });
     P["m2_s7"] = secao("m2_s7", 1, NUMS["m2_s7"] || "", "ANEXOS", auto("fixo", "Seguem, como anexos ao presente relatório, o relatório fotográfico (Anexo 1) e a Anotação de Responsabilidade Técnica – ART (Anexo 2).", true));
     P["m2_s71"] = secao("m2_s71", 2, NUMS["m2_s71"] || "", "ANEXO 1 - RELATÓRIO FOTOGRÁFICO", fotosHtml(), { auto:true });
     P["m2_s72"] = secao("m2_s72", 2, NUMS["m2_s72"] || "", "ANEXO 2 - ANOTAÇÃO DE RESPONSABILIDADE TÉCNICA (ART)",
@@ -62985,7 +62989,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
   }
   function txtCarac2(){ return "Na imagem " + nImg("m2_2") + " é possível notar as características relatadas até aqui, de acordo com os metadados disponíveis nas plataformas SICAR e/ou SIGEF, os quais foram utilizados para caracterizar ambientalmente o imóvel, inserindo a faixa de domínio, para que seja visualizado como a propriedade permanecerá após a passagem da ferrovia. Na imagem " + nImg("m2_3") + " é demonstrada a disposição do imóvel, com as vias de acesso internas, juntamente com a via de acesso externa."; }
   /* textos automáticos que o usuário fixou para editar: { id: md } em #d2m2_ovr (os fatos ficam em #d2m2_fatos, como antes) */
-  var AUTO_TXT = { m2_sigmap:txtSig, m2_padrao:txtPadrao, m2_carac2:txtCarac2, m2_car:txtCar, m2_hipso:txtHipso, m2_fatos:txtFatosAuto };
+  var AUTO_TXT = { m2_concl:function(){ return window.D2_textoBase ? window.D2_textoBase("conclus_o") : ""; }, m2_sigmap:txtSig, m2_padrao:txtPadrao, m2_carac2:txtCarac2, m2_car:txtCar, m2_hipso:txtHipso, m2_fatos:txtFatosAuto };
   function ovrs(){ try{ return JSON.parse(v("d2m2_ovr") || "{}") || {}; }catch(e){ return {}; } }
   function ovr(k){ var o = k === "m2_fatos" ? v("d2m2_fatos") : ovrs()[k]; return typeof o === "string" && o.trim() ? o : ""; }
   function setOvr(k, md){
@@ -64610,7 +64614,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.23-8';
+window.APP_VERSAO = '2026.10.23-9';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.23-3';
 (function(){
