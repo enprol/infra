@@ -19981,6 +19981,14 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
     doc.text(mesAno, BARRA/2, H-114, {align:"center"});
   }
 
+  /* 23/10/2026: nome do memorial conforme o que o cadastro tem: os dois = "… de Terra Nua e Benfeitorias"; só um = só a parte pertinente.
+     Capa, cabeçalho das páginas e lista do "Baixar material técnico" usam o mesmo. */
+  function memorialTitulo(){
+    let c = { tn:false, br:false, bnr:false }; try{ c = anxCasos(); }catch(e){}
+    const b = c.br || c.bnr;
+    return "Memorial de Cálculo" + (c.tn && b ? " de Terra Nua e Benfeitorias" : c.tn ? " de Terra Nua" : b ? " de Benfeitorias" : "");
+  }
+  window.AVFTN_tituloMemorial = memorialTitulo;
   // ---------- CAPA DO MEMORIAL DE CÁLCULO (15/10/2026) ----------
   // Mesmo desenho e mesmos textos das capas do DESP 1 / DESP 2: ferrovia, lote, processo, EXPROPRIADO, LOCAÇÃO + áreas e contrato justificado
   function desenharCapaMemorial(pdf){
@@ -20000,7 +20008,7 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
     pdf.text("GEDAF – GERÊNCIA DE DESAPROPRIAÇÃO E ASSUNTOS FUNDIÁRIOS", cxC, y, {align:"center"});
     pdf.setDrawColor(20,40,70); pdf.setLineWidth(0.4); pdf.line(cxL, y+3, W-mR, y+3); y+=26;
     pdf.setFontSize(19);
-    pdf.splitTextToSize("MEMORIAL DE CÁLCULO DE TERRA NUA E BENFEITORIAS", LARG).forEach(function(l){ pdf.text(l, cxC, y, {align:"center"}); y+=8; });
+    pdf.splitTextToSize(memorialTitulo().toUpperCase(), LARG).forEach(function(l){ pdf.text(l, cxC, y, {align:"center"}); y+=8; });
     y+=6;
     pdf.setFontSize(13); pdf.setTextColor(40,40,40); pdf.text("DESP-3", cxC, y, {align:"center"}); y+=16;
     pdf.setFontSize(12); pdf.setFont("helvetica","normal");
@@ -20644,7 +20652,7 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
   const FTN_SEM_TABELAS_BENF = true;
   async function paginasBenfeitorias(procRef, pg0){
     if(FTN_SEM_TABELAS_BENF || !benfIndice().length) return null;
-    const {jsPDF} = window.jspdf, doc = new jsPDF({unit:"pt",format:"a4",compress:true}), ctx = ctxRel(doc, procRef, "DESP-3 (Memorial de Cálculo de Terra Nua e Benfeitorias)", pg0 || 0);
+    const {jsPDF} = window.jspdf, doc = new jsPDF({unit:"pt",format:"a4",compress:true}), ctx = ctxRel(doc, procRef, "DESP-3 (" + memorialTitulo() + ")", pg0 || 0);
     desenharMemorialBenfeitorias(doc,ctx);
     doc.deletePage(1);                                                               // a 1ª página (em branco) nasce com o documento
     return await PDFLib.PDFDocument.load(doc.output("arraybuffer"));
@@ -21290,12 +21298,19 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
   }
   // recortes do PDF da Metodologia (página 0-based, topo e base em pt, de cima para baixo)
   function anxMetBlocos(c){
-    const L = [], add = function(p,t,b){ L.push({p:p, t:t, b:b}); };
+    const L = [], add = function(p,t,b,cab,gap){ L.push({p:p, t:t, b:b, cab:cab, gap:gap}); };
     if(c.tn && (c.br || c.bnr)){ add(0,106,700); add(1,92,770); }                    // MÉTODO EVOLUTIVO: páginas 1 e 2 tal qual o PDF
     else if(c.tn){ add(0,106,250); add(0,413,474); add(0,551,700); add(1,92,770); } // só Terra Nua: cabeça + comparativo direto (sem o Custo) até o fim da pág. 2
     else { add(0,106,250); add(0,483,543); }                                         // só benfeitorias: cabeça + Método de quantificação de Custo
     if(c.br) add(2,92,782);                                                          // depreciação das benfeitorias reprodutivas
-    if(c.bnr){ add(3,100,782); add(4,92,786); add(5,92,785); }                       // depreciação das benfeitorias não reprodutivas
+    if(c.bnr){
+      // 23/10/2026: as 3 páginas do PDF da metodologia (depreciação das não reprodutivas) viram recortes por parágrafo, para o texto preencher a página
+      // anterior em vez de deixar um vão (cortes entre as linhas do PDF original, na metade do espaço entre dois parágrafos).
+      [[3,100,190],[3,190,292],[3,292,472],[3,472,514],[3,514,577],[3,577,640],[3,640,723],[3,723,782,8],   // pág. 4: método Lima, tabela de fatores, depreciação funcional
+       [4,92,316],[4,316,387],[4,387,500],[4,500,521],[4,521,542],[4,542,562],[4,562,583],[4,583,604],[4,604,624],[4,624,645],[4,645,672,8]].forEach(function(q){ add(q[0], q[1], q[2], null, q.length > 3 ? q[3] : 0); });   // pág. 5: depreciação física, Ross-Heidecke (cortes contínuos: sem vão entre eles)
+      // tabela de Ross-Heidecke (pág. 6): em duas partes; a 2ª repete o cabeçalho das colunas se começar em página nova
+      add(5,92,405,null,0); add(5,405,785,{ t:118, b:147 },0);
+    }
     return L;
   }
   async function anexoMet(out, procRef){
@@ -21307,9 +21322,12 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
     novaPagina(doc,ctx);
     blocos.forEach(function(b, i){
       const h = b.b - b.t;
-      if(i > 0 && ctx.y + h > ctx.MB) novaPagina(doc,ctx);
+      if(i > 0 && ctx.y + h > ctx.MB){
+        novaPagina(doc,ctx);
+        if(b.cab){ plano.push({ pag: doc.internal.getNumberOfPages(), p:b.p, t:b.cab.t, b:b.cab.b, y:ctx.y }); ctx.y += (b.cab.b - b.cab.t) + 4; }   // tabela partida: repete o cabeçalho
+      }
       plano.push({ pag: doc.internal.getNumberOfPages(), p:b.p, t:b.t, b:b.b, y:ctx.y });
-      ctx.y += h + 10;
+      ctx.y += h + (b.gap != null ? b.gap : 10);
     });
     doc.deletePage(1);                                                               // a 1ª página (em branco) nasce com o documento
     const ax = await PDFLib.PDFDocument.load(doc.output("arraybuffer")), base = out.getPageCount();
@@ -21558,7 +21576,7 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
     const n0 = out.getPageCount();
     for(let i = desde; i < n0; i++){
       const old = out.getPage(i), W = old.getWidth(), H = old.getHeight();
-      const td = new jsPDF({unit:"pt",format:"a4",compress:true}), tc = ctxRel(td, procRef, "DESP-3 (Memorial de Cálculo de Terra Nua e Benfeitorias)", (pgOffset||0) + (i - desde));
+      const td = new jsPDF({unit:"pt",format:"a4",compress:true}), tc = ctxRel(td, procRef, "DESP-3 (" + memorialTitulo() + ")", (pgOffset||0) + (i - desde));
       novaPagina(td,tc); td.deletePage(1);
       const tpl = await PDFLib.PDFDocument.load(td.output("arraybuffer")), embT = (await out.embedPdf(tpl))[0];
       const bottom = H - 62 /*rodapé antigo*/ , top = H - 82;
@@ -21589,7 +21607,7 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
               await juntar(out, await PDFLib.PDFDocument.load(dc.output("arraybuffer")));
             }catch(err){ console.warn("capa do memorial:", err); }
           }
-          const doc=new jsPDF({unit:"pt",format:"a4",compress:true}), ctx=ctxRel(doc, procRef, "DESP-3 (Memorial de Cálculo de Terra Nua e Benfeitorias)", 0);
+          const doc=new jsPDF({unit:"pt",format:"a4",compress:true}), ctx=ctxRel(doc, procRef, "DESP-3 (" + memorialTitulo() + ")", 0);
           desenharFtnCompacto(doc,ctx);
           const yFim = ctx.y;                                    // onde terminou o conteúdo na última página
           doc.deletePage(1);                                     // a 1ª página (em branco) nasce com o documento
@@ -63704,7 +63722,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
   var D2 = { k:"d2", fn:"D2_gerarPDF", t:"Relatório de Análise de Impacto e Transposição da Faixa de Domínio (modelo original)" };
   function semDocs(it){ return it.k === "ckd" && typeof window.PAR_totalDocs === "function" && !window.PAR_totalDocs(); }
   function todos(){ return P1.concat([D2M2, D2, MEM], ANX); }
-  var MEM = { k:"memorial", t:"Memorial de Cálculo de Terra Nua e Benfeitorias" };
+  var MEM = { k:"memorial", get t(){ return window.AVFTN_tituloMemorial ? window.AVFTN_tituloMemorial() : "Memorial de Cálculo"; } };   // 23/10/2026: Terra Nua e/ou Benfeitorias conforme o cadastro
   var MOTIVO = { pla:"sem KML da área em Técnica › Áreas de Locação", orc:"sem benfeitorias com tabela do RGV", met:"sem valores de terra nua ou benfeitorias", est:"sem amostra de terra nua (SisDEA)", amo:"sem amostra de terra nua (SisDEA)" };
   var ROMANO = ["I","II","III","IV","V","VI","VII","VIII"];
   var sel = { d2:false }, disp = {}, ANX = [], gerando = false;
@@ -64815,7 +64833,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.23-13';
+window.APP_VERSAO = '2026.10.23-14';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.23-3';
 (function(){
