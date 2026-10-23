@@ -62326,10 +62326,10 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
       ["Cadastro", "CTD " + (campo("cadastro") || "___") + " – " + (campo("trecho") || ("SPS-" + (s || "__"))) + " – PE"],
       ["Processo administrativo", campo("sei") || v("fb_proc_sei") || "_____"],
       ["Trecho interceptado", campo("km") || "_____"],
-      ["Área total do Imóvel", campo("areaTotal") ? campo("areaTotal") + " ha" : "_____"],
       ["Área abrangida pelo projeto da ferrovia", campo("areaDesap") ? campo("areaDesap") + " ha" : "_____"]
     ];
   }
+  function txtCaract(){ return dadosLinhas().map(function(d){ return "**" + d[0] + ":** " + d[1]; }).join("\n"); }   // como no modelo: só o rótulo em negrito
   function txtPadrao(){
     if(v("d2m2_padrao") === "2") return [
       "O imóvel rural objeto da presente caracterização corresponde a uma propriedade originalmente constituída por uma única unidade territorial, posteriormente seccionada pela implantação da infraestrutura ferroviária integrante do empreendimento.",
@@ -62374,7 +62374,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     function X(o){ return Object.assign({ _extra:true, figs:[] }, o); }
     var L = [];
     L.push(B("apresenta_o", "1.")); L.push(B("metodologia", "2."));
-    L.push(X({ id:"m2_caract", level:1, num:"3.", head:"CARACTERIZAÇÃO DO IMÓVEL E TRECHO FERROVIÁRIO", txt:dadosLinhas().map(function(d){ return "**" + d[0] + ":** " + d[1]; }).join("\n") }));   // como no modelo: só o rótulo em negrito
+    L.push(X({ id:"m2_caract", level:1, num:"3.", head:"CARACTERIZAÇÃO DO IMÓVEL E TRECHO FERROVIÁRIO", txt:txtDe("m2_caract") }));
     if($("d2m2_ctx_on") && $("d2m2_ctx_on").checked) L.push(X({ id:"m2_ctx", level:3, head:(v("d2m2_ctx_tit") || "Contexto histórico do imóvel"), txt:v("d2m2_ctx_txt"), figs:[] }));
     L.push(X({ id:"m2_sigmap", semTitulo:true, txt:txtDe("m2_sigmap"), figs:["m2_sig","m2_sig2"] }));
     L.push(X({ id:"m2_padrao", semTitulo:true, txt:txtDe("m2_padrao"), figs:["m2_1"] }));
@@ -62680,7 +62680,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     P["m2_s1"] = secao("m2_s1", 1, NUMS["m2_s1"] || "", "APRESENTAÇÃO", autoD2("igual à DESP-2 — edite o texto lá", "apresenta_o"), { auto:true });
     P["m2_s2"] = secao("m2_s2", 1, NUMS["m2_s2"] || "", "METODOLOGIA", autoD2("igual à DESP-2 — edite o texto lá", "metodologia"), { auto:true });
     P["m2_caract"] = secao("m2_caract", 1, NUMS["m2_caract"] || "", "CARACTERIZAÇÃO DO IMÓVEL E TRECHO FERROVIÁRIO",
-      '<div class="dd-auto" data-fixo="1"><span class="dd-auto-rot">automático · dados do cadastro</span>' + dadosLinhas().map(function(d){ return '<div class="dl" data-k="p"><b>' + esc(d[0]) + ':</b> ' + esc(d[1]) + '</div>'; }).join("") + '</div>', { auto:true });
+      autoBloco("m2_caract", "automático · dados do cadastro"), { auto:!ovr("m2_caract"), manual:!!ovr("m2_caract") });
     P["m2_ctx"] = secao("m2_ctx", 3, NUMS["m2_ctx"] || "", v("d2m2_ctx_tit") || "Contexto histórico do imóvel",
       (ctxOn ? h4("Texto do contexto") + editor("d2m2_ctx_txt", "No período de 2010 a 2012 foram tramitados nesta Superintendência os processos administrativos onde foram emitidos Contratos de Servidão de Passagem (SEI 1692686) entre o INCRA e o DNIT... O projeto passou por modificações posteriormente, sendo parcelado e com parte de sua área titulada no ano de 2016.")
              : '<p class="dd-nota">Bloco opcional — não sai no relatório. Marque “Incluir no relatório” para escrever o subtítulo e o texto do contexto histórico (vem antes da Imagem 1).</p>'),
@@ -63102,7 +63102,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
   }
   function txtCarac2(){ return "Na imagem " + nImg("m2_2") + " é possível notar as características relatadas até aqui, de acordo com os metadados disponíveis nas plataformas SICAR e/ou SIGEF, os quais foram utilizados para caracterizar ambientalmente o imóvel, inserindo a faixa de domínio, para que seja visualizado como a propriedade permanecerá após a passagem da ferrovia. Na imagem " + nImg("m2_3") + " é demonstrada a disposição do imóvel, com as vias de acesso internas, juntamente com a via de acesso externa."; }
   /* textos automáticos que o usuário fixou para editar: { id: md } em #d2m2_ovr (os fatos ficam em #d2m2_fatos, como antes) */
-  var AUTO_TXT = { m2_concl:function(){ return window.D2_textoBase ? window.D2_textoBase("conclus_o") : ""; }, m2_sigmap:txtSig, m2_padrao:txtPadrao, m2_carac2:txtCarac2, m2_car:txtCar, m2_hipso:txtHipso, m2_fatos:txtFatosAuto };
+  var AUTO_TXT = { m2_concl:function(){ return window.D2_textoBase ? window.D2_textoBase("conclus_o") : ""; }, m2_caract:txtCaract, m2_sigmap:txtSig, m2_padrao:txtPadrao, m2_carac2:txtCarac2, m2_car:txtCar, m2_hipso:txtHipso, m2_fatos:txtFatosAuto };
   function ovrs(){ try{ return JSON.parse(v("d2m2_ovr") || "{}") || {}; }catch(e){ return {}; } }
   function ovr(k){ var o = k === "m2_fatos" ? v("d2m2_fatos") : ovrs()[k]; return typeof o === "string" && o.trim() ? o : ""; }
   function setOvr(k, md){
@@ -64833,7 +64833,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.23-14';
+window.APP_VERSAO = '2026.10.23-15';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.23-3';
 (function(){
