@@ -9418,7 +9418,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 
         <div class="d2t-row">
           <div class="d2t-head"><span class="d2t-title">Textos do relatório (3 a 5)</span></div>
-          <p class="hint-auto" style="margin:0 0 10px;">Os mesmos campos da folha: o que você escreve aqui aparece lá e vice-versa. Use <b>**texto**</b> para negrito.</p>
+          <p class="hint-auto" style="margin:0 0 10px;">Os mesmos campos da folha: o que você escreve aqui aparece lá e vice-versa. Use <b>**texto**</b> para negrito (na folha do Conteúdo do relatório há a barra de estilos).</p>
           <div class="vfield"><label for="d2m2_ctx_txt">Contexto histórico (opcional)</label><textarea id="d2m2_ctx_txt" rows="4" oninput="D2M2_campoMudou()" placeholder="Ex.: No período de 2010 a 2012 foram tramitados nesta Superintendência os processos administrativos onde foram emitidos Contratos de Servidão de Passagem (SEI 1692686) entre o INCRA e o DNIT... O projeto passou por modificações posteriormente, sendo parcelado e com parte de sua área titulada no ano de 2016."></textarea></div>
           <div class="vfield"><label for="d2m2_fund">Situação fundiária da gleba desapropriada (resumo breve)</label><textarea id="d2m2_fund" rows="3" oninput="D2M2_campoMudou()" placeholder="Ex.: A área em questão encontra-se livre de conflito de divisas entre vizinhos, além de não possuir demandas junto aos órgãos fundiários e ambientais, tampouco há informação de hipoteca ou algo que restrinja ou impeça a venda do imóvel, conforme o documento protocolado pelo SEI 4763644, entre as páginas 13 e 21."></textarea></div>
           <div class="vfield"><label for="d2m2_expl">Tipo de exploração agrícola e maquinário utilizados</label><textarea id="d2m2_expl" rows="3" oninput="D2M2_campoMudou()" placeholder="Ex.: O tipo de exploração predominante é a pecuária, com criação de bovinos. Possui áreas consolidadas cobertas por pastagens artificiais destinadas ao pastejo do rebanho. O proprietário não possui maquinário agrícola próprio; quando necessário, os implementos são contratados no município."></textarea></div>
@@ -9434,10 +9434,18 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
         <div class="dd-layout">
           <nav class="dd-navwrap" aria-label="Sumário do relatório"><div class="dd-navtit">Sumário</div><div id="d2m2doc_nav"></div></nav>
           <div class="dd-col">
-            <div class="dd-bar" role="toolbar" aria-label="Estilo do texto">
-              <span class="dd-bar-rot">Texto:</span>
-              <button type="button" class="dd-bold" onmousedown="event.preventDefault()" onclick="D2M2_negrito()" title="Negrito — selecione o trecho e clique (ou Ctrl+B)"><b>N</b> Negrito</button>
-              <span class="dd-bar-dica">Clique num mapa para ampliar · ↻ regera o mapa quando você atualizar uma camada</span>
+            <div class="dd-bar" role="toolbar" aria-label="Estilo do parágrafo">
+              <span class="dd-bar-rot">Parágrafo:</span>
+              <button type="button" onmousedown="event.preventDefault()" onclick="D2M2_estilo('p')" title="Texto normal">¶ Texto</button>
+              <button type="button" onmousedown="event.preventDefault()" onclick="D2M2_estilo('b')" title="Lista com marcador">• Marcador</button>
+              <button type="button" onmousedown="event.preventDefault()" onclick="D2M2_estilo('A')" title="Lista com seta">➢ Seta</button>
+              <button type="button" onmousedown="event.preventDefault()" onclick="D2M2_estilo('R')" title="Lista numerada em romanos">I. Romano</button>
+              <button type="button" onmousedown="event.preventDefault()" onclick="D2M2_estilo('C')" title="Citação (itálico, recuada) — ETP, NBR...">❝ Citação</button>
+              <button type="button" onmousedown="event.preventDefault()" onclick="D2M2_estilo('L')" title="Alínea de citação: a), b), c)...">a) Alínea</button>
+              <span class="dd-bar-sep"></span>
+              <button type="button" class="dd-bold" onmousedown="event.preventDefault()" onclick="D2M2_estilo('bold')" title="Negrito — selecione o trecho e clique (ou Ctrl+B)"><b>N</b> Negrito</button>
+              <button type="button" onmousedown="event.preventDefault()" onclick="D2M2_inserirImg()" title="Insere uma imagem com legenda no tópico onde está o cursor">🖼 Imagem</button>
+              <span class="dd-bar-dica">Enter cria novo parágrafo · Enter num item vazio encerra a lista · clique num mapa para ampliar</span>
             </div>
             <div id="d2m2doc_main" class="dd-doc"></div>
           </div>
@@ -9449,7 +9457,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
         <textarea id="d2m2_car_imovel"></textarea><textarea id="d2m2_car_app"></textarea><textarea id="d2m2_car_rl"></textarea>
         <input type="hidden" id="d2m2_v_remN"><input type="hidden" id="d2m2_v_remS">
         <input type="hidden" id="d2m2_v_altmin"><input type="hidden" id="d2m2_v_altmax"><input type="hidden" id="d2m2_v_relevo">
-        <input type="hidden" id="d2m2_v_car"><input type="hidden" id="d2m2_v_mapver">
+        <input type="hidden" id="d2m2_v_car"><input type="hidden" id="d2m2_v_mapver"><textarea id="d2m2_ovr"></textarea>
       </div>
 
       <div class="vactions" style="margin-top:16px;">
@@ -54640,6 +54648,8 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
   window.D2_mdHtml=function(md){ return docMdToHtml(md); };
   window.D2_htmlParaMd=function(ed){ return docHtmlToMd(ed); };
   window.D2_normalizarEditor=function(ed){ docNormalizar(ed); };
+  window.D2_figMeta=function(fid){ return figMeta(fid); };          // legenda/fonte com a edição do usuário (D2DOC.caps)
+  window.D2_figMetaBase=function(fid){ return d2metaBase(fid); };   // legenda/fonte padrão
   window.D2_htmlTopico=function(id){ var tp=D2_topicosDoc(true).filter(function(x){ return x.id===id; })[0]; return tp?docMdToHtml(textoImpresso(tp)):""; };
   // altitude mín./máx. e classe de declividade (EMBRAPA) predominante da área total — sem desenhar mapa (texto do modelo 02)
   window.D2_relevoImovel=async function(){
@@ -61960,23 +61970,23 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
   function txtPadrao(){
     if(v("d2m2_padrao") === "2") return [
       "O imóvel rural objeto da presente caracterização corresponde a uma propriedade originalmente constituída por uma única unidade territorial, posteriormente seccionada pela implantação da infraestrutura ferroviária integrante do empreendimento.",
-      "**Em decorrência dessa intervenção, distinguem-se três porções territoriais para fins de análise: a faixa correspondente ao corredor ferroviário, abrangida pelo projeto, e as duas glebas remanescentes, denominadas A e B, situadas em margens opostas da ferrovia e atualmente individualizadas e certificadas no Sistema de Gestão Fundiária (SIGEF).**",
+      "Em decorrência dessa intervenção, distinguem-se **três porções territoriais** para fins de análise: a faixa correspondente ao **corredor ferroviário, abrangida pelo projeto**, e as **duas glebas remanescentes, denominadas A e B**, situadas em margens opostas da ferrovia e atualmente individualizadas e certificadas no Sistema de Gestão Fundiária (SIGEF).",
       "Ressalta-se que a discriminação da área abrangida pelo projeto ferroviário e das áreas remanescentes possui finalidade descritiva e analítica, não devendo ser interpretada, isoladamente, como demonstração de que as três áreas integram o perímetro atual da propriedade rural.",
-      "**Para fins de caracterização do imóvel remanescente, a área total considerada corresponde à soma das áreas das Glebas A e B, conforme suas respectivas delimitações e certificações. A faixa ferroviária é identificada separadamente, em razão de sua vinculação à intervenção que ocasionou o seccionamento territorial da propriedade.**"
+      "**Para fins de caracterização do imóvel remanescente**, a **área total considerada** corresponde à soma das áreas das **Glebas A e B**, conforme suas respectivas delimitações e certificações. A faixa ferroviária é identificada separadamente, em razão de sua vinculação à intervenção que ocasionou o seccionamento territorial da propriedade."
     ].join("\n");
     var n = v("d2m2_v_remN"), s = v("d2m2_v_remS");
     return [
       "Após a passagem da ferrovia o imóvel restará com área remanescente a norte e a sul da faixa de domínio projetada, com a seguinte disposição:",
-      "A área do imóvel, o qual foi interceptado, ficará com uma área remanescente a norte de **" + (n ? haTxt(+n) : "[gere a Imagem 2]") + "** e uma área remanescente a sul de **" + (s ? haTxt(+s) : "[gere a Imagem 1]") + "**, conforme demonstrado na imagem 2.",
+      "A área do imóvel, o qual foi interceptado, ficará com uma área remanescente a norte de " + (n ? haTxt(+n) : "[gere a Imagem 2]") + " e uma área remanescente a sul de " + (s ? haTxt(+s) : "[gere a Imagem 2]") + ", conforme demonstrado na imagem 2.",
       "Esclarecendo que essas medidas das áreas remanescentes expostas neste trabalho foram extraídas utilizando os dados de documentos obtidos, e a vetorização de dados metadados disponíveis em plataformas governamentais como SICAR e SIGEF, comparadas às feições do terreno visualizadas em imagens de satélite."
     ].join("\n");
   }
   function txtCar(){
     var im = carDado("imovel"), ap = carDado("app"), rl = carDado("rl"), c = valCar();
     var cad = im ? true : !!(c && c.cad), haApp = ap ? ap.ha : (c ? c.haApp : null), haRl = rl ? rl.ha : (c ? c.haRl : null);
-    if(!im && !c) return "**O imóvel objeto do presente relatório [ESTÁ / NÃO ESTÁ] cadastrado no SICAR (Sistema de Cadastro Ambiental Rural).** [carregue as camadas do CAR ou gere a Imagem 4]";
-    if(!cad) return "**O imóvel objeto do presente relatório não está cadastrado no SICAR (Sistema de Cadastro Ambiental Rural).**";
-    return "**O imóvel objeto do presente relatório está cadastrado no SICAR (Sistema de Cadastro Ambiental Rural), que consta declarado área de APP de " + (haApp != null ? haTxt(haApp) : "0,0000 ha") + " e área de Reserva Legal de " + (haRl != null ? haTxt(haRl) : "0,0000 ha") + ".**";
+    if(!im && !c) return "O imóvel objeto do presente relatório **[ESTÁ / NÃO ESTÁ]** cadastrado no SICAR (Sistema de Cadastro Ambiental Rural). [carregue as camadas do CAR ou gere a Imagem 5]";
+    if(!cad) return "O imóvel objeto do presente relatório **não está** cadastrado no SICAR (Sistema de Cadastro Ambiental Rural).";
+    return "O imóvel objeto do presente relatório **está** cadastrado no SICAR (Sistema de Cadastro Ambiental Rural), que consta declarado área de APP de " + (haApp != null ? haTxt(haApp) : "0,0000 ha") + " e área de Reserva Legal de " + (haRl != null ? haTxt(haRl) : "0,0000 ha") + ".";
   }
   function txtHipso(){
     var a = v("d2m2_v_altmin"), b = v("d2m2_v_altmax"), r = v("d2m2_v_relevo");
@@ -61984,11 +61994,10 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
   }
   function txtFatosAuto(){
     var p = campo("proprietario") || v("fb_nome") || "[proprietário]", im = campo("imovel") || "[denominação do imóvel]", mat = campo("matricula"), cart = campo("cartorio"), mun = campo("municipio");
-    var s1 = "**O imóvel rural é denominado " + im + ", de propriedade de " + p + (mat ? ", registrado sob a matrícula nº " + mat : "") + (cart ? ", junto ao " + cart : "") + (mun && !cart ? ", no município de " + mun : "") + ".**";
-    var s2 = "**Para fins do presente procedimento desapropriatório, promovido pela INFRA S.A., em decorrência da implantação da Ferrovia Transnordestina – FTN – EF-232, será afetada uma área de " + (campo("areaDesap") ? campo("areaDesap") + " ha" : "[área]") + ", correspondente ao trecho " + (campo("km") || "[km inicial e final]") + ", conforme os dados constantes do Processo Administrativo CTD " + (campo("cadastro") || "___") + " – " + (campo("trecho") || "SPS-__") + " – PE, SEI nº " + (campo("sei") || "[SEI]") + ".**";
+    var s1 = "O imóvel rural é denominado **" + im + "**, de propriedade de **" + p + "**" + (mat ? ", registrado sob a **matrícula nº " + mat + "**" : "") + (cart ? ", junto ao " + cart : "") + (mun && !cart ? ", no município de " + mun : "") + ".";
+    var s2 = "Para fins do presente procedimento desapropriatório, promovido pela **INFRA S.A.**, em decorrência da implantação da **Ferrovia Transnordestina – FTN – EF-232**, será afetada uma área de **" + (campo("areaDesap") ? campo("areaDesap") + " ha" : "[área]") + "**, correspondente ao trecho " + (campo("km") || "[km inicial e final]") + ", conforme os dados constantes do Processo Administrativo **CTD " + (campo("cadastro") || "___") + " – " + (campo("trecho") || "SPS-__") + " – PE, SEI nº " + (campo("sei") || "[SEI]") + "**.";
     return s1 + "\n" + s2;
   }
-  window.D2M2_copiarFatos = function(){ setv("d2m2_fatos", txtFatosAuto().replace(/\*\*/g, "")); sujo(); D2M2_render(); };
   function fotosQtd(){ try{ return (window.D2_fotosRelatorio ? window.D2_fotosRelatorio().fotos : []).filter(function(f){ return f && f.src; }).length; }catch(e){ return 0; } }
   function artPronta(){ try{ var l = document.getElementById("lista-11"); return !!(l && l.children.length); }catch(e){ return false; } }
 
@@ -61999,20 +62008,20 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     function X(o){ return Object.assign({ _extra:true, figs:[] }, o); }
     var L = [];
     L.push(B("apresenta_o", "1.")); L.push(B("metodologia", "2."));
-    L.push(X({ id:"m2_caract", level:1, num:"3.", head:"CARACTERIZAÇÃO DO IMÓVEL E TRECHO FERROVIÁRIO", txt:dadosLinhas().map(function(d){ return "**" + d[0] + ": " + d[1] + "**"; }).join("\n") }));   // como no modelo: a linha toda em negrito
+    L.push(X({ id:"m2_caract", level:1, num:"3.", head:"CARACTERIZAÇÃO DO IMÓVEL E TRECHO FERROVIÁRIO", txt:dadosLinhas().map(function(d){ return "**" + d[0] + ":** " + d[1]; }).join("\n") }));   // como no modelo: só o rótulo em negrito
     if($("d2m2_ctx_on") && $("d2m2_ctx_on").checked) L.push(X({ id:"m2_ctx", level:3, head:(v("d2m2_ctx_tit") || "Contexto histórico do imóvel").toUpperCase(), txt:v("d2m2_ctx_txt"), figs:[] }));
-    L.push(X({ id:"m2_sigmap", semTitulo:true, txt:"A imagem 1 apresenta as parcelas certificadas no SIGEF que se sobrepõem à área do imóvel, em contraste com a faixa de domínio e com a área a ser desapropriada.", figs:["m2_sig"] }));
-    L.push(X({ id:"m2_padrao", semTitulo:true, txt:txtPadrao(), figs:["m2_1"] }));
+    L.push(X({ id:"m2_sigmap", semTitulo:true, txt:txtDe("m2_sigmap"), figs:["m2_sig"] }));
+    L.push(X({ id:"m2_padrao", semTitulo:true, txt:txtDe("m2_padrao"), figs:["m2_1"] }));
     L.push(X({ id:"m2_carac", semTitulo:true, txt:[
-      "**Situação fundiária da gleba desapropriada:** " + (v("d2m2_fund") || "[preencher na aba Modelo 02]"),
-      "**Tipo de exploração agrícola e maquinário utilizados:** " + (v("d2m2_expl") || "[preencher na aba Modelo 02]"),
-      "**Roteiro de acesso:** " + (v("d2m2_rot") || "[preencher na aba Modelo 02]"),
-      v("d2m2_hidro") ? "**" + v("d2m2_hidro") + "**" : ""
+      "Situação fundiária da gleba desapropriada: " + (v("d2m2_fund") || "[preencher na aba Modelo 02]"),
+      "Tipo de exploração agrícola e maquinário utilizados: " + (v("d2m2_expl") || "[preencher na aba Modelo 02]"),
+      "Roteiro de acesso: " + (v("d2m2_rot") || "[preencher na aba Modelo 02]"),
+      v("d2m2_hidro")
     ].filter(Boolean).join("\n"), figs:["m2_2"] }));
-    L.push(X({ id:"m2_carac2", semTitulo:true, txt:"Na imagem 3 é possível notar as características relatadas até aqui, de acordo com os metadados disponíveis nas plataformas SICAR e/ou SIGEF, os quais foram utilizados para caracterizar ambientalmente o imóvel, inserindo a faixa de domínio, para que seja visualizado como a propriedade permanecerá após a passagem da ferrovia. Na imagem 4 é demonstrada a disposição do imóvel, com as vias de acesso internas, juntamente com a via de acesso externa.", figs:["m2_3"] }));
-    L.push(X({ id:"m2_car", semTitulo:true, txt:txtCar(), figs:["m2_4"] }));
-    L.push(X({ id:"m2_hipso", semTitulo:true, txt:txtHipso(), figs:["m2_5"] }));
-    L.push(X({ id:"m2_fatos", level:1, num:"4.", head:"DOS FATOS EXPROPRIATÓRIOS", txt:v("d2m2_fatos") ? v("d2m2_fatos").split(/\n+/).map(function(l){ return l.trim() ? "**" + l.trim() + "**" : ""; }).join("\n") : txtFatosAuto() }));
+    L.push(X({ id:"m2_carac2", semTitulo:true, txt:txtDe("m2_carac2"), figs:["m2_3"] }));
+    L.push(X({ id:"m2_car", semTitulo:true, txt:txtDe("m2_car"), figs:["m2_4"] }));
+    L.push(X({ id:"m2_hipso", semTitulo:true, txt:txtDe("m2_hipso"), figs:["m2_5"] }));
+    L.push(X({ id:"m2_fatos", level:1, num:"4.", head:"DOS FATOS EXPROPRIATÓRIOS", txt:txtDe("m2_fatos") }));
     L.push(X({ id:"m2_estudo", level:1, num:"5.", head:"ESTUDO DAS NECESSIDADES", txt:[
       "A implantação da infraestrutura ferroviária sobre propriedades rurais ou urbanas pode ocasionar impactos significativos, tais como o seccionamento e o isolamento de áreas, dificuldades de acesso, restrições à circulação e exposição à entrada de terceiros. Nesse contexto, torna-se necessário identificar e avaliar os efeitos decorrentes da intervenção sobre cada imóvel, bem como analisar alternativas que possibilitem mitigar os impactos identificados.",
       "Considerando os aspectos anteriormente expostos, apresenta-se, a seguir, a caracterização das particularidades do imóvel afetado, com ênfase nas interferências decorrentes da implantação ferroviária e em suas respectivas implicações territoriais e funcionais.",
@@ -62062,14 +62071,61 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
       + (exemplo ? '<p class="dd-nota m2-ex"><b>Exemplo:</b> ' + esc(exemplo) + '</p>' : "");
   }
   function auto(rot, md, fixo){ return '<div class="dd-auto"' + (fixo ? ' data-fixo="1"' : "") + '><span class="dd-auto-rot">' + esc(rot) + '</span>' + mdHtml(md) + '</div>'; }
+  // texto automático que pode ser fixado para edição (como os tópicos automáticos da DESP-2)
+  function autoBloco(k, rot){
+    var o = ovr(k);
+    if(o) return '<div class="dd-ed" contenteditable="true" spellcheck="true" data-m2o="' + k + '">' + mdHtml(o) + '</div>'
+      + '<div class="m2-acts">' + btn("ovrauto", "↺ Voltar ao automático", "Descarta a edição e volta ao texto gerado pelo sistema", ' data-m2k="' + k + '"') + '</div>';
+    return '<div class="dd-auto" data-m2auto="' + k + '"><span class="dd-auto-rot">' + esc(rot) + '</span>' + mdHtml(AUTO_TXT[k]()) + '</div>'
+      + '<div class="m2-acts">' + btn("ovred", "✎ Editar o texto", "Copia o texto automático para edição — depois disso ele não se atualiza sozinho", ' data-m2k="' + k + '"') + '</div>';
+  }
+  /* imagens avulsas inseridas pelo usuário: ficam em D2DOC.imgs (salvas com a DESP-2) com o id do tópico do PDF do Modelo 02 */
+  var IMG_TOP = { m2_caract:"m2_caract", m2_ctx:"m2_ctx", m2_sigmap:"m2_sigmap", m2_padrao:"m2_padrao", m2_carac:"m2_carac2", m2_car:"m2_car", m2_hipso:"m2_hipso", m2_fatos:"m2_fatos", m2_estudo:"m2_estudo", m2_s7:"m2_anexos" };
+  function docImgs(){ var d = window.D2_getDoc ? window.D2_getDoc() : null; if(!d) return []; if(!Array.isArray(d.imgs)) d.imgs = []; return d.imgs; }
+  function imgPor(id){ return docImgs().filter(function(x){ return x.id === id; })[0] || null; }
+  function lerImg(file){ return new Promise(function(ok, falha){ var fr = new FileReader(); fr.onload = function(){ (window.D2_paraJpeg ? window.D2_paraJpeg(fr.result) : Promise.resolve(fr.result)).then(function(u){ if(u) ok(u); else falha(new Error("formato")); }); }; fr.onerror = falha; fr.readAsDataURL(file); }); }
+  function avisoFormato(){ alert("Não consegui ler esta imagem. Use JPG, PNG ou TIFF comum (sem camadas/compactação especial)."); }
+  function novaImg(sec){
+    var topico = IMG_TOP[sec]; if(!topico) return;
+    var inp = document.createElement("input"); inp.type = "file"; inp.accept = "image/*"; inp.multiple = true;
+    inp.onchange = function(){
+      var fs = Array.prototype.slice.call(inp.files || []); if(!fs.length) return;
+      Promise.all(fs.map(function(f){ return lerImg(f).catch(function(){ return null; }); })).then(function(srcs){
+        var ultimo = null;
+        if(srcs.some(function(x){ return !x; })) avisoFormato();
+        srcs.filter(Boolean).forEach(function(src){ var x = { id:"i_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), topico:topico, src:src, leg:"", fonte:"Autor, 2026" }; docImgs().push(x); ultimo = x; });
+        sujo(); D2M2_render();
+        if(ultimo){ var c = document.querySelector('#d2m2doc_main [data-m2imgcap="leg"][data-m2img="' + ultimo.id + '"]'); if(c){ c.scrollIntoView({ block:"center" }); c.focus(); } }
+      });
+    };
+    inp.click();
+  }
+  function imgsHtml(sec){
+    var topico = IMG_TOP[sec]; if(!topico) return "";
+    return docImgs().filter(function(x){ return x.topico === topico; }).map(function(x){
+      var i = esc(x.id);
+      return '<figure class="dd-fig dd-img" data-m2img="' + i + '">'
+        + '<img src="' + x.src + '" alt="' + esc(x.leg || "Imagem inserida") + '" class="m2-zoom" tabindex="0" role="button" title="Clique para ampliar" data-m2z="img:' + i + '">'
+        + '<div class="dd-fig-acts">'
+          + '<label class="dd-b">Trocar imagem<input type="file" accept="image/*" class="m2-imgin" data-m2img="' + i + '"></label>'
+          + btn("imgup", "↑", "Mover a imagem para cima", ' data-m2img="' + i + '"') + btn("imgdown", "↓", "Mover a imagem para baixo", ' data-m2img="' + i + '"')
+          + btn("imgrm", "🗑 Remover", "Tira esta imagem do relatório", ' data-m2img="' + i + '"')
+        + '</div>'
+        + '<figcaption><span class="dd-cap" contenteditable="true" spellcheck="true" data-m2imgcap="leg" data-m2img="' + i + '" data-ph="Legenda — ex.: Imagem 7 – Vista do acesso à remanescente norte">' + esc(x.leg) + '</span>'
+        + '<span class="dd-fonte">Fonte: <span class="dd-cap" contenteditable="true" data-m2imgcap="fonte" data-m2img="' + i + '" data-ph="Autor, 2026">' + esc(x.fonte) + '</span></span></figcaption>'
+        + '</figure>';
+    }).join("");
+  }
+  // legenda e fonte dos mapas: as mesmas da DESP-2 (D2DOC.caps), editáveis aqui
+  function legenda(id){ var m = window.D2_figMeta ? window.D2_figMeta(id) : null; return m || [metaMapa(id)[1], FONTES[id] || ""]; }
   function metaMapa(id){ var m = MAPAS.filter(function(x){ return x[0] === id; })[0]; return m || [id, id, ""]; }
   var FONTES = { m2_sig:"INCRA/SIGEF, 2026", m2_1:"Autor, 2026", m2_2:"SICAR / ANADEM (ANA/Copernicus), 2026", m2_3:"Autor, 2026", m2_4:"SICAR, 2026", m2_5:"ANADEM (ANA/Copernicus), 2026" };
   function fig(id){
-    var m = metaMapa(id), img = window.D2_m2Fig ? window.D2_m2Fig(id) : null;
+    var m = metaMapa(id), lg = legenda(id), img = window.D2_m2Fig ? window.D2_m2Fig(id) : null;
     return '<figure class="dd-fig' + (img ? "" : " falta") + '" data-m2map="' + id + '">'
-      + (img ? '<img src="' + img + '" alt="' + esc(m[1]) + '" class="m2-zoom" tabindex="0" role="button" title="Clique para ampliar" data-m2z="' + id + '">' : '<div class="dd-fig-vazio">Mapa ainda não gerado — esta figura não sai no relatório</div>')
+      + (img ? '<img src="' + img + '" alt="' + esc(lg[0]) + '" class="m2-zoom" tabindex="0" role="button" title="Clique para ampliar" data-m2z="' + id + '">' : '<div class="dd-fig-vazio">Mapa ainda não gerado — esta figura não sai no relatório</div>')
       + '<div class="dd-fig-acts">' + btn("gerar", "↻ " + (img ? "Regerar mapa" : "Gerar mapa automático"), "Refaz o mapa com as camadas atuais", ' data-m2id="' + id + '"') + (img ? btn("ampliar", "🔍 Ampliar", "", ' data-m2id="' + id + '"') : "") + '<span class="m2-mst" role="status" aria-live="polite">' + esc(AVISO[id] || "") + '</span></div>'
-      + '<figcaption><span class="dd-cap">' + esc(m[1]) + '</span><span class="dd-fonte">Fonte: ' + esc(FONTES[id] || "") + '</span></figcaption>'
+      + '<figcaption><span class="dd-cap" contenteditable="true" spellcheck="true" data-m2cap="t" data-m2map="' + id + '" title="Legenda — clique para editar">' + esc(lg[0]) + '</span><span class="dd-fonte">Fonte: <span class="dd-cap" contenteditable="true" data-m2cap="f" data-m2map="' + id + '" title="Fonte — clique para editar">' + esc(lg[1]) + '</span></span></figcaption>'
       + '<p class="dd-nota m2-ex"><b>Camadas:</b> ' + esc(m[2]) + '</p></figure>';
   }
   function figs(id){   // atualiza só o quadro de um mapa (sem redesenhar o documento)
@@ -62078,12 +62134,12 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
   }
   function secao(id, lv, num, tit, corpo, opc){
     opc = opc || {};
-    return '<section class="dd-top lv' + lv + (opc.auto ? " is-auto" : "") + '" id="dd_' + id + '" data-id="' + id + '">'
+    return '<section class="dd-top lv' + lv + (opc.auto ? " is-auto" : "") + (opc.manual ? " is-manual" : "") + '" id="dd_' + id + '" data-id="' + id + '">'
       + '<div class="dd-head"><span class="dd-num">' + esc(num) + '</span>'
       + (opc.tituloEd ? '<span class="dd-tit" contenteditable="true" spellcheck="true" data-m2f="' + opc.tituloEd + '">' + esc(tit) + '</span>' : '<span class="dd-tit">' + esc(tit) + '</span>')
-      + (opc.auto ? '<span class="dd-tags"><span class="dd-tag t-auto" style="display:inline-block" title="Gerado a partir dos dados do cadastro">automático</span></span>' : "")
-      + '<span class="dd-acts">' + (opc.acts || "") + '</span></div>'
-      + '<div class="dd-corpo">' + corpo + '</div></section>';
+      + (opc.auto ? '<span class="dd-tags"><span class="dd-tag t-auto" style="display:inline-block" title="Gerado a partir dos dados do cadastro. Para mudar, use “✎ Editar o texto”.">automático</span></span>' : "") + (opc.manual ? '<span class="dd-tags"><span class="dd-tag t-manual">editado à mão</span></span>' : "")
+      + '<span class="dd-acts">' + (opc.acts || "") + (IMG_TOP[id] ? btn("addimg", "🖼 + Imagem", "Insere uma imagem com legenda e fonte no fim deste tópico") : "") + '</span></div>'
+      + '<div class="dd-corpo">' + corpo + imgsHtml(id) + '</div></section>';
   }
   function h4(t){ return '<div class="dd-h4">' + esc(t) + '</div>'; }
   function fotosHtml(){
@@ -62098,29 +62154,26 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     h += secao("m2_s1", 1, "1.", "APRESENTAÇÃO", autoD2("igual à DESP-2 — edite o texto lá", "apresenta_o"), { auto:true });
     h += secao("m2_s2", 1, "2.", "METODOLOGIA", autoD2("igual à DESP-2 — edite o texto lá", "metodologia"), { auto:true });
     h += secao("m2_caract", 1, "3.", "CARACTERIZAÇÃO DO IMÓVEL E TRECHO FERROVIÁRIO",
-      '<div class="dd-auto" data-fixo="1"><span class="dd-auto-rot">automático · dados do cadastro</span>' + dadosLinhas().map(function(d){ return '<div class="dl" data-k="p"><b>' + esc(d[0]) + ': ' + esc(d[1]) + '</b></div>'; }).join("") + '</div>', { auto:true });
+      '<div class="dd-auto" data-fixo="1"><span class="dd-auto-rot">automático · dados do cadastro</span>' + dadosLinhas().map(function(d){ return '<div class="dl" data-k="p"><b>' + esc(d[0]) + ':</b> ' + esc(d[1]) + '</div>'; }).join("") + '</div>', { auto:true });
     h += secao("m2_ctx", 3, "", v("d2m2_ctx_tit") || "Contexto histórico do imóvel",
       (ctxOn ? h4("Texto do contexto") + editor("d2m2_ctx_txt", "No período de 2010 a 2012 foram tramitados nesta Superintendência os processos administrativos onde foram emitidos Contratos de Servidão de Passagem (SEI 1692686) entre o INCRA e o DNIT... O projeto passou por modificações posteriormente, sendo parcelado e com parte de sua área titulada no ano de 2016.")
              : '<p class="dd-nota">Bloco opcional — não sai no relatório. Marque “Incluir no relatório” para escrever o subtítulo e o texto do contexto histórico (vem antes da Imagem 1).</p>'),
       { tituloEd: ctxOn ? "d2m2_ctx_tit" : "", acts:'<label class="dd-b m2-chk"><input type="checkbox" data-m2a="ctx" ' + (ctxOn ? "checked" : "") + '> Incluir no relatório</label>' });
-    h += secao("m2_sigmap", 3, "", "Parcelas SIGEF sobre o imóvel", auto("automático · camadas: parcelas SIGEF que se sobrepõem à área do imóvel, faixa de domínio e área desapropriada", "A imagem 1 apresenta as parcelas certificadas no SIGEF que se sobrepõem à área do imóvel, em contraste com a faixa de domínio e com a área a ser desapropriada.") + fig("m2_sig"), { auto:true });
+    h += secao("m2_sigmap", 3, "", "Parcelas SIGEF sobre o imóvel", autoBloco("m2_sigmap", "automático") + fig("m2_sig"), { auto:!ovr("m2_sigmap"), manual:!!ovr("m2_sigmap") });
     h += secao("m2_padrao", 3, "", "Áreas remanescentes",
       '<label class="dd-h4" for="m2_sel_padrao">Texto padrão</label><select id="m2_sel_padrao" class="m2-sel" data-m2a="padrao"><option value="1"' + (v("d2m2_padrao") !== "2" ? " selected" : "") + '>Padrão 1 — remanescente a norte e a sul da faixa de domínio</option><option value="2"' + (v("d2m2_padrao") === "2" ? " selected" : "") + '>Padrão 2 — imóvel seccionado em Glebas A e B (SIGEF)</option></select>'
-      + auto("automático · texto padrão " + (v("d2m2_padrao") === "2" ? "2" : "1 (áreas calculadas pelo mapa)"), txtPadrao()) + fig("m2_1"), { auto:true });
+      + autoBloco("m2_padrao", "automático · texto padrão " + (v("d2m2_padrao") === "2" ? "2" : "1 (áreas calculadas pelo mapa)")) + fig("m2_1"), { auto:!ovr("m2_padrao"), manual:!!ovr("m2_padrao") });
     h += secao("m2_carac", 3, "", "Caracterização do imóvel",
       h4("Situação fundiária da gleba desapropriada") + editor("d2m2_fund", "A área em questão encontra-se livre de conflito de divisas entre vizinhos, além de não possuir demandas junto aos órgãos fundiários e ambientais, tampouco há informação de hipoteca ou algo que restrinja ou impeça a venda do imóvel, conforme o documento protocolado pelo SEI 4763644, entre as páginas 13 e 21.")
       + h4("Tipo de exploração agrícola e maquinário utilizados") + editor("d2m2_expl", "O tipo de exploração predominante é a pecuária, com criação de bovinos. Possui áreas consolidadas cobertas por pastagens artificiais destinadas ao pastejo do rebanho. O proprietário não possui maquinário agrícola próprio; quando necessário, os implementos são contratados no município.")
       + h4("Roteiro de acesso") + editor("d2m2_rot", "A propriedade está localizada a cerca de 7 km da cidade de Sertânia/PE; o acesso é realizado pela BR-232 e por estrada vicinal de boa trafegabilidade durante todo o ano.")
       + h4("Recursos hídricos") + editor("d2m2_hidro", "O imóvel interceptado pela EF-232 possui córrego nas limitações e interceptando a faixa de domínio, e algumas represas, o que facilita a dessedentação dos animais.")
       + fig("m2_2")
-      + auto("automático", "Na imagem 3 é possível notar as características relatadas até aqui, de acordo com os metadados disponíveis nas plataformas SICAR e/ou SIGEF, os quais foram utilizados para caracterizar ambientalmente o imóvel, inserindo a faixa de domínio, para que seja visualizado como a propriedade permanecerá após a passagem da ferrovia. Na imagem 4 é demonstrada a disposição do imóvel, com as vias de acesso internas, juntamente com a via de acesso externa.", true)
-      + fig("m2_3"));
-    h += secao("m2_car", 3, "", "Cadastro Ambiental Rural (CAR)", auto("automático · camadas do CAR carregadas acima", txtCar()) + fig("m2_4"), { auto:true });
-    h += secao("m2_hipso", 3, "", "Hipsometria", auto("automático · altitude e relevo calculados do ANADEM", txtHipso()) + fig("m2_5"), { auto:true });
-    var fa = v("d2m2_fatos");
-    h += secao("m2_fatos", 1, "4.", "DOS FATOS EXPROPRIATÓRIOS",
-      (fa ? "" : auto("automático · dados do cadastro (clique em “Editar o automático” para fixar o texto)", txtFatosAuto(), true)) + (fa ? editor("d2m2_fatos", "") : ""),
-      { auto:!fa, acts: (fa ? btn("fatosauto", "↺ Voltar ao automático", "Descarta a edição e volta a gerar o texto a partir do cadastro") : btn("fatoscopiar", "✎ Editar o automático", "Copia o texto automático para o campo e permite editar")) });
+      + autoBloco("m2_carac2", "automático")
+      + fig("m2_3"), { manual:!!ovr("m2_carac2") });
+    h += secao("m2_car", 3, "", "Cadastro Ambiental Rural (CAR)", autoBloco("m2_car", "automático · camadas do CAR (Formulário)") + fig("m2_4"), { auto:!ovr("m2_car"), manual:!!ovr("m2_car") });
+    h += secao("m2_hipso", 3, "", "Hipsometria", autoBloco("m2_hipso", "automático · altitude e relevo calculados do ANADEM") + fig("m2_5"), { auto:!ovr("m2_hipso"), manual:!!ovr("m2_hipso") });
+    h += secao("m2_fatos", 1, "4.", "DOS FATOS EXPROPRIATÓRIOS", autoBloco("m2_fatos", "automático · dados do cadastro"), { auto:!ovr("m2_fatos"), manual:!!ovr("m2_fatos") });
     h += secao("m2_estudo", 1, "5.", "ESTUDO DAS NECESSIDADES",
       auto("fixo", "A implantação da infraestrutura ferroviária sobre propriedades rurais ou urbanas pode ocasionar impactos significativos, tais como o seccionamento e o isolamento de áreas, dificuldades de acesso, restrições à circulação e exposição à entrada de terceiros. Nesse contexto, torna-se necessário identificar e avaliar os efeitos decorrentes da intervenção sobre cada imóvel, bem como analisar alternativas que possibilitem mitigar os impactos identificados.\nConsiderando os aspectos anteriormente expostos, apresenta-se, a seguir, a caracterização das particularidades do imóvel afetado, com ênfase nas interferências decorrentes da implantação ferroviária e em suas respectivas implicações territoriais e funcionais.", true)
       + h4("Análise do imóvel") + editor("d2m2_estudo", "A área em estudo possui acessos internos destinados ao manejo de animais e máquinas agrícolas, e acesso externo a partir de estrada vicinal. O acesso à remanescente norte será impactado pela construção da ferrovia, gerando a necessidade de alternativas que possam mitigar a situação."));
@@ -62138,8 +62191,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
   /* ---------- painel ---------- */
   function previas(){   // só os dados do topo e a prévia dos textos automáticos (sem redesenhar o documento: mantém o cursor)
     var d = $("d2m2_dados"); if(d) d.innerHTML = dadosLinhas().map(function(x){ return '<div><b>' + esc(x[0]) + ':</b> ' + esc(x[1]) + '</div>'; }).join("");
-    function troca(id, md){ var s = document.getElementById("dd_" + id), a = s && s.querySelector(".dd-auto:not([data-fixo])"); if(a){ var rot = a.querySelector(".dd-auto-rot"); a.innerHTML = (rot ? rot.outerHTML : "") + mdHtml(md); } }
-    troca("m2_padrao", txtPadrao()); troca("m2_car", txtCar()); troca("m2_hipso", txtHipso());
+    Array.prototype.forEach.call(document.querySelectorAll("#d2m2doc_main [data-m2auto]"), function(a){ var k = a.getAttribute("data-m2auto"), rot = a.querySelector(".dd-auto-rot"); a.innerHTML = (rot ? rot.outerHTML : "") + mdHtml(AUTO_TXT[k]()); });
   }
   window.D2M2_render = function(){
     var main = $("d2m2doc_main"); if(!main) return;
@@ -62199,7 +62251,23 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
       + '<p class="hint-auto" style="margin:8px 0 0;">Fotos manuais e legendas: aba DESP-2, tópico 6.1 (valem também para o Modelo 02).</p>';
   }
   window.D2M2_fonte = function(k){ if(window.D2_toggleFonte) window.D2_toggleFonte(k); fotosForm(); };
-  window.D2M2_negrito = function(){ var a = document.activeElement; if(a && a.closest && a.closest("#d2m2doc_main .dd-ed")) document.execCommand("bold"); };
+  window.D2M2_estilo = function(k){
+    var s = getSelection(); if(!s.rangeCount) return;
+    var r = s.getRangeAt(0), n = r.startContainer; if(n.nodeType !== 1) n = n.parentNode;
+    var ed = n.closest && n.closest("#d2m2doc_main .dd-ed");
+    if(!ed){ alert("Clique primeiro dentro de um texto editável do relatório (os campos brancos)."); return; }
+    if(k === "bold"){ try{ document.execCommand("styleWithCSS", false, false); document.execCommand("bold"); }catch(e){} salvarCampo(ed); return; }
+    if(window.D2_normalizarEditor) window.D2_normalizarEditor(ed);
+    Array.prototype.filter.call(ed.children, function(d){ return r.intersectsNode(d); }).forEach(function(d){ d.setAttribute("data-k", k); if(k === "L" && !d.getAttribute("data-l")) d.setAttribute("data-l", "a"); });
+    salvarCampo(ed);
+  };
+  window.D2M2_negrito = function(){ D2M2_estilo("bold"); };
+  window.D2M2_inserirImg = function(){
+    var s = getSelection(), n = s.rangeCount ? s.getRangeAt(0).startContainer : null; if(n && n.nodeType !== 1) n = n.parentNode;
+    var sec = n && n.closest ? n.closest("#d2m2doc_main .dd-top") : null, id = sec && sec.getAttribute("data-id");
+    if(!id || !IMG_TOP[id]){ alert("Clique primeiro dentro do texto do tópico onde a imagem deve entrar (tópicos 3, 4, 5 e 7), ou use “🖼 + Imagem” no próprio tópico."); return; }
+    novaImg(id);
+  };
   window.D2M2_irArt = function(){ var b = document.querySelector('.sb-link[data-alvo="panel-anx11"]'); if(b && window.trocarAba){ window.trocarAba(b); return; } var pn = $("panel-anx11"); if(pn) pn.scrollIntoView(); };
   var MAPVER = "3";   // sobe quando muda o desenho/enquadramento dos mapas: os já salvos no cadastro são refeitos uma vez
   window.D2M2_abrir = function(){
@@ -62224,9 +62292,11 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
   var LB = null;
   function itensZoom(){
     var out = [];
-    MAPAS.forEach(function(m){ var i = window.D2_m2Fig ? window.D2_m2Fig(m[0]) : null; if(i && precisa(m[0])) out.push({ id:m[0], src:i, tit:m[1], fonte:"" }); });
+    MAPAS.forEach(function(m){ var i = window.D2_m2Fig ? window.D2_m2Fig(m[0]) : null; if(i && precisa(m[0])) out.push({ id:m[0], src:i, tit:legenda(m[0])[0], fonte:"Fonte: " + legenda(m[0])[1] }); });
     var fts = []; try{ fts = (window.D2_fotosRelatorio ? window.D2_fotosRelatorio().fotos : []).filter(function(f){ return f && f.src; }); }catch(e){}
     fts.forEach(function(f, i){ out.push({ id:"foto:" + i, src:f.src, tit:"Foto " + (i + 1), fonte:f.legenda || "" }); });
+    var tops = Object.keys(IMG_TOP).map(function(k){ return IMG_TOP[k]; });
+    docImgs().filter(function(x){ return tops.indexOf(x.topico) >= 0 && x.src; }).forEach(function(x){ out.push({ id:"img:" + x.id, src:x.src, tit:x.leg || "Imagem inserida", fonte:x.fonte ? "Fonte: " + x.fonte : "" }); });
     return out;
   }
   function lbAbrir(id){
@@ -62295,15 +62365,54 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
 
   /* ---------- eventos do documento ---------- */
   function salvarCampo(ed){
+    var k = ed.getAttribute("data-m2o");
+    if(k){ if(window.D2_normalizarEditor) window.D2_normalizarEditor(ed); setOvr(k, window.D2_htmlParaMd ? window.D2_htmlParaMd(ed) : ed.textContent); return; }
     var c = ed.getAttribute("data-m2f"); if(!c) return;
-    var ehEd = ed.classList.contains("dd-ed"), val = ehEd ? (window.D2_htmlParaMd ? window.D2_htmlParaMd(ed) : ed.textContent) : ed.textContent.trim();
+    var ehEd = ed.classList.contains("dd-ed");
+    if(ehEd && window.D2_normalizarEditor) window.D2_normalizarEditor(ed);
+    var val = ehEd ? (window.D2_htmlParaMd ? window.D2_htmlParaMd(ed) : ed.textContent) : ed.textContent.trim();
     setv(c, val);
     if(ehEd){ if(val) ed.removeAttribute("data-vazio"); else ed.setAttribute("data-vazio", ""); }
     sujo();
   }
   document.addEventListener("input", function(ev){
     var t = ev.target; if(!t || !t.closest) return; var p = $("panel-desp2-modelo02"); if(!p || !p.contains(t)) return;
-    if(t.getAttribute && t.getAttribute("data-m2f")){ salvarCampo(t); clearTimeout(window.__d2m2t); window.__d2m2t = setTimeout(previas, 500); }
+    var ed = t.closest("#d2m2doc_main .dd-ed");
+    if(ed){ clearTimeout(ed.__t); ed.__t = setTimeout(function(){ salvarCampo(ed); previas(); }, 250); return; }
+    if(t.getAttribute && t.getAttribute("data-m2f")){ salvarCampo(t); clearTimeout(window.__d2m2t); window.__d2m2t = setTimeout(previas, 500); return; }
+    var ci = t.closest("[data-m2imgcap]");
+    if(ci){ var xi = imgPor(ci.getAttribute("data-m2img")); if(xi){ xi[ci.getAttribute("data-m2imgcap")] = ci.textContent.replace(/\s+/g, " ").trim(); sujo(); } return; }
+    var cm = t.closest("[data-m2cap]");
+    if(cm){
+      var fid = cm.getAttribute("data-m2map"), fg = cm.closest("figure"), base = window.D2_figMetaBase ? window.D2_figMetaBase(fid) : legenda(fid), d = window.D2_getDoc ? window.D2_getDoc() : null; if(!d || !fg) return;
+      var tt = fg.querySelector('[data-m2cap="t"]').textContent.replace(/\s+/g, " ").trim(), ff = fg.querySelector('[data-m2cap="f"]').textContent.replace(/\s+/g, " ").trim();
+      d.caps = d.caps || {};
+      if(tt === base[0] && ff === base[1]) delete d.caps[fid]; else d.caps[fid] = { t:(tt === base[0] ? "" : tt), f:(ff === base[1] ? "" : ff) };
+      sujo();
+    }
+  });
+  document.addEventListener("focusout", function(ev){
+    var ed = ev.target && ev.target.closest && ev.target.closest("#d2m2doc_main .dd-ed"); if(!ed) return;
+    clearTimeout(ed.__t); salvarCampo(ed);
+  });
+  document.addEventListener("keydown", function(ev){
+    var t = ev.target; if(!t || !t.closest || !t.closest("#d2m2doc_main")) return;
+    if(t.closest(".dd-cap") || t.closest(".dd-tit")){ if(ev.key === "Enter"){ ev.preventDefault(); t.blur(); } return; }
+    var ed = t.closest(".dd-ed"); if(!ed) return;
+    if((ev.ctrlKey || ev.metaKey) && !ev.altKey && (ev.key === "b" || ev.key === "B")){ ev.preventDefault(); D2M2_estilo("bold"); return; }
+    if(ev.key === "Enter" && !ev.shiftKey){   // Enter num item de lista vazio encerra a lista, como no Word
+      var s = getSelection(); if(!s.rangeCount) return;
+      var n = s.getRangeAt(0).startContainer; if(n.nodeType !== 1) n = n.parentNode;
+      while(n && n.parentNode !== ed) n = n.parentNode;
+      if(n && n.nodeType === 1 && n.getAttribute("data-k") && n.getAttribute("data-k") !== "p" && !n.textContent.trim()){ ev.preventDefault(); n.setAttribute("data-k", "p"); salvarCampo(ed); }
+    }
+  });
+  document.addEventListener("paste", function(ev){
+    var t = ev.target; if(!t || !t.closest || !t.closest("#d2m2doc_main") || !t.closest(".dd-ed,.dd-tit,.dd-cap")) return;
+    ev.preventDefault();
+    var tx = (ev.clipboardData || window.clipboardData).getData("text/plain") || "";
+    if(t.closest(".dd-tit,.dd-cap")) tx = tx.replace(/\s+/g, " ");
+    document.execCommand("insertText", false, tx.replace(/\r/g, ""));
   });
   document.addEventListener("click", function(ev){
     var t = ev.target; if(!t || !t.closest) return; var p = $("panel-desp2-modelo02"); if(!p || !p.contains(t)) return;
@@ -62314,18 +62423,37 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     if(a === "gerar"){ gerarMapa(b.getAttribute("data-m2id")).then(function(){ previas(); }); }
     else if(a === "ampliar"){ lbAbrir(b.getAttribute("data-m2id")); }
     else if(a === "irart"){ D2M2_irArt(); }
-    else if(a === "fatosauto"){ setv("d2m2_fatos", ""); sujo(); D2M2_render(); }
-    else if(a === "fatoscopiar"){ D2M2_copiarFatos(); }
+    else if(a === "ovred"){ var k1 = b.getAttribute("data-m2k"); setOvr(k1, AUTO_TXT[k1]()); D2M2_render(); var e1 = document.querySelector('#d2m2doc_main [data-m2o="' + k1 + '"]'); if(e1) e1.focus(); }
+    else if(a === "ovrauto"){ if(!confirm("Descartar a edição e voltar ao texto automático?")) return; setOvr(b.getAttribute("data-m2k"), null); D2M2_render(); }
+    else if(a === "addimg"){ var sc = b.closest(".dd-top"); if(sc) novaImg(sc.getAttribute("data-id")); }
+    else if(a === "imgup" || a === "imgdown" || a === "imgrm"){
+      var L2 = docImgs(), xm = imgPor(b.getAttribute("data-m2img")); if(!xm) return;
+      if(a === "imgrm"){ if(!confirm("Remover esta imagem do relatório?")) return; L2.splice(L2.indexOf(xm), 1); }
+      else { var irm = L2.filter(function(z){ return z.topico === xm.topico; }), o = irm[irm.indexOf(xm) + (a === "imgup" ? -1 : 1)]; if(!o) return; var a1 = L2.indexOf(xm), b1 = L2.indexOf(o); L2[a1] = o; L2[b1] = xm; }
+      sujo(); D2M2_render();
+    }
     else if(a === "ctx" && b.tagName === "INPUT"){ $("d2m2_ctx_on").checked = b.checked; sujo(); D2M2_render(); }
   });
   document.addEventListener("change", function(ev){
     var t = ev.target; if(!t || !t.getAttribute) return; var p = $("panel-desp2-modelo02"); if(!p || !p.contains(t)) return;
     if(t.getAttribute("data-m2a") === "padrao"){ setv("d2m2_padrao", t.value); sujo(); D2M2_render(); return; }
+    if(t.classList && t.classList.contains("m2-imgin") && t.files && t.files[0]){ var xt = imgPor(t.getAttribute("data-m2img")); if(xt) lerImg(t.files[0]).then(function(src){ xt.src = src; sujo(); D2M2_render(); }, avisoFormato); return; }
     var tp = t.getAttribute("data-m2carf"); if(!tp || !t.files || !t.files[0]) return;
     var box = document.querySelector('#panel-desp2-modelo02 [data-m2car="' + tp + '"]'); if(box) box.insertAdjacentHTML("beforeend", '<div class="m2-car-no">Lendo e dissolvendo…</div>');
     importarCar(tp, t.files[0]).then(function(){ D2M2_render(); }).catch(function(e){ alert("CAR: " + (e && e.message || e)); D2M2_render(); });
   });
-  window.D2M2_copiarFatos = function(){ setv("d2m2_fatos", txtFatosAuto().replace(/\*\*/g, "")); sujo(); D2M2_render(); };
+  var TXT_SIG = "A imagem 1 apresenta as parcelas certificadas no SIGEF que se sobrepõem à área do imóvel, em contraste com a faixa de domínio e com a área a ser desapropriada.";
+  var TXT_CARAC2 = "Na imagem 3 é possível notar as características relatadas até aqui, de acordo com os metadados disponíveis nas plataformas SICAR e/ou SIGEF, os quais foram utilizados para caracterizar ambientalmente o imóvel, inserindo a faixa de domínio, para que seja visualizado como a propriedade permanecerá após a passagem da ferrovia. Na imagem 4 é demonstrada a disposição do imóvel, com as vias de acesso internas, juntamente com a via de acesso externa.";
+  /* textos automáticos que o usuário fixou para editar: { id: md } em #d2m2_ovr (os fatos ficam em #d2m2_fatos, como antes) */
+  var AUTO_TXT = { m2_sigmap:function(){ return TXT_SIG; }, m2_padrao:txtPadrao, m2_carac2:function(){ return TXT_CARAC2; }, m2_car:txtCar, m2_hipso:txtHipso, m2_fatos:txtFatosAuto };
+  function ovrs(){ try{ return JSON.parse(v("d2m2_ovr") || "{}") || {}; }catch(e){ return {}; } }
+  function ovr(k){ var o = k === "m2_fatos" ? v("d2m2_fatos") : ovrs()[k]; return typeof o === "string" && o.trim() ? o : ""; }
+  function setOvr(k, md){
+    if(k === "m2_fatos"){ setv("d2m2_fatos", md || ""); sujo(); return; }
+    var o = ovrs(); if(md == null) delete o[k]; else o[k] = md; setv("d2m2_ovr", JSON.stringify(o)); sujo();
+  }
+  function txtDe(k){ return ovr(k) || AUTO_TXT[k](); }
+  window.D2M2_copiarFatos = function(){ setOvr("m2_fatos", txtFatosAuto()); D2M2_render(); };
 
   /* ---------- estilo (só o que a DESP-2 não tem; o resto vem do espelho do CSS dela) ---------- */
   var css = document.createElement("style");
@@ -62336,6 +62464,9 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     + "#panel-desp2-modelo02 .m2-chk{display:inline-flex;align-items:center;gap:6px;cursor:pointer}"
     + "#panel-desp2-modelo02 .m2-zoom{cursor:zoom-in}#panel-desp2-modelo02 .m2-zoom:focus-visible{outline:3px solid rgba(31,111,192,.45);outline-offset:2px}"
     + "#panel-desp2-modelo02 .m2-mst{font-size:12px;color:#4a5a6a}"
+    + "#panel-desp2-modelo02 .m2-acts{display:flex;align-items:center;gap:8px;margin:4px 0 12px}"
+    + "#panel-desp2-modelo02 [data-m2cap]:hover,#panel-desp2-modelo02 [data-m2imgcap]:hover{background:#f3f7fb}"
+    + "#panel-desp2-modelo02 [data-m2imgcap]:empty::before{content:attr(data-ph);color:#9aa6b2}"
     + "#panel-desp2-modelo02 .m2-car{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}"
     + "#panel-desp2-modelo02 .m2-car-it{padding:10px;border:1px solid #dde4ec;border-radius:9px;background:#fff;font-size:12.5px}"
     + "#panel-desp2-modelo02 .m2-car-t{font-weight:700;margin-bottom:4px}#panel-desp2-modelo02 .m2-car-ok{color:#1b7a3e;margin-bottom:6px}#panel-desp2-modelo02 .m2-car-no{color:#7a8794;margin-bottom:6px}"
@@ -63773,7 +63904,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.22-8';
+window.APP_VERSAO = '2026.10.23-1';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.22-4';
 (function(){
