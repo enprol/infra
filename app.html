@@ -9464,7 +9464,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
               <button type="button" class="dd-bold" onmousedown="event.preventDefault()" onclick="D2M2_estilo('bold')" title="Negrito — selecione o trecho e clique (ou Ctrl+B)"><b>N</b> Negrito</button>
               <button type="button" onmousedown="event.preventDefault()" onclick="D2M2_inserirImg()" title="Insere uma imagem com legenda no tópico onde está o cursor">🖼 Imagem</button>
               <button type="button" onmousedown="event.preventDefault()" onclick="D2M2_inserirMapa()" title="Cria um mapa (camadas, escala e posição) no tópico onde está o cursor">🗺 Mapa</button>
-              <span class="dd-bar-dica">Enter cria novo parágrafo · Enter num item vazio encerra a lista · as imagens são numeradas sozinhas · clique num mapa para ampliar</span>
+              <span class="dd-bar-dica">“+ Inserir abaixo” em cada tópico cria seção, subseção ou subtítulo · Enter cria novo parágrafo · Enter num item vazio encerra a lista · as imagens são numeradas sozinhas · clique num mapa para ampliar</span>
             </div>
             <div id="d2m2doc_main" class="dd-doc"></div>
           </div>
@@ -9476,7 +9476,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
         <textarea id="d2m2_car_imovel"></textarea><textarea id="d2m2_car_app"></textarea><textarea id="d2m2_car_rl"></textarea>
         <input type="hidden" id="d2m2_v_remN"><input type="hidden" id="d2m2_v_remS">
         <input type="hidden" id="d2m2_v_altmin"><input type="hidden" id="d2m2_v_altmax"><input type="hidden" id="d2m2_v_relevo">
-        <input type="hidden" id="d2m2_v_car"><input type="hidden" id="d2m2_v_mapver"><input type="hidden" id="d2m2_ctx_imp"><textarea id="d2m2_vet_sede"></textarea><textarea id="d2m2_vet_sigef"></textarea><textarea id="d2m2_vet_hidro"></textarea><textarea id="d2m2_ovr"></textarea>
+        <input type="hidden" id="d2m2_v_car"><input type="hidden" id="d2m2_v_mapver"><input type="hidden" id="d2m2_ctx_imp"><textarea id="d2m2_vet_sede"></textarea><textarea id="d2m2_vet_sigef"></textarea><textarea id="d2m2_vet_hidro"></textarea><textarea id="d2m2_extras"></textarea><textarea id="d2m2_ovr"></textarea>
       </div>
 
       <div class="vactions" style="margin-top:16px;">
@@ -62212,8 +62212,15 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     L.push(B("conclus_o", "6.", "CONCLUSÃO"));
     L.push(X({ id:"m2_anexos", level:1, num:"7.", head:"ANEXOS", txt:"Seguem, como anexos ao presente relatório, o relatório fotográfico (Anexo 1) e a Anotação de Responsabilidade Técnica – ART (Anexo 2)." }));
     var fo = B("anexo_2_relat_rio_fotogr_fic", "7.1", "ANEXO 1 - RELATÓRIO FOTOGRÁFICO"); fo.level = 2; L.push(fo);
-    L.push(X({ id:"m2_art", level:2, num:"7.2", head:"ANEXO 2 - ANOTAÇÃO DE RESPONSABILIDADE TÉCNICA (ART)", txt:(artPronta() || artBanco()) ? "A " + ((artBanco() && !artPronta() && artBanco().art.tipo === "RRT") ? "Registro de Responsabilidade Técnica (RRT)" : "Anotação de Responsabilidade Técnica (ART)") + " do responsável pelo presente relatório segue nas páginas seguintes." : "[ART não encontrada — escolha o responsável técnico ou carregue o PDF em Anexo 11 (ART).]" }));
-    return L;
+    L.push(X({ id:"m2_art", level:2, num:"", head:"ANEXO 2 - ANOTAÇÃO DE RESPONSABILIDADE TÉCNICA (ART)", txt:(artPronta() || artBanco()) ? "A " + ((artBanco() && !artPronta() && artBanco().art.tipo === "RRT") ? "Registro de Responsabilidade Técnica (RRT)" : "Anotação de Responsabilidade Técnica (ART)") + " do responsável pelo presente relatório segue nas páginas seguintes." : "[ART não encontrada — escolha o responsável técnico ou carregue o PDF em Anexo 11 (ART).]" }));
+    // ordem do documento (base + tópicos novos) e numeração calculada
+    var porId = {}; L.forEach(function(t){ porId[t.id] = t; });
+    var out = [];
+    ordem().forEach(function(it){
+      if(it.x){ out.push(X({ id:it.id, level:it.level, num:it.num, head:it.x.head || "", txt:it.x.txt || "" })); return; }
+      (DOC2PDF[it.id] || []).forEach(function(pid, k){ var t = porId[pid]; if(!t) return; if(k === 0 && (t.level === 1 || t.level === 2)) t.num = it.num; out.push(t); });
+    });
+    return out;
   };
 
 
@@ -62306,6 +62313,63 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
   }
   /* numeração automática (23/10/2026): na ordem do PDF, os mapas automáticos que existem e as imagens/mapas inseridos
      recebem "Imagem N – …"; inserir, mover ou remover uma imagem renumera todas (legendas e citações dos textos automáticos) */
+  /* tópicos novos (23/10/2026): Seção (N.), Subseção (N.n) ou Subtítulo, inseridos abaixo de qualquer tópico ("+ Inserir abaixo").
+     Ficam em #d2m2_extras: [{ id, after, level, head, txt }]; "after" = tópico logo acima (da base ou outro novo). A numeração
+     (1., 2., 3.1…) sai da ordem — uma seção nova renumera as seguintes no documento, no sumário, no PDF e no índice. */
+  var BASE_TOP = [["m2_s1",1],["m2_s2",1],["m2_caract",1],["m2_ctx",3],["m2_sigmap",3],["m2_padrao",3],["m2_carac",3],["m2_car",3],["m2_hipso",3],["m2_fatos",1],["m2_estudo",1],["m2_s6",1],["m2_s7",1],["m2_s71",2],["m2_s72",2]];
+  var DOC2PDF = { m2_s1:["apresenta_o"], m2_s2:["metodologia"], m2_caract:["m2_caract"], m2_ctx:["m2_ctx"], m2_sigmap:["m2_sigmap"], m2_padrao:["m2_padrao"], m2_carac:["m2_carac","m2_carac2"], m2_car:["m2_car"], m2_hipso:["m2_hipso"], m2_fatos:["m2_fatos"], m2_estudo:["m2_estudo"], m2_s6:["conclus_o"], m2_s7:["m2_anexos"], m2_s71:["anexo_2_relat_rio_fotogr_fic"], m2_s72:["m2_art"] };
+  var _ex = { raw:null, a:[] }, NUMS = {};
+  function extras(){ var r = v("d2m2_extras"); if(r !== _ex.raw){ _ex.raw = r; try{ _ex.a = JSON.parse(r || "[]"); if(!Array.isArray(_ex.a)) _ex.a = []; }catch(e){ _ex.a = []; } } return _ex.a; }
+  function salvarExtras(){ var r = _ex.a.length ? JSON.stringify(_ex.a) : ""; setv("d2m2_extras", r); _ex.raw = v("d2m2_extras"); sujo(); }
+  function extraPor(id){ return extras().filter(function(x){ return x.id === id; })[0] || null; }
+  function ordem(){
+    var ex = extras(), out = [], vistos = {};
+    function filhos(id){ ex.forEach(function(x){ if(x.after !== id || vistos[x.id]) return; vistos[x.id] = 1; out.push({ id:x.id, level:x.level, x:x }); filhos(x.id); }); }
+    BASE_TOP.forEach(function(b){ out.push({ id:b[0], level:b[1] }); filhos(b[0]); });
+    ex.forEach(function(x){ if(vistos[x.id]) return; vistos[x.id] = 1; out.push({ id:x.id, level:x.level, x:x }); filhos(x.id); });   // âncora sumiu: vai para o fim
+    var n1 = 0, n2 = 0; NUMS = {};
+    out.forEach(function(it){ if(it.level === 1){ n1++; n2 = 0; it.num = n1 + "."; } else if(it.level === 2){ n2++; it.num = n1 + "." + n2; } else it.num = ""; NUMS[it.id] = it.num; if(it.x) IMG_TOP[it.id] = it.id; });
+    return out;
+  }
+  // tópicos do PDF na ordem (para numerar as imagens). Os que vêm da DESP-2 (1, 2, 6, 7.1) ficam de fora: as imagens deles são da DESP-2.
+  var IMG_DE_PDF = { m2_caract:null, m2_ctx:null, m2_sigmap:"m2_sig", m2_padrao:"m2_1", m2_carac:"m2_2", m2_carac2:"m2_3", m2_car:"m2_4", m2_hipso:"m2_5", m2_fatos:null, m2_estudo:null, m2_anexos:null };
+  function ordemImgs(){
+    var o = [];
+    ordem().forEach(function(it){
+      if(it.x){ o.push([it.id, null]); return; }
+      (DOC2PDF[it.id] || []).forEach(function(pid){ if(pid in IMG_DE_PDF) o.push([pid, IMG_DE_PDF[pid]]); });
+    });
+    return o;
+  }
+  function novoExtra(junto, lv){
+    var lista = ordem(), i = lista.findIndex(function(it){ return it.id === junto; }); if(i < 0) return;
+    var ancora = junto;
+    if(lv === 1){ var k = i; while(k + 1 < lista.length && lista[k + 1].level > 1) k++; if(lista[i].level === 1 || k > i) ancora = lista[k].id; }   // seção nova: abaixo do bloco inteiro
+    var x = { id:"x_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), after:ancora, level:lv, head:(lv === 1 ? "Nova seção" : lv === 2 ? "Nova subseção" : "Novo subtítulo"), txt:"" };
+    var ex = extras(), pos = ex.findIndex(function(e){ return e.after === ancora; });
+    if(pos < 0) ex.push(x); else ex.splice(pos, 0, x);
+    salvarExtras(); D2M2_render();
+    var t = document.querySelector('#d2m2doc_main [data-m2xt="' + x.id + '"]');
+    if(t){ t.scrollIntoView({ block:"center" }); t.focus(); var r = document.createRange(); r.selectNodeContents(t); var s = getSelection(); s.removeAllRanges(); s.addRange(r); }
+  }
+  function moverExtra(id, dir){
+    var ex = extras(), x = extraPor(id); if(!x) return;
+    var irmaos = ex.filter(function(e){ return e.after === x.after; }), k = irmaos.indexOf(x), o = irmaos[k + dir]; if(!o) return;
+    var a = ex.indexOf(x), b = ex.indexOf(o); ex[a] = o; ex[b] = x; salvarExtras(); D2M2_render();
+  }
+  function excluirExtra(id){
+    var ex = extras(), x = extraPor(id); if(!x) return;
+    var imgs = docImgs().filter(function(i){ return i.topico === id; });
+    if(((x.txt || "").trim() || imgs.length) && !confirm("Excluir o tópico “" + (x.head || "sem título") + "”" + (imgs.length ? " com " + imgs.length + " imagem(ns)" : "") + " e o texto dele?")) return;
+    ex.forEach(function(e){ if(e.after === id) e.after = x.after; });   // os de baixo sobem para o lugar dele
+    ex.splice(ex.indexOf(x), 1);
+    var L = docImgs(); for(var i = L.length - 1; i >= 0; i--) if(L[i].topico === id) L.splice(i, 1);
+    salvarExtras(); D2M2_render();
+  }
+  function extraHtml(it){
+    var x = it.x;
+    return secao(x.id, x.level, it.num, x.head || "", '<div class="dd-ed" contenteditable="true" spellcheck="true" data-m2x="' + esc(x.id) + '"' + ((x.txt || "").trim() ? "" : " data-vazio") + '>' + mdHtml(x.txt || "") + '</div>', { extra:true });
+  }
   var ORDEM = [["m2_caract",null],["m2_ctx",null],["m2_sigmap","m2_sig"],["m2_padrao","m2_1"],["m2_carac","m2_2"],["m2_carac2","m2_3"],["m2_car","m2_4"],["m2_hipso","m2_5"],["m2_fatos",null],["m2_estudo",null],["m2_anexos",null]];
   var NUM = {};
   function semNum(t){ return String(t || "").replace(/^\s*(imagem|figura)\s*\d+[A-Z]?\s*[–—-]?\s*/i, ""); }
@@ -62335,7 +62399,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
   function renumerar(){
     var n = 0, mudou = false, ctxOn = $("d2m2_ctx_on") && $("d2m2_ctx_on").checked, d = window.D2_getDoc ? window.D2_getDoc() : null;
     NUM = {};
-    ORDEM.forEach(function(o){
+    ordemImgs().forEach(function(o){
       if(o[0] === "m2_ctx" && !ctxOn) return;
       if(o[1] && window.D2_m2Fig && window.D2_m2Fig(o[1])){
         NUM[o[1]] = ++n;
@@ -62393,11 +62457,15 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
   }
   function secao(id, lv, num, tit, corpo, opc){
     opc = opc || {};
-    return '<section class="dd-top lv' + lv + (opc.auto ? " is-auto" : "") + (opc.manual ? " is-manual" : "") + '" id="dd_' + id + '" data-id="' + id + '">'
+    return '<section class="dd-top lv' + lv + (opc.auto ? " is-auto" : "") + (opc.manual ? " is-manual" : "") + (opc.extra ? " is-extra" : "") + '" id="dd_' + id + '" data-id="' + id + '">'
       + '<div class="dd-head"><span class="dd-num">' + esc(num) + '</span>'
-      + (opc.tituloEd ? '<span class="dd-tit" contenteditable="true" spellcheck="true" data-m2f="' + opc.tituloEd + '">' + esc(tit) + '</span>' : '<span class="dd-tit">' + esc(tit) + '</span>')
+      + (opc.extra ? '<span class="dd-tit" contenteditable="true" spellcheck="true" data-m2xt="' + esc(id) + '" title="Título — clique para editar">' + esc(tit) + '</span><span class="dd-tags"><span class="dd-tag t-extra">novo</span></span>'
+        : opc.tituloEd ? '<span class="dd-tit" contenteditable="true" spellcheck="true" data-m2f="' + opc.tituloEd + '">' + esc(tit) + '</span>' : '<span class="dd-tit">' + esc(tit) + '</span>')
       + (opc.auto ? '<span class="dd-tags"><span class="dd-tag t-auto" style="display:inline-block" title="Gerado a partir dos dados do cadastro. Para mudar, use “✎ Editar o texto”.">automático</span></span>' : "") + (opc.manual ? '<span class="dd-tags"><span class="dd-tag t-manual">editado à mão</span></span>' : "")
-      + '<span class="dd-acts">' + (opc.acts || "") + (IMG_TOP[id] ? btn("addimg", "🖼 + Imagem", "Insere uma imagem com legenda e fonte no fim deste tópico") + btn("addmapa", "🗺 + Mapa", "Cria um mapa (camadas, escala e posição) no fim deste tópico") : "") + '</span></div>'
+      + '<span class="dd-acts">' + (opc.acts || "") + (IMG_TOP[id] ? btn("addimg", "🖼 + Imagem", "Insere uma imagem com legenda e fonte no fim deste tópico") + btn("addmapa", "🗺 + Mapa", "Cria um mapa (camadas, escala e posição) no fim deste tópico") : "")
+        + btn("add", "+ Inserir abaixo", "Nova seção, subseção ou subtítulo logo abaixo deste tópico")
+        + (opc.extra ? btn("xup", "↑", "Mover para cima") + btn("xdown", "↓", "Mover para baixo") + btn("xnivel", "Nível", "Alterna Seção / Subseção / Subtítulo") + btn("xdel", "🗑", "Excluir este tópico") : "") + '</span></div>'
+      + '<div class="dd-menu" hidden><span>Inserir abaixo:</span>' + btn("addx", "Seção <small>(N.)</small>", "Seção numerada — entra depois do bloco inteiro deste tópico", ' data-lv="1"') + btn("addx", "Subseção <small>(N.n)</small>", "", ' data-lv="2"') + btn("addx", "Subtítulo", "Subtítulo sem número", ' data-lv="3"') + '</div>'
       + '<div class="dd-corpo">' + corpo + imgsHtml(id) + '</div></section>';
   }
   function h4(t){ return '<div class="dd-h4">' + esc(t) + '</div>'; }
@@ -62409,20 +62477,20 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
   }
   function autoD2(rot, id){ return '<div class="dd-auto" data-fixo="1"><span class="dd-auto-rot">' + esc(rot) + '</span>' + (window.D2_htmlTopico ? window.D2_htmlTopico(id) : "") + '</div>'; }
   function docHtml(){
-    var ctxOn = $("d2m2_ctx_on") && $("d2m2_ctx_on").checked, h = "";
-    h += secao("m2_s1", 1, "1.", "APRESENTAÇÃO", autoD2("igual à DESP-2 — edite o texto lá", "apresenta_o"), { auto:true });
-    h += secao("m2_s2", 1, "2.", "METODOLOGIA", autoD2("igual à DESP-2 — edite o texto lá", "metodologia"), { auto:true });
-    h += secao("m2_caract", 1, "3.", "CARACTERIZAÇÃO DO IMÓVEL E TRECHO FERROVIÁRIO",
+    var ctxOn = $("d2m2_ctx_on") && $("d2m2_ctx_on").checked, P = {}, lista = ordem();
+    P["m2_s1"] = secao("m2_s1", 1, NUMS["m2_s1"] || "", "APRESENTAÇÃO", autoD2("igual à DESP-2 — edite o texto lá", "apresenta_o"), { auto:true });
+    P["m2_s2"] = secao("m2_s2", 1, NUMS["m2_s2"] || "", "METODOLOGIA", autoD2("igual à DESP-2 — edite o texto lá", "metodologia"), { auto:true });
+    P["m2_caract"] = secao("m2_caract", 1, NUMS["m2_caract"] || "", "CARACTERIZAÇÃO DO IMÓVEL E TRECHO FERROVIÁRIO",
       '<div class="dd-auto" data-fixo="1"><span class="dd-auto-rot">automático · dados do cadastro</span>' + dadosLinhas().map(function(d){ return '<div class="dl" data-k="p"><b>' + esc(d[0]) + ':</b> ' + esc(d[1]) + '</div>'; }).join("") + '</div>', { auto:true });
-    h += secao("m2_ctx", 3, "", v("d2m2_ctx_tit") || "Contexto histórico do imóvel",
+    P["m2_ctx"] = secao("m2_ctx", 3, NUMS["m2_ctx"] || "", v("d2m2_ctx_tit") || "Contexto histórico do imóvel",
       (ctxOn ? h4("Texto do contexto") + editor("d2m2_ctx_txt", "No período de 2010 a 2012 foram tramitados nesta Superintendência os processos administrativos onde foram emitidos Contratos de Servidão de Passagem (SEI 1692686) entre o INCRA e o DNIT... O projeto passou por modificações posteriormente, sendo parcelado e com parte de sua área titulada no ano de 2016.")
              : '<p class="dd-nota">Bloco opcional — não sai no relatório. Marque “Incluir no relatório” para escrever o subtítulo e o texto do contexto histórico (vem antes da Imagem 1).</p>'),
       { tituloEd: ctxOn ? "d2m2_ctx_tit" : "", acts:'<label class="dd-b m2-chk"><input type="checkbox" data-m2a="ctx" ' + (ctxOn ? "checked" : "") + '> Incluir no relatório</label>' + (ctxDesp2() ? btn("ctxdesp2", "↧ Trazer da DESP-2", "Copia o subtópico “" + ctxDesp2().head + "” da DESP-2 (texto e imagens)") : "") });
-    h += secao("m2_sigmap", 3, "", "Parcelas SIGEF sobre o imóvel", autoBloco("m2_sigmap", "automático") + fig("m2_sig"), { auto:!ovr("m2_sigmap"), manual:!!ovr("m2_sigmap") });
-    h += secao("m2_padrao", 3, "", "Áreas remanescentes",
+    P["m2_sigmap"] = secao("m2_sigmap", 3, NUMS["m2_sigmap"] || "", "Parcelas SIGEF sobre o imóvel", autoBloco("m2_sigmap", "automático") + fig("m2_sig"), { auto:!ovr("m2_sigmap"), manual:!!ovr("m2_sigmap") });
+    P["m2_padrao"] = secao("m2_padrao", 3, NUMS["m2_padrao"] || "", "Áreas remanescentes",
       '<label class="dd-h4" for="m2_sel_padrao">Texto padrão</label><select id="m2_sel_padrao" class="m2-sel" data-m2a="padrao"><option value="1"' + (v("d2m2_padrao") !== "2" ? " selected" : "") + '>Padrão 1 — remanescente a norte e a sul da faixa de domínio</option><option value="2"' + (v("d2m2_padrao") === "2" ? " selected" : "") + '>Padrão 2 — imóvel seccionado em Glebas A e B (SIGEF)</option></select>'
       + autoBloco("m2_padrao", "automático · texto padrão " + (v("d2m2_padrao") === "2" ? "2" : "1 (áreas calculadas pelo mapa)")) + fig("m2_1"), { auto:!ovr("m2_padrao"), manual:!!ovr("m2_padrao") });
-    h += secao("m2_carac", 3, "", "Caracterização do imóvel",
+    P["m2_carac"] = secao("m2_carac", 3, NUMS["m2_carac"] || "", "Caracterização do imóvel",
       h4("Situação fundiária da gleba desapropriada") + editor("d2m2_fund", "A área em questão encontra-se livre de conflito de divisas entre vizinhos, além de não possuir demandas junto aos órgãos fundiários e ambientais, tampouco há informação de hipoteca ou algo que restrinja ou impeça a venda do imóvel, conforme o documento protocolado pelo SEI 4763644, entre as páginas 13 e 21.")
       + h4("Tipo de exploração agrícola e maquinário utilizados") + editor("d2m2_expl", "O tipo de exploração predominante é a pecuária, com criação de bovinos. Possui áreas consolidadas cobertas por pastagens artificiais destinadas ao pastejo do rebanho. O proprietário não possui maquinário agrícola próprio; quando necessário, os implementos são contratados no município.")
       + h4("Roteiro de acesso") + editor("d2m2_rot", "A propriedade está localizada a cerca de 7 km da cidade de Sertânia/PE; o acesso é realizado pela BR-232 e por estrada vicinal de boa trafegabilidade durante todo o ano.")
@@ -62430,24 +62498,27 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
       + fig("m2_2")
       + autoBloco("m2_carac2", "automático")
       + fig("m2_3"), { manual:!!ovr("m2_carac2") });
-    h += secao("m2_car", 3, "", "Cadastro Ambiental Rural (CAR)", autoBloco("m2_car", "automático · camadas do CAR (Formulário)") + fig("m2_4"), { auto:!ovr("m2_car"), manual:!!ovr("m2_car") });
-    h += secao("m2_hipso", 3, "", "Hipsometria", autoBloco("m2_hipso", "automático · altitude e relevo calculados do ANADEM") + fig("m2_5"), { auto:!ovr("m2_hipso"), manual:!!ovr("m2_hipso") });
-    h += secao("m2_fatos", 1, "4.", "DOS FATOS EXPROPRIATÓRIOS", autoBloco("m2_fatos", "automático · dados do cadastro"), { auto:!ovr("m2_fatos"), manual:!!ovr("m2_fatos") });
-    h += secao("m2_estudo", 1, "5.", "ESTUDO DAS NECESSIDADES",
+    P["m2_car"] = secao("m2_car", 3, NUMS["m2_car"] || "", "Cadastro Ambiental Rural (CAR)", autoBloco("m2_car", "automático · camadas do CAR (Formulário)") + fig("m2_4"), { auto:!ovr("m2_car"), manual:!!ovr("m2_car") });
+    P["m2_hipso"] = secao("m2_hipso", 3, NUMS["m2_hipso"] || "", "Hipsometria", autoBloco("m2_hipso", "automático · altitude e relevo calculados do ANADEM") + fig("m2_5"), { auto:!ovr("m2_hipso"), manual:!!ovr("m2_hipso") });
+    P["m2_fatos"] = secao("m2_fatos", 1, NUMS["m2_fatos"] || "", "DOS FATOS EXPROPRIATÓRIOS", autoBloco("m2_fatos", "automático · dados do cadastro"), { auto:!ovr("m2_fatos"), manual:!!ovr("m2_fatos") });
+    P["m2_estudo"] = secao("m2_estudo", 1, NUMS["m2_estudo"] || "", "ESTUDO DAS NECESSIDADES",
       auto("fixo", "A implantação da infraestrutura ferroviária sobre propriedades rurais ou urbanas pode ocasionar impactos significativos, tais como o seccionamento e o isolamento de áreas, dificuldades de acesso, restrições à circulação e exposição à entrada de terceiros. Nesse contexto, torna-se necessário identificar e avaliar os efeitos decorrentes da intervenção sobre cada imóvel, bem como analisar alternativas que possibilitem mitigar os impactos identificados.\nConsiderando os aspectos anteriormente expostos, apresenta-se, a seguir, a caracterização das particularidades do imóvel afetado, com ênfase nas interferências decorrentes da implantação ferroviária e em suas respectivas implicações territoriais e funcionais.", true)
       + h4("Análise do imóvel") + editor("d2m2_estudo", "A área em estudo possui acessos internos destinados ao manejo de animais e máquinas agrícolas, e acesso externo a partir de estrada vicinal. O acesso à remanescente norte será impactado pela construção da ferrovia, gerando a necessidade de alternativas que possam mitigar a situação."));
-    h += secao("m2_s6", 1, "6.", "CONCLUSÃO", autoD2("igual à DESP-2 — edite o texto lá", "conclus_o")
+    P["m2_s6"] = secao("m2_s6", 1, NUMS["m2_s6"] || "", "CONCLUSÃO", autoD2("igual à DESP-2 — edite o texto lá", "conclus_o")
       + '<div class="dd-assin"><div class="dd-assin-linha"></div><b>' + esc(campo("responsavel") || "[responsável técnico]") + '</b><span>' + esc(campo("crea") || "[CREA]") + '</span><small>Responsável Técnico · escolha em “Identificação” da DESP-2</small></div>', { auto:true });
-    h += secao("m2_s7", 1, "7.", "ANEXOS", auto("fixo", "Seguem, como anexos ao presente relatório, o relatório fotográfico (Anexo 1) e a Anotação de Responsabilidade Técnica – ART (Anexo 2).", true));
-    h += secao("m2_s71", 2, "7.1", "ANEXO 1 - RELATÓRIO FOTOGRÁFICO", fotosHtml(), { auto:true });
-    h += secao("m2_s72", 2, "7.2", "ANEXO 2 - ANOTAÇÃO DE RESPONSABILIDADE TÉCNICA (ART)",
+    P["m2_s7"] = secao("m2_s7", 1, NUMS["m2_s7"] || "", "ANEXOS", auto("fixo", "Seguem, como anexos ao presente relatório, o relatório fotográfico (Anexo 1) e a Anotação de Responsabilidade Técnica – ART (Anexo 2).", true));
+    P["m2_s71"] = secao("m2_s71", 2, NUMS["m2_s71"] || "", "ANEXO 1 - RELATÓRIO FOTOGRÁFICO", fotosHtml(), { auto:true });
+    P["m2_s72"] = secao("m2_s72", 2, NUMS["m2_s72"] || "", "ANEXO 2 - ANOTAÇÃO DE RESPONSABILIDADE TÉCNICA (ART)",
       artPronta() ? auto("PDF carregado no Anexo 11 — entra inteiro no fim do relatório", "", true)
         : artBanco() ? auto("do cadastro de profissionais — " + artBanco().art.tipo + " nº " + (artBanco().art.numero || "—") + " de " + artBanco().nome + " (responsável técnico escolhido); entra inteira no fim do relatório", "", true)
         : '<p class="dd-nota">Sem ART: o responsável técnico escolhido não tem ART no banco. Escolha outro ou ' + btn("irart", "carregue o PDF no Anexo 11 (ART)") + '</p>', { auto:true });
-    return h;
+    return lista.map(function(it){ return it.x ? extraHtml(it) : (P[it.id] || ""); }).join("");
   }
   var SEC_NAV = [["m2_s1","1.","APRESENTAÇÃO",1],["m2_s2","2.","METODOLOGIA",1],["m2_caract","3.","CARACTERIZAÇÃO DO IMÓVEL E TRECHO FERROVIÁRIO",1],["m2_ctx","","Contexto histórico",3],["m2_sigmap","","Parcelas SIGEF (Imagem 1)",3],["m2_padrao","","Áreas remanescentes",3],["m2_carac","","Caracterização do imóvel",3],["m2_car","","Cadastro Ambiental Rural (CAR)",3],["m2_hipso","","Hipsometria",3],["m2_fatos","4.","DOS FATOS EXPROPRIATÓRIOS",1],["m2_estudo","5.","ESTUDO DAS NECESSIDADES",1],["m2_s6","6.","CONCLUSÃO",1],["m2_s7","7.","ANEXOS",1],["m2_s71","7.1","ANEXO 1 - RELATÓRIO FOTOGRÁFICO",2],["m2_s72","7.2","ANEXO 2 - ART",2]];
-  function navHtml(){ return SEC_NAV.map(function(n){ return '<a href="#" class="nv lv' + n[3] + '" data-ir="' + n[0] + '"><span class="nv-n">' + esc(n[1] || "·") + '</span><span class="nv-t">' + esc(n[2]) + '</span></a>'; }).join(""); }
+  function navHtml(){
+    var tit = {}; SEC_NAV.forEach(function(n){ tit[n[0]] = n[2]; });
+    return ordem().map(function(it){ return '<a href="#" class="nv lv' + it.level + '" data-ir="' + it.id + '"><span class="nv-n">' + esc(it.num || "·") + '</span><span class="nv-t">' + esc(it.x ? (it.x.head || "(sem título)") : tit[it.id]) + '</span>' + (it.x ? '<i class="m-extra" title="novo"></i>' : "") + '</a>'; }).join("");
+  }
 
   /* ---------- painel ---------- */
   function previas(){   // só os dados do topo e a prévia dos textos automáticos (sem redesenhar o documento: mantém o cursor)
@@ -62722,6 +62793,8 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
 
   /* ---------- eventos do documento ---------- */
   function salvarCampo(ed){
+    var xi = ed.getAttribute("data-m2x");
+    if(xi){ var xe = extraPor(xi); if(!xe) return; if(window.D2_normalizarEditor) window.D2_normalizarEditor(ed); xe.txt = window.D2_htmlParaMd ? window.D2_htmlParaMd(ed) : ed.textContent; if(xe.txt.trim()) ed.removeAttribute("data-vazio"); else ed.setAttribute("data-vazio", ""); salvarExtras(); return; }
     var k = ed.getAttribute("data-m2o");
     if(k){ if(window.D2_normalizarEditor) window.D2_normalizarEditor(ed); setOvr(k, window.D2_htmlParaMd ? window.D2_htmlParaMd(ed) : ed.textContent); return; }
     var c = ed.getAttribute("data-m2f"); if(!c) return;
@@ -62737,6 +62810,8 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     var ed = t.closest("#d2m2doc_main .dd-ed");
     if(ed){ clearTimeout(ed.__t); ed.__t = setTimeout(function(){ salvarCampo(ed); previas(); }, 250); return; }
     if(t.getAttribute && t.getAttribute("data-m2f")){ salvarCampo(t); clearTimeout(window.__d2m2t); window.__d2m2t = setTimeout(previas, 500); return; }
+    var xt = t.closest("[data-m2xt]");
+    if(xt){ var xx = extraPor(xt.getAttribute("data-m2xt")); if(xx){ xx.head = xt.textContent.replace(/\s+/g, " ").trim(); salvarExtras(); var nv = document.querySelector('#d2m2doc_nav [data-ir="' + xx.id + '"] .nv-t'); if(nv) nv.textContent = xx.head || "(sem título)"; } return; }
     var ci = t.closest("[data-m2imgcap]");
     if(ci){ var xi = imgPor(ci.getAttribute("data-m2img")); if(xi){ xi[ci.getAttribute("data-m2imgcap")] = ci.textContent.replace(/\s+/g, " ").trim(); sujo(); } return; }
     var cm = t.closest("[data-m2cap]");
@@ -62786,6 +62861,11 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     else if(a === "ovrauto"){ if(!confirm("Descartar a edição e voltar ao texto automático?")) return; setOvr(b.getAttribute("data-m2k"), null); D2M2_render(); }
     else if(a === "addimg"){ var sc = b.closest(".dd-top"); if(sc) novaImg(sc.getAttribute("data-id")); }
     else if(a === "ctxdesp2"){ D2M2_trazerCtx(); }
+    else if(a === "add"){ var sm0 = b.closest(".dd-top"), mn = sm0 && sm0.querySelector(":scope > .dd-menu"); if(mn) mn.hidden = !mn.hidden; }
+    else if(a === "addx"){ var sx = b.closest(".dd-top"); if(sx) novoExtra(sx.getAttribute("data-id"), +b.getAttribute("data-lv")); }
+    else if(a === "xup" || a === "xdown"){ var su = b.closest(".dd-top"); if(su) moverExtra(su.getAttribute("data-id"), a === "xup" ? -1 : 1); }
+    else if(a === "xnivel"){ var sn = b.closest(".dd-top"), xn = sn && extraPor(sn.getAttribute("data-id")); if(xn){ xn.level = xn.level % 3 + 1; salvarExtras(); D2M2_render(); } }
+    else if(a === "xdel"){ var sd = b.closest(".dd-top"); if(sd) excluirExtra(sd.getAttribute("data-id")); }
     else if(a === "addmapa"){ var sm = b.closest(".dd-top"); if(sm) abrirMapa(sm.getAttribute("data-id")); }
     else if(a === "mapaed"){ var xe = imgPor(b.getAttribute("data-m2img")), se = b.closest(".dd-top"); if(xe && se) abrirMapa(se.getAttribute("data-id"), xe); }
     else if(a === "imgup" || a === "imgdown" || a === "imgrm"){
@@ -64372,7 +64452,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.23-3';
+window.APP_VERSAO = '2026.10.23-4';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.23-3';
 (function(){
