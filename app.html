@@ -4769,6 +4769,15 @@ window.REL_baixarConjunto = async function(){
   #panel-desp1-drl .drl-row > div{flex:1; min-width:180px;}
   #panel-desp1-drl .drl-mini{border:1px solid var(--azul); background:#eaf3fc; color:var(--azul-esc); font-size:11.5px; font-weight:700; padding:4px 12px; border-radius:14px; cursor:pointer; margin-top:8px;}
   #panel-desp1-drl .drl-mini:hover{background:#d8ebfb;}
+  #panel-desp1-drl .drl-nota-tab{overflow-x:auto;}
+  #panel-desp1-drl .drl-nota-tab table{width:100%; border-collapse:collapse; font-size:12.5px;}
+  #panel-desp1-drl .drl-nota-tab th{background:#1f4e79; color:#fff; font-weight:700; padding:5px 6px; text-align:center; white-space:nowrap;}
+  #panel-desp1-drl .drl-nota-tab td{padding:3px 3px; border-bottom:1px solid var(--borda);}
+  #panel-desp1-drl .drl-nota-tab td.n{width:22px; text-align:center; color:#7a8794; font-weight:700;}
+  #panel-desp1-drl .drl-nota-tab select,#panel-desp1-drl .drl-nota-tab input{width:100%; min-width:64px; font:inherit; font-size:12.5px; padding:4px 5px; border:1px solid var(--borda); border-radius:6px; background:#fff;}
+  #panel-desp1-drl .drl-nota-tab td:nth-child(3) input,#panel-desp1-drl .drl-nota-tab td:nth-child(4) input{min-width:96px; text-align:right;}
+  #panel-desp1-drl .drl-nota-tab td:nth-child(7) input{min-width:170px;}
+  #panel-desp1-drl .drl-nota-acts{display:flex; gap:8px; flex-wrap:wrap;}
   #panel-desp1-drl .drl-actions{display:flex; gap:10px; flex-wrap:wrap; margin-top:4px;}
   #panel-desp1-drl .drl-btn{border:none; padding:11px 22px; font-size:14px; font-weight:700; border-radius:9px; cursor:pointer; background:var(--azul); color:#fff; box-shadow:0 3px 10px rgba(31,111,192,.3);}
   #panel-desp1-drl .drl-btn:hover{background:var(--azul-esc);}
@@ -9201,6 +9210,21 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
             <input type="file" accept="image/*" id="drl_conf_file">
           </label>
           <div id="drl_conf_prev" class="drl-imgprev"></div>
+        </div>
+        <div class="drl-card" id="drl_nota_card" style="display:none">
+          <label>Tabela de Confrontações da Nota</label>
+          <p class="hint-inline" style="margin:2px 0 8px;">Escolha o <b>vértice</b> em cada linha: E, N, matrícula e confrontante vêm sozinhos (e podem ser ajustados); o ponto final é o da linha seguinte. Sem nenhuma linha escolhida, a Nota usa a tabela automática por trecho.</p>
+          <p class="hint-inline" id="drl_nota_aviso" style="margin:0 0 6px;color:#b45309"></p>
+          <div class="drl-nota-tab"><table>
+            <thead><tr><th>#</th><th>Ponto</th><th>E</th><th>N</th><th>Ponto</th><th>Matrícula</th><th>Confrontante</th><th></th></tr></thead>
+            <tbody id="drl_nota_rows"></tbody>
+          </table></div>
+          <div class="drl-nota-acts">
+            <button type="button" class="drl-mini" onclick="DRL_notaAdd()">＋ Adicionar linha</button>
+            <button type="button" class="drl-mini" onclick="DRL_notaDaMesa()">↧ Carregar trechos da Mesa</button>
+            <button type="button" class="drl-mini" onclick="DRL_notaLimpar()">Limpar (volta ao automático)</button>
+          </div>
+          <textarea id="drl_nota_linhas" style="display:none" aria-hidden="true"></textarea>
         </div>
         <div class="drl-card">
           <label for="drl_local_data">Local e data</label>
@@ -40437,16 +40461,24 @@ function AV_gerarDescSituacao(){
   };
   /* 21/10/2026: DRL modelo "Nota" — confrontações por trecho contínuo de divisa (mesmo confrontante e matrícula seguidos viram uma
      linha): vértice inicial com E/N, vértice final, matrícula e confrontante. O último trecho emenda no primeiro quando é o mesmo. */
-  window.MDP_drlConfrontacoes = function(){
+  // linhas da tabela da Mesa com o confrontante/matrícula já resolvidos (sem nome digitado, o tipo da divisa dá o confrontante)
+  function drlTabelaResolvida(){
     var t = window.MDP_tabela(); if(!t || !t.length) return null;
-    var ch = function(r){ return String(r.conf || "").trim().toUpperCase() + "|" + String(r.mat || "").trim(); }, g = [];
-    // sem nome digitado: o tipo da divisa dá o confrontante (faixa de domínio → ferrovia; área remanescente → o próprio cadastro)
     var dv = divisasDe(), nmRem = nomeRemanescente(), matProp = String(doCadastro().matricula || "").trim();
-    t = t.map(function(r, i){
+    return t.map(function(r, i){
       var o = Object.assign({}, r), c = String(r.conf || "").trim();
       if(!c) o.conf = r.fd ? NOME_FAIXA_EF : ((dv[i] === "area" || dv[i] === "rem") ? nmRem : "");
       if(!String(o.mat || "").trim() && nmRem && o.conf === nmRem) o.mat = matProp;   // área remanescente: matrícula do próprio imóvel
       return o; });
+  }
+  /* 23/10/2026: vértices para a tabela dinâmica da Nota (aba DRL): cada vértice com E/N e o confrontante/matrícula do trecho que começa nele */
+  window.MDP_drlVertices = function(){
+    var t = drlTabelaResolvida(); if(!t) return [];
+    return t.map(function(r){ return { v:String(r.de), E:String(r.E), N:String(r.N), para:String(r.para), mat:String(r.mat || "").trim(), conf:String(r.conf || "").trim() }; });
+  };
+  window.MDP_drlConfrontacoes = function(){
+    var t = drlTabelaResolvida(); if(!t) return null;
+    var ch = function(r){ return String(r.conf || "").trim().toUpperCase() + "|" + String(r.mat || "").trim(); }, g = [];
     t.forEach(function(r){
       var u = g[g.length - 1];
       if(u && u.k === ch(r)) u.para = r.para;
@@ -49033,7 +49065,7 @@ window.DRL_gerarPDF=async function(opts){
       });
       y+=4;
     });
-    var _cf = window.MDP_drlConfrontacoes ? window.MDP_drlConfrontacoes() : null;
+    var _cf = window.DRL_confrontacoesNota ? window.DRL_confrontacoesNota() : (window.MDP_drlConfrontacoes ? window.MDP_drlConfrontacoes() : null);
     var assH=34, limN=botY-assH-14;                                         // reserva local/data + assinatura
     if(_cf && _cf.length){
       y+=2; garantir(16);
@@ -52128,7 +52160,7 @@ window.DRL_gerarWord=async function(opts){
         else K.push(new Paragraph({alignment:AlignmentType.JUSTIFIED,spacing:{after:200,line:300},children:[R(ln)]}));
       });
     });
-    var _cfW = window.MDP_drlConfrontacoes ? window.MDP_drlConfrontacoes() : null;
+    var _cfW = window.DRL_confrontacoesNota ? window.DRL_confrontacoesNota() : (window.MDP_drlConfrontacoes ? window.MDP_drlConfrontacoes() : null);
     if(_cfW && _cfW.length){
       var Tb=D.Table, Tr=D.TableRow, Tc=D.TableCell, WD=D.WidthType;
       var _lw=[11,19,21,11,13,25];
@@ -63216,6 +63248,112 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     return kmlDe(window.MDP_gpkgLer(await file.arrayBuffer()));
   };
 })();
+</script><script>/* DRL · modelo "Nota": tabela de Confrontações dinâmica (23/10/2026).
+   Cada linha: Ponto (vértice escolhido na lista da Mesa de Desenho) → E, N, matrícula e confrontante preenchidos sozinhos
+   (editáveis); o ponto final vem sozinho (o ponto da linha seguinte; a última fecha no da primeira) ou escolhido à mão.
+   4 linhas por padrão, + Adicionar linha. Guardada em #drl_nota_linhas (JSON) com o cadastro.
+   Sem nenhuma linha preenchida, a Nota continua saindo com a tabela automática por trecho (MDP_drlConfrontacoes). */
+(function(){
+  var PADRAO = 4;
+  function $(id){ return document.getElementById(id); }
+  function esc(s){ return String(s == null ? "" : s).replace(/[&<>"]/g, function(c){ return { "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[c]; }); }
+  var linhas = [], raw = null;
+  function vert(){ try{ return window.MDP_drlVertices ? (window.MDP_drlVertices() || []) : []; }catch(e){ return []; } }
+  function lerSalvo(){
+    var t = $("drl_nota_linhas"); if(!t) return;
+    if(t.value === raw) return; raw = t.value;
+    try{ var a = JSON.parse(t.value || "[]"); linhas = Array.isArray(a) ? a : []; }catch(e){ linhas = []; }
+    while(linhas.length < PADRAO) linhas.push({});
+  }
+  function guardar(){
+    var t = $("drl_nota_linhas"); if(!t) return;
+    var cheio = linhas.some(function(l){ return l.de; });
+    t.value = cheio ? JSON.stringify(linhas) : ""; raw = t.value;
+    t.dispatchEvent(new Event("input", { bubbles:true }));
+    try{ if(window.CAD_marcarSujo && !window.__CAD_RESTAURANDO) window.CAD_marcarSujo(); }catch(e){}
+  }
+  // ponto final automático: o ponto da próxima linha preenchida; a última fecha no ponto da primeira
+  function paraAuto(i){
+    var ds = linhas.map(function(l, k){ return l.de ? k : -1; }).filter(function(k){ return k >= 0; });
+    var pos = ds.indexOf(i); if(pos < 0) return "";
+    return linhas[ds[(pos + 1) % ds.length]].de;
+  }
+  function paraDe(i){ var l = linhas[i]; return l.pm && l.para ? l.para : paraAuto(i); }
+  function preencher(l, v){
+    var o = vert().filter(function(x){ return x.v === v; })[0];
+    l.de = v || "";
+    if(!o){ if(!v){ l.E = l.N = l.mat = l.conf = ""; } return; }
+    l.E = o.E; l.N = o.N; l.mat = o.mat; l.conf = o.conf;
+  }
+  function opts(vs, sel){ return '<option value="">—</option>' + vs.map(function(x){ return '<option value="' + esc(x.v) + '"' + (x.v === sel ? " selected" : "") + '>' + esc(x.v) + '</option>'; }).join(""); }
+  function desenhar(){
+    var host = $("drl_nota_rows"); if(!host) return;
+    lerSalvo();
+    var vs = vert(), aviso = $("drl_nota_aviso");
+    if(aviso) aviso.textContent = vs.length ? "" : "⚠ Sem vértices: insira o KML em Técnica › Áreas de Locação (a tabela da aba Planta e Memorial Descritivo alimenta esta lista).";
+    host.innerHTML = linhas.map(function(l, i){
+      var pa = paraDe(i);
+      return '<tr data-i="' + i + '"><td class="n">' + (i + 1) + '</td>'
+        + '<td><select data-f="de" aria-label="Ponto inicial da linha ' + (i + 1) + '">' + opts(vs, l.de) + '</select></td>'
+        + '<td><input type="text" data-f="E" value="' + esc(l.E) + '" aria-label="E"></td>'
+        + '<td><input type="text" data-f="N" value="' + esc(l.N) + '" aria-label="N"></td>'
+        + '<td><select data-f="para" aria-label="Ponto final da linha ' + (i + 1) + '">' + opts(vs, pa) + '</select></td>'
+        + '<td><input type="text" data-f="mat" value="' + esc(l.mat) + '" aria-label="Matrícula"></td>'
+        + '<td><input type="text" data-f="conf" value="' + esc(l.conf) + '" aria-label="Confrontante"></td>'
+        + '<td><button type="button" class="drl-mini" data-a="rm" aria-label="Remover a linha ' + (i + 1) + '" title="Remover a linha">✕</button></td></tr>';
+    }).join("");
+  }
+  function mostrar(){
+    var c = $("drl_nota_card"); if(!c) return;
+    var nota = window.DRL_modelo && window.DRL_modelo() === "nota";
+    c.style.display = nota ? "" : "none";
+    if(nota) desenhar();
+  }
+  window.DRL_notaAdd = function(){ lerSalvo(); linhas.push({}); guardar(); desenhar(); };
+  window.DRL_notaDaMesa = function(){
+    var a = window.MDP_drlConfrontacoes ? window.MDP_drlConfrontacoes() : null;
+    if(!a || !a.length){ alert("Ainda não há tabela da Mesa de Desenho para carregar."); return; }
+    if(linhas.some(function(l){ return l.de; }) && !confirm("Substituir as linhas atuais pelos trechos automáticos da Mesa de Desenho?")) return;
+    linhas = a.map(function(r){ return { de:r.de, E:r.E, N:r.N, para:r.para, pm:1, mat:r.mat || "", conf:r.conf || "" }; });
+    while(linhas.length < PADRAO) linhas.push({});
+    guardar(); desenhar();
+  };
+  window.DRL_notaLimpar = function(){
+    if(linhas.some(function(l){ return l.de; }) && !confirm("Limpar a tabela e voltar à tabela automática por trecho?")) return;
+    linhas = []; for(var i = 0; i < PADRAO; i++) linhas.push({}); guardar(); desenhar();
+  };
+  // linhas da Nota para o PDF/Word: as escolhidas aqui; sem nenhuma, a tabela automática por trecho
+  window.DRL_confrontacoesNota = function(){
+    lerSalvo();
+    var ok = [];
+    linhas.forEach(function(l, i){ if(l.de) ok.push({ de:l.de, E:l.E || "", N:l.N || "", para:paraDe(i) || "", mat:l.mat || "", conf:l.conf || "" }); });
+    return ok.length ? ok : (window.MDP_drlConfrontacoes ? window.MDP_drlConfrontacoes() : null);
+  };
+  function ligar(){
+    var h = $("drl_nota_rows"); if(!h || h._l) return; h._l = true;
+    h.addEventListener("change", function(ev){
+      var t = ev.target, tr = t.closest && t.closest("tr"); if(!tr) return;
+      var i = +tr.getAttribute("data-i"), f = t.getAttribute("data-f"), l = linhas[i]; if(!l) return;
+      if(f === "de"){ var antes = paraDe(i); preencher(l, t.value); if(!l.pm) l.para = ""; void antes; }
+      else if(f === "para"){ l.para = t.value; l.pm = t.value && t.value !== paraAuto(i) ? 1 : 0; }
+      else l[f] = t.value;
+      guardar(); desenhar();
+    });
+    h.addEventListener("click", function(ev){
+      var b = ev.target.closest && ev.target.closest('button[data-a="rm"]'); if(!b) return;
+      var i = +b.closest("tr").getAttribute("data-i"); linhas.splice(i, 1);
+      while(linhas.length < PADRAO) linhas.push({});
+      guardar(); desenhar();
+    });
+    var m = $("drl_modelo"); if(m) m.addEventListener("change", function(){ setTimeout(mostrar, 0); });
+    var s = $("drl_nota_linhas"); if(s) ["input", "change"].forEach(function(e){ s.addEventListener(e, function(){ if(s.value !== raw) mostrar(); }); });
+    var p = $("panel-desp1-drl");
+    if(p) new MutationObserver(function(){ if(p.classList.contains("ativa")) mostrar(); }).observe(p, { attributes:true, attributeFilter:["class"] });
+    mostrar();
+  }
+  if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", ligar); else ligar();
+  setTimeout(ligar, 1200);
+})();
 </script><style>
 /* ===== DESP 3 › Avaliação FTN › Aspectos Gerais do laudo (SGPD) — 18/10/2026 =====
    Mesmo visual das seções da aba (vsec/vcard/vfield); só o que falta: caixas de seleção e textarea bloqueada. */
@@ -64636,7 +64774,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.23-11';
+window.APP_VERSAO = '2026.10.23-12';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.23-3';
 (function(){
