@@ -20608,12 +20608,14 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
     { k:"orc", t:"Orçamentos (Tabelas do RGV)",       capa:"ORÇAMENTOS" },
     { k:"met", t:"Metodologia",                       capa:"METODOLOGIA" },
     { k:"est", t:"Relatório Estatístico",             capa:"RELATÓRIO ESTATÍSTICO" },
-    { k:"amo", t:"Planilha da Amostra e Mapa de Localização dos Dados de Mercado", capa:["PLANILHA DA AMOSTRA E MAPA DE LOCALIZAÇÃO", "DOS DADOS DE MERCADO"] }
+    { k:"amo", t:"Planilha da Amostra e Mapa de Localização dos Dados de Mercado", capa:["PLANILHA DA AMOSTRA E MAPA DE LOCALIZAÇÃO", "DOS DADOS DE MERCADO"] },
+    { k:"fot", t:"Relatório Fotográfico",                capa:"RELATÓRIO FOTOGRÁFICO" },
+    { k:"art", t:"Anotação de Responsabilidade Técnica (ART)", capa:["ANOTAÇÃO DE RESPONSABILIDADE", "TÉCNICA (ART)"] }
   ];
   let ANX_SEL = null;                                                                // seleção do "Baixar material técnico" (null = todos os disponíveis)
   function anxDisponiveis(){
     const c = anxCasos(), kml = ((document.getElementById("rel_kml_dados") || {}).value || "").trim();
-    return { rot:true, pla:!!kml && typeof window.MDP_pdfsTodos === "function", orc:benfTabelasRGV().length > 0, met:!!(c.tn || c.br || c.bnr), est:!!c.tn, amo:!!c.tn };
+    return { rot:true, pla:!!kml && typeof window.MDP_pdfsTodos === "function", orc:benfTabelasRGV().length > 0, met:!!(c.tn || c.br || c.bnr), est:!!c.tn, amo:!!c.tn, fot:fotosCampoAnexo().length > 0, art:artDisponivel() };
   }
   function anxPlano(){
     const d = anxDisponiveis(), R = ["I","II","III","IV","V","VI","VII","VIII"]; let n = 0; const o = {};
@@ -20638,8 +20640,10 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
     return PDFLib.PDFDocument.load(doc.output("arraybuffer"));
   }
   async function juntar(out, pdf, idx){ (await out.copyPages(pdf, idx || pdf.getPageIndices())).forEach(function(pg){ out.addPage(pg); }); }
+  // 23/10/2026, pedido do fiscal: o PDF da Avaliação FTN não leva mais o Memorial de Cálculo das Benfeitorias (reprodutivas e não reprodutivas) nem o Resumo dos Valores. false = volta a imprimir.
+  const FTN_SEM_TABELAS_BENF = true;
   async function paginasBenfeitorias(procRef, pg0){
-    if(!benfIndice().length) return null;
+    if(FTN_SEM_TABELAS_BENF || !benfIndice().length) return null;
     const {jsPDF} = window.jspdf, doc = new jsPDF({unit:"pt",format:"a4",compress:true}), ctx = ctxRel(doc, procRef, "DESP-3 (Memorial de Cálculo de Terra Nua e Benfeitorias)", pg0 || 0);
     desenharMemorialBenfeitorias(doc,ctx);
     doc.deletePage(1);                                                               // a 1ª página (em branco) nasce com o documento
@@ -20666,6 +20670,7 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
     (await out.copyPages(ax, ax.getPageIndices())).forEach(function(pg){ out.addPage(pg); });
   }
   function benfIndice(){
+    if(FTN_SEM_TABELAS_BENF) return [];
     const out = [];
     if(typeof window.BNF_lerLinhas !== "function") return out;
     const tem = function(gs){ return gs.some(function(g){ return window.BNF_lerLinhas(g).some(function(l){ return l.disc || l.vu; }); }); };
@@ -20824,6 +20829,7 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
     // --- índice simples: o memorial de cálculo e os anexos que acompanham este PDF
     (function(){
       const c = anxCasos(), itens = ["Memorial de Cálculo"];
+      if(window.__AV_VILA_IMG__ && window.__AV_MODO__ !== "obs") itens.push("Mapa da Influência Vila");
       benfIndice().forEach(function(t){ itens.push(t); });
       { const pl = anxPlano(); ANX_ORDEM.forEach(function(x){ if(pl[x.k]) itens.push("Anexo " + pl[x.k] + " — " + x.t); }); }
       subLbl(doc,ctx,"ÍNDICE");
@@ -20943,43 +20949,18 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
     doc.setFont("helvetica","bold"); doc.text(naFim, naX, ctx.y+10);
     ctx.y += 22; doc.setTextColor(30,40,55);
 
-    // --- IV — Memória de Cálculo para Terra Nua
-    { const y0 = ctx.y; ensure(doc,ctx,110);                 // o título não fica sozinho no fim da página
-      if(ctx.y === y0) ctx.y += 12; }                         // uma linha de espaço antes do tópico (se virou a página, ela já começa limpa)
-    ensure(doc,ctx,24);
-    doc.setFont("helvetica","bold"); doc.setFontSize(12); doc.setTextColor(23,90,159);        // título maior que os demais subtítulos
-    doc.text("Memória de Cálculo para Terra Nua", ctx.ML, ctx.y+11);
-    doc.setDrawColor(211,219,228); doc.setLineWidth(0.4); doc.line(ctx.ML, ctx.y+15, ctx.MR, ctx.y+15);
-    ctx.y += 22; doc.setTextColor(30,40,55);
-    varTexto("Variável Área do Imóvel (ha)","av_var_area"); varTexto("Variável Nota Agronômica (N.A.)","av_var_na"); varTexto("Variável Influência Vila","av_var_vila");
-    { const vi = window.__AV_VILA_IMG__; if(vi && window.__AV_MODO__ !== "obs"){ inserirImagem(doc,ctx,vi,470); doc.setFont("helvetica","italic"); doc.setFontSize(8); doc.setTextColor(90,100,112); ensure(doc,ctx,12); doc.text("Figura — Área desapropriada e áreas de influência de povoado (Vila)", ctx.W/2, ctx.y, {align:"center"}); ctx.y += 14; doc.setTextColor(30,40,55); } }
-    const rows = [
-      ["ÁREA DO IMÓVEL (ha)","e^(-0,6346406128 × ln(Área (ha)))", txt("av_mem_area"), E("av_mem_area_r").textContent],
-      ["NOTA AGRONÔMICA (N.A.)","e^(+8,17860439 × N.A.²)", txt("av_mem_na"), E("av_mem_na_r").textContent],
-      ["INFLUÊNCIA VILA","e^(+1,076288644 × Influência Vila)", E("av_mem_vila").value || "—", E("av_mem_vila_r").textContent]
-    ];
-    ensure(doc,ctx, 16+rows.length*15+60);
-    const cols=[ctx.ML, ctx.ML+130, ctx.ML+320, ctx.ML+400];
-    doc.setFillColor(31,111,192); doc.rect(ctx.ML,ctx.y,L,15,"F");
-    doc.setFont("helvetica","bold"); doc.setFontSize(7.5); doc.setTextColor(255,255,255);
-    ["VARIÁVEIS","FRAGMENTOS MODELO","COEF.","RESULTADO"].forEach((c,i)=> doc.text(c, cols[i]+3, ctx.y+10));
-    ctx.y += 15;
-    doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.setTextColor(35,45,60); doc.setDrawColor(211,219,228);
-    rows.forEach(r=>{
-      doc.rect(ctx.ML,ctx.y,L,15);
-      doc.text(r[0], cols[0]+3, ctx.y+9.5); doc.text(r[1], cols[1]+3, ctx.y+9.5);
-      doc.text(String(r[2]), cols[2]+3, ctx.y+9.5); doc.text(String(r[3]), cols[3]+3, ctx.y+9.5);
-      ctx.y += 15;
-    });
-    ctx.y += 8;
-    ensure(doc,ctx,44);
-    doc.setFillColor(255,244,230); doc.setDrawColor(240,200,145);
-    doc.roundedRect(ctx.ML,ctx.y,L,38,4,4,"FD");
-    doc.setFont("courier","normal"); doc.setFontSize(7); doc.setTextColor(138,90,26);
-    doc.text(doc.splitTextToSize(window.AV_eq("R$/ha",{area:"Área",na:"N.A.²",minus:"-"}), L-16), ctx.ML+8, ctx.y+12);
-    doc.setFont("helvetica","bold"); doc.setFontSize(13); doc.setTextColor(192,112,10);
-    doc.text("VTN/ha = "+E("av_vtn").textContent, ctx.ML+8, ctx.y+31);
-    ctx.y += 46; doc.setTextColor(30,40,55);
+    // --- Mapa da Influência Vila (tópico próprio). 23/10/2026, pedido do fiscal: saíram daqui o texto das variáveis (Área do Imóvel, Nota Agronômica, Influência Vila),
+    //     a tabela de variáveis/fragmentos do modelo e o card da equação (VTN/ha).
+    { const vi = window.__AV_VILA_IMG__;
+      if(vi && window.__AV_MODO__ !== "obs"){
+        { const y0 = ctx.y; ensure(doc,ctx,330); if(ctx.y === y0) ctx.y += 12; }
+        ensure(doc,ctx,24);
+        doc.setFont("helvetica","bold"); doc.setFontSize(12); doc.setTextColor(23,90,159);
+        doc.text("Mapa da Influência Vila", ctx.ML, ctx.y+11);
+        doc.setDrawColor(211,219,228); doc.setLineWidth(0.4); doc.line(ctx.ML, ctx.y+15, ctx.MR, ctx.y+15);
+        ctx.y += 22; doc.setTextColor(30,40,55);
+        inserirImagem(doc,ctx,vi,470); doc.setFont("helvetica","italic"); doc.setFontSize(8); doc.setTextColor(90,100,112); ensure(doc,ctx,12); doc.text("Figura — Área desapropriada e áreas de influência de povoado (Vila)", ctx.W/2, ctx.y, {align:"center"}); ctx.y += 14; doc.setTextColor(30,40,55);
+      } }
   }
 
   // ftn = true: aba "Avaliação FTN" (PDF "Avaliação da terra nua", só o conteúdo da aba); false: laudo antigo (Obsoleto)
@@ -21362,6 +21343,78 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
     for(let i = 0; i < arqs.length; i++){ await juntar(out, await PDFLib.PDFDocument.load(new Uint8Array(await arqs[i].blob.arrayBuffer()), {ignoreEncryption:true})); }
   }
 
+
+  /* ---- Anexos Relatório Fotográfico (fotos da aba Campo) e ART (23/10/2026) ---- */
+  // fotos da aba Campo (menos o arquivo morto); sem nenhuma, as da Ficha de Vistoria (5.3)
+  function fotosCampoAnexo(){
+    let l = []; try{ l = ((window.CAMPO_getFotos ? window.CAMPO_getFotos() : []) || []).filter(function(f){ return f && f.src; }); }catch(e){}
+    if(!l.length){ try{ l = ((window.FB_getFotos ? window.FB_getFotos() : []) || []).filter(function(f){ return f && f.src; }); }catch(e){} }
+    return l;
+  }
+  // ART: PDF do Anexo 11 ou, sem ele, a ART do responsável técnico escolhido no banco de profissionais
+  function artDisponivel(){
+    try{ const l = document.getElementById("lista-11"); if(l && l.children.length) return true; }catch(e){}
+    try{ const p = window.PROF_get && window.PROF_relatorio ? window.PROF_get(window.PROF_relatorio()) : null; return !!(p && p.art && p.art.temPdf); }catch(e){ return false; }
+  }
+  async function anexoArt(out, procRef){
+    const b = typeof window.DOC_buildBytes === "function" ? await window.DOC_buildBytes(11, false) : null;
+    if(!b) throw new Error("ART não encontrada — escolha o responsável técnico ou carregue o PDF em Anexo 11 (ART)");
+    await juntar(out, await capaPdf("art", procRef));
+    await juntar(out, await PDFLib.PDFDocument.load(b, {ignoreEncryption:true}));
+  }
+  async function anexoFoto(out, procRef){
+    const lista = fotosCampoAnexo(); if(!lista.length) throw new Error("sem fotografias na aba Campo");
+    let org = { itens:lista.map(function(f){ return { src:f.src, legenda:String(f.legenda || "").trim() }; }), temTopicos:false };
+    try{ if(window.CAMPO_organizarFotos){ const o = await window.CAMPO_organizarFotos(lista); if(o && o.itens && o.itens.length) org = o; } }catch(e){ console.warn("organizar fotos:", e); }
+    const itens = org.itens.filter(function(f){ return f && f.src; });
+    let mapa = null; try{ if(window.CAMPO_mapaPara) mapa = await window.CAMPO_mapaPara(itens); }catch(e){ console.warn("mapa das fotos:", e); }
+    const {jsPDF} = window.jspdf, doc = new jsPDF({unit:"pt",format:"a4",compress:true}), ctx = makeCtx(doc);
+    ctx.rodapePadrao = true; ctx.procRef = procRef;
+    capaAnx(doc, ctx, anxPlano().fot || "", "RELATÓRIO FOTOGRÁFICO");
+    novaPagina(doc,ctx);
+    secBar(doc,ctx,"RELATÓRIO FOTOGRÁFICO");
+    const Lw = ctx.MR - ctx.ML;
+    if(mapa && mapa.url){                                                             // mapa de localização das fotografias, antes das fotos
+      const mw = Math.min(Lw, 380), mh = mw * mapa.h / mapa.w;
+      ensure(doc,ctx,mh+22);
+      try{ doc.addImage(mapa.url, "JPEG", ctx.ML + (Lw - mw) / 2, ctx.y, mw, mh); }catch(e){}
+      ctx.y += mh + 10;
+      doc.setFont("helvetica","italic"); doc.setFontSize(8); doc.setTextColor(70,80,95);
+      doc.text("Mapa de localização das fotografias", ctx.W/2, ctx.y, {align:"center"}); ctx.y += 14; doc.setTextColor(30,40,55);
+    }
+    const gap = 14, FS = 8, LH = 9.6, fwMax = (Lw - gap) / 2;
+    const cap = function(i){ const n = i + 1; return "Foto " + (n < 10 ? "0" : "") + n + (itens[i].legenda ? " – " + itens[i].legenda : ""); };
+    doc.setFont("helvetica","normal"); doc.setFontSize(FS);
+    let nCap = 1; itens.forEach(function(x, i){ nCap = Math.max(nCap, Math.min(4, doc.splitTextToSize(cap(i), fwMax).length)); });
+    const capH = 4 + nCap * LH, rowGap = 10;
+    const fh = Math.min(fwMax * 0.75, (ctx.MB - ctx.MT - 8) / 3 - capH - rowGap), fw = fh / 0.75 > fwMax ? fwMax : fh / 0.75, x0 = ctx.ML + (Lw - (fw * 2 + gap)) / 2;
+    const rowH = fh + capH + rowGap;
+    const grupos = []; itens.forEach(function(x, i){ const t = org.temTopicos ? (x.topico || "Demais fotografias") : ""; let g = grupos[grupos.length - 1]; if(!g || g.t !== t){ g = { t:t, idx:[] }; grupos.push(g); } g.idx.push(i); });
+    grupos.forEach(function(g){
+      if(g.t){
+        if(ctx.y + 24 + rowH > ctx.MB) novaPagina(doc,ctx);                           // título nunca fica sozinho no fim da página
+        doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor(27,58,92); doc.text(g.t, ctx.ML, ctx.y + 8);
+        doc.setDrawColor(190,200,212); doc.setLineWidth(0.5); doc.line(ctx.ML, ctx.y + 12, ctx.MR, ctx.y + 12);
+        doc.setTextColor(30,40,55); ctx.y += 20;
+      }
+      for(let k = 0; k < g.idx.length; k += 2){
+        if(ctx.y + rowH - rowGap > ctx.MB) novaPagina(doc,ctx);
+        for(let c = 0; c < 2 && k + c < g.idx.length; c++){
+          const i = g.idx[k + c], fx = x0 + c * (fw + gap);
+          doc.setDrawColor(150,160,170); doc.setLineWidth(0.5); doc.rect(fx, ctx.y, fw, fh);
+          try{ const pr = doc.getImageProperties(itens[i].src), e = Math.min(fw / pr.width, fh / pr.height), w = pr.width * e, h = pr.height * e;
+            doc.addImage(itens[i].src, /^data:image\/png/i.test(itens[i].src) ? "PNG" : "JPEG", fx + (fw - w) / 2, ctx.y + (fh - h) / 2, w, h); }catch(e){}
+          doc.setFont("helvetica","normal"); doc.setFontSize(FS); doc.setTextColor(70,80,95);
+          let ls = doc.splitTextToSize(cap(i), fw); if(ls.length > 4) ls = ls.slice(0, 4);
+          ls.forEach(function(t, q){ doc.text(t, fx + fw / 2, ctx.y + fh + 11 + q * LH, {align:"center"}); });
+        }
+        doc.setTextColor(30,40,55); ctx.y += rowH;
+      }
+    });
+    doc.deletePage(1);                                                               // a 1ª página (em branco) nasce com o documento
+    await juntar(out, await PDFLib.PDFDocument.load(doc.output("arraybuffer")));
+  }
+
   /* roteiroV2 — Anexo de Roteiro de Acesso: layout da aba Utilitários > Roteiro de Acesso (título, descrição, croqui de acesso com QR) */
   function roteiroDados(){
     const g = function(id){ return document.getElementById(id); };
@@ -21541,24 +21594,12 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
           const yFim = ctx.y;                                    // onde terminou o conteúdo na última página
           doc.deletePage(1);                                     // a 1ª página (em branco) nasce com o documento
           const lau = await PDFLib.PDFDocument.load(doc.output("arraybuffer"));
-          const fin = await PDFLib.PDFDocument.load(window.AV_paginasFinais(false,true,true));   // sem a amostra do SISDEA
+          // 23/10/2026, pedido do fiscal: a tabela "AVALIAÇÃO DA TERRA NUA — IMÓVEL AVALIANDO" (AV_paginasFinais) não entra mais neste PDF
           await juntar(out, lau);
-          // a tabela "Imóvel avaliando" vem na mesma página da memória de cálculo, se couber (recorte da página dela, sem os logos)
-          const pf = fin.getPage(0), PW = pf.getWidth(), PH = pf.getHeight(), TOPO = 84, ALT = 316;
-          const ultima = out.getPage(out.getPageCount() - 1), yTopo = yFim + 16;
-          const scF = (ctx.MR - ctx.ML) / (PW - 84), altF = ALT * scF;     // tabela reduzida às margens do memorial
-          if(fin.getPageCount() === 1 && yTopo + altF <= ctx.MB){
-            const emb = await out.embedPage(pf, { left:0, bottom:PH - TOPO - ALT, right:PW, top:PH - TOPO });
-            ultima.drawPage(emb, { x: ctx.ML - 42*scF, y:ultima.getHeight() - yTopo - altF, width:PW*scF, height:altF });
-          } else {
-            const base0 = out.getPageCount();
-            await juntar(out, fin);
-            try{ await padronizarPaginasFin(out, base0, procRef, base0 - (opts.capaMemorial !== false ? 1 : 0)); }catch(err){ console.warn("cabeçalho/rodapé da página do imóvel avaliando:", err); }
-          }
           try{ const pb = await paginasBenfeitorias(procRef, out.getPageCount() - (opts.capaMemorial !== false ? 1 : 0)); if(pb) await juntar(out, pb); }
           catch(err){ console.error("benfeitorias:", err); alert("O memorial foi gerado, mas as benfeitorias não puderam ser incluídas: " + (err && err.message || err)); }
         }
-        const FN = { rot:anexoRoteiro, pla:anexoPla, orc:anexoOrcamentos, met:anexoMet, est:anexoEst, amo:anexoAmo }, pl = anxPlano();
+        const FN = { rot:anexoRoteiro, pla:anexoPla, orc:anexoOrcamentos, met:anexoMet, est:anexoEst, amo:anexoAmo, fot:anexoFoto, art:anexoArt }, pl = anxPlano();
         for(let i = 0; i < ANX_ORDEM.length; i++){
           const x = ANX_ORDEM[i];
           if(!pl[x.k] || (opts.so && opts.so !== x.k)) continue;
@@ -64774,7 +64815,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.23-12';
+window.APP_VERSAO = '2026.10.23-13';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.23-3';
 (function(){
