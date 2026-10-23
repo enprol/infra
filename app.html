@@ -54621,6 +54621,27 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       L.ha+=ha; L.polys.push(m2LL(ex.outer,z)); if(!L.maior||ha>L.maior.ha) L.maior={ha:ha, c:d2utmInv(c.X/100,c.Y/100,z,true)}; });
     return lados;
   }
+  /* 23/10/2026: as remanescentes medidas no KML (UTM) diferem uns m² da área informada (SIGEF mede no sistema geodésico
+     local): no CTD 006B, Norte + Sul = 15,7313 ha contra a certificada de 15,7309 ha, e a soma com a desapropriada não fechava
+     com a área total. Quando a diferença é pequena (até 0,5%), Norte e Sul são proporcionalizadas para somar EXATAMENTE a
+     remanescente informada, já em 4 casas: 006 = área certificada (Técnica 1.4); demais = área remanescente da identificação
+     ou área total − área desapropriada. Diferença maior = dado divergente: fica a medida do desenho. */
+  function m2remAlvo(){
+    var ehRem=/^006[A-Z]$/i.test(gid("fb_proc_ctd")) && /^0?4$/.test(gid("fb_proc_lote"));
+    if(ehRem) return num(gid("fb_area_total")||C("areaTotal"));
+    var r=num(C("areaRem")); if(r>0) return r;
+    var t=num(gid("fb_area_total")||C("areaTotal")), d=num(gid("fb_area_desap")||C("areaDesap"));
+    return (t>0 && d>=0) ? t-d : NaN;
+  }
+  function m2ajustarRem(rem){
+    var alvo=m2remAlvo(), soma=rem.norte.ha+rem.sul.ha;
+    if(!(alvo>0) || !(soma>0) || Math.abs(alvo-soma)/alvo>0.005) return;
+    var a4=Math.round(alvo*1e4)/1e4;
+    if(!rem.sul.polys.length){ rem.norte.ha=a4; return; }
+    if(!rem.norte.polys.length){ rem.sul.ha=a4; return; }
+    var n4=Math.round(rem.norte.ha*alvo/soma*1e4)/1e4;
+    rem.norte.ha=n4; rem.sul.ha=Math.round((a4-n4)*1e4)/1e4;
+  }
   // linhas separadas pelo polígono: trechos dentro e fora (densifica ~2 m para cortar na borda)
   function m2pip(p, polys){ var d=false; polys.forEach(function(r){ for(var i=0,j=r.length-1;i<r.length;j=i++){ var xi=r[i][0],yi=r[i][1],xj=r[j][0],yj=r[j][1]; if(((yi>p[1])!==(yj>p[1]))&&(p[0]<(xj-xi)*(p[1]-yi)/(yj-yi)+xi)) d=!d; } }); return d; }
   function m2separar(lines, polys){
@@ -54749,6 +54770,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
           var rem=fx?m2remanescentes(area, fx):null;
           if(!rem){ c.falhou.push('áreas remanescentes (faixa de domínio não encontrada)'); return; }
           var fmt=function(v){ return v.toLocaleString('pt-BR',{minimumFractionDigits:4,maximumFractionDigits:4}); };
+          m2ajustarRem(rem);
           if(rem.norte.polys.length){ c.geom.remN={polys:rem.norte.polys,lines:[],pts:[]}; c.rotulos.push({ lon:rem.norte.maior.c[0], lat:rem.norte.maior.c[1], linhas:['REMAN. NORTE','ÁREA = '+fmt(rem.norte.ha)+' ha'] }); }
           if(rem.sul.polys.length){ c.geom.remS={polys:rem.sul.polys,lines:[],pts:[]}; c.rotulos.push({ lon:rem.sul.maior.c[0], lat:rem.sul.maior.c[1], linhas:['REMAN. SUL','ÁREA = '+fmt(rem.sul.ha)+' ha'] }); }
           valores.remNorte=rem.norte.ha; valores.remSul=rem.sul.ha;
@@ -62783,7 +62805,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     novaImg(id);
   };
   window.D2M2_irArt = function(){ var b = document.querySelector('.sb-link[data-alvo="panel-anx11"]'); if(b && window.trocarAba){ window.trocarAba(b); return; } var pn = $("panel-anx11"); if(pn) pn.scrollIntoView(); };
-  var MAPVER = "7";   // sobe quando muda o desenho/enquadramento dos mapas: os já salvos no cadastro são refeitos uma vez
+  var MAPVER = "8";   // sobe quando muda o desenho/enquadramento dos mapas: os já salvos no cadastro são refeitos uma vez
   window.D2M2_abrir = function(){
     trazerCtx(false);
     D2M2_modo(modoAtual(), true);
@@ -64614,7 +64636,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.23-10';
+window.APP_VERSAO = '2026.10.23-11';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.23-3';
 (function(){
