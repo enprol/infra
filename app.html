@@ -9375,16 +9375,12 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 <p class="hint-inline" style="margin-top:0;">As tabelas abaixo são as mesmas da aba Avaliação (DESP 3 → Avaliação): editar aqui ou lá preenche o mesmo lugar.</p>
 <div id="bnf_item12_slot"></div>
 <div id="bnf_item13_slot"></div>
-<div class="vsec" style="margin-top:22px;">Plantas e Roteiro de Acesso (DESP 2)</div>
-<p class="hint-inline" style="margin-top:0;">Idem — os mesmos tópicos e imagens da DESP 2 → Relatório de Análise de Impacto e Transposição. Clique numa imagem já inserida para ampliar; use as setas laterais para passar para as outras plantas deste tópico.</p>
+<div class="vsec" style="margin-top:22px;">Roteiro de acesso</div>
+<p class="hint-inline" style="margin-top:0;">Pontos A e B e o texto do roteiro: saem no Memorial Descritivo (com o QR do percurso) e no anexo Roteiro de Acesso do memorial FTN. Os mapas são gerados sozinhos (o do roteiro usa os Pontos A e B).</p>
+<!-- 25/10/2026: as plantas da DESP-2 original saíram daqui (mapas automáticos); a figura do roteiro também não aparece mais nesta aba -->
+<style>#panel-desp1-tecnica #d2_row_roteiro_de_acesso .d2-figgrid{display:none;}</style>
 <div class="d2plantas-lista">
   <div id="d2_row_roteiro_de_acesso_slot"></div>
-  <div id="d2_row_planta_da_rea_total_do_im_ve_slot"></div>
-  <div id="d2_row_planta_contendo_a_dimens_o_d_slot"></div>
-  <div id="d2_row_descri_o_do_tipo_de_atividad_slot"></div>
-  <div id="d2_row_planta_com_indica_o_das_font_slot"></div>
-  <div id="d2_row_planta_contendo_a_disposi_o_slot"></div>
-  <div id="d2_row_planta_de_localiza_o_das_rea_slot"></div>
 </div>
 </div>
 </section>
@@ -21542,6 +21538,8 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
     });
   }
   async function anexoRoteiro(out, procRef){
+    // 25/10/2026: sem o mapa do roteiro (a figura saiu da aba Técnica), gera pelo mesmo pipeline do modal com os Pontos A e B
+    try{ const fg = window.D2_getFigs ? window.D2_getFigs() : {}; if(!fg.f1 && window.D2_figAuto) await window.D2_figAuto("f1"); }catch(e){ console.warn("roteiro automático:", e); }
     const R = roteiroDados(); if(!R) return;
     const {jsPDF} = window.jspdf, doc = new jsPDF({unit:"pt",format:"a4",compress:true}), ctx = ctxRel(doc, procRef, "DESP-3 (Anexo — Roteiro de Acesso)", 0);
     novaPagina(doc,ctx);                                                             // capa
@@ -22437,8 +22435,10 @@ function AV_gerarDescSituacao(){
   // DOM-portal: tópicos com imagem (Roteiro de acesso + 5 plantas) da DESP 2 —
   // moram só na Técnica (21/09/2026, pedido do usuário: nunca mais voltam pra
   // DESP 2, nem ao clicar na aba "Relatório de Análise de Impacto (DESP-2)").
-  var D2PLANTAS_IDS = ["roteiro_de_acesso","planta_da_rea_total_do_im_ve","planta_contendo_a_dimens_o_d",
-    "descri_o_do_tipo_de_atividad","planta_com_indica_o_das_font","planta_contendo_a_disposi_o","planta_de_localiza_o_das_rea"];
+  /* 25/10/2026: as plantas da DESP-2 original (a, b, c, d, f, h) saíram da aba Técnica — os mapas são automáticos
+     (Modelo 02 e D2_figsAutoFaltantes no PDF do modelo original); voltam ao formulário da DESP-2 original, sem perder dados.
+     Fica só o Roteiro de acesso (Pontos A/B e texto: MD e anexo Roteiro do FTN), sem o quadro da figura (CSS em #panel-desp1-tecnica). */
+  var D2PLANTAS_IDS = ["roteiro_de_acesso"];
   window.D2PLANTAS_moverParaTecnica = function(){
     D2PLANTAS_IDS.forEach(function(id){
       var w = document.getElementById("d2_row_"+id), s = document.getElementById("d2_row_"+id+"_slot");
@@ -55130,6 +55130,33 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     pintarVis();
     if(opts && opts.gerarJa) document.getElementById('d2map_ger').click();   // editar um mapa já inserido: já mostra a prévia
   };
+  /* 25/10/2026: figuras da DESP-2 (modelo original) geradas SEM o modal — as plantas saíram da aba Técnica.
+     Mesmo pipeline (d2mapGerar) e a receita que o modal usaria: camadas da regra (ou as últimas escolhidas na sessão),
+     base ortofoto, localização automática, enquadramento da sessão se houver. Só gera o que falta (figura já existente,
+     manual ou automática, não é trocada). f3b = Planta de situação da Mesa (MDP), f3c só com atividade agrícola. */
+  var FIG_AUTO=['f1','f2','f3','f3c','f4','f5','f6','f7'];
+  window.D2_figAuto=async function(fid, st){
+    var regra=d2regra(fid); if(!regra) return false;
+    if(fid==='f3c' && figOculta(fid)) return false;
+    var rot=!!regra.roteiro;
+    if(rot && !(d2rtaPonto('A') && d2rtaPonto('B'))) return false;   // roteiro sem os Pontos A e B: não há o que desenhar
+    function _campo(id){ var el=document.getElementById(id); return el?((el.value||'').trim()||(el.placeholder||'').trim()):''; }
+    var autoProc=((document.getElementById('fb_proc_preview')||{}).value||'').replace(/^\s*processo administrativo:\s*/i,'').trim();
+    var T=Object.assign({}, D2MAP_TXT, { proc:autoProc||D2MAP_TXT.proc||'', ferrovia:[_campo('d2_ferrovia'),_campo('d2_codFerrovia')].filter(Boolean).join('\n')||D2MAP_TXT.ferrovia||'',
+      base:D2MAP_TXT.base||'orto', transp:(D2MAP_TXT.transp==null?25:D2MAP_TXT.transp), locLado:'auto', solos:'' });
+    var need={}; (((D2MAP_TXT.cams||{})[fid])||regra.cams||[]).forEach(function(c){ need[c]=true; });
+    var r=await d2mapGerar({ fid:fid, regra:regra, rot:rot, need:need, foco:(D2MAP_TXT.foco||'area'), txt:T, st:st||function(){}, enq:((D2MAP_TXT.enq||{})[fid])||null });
+    if(!r || !r.png) return false;
+    aplicarFig(fid, r.png, 'mapa-automatico.png');
+    return true;
+  };
+  window.D2_figsAutoFaltantes=async function(st){
+    var n=0;
+    for(var i=0;i<FIG_AUTO.length;i++){ var f=FIG_AUTO[i]; if(figs[f]) continue; try{ if(await window.D2_figAuto(f, st)) n++; }catch(e){ console.warn('figura automática '+f+':', e); } }
+    var kml=(document.getElementById('rel_kml_dados')||{}).value||'';
+    if(!figs.f3b && kml.trim() && window.MDP_imagensQuadro){ try{ await window.D2_gerarFig3B(null); n++; }catch(e){ console.warn('figura 3B automática:', e); } }
+    return n;
+  };
   window.D2MAP_restaurarManual=function(fid){
     if(figManualBackup[fid]){ aplicarFig(fid, figManualBackup[fid]); delete figManualBackup[fid]; }
   };
@@ -55325,6 +55352,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
   }
   window.D2_gerarPDF=async function(opts){
     opts=opts||{}; await D2DOC_prepararImgs(); window.D2_puxar(false);
+    if(!opts.modelo2){ try{ await window.D2_figsAutoFaltantes(); }catch(e){ console.warn('figuras automáticas:', e); } }   // 25/10/2026: plantas sem o modal (saíram da Técnica)
     // 20/10/2026: mapa geral das fotos de campo incorporadas ao 6.1, com o número de cada foto no relatório
     // 20/10/2026: fotos por tópico do Campo; a ordem de impressão é a do mapa
     var __orgD2 = null; try{ __orgD2 = window.CAMPO_organizarFotos ? await window.CAMPO_organizarFotos((window.D2_fotosRelatorio ? window.D2_fotosRelatorio().fotos : []).filter(function(f){ return f && (f.src || f.legenda); })) : null; }catch(e){}
@@ -64925,7 +64953,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.25-4';
+window.APP_VERSAO = '2026.10.25-5';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.23-3';
 (function(){
