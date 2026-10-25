@@ -19461,6 +19461,8 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
               zebra:[250,252,254], linhaCor:[237,241,245], linhaLarg:0.2 },
     seta: { w:2.4, h:2.6 },
     sumario: { tam:11, cor:[30,45,65], numTam:10, numCor:[120,132,146], folga:2 },
+    // índice dos relatórios (25/10/2026, desenho do Modelo 02): nível 1 negrito, nível 2 normal recuado; nº, título em caixa alta, pontilhado e página
+    indice: { titulo:"SUMÁRIO", tam1:11, tam2:10.5, recuo2:8, numW1:9, numW2:12, lh:5.2, passo1:7.2, passo2:6.2 },
     assinatura: { nomeTam:11, cargoTam:10.5, entre:5.5 }
   };
 
@@ -19638,6 +19640,27 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
     cor(pdf,"setTextColor",S.cor); pdf.text(num, o.xFim*u, o.y*u, {align:"right"});
   }
 
+  /* índice completo (página reservada pelo gerador, preenchida no fim): título "SUMÁRIO" como nível 1 e as entradas.
+     o: { fonte, x, xFim, y, botY, itens:[{ t:"1. TÍTULO" | "1.1 Título", n:1|2, pg }] } → y final */
+  function indice(pdf, o){
+    var K=T.indice, u=U(pdf), f=o.fonte||"helvetica", xPg=o.xFim, yi=topico(pdf, { fonte:f, x:o.x, xFim:o.xFim, y:o.y, texto:K.titulo }) + 3;
+    (o.itens||[]).forEach(function(it){
+      if(yi>o.botY-6) return;
+      var m=String(it.t).match(/^(\d+(?:\.\d+)?\.?)\s+(.*)$/), num=m?m[1]:"", tx=(m?m[2]:it.t).toUpperCase();
+      var x0=o.x+(it.n===2?K.recuo2:0), xT=x0+(num?(it.n===2?K.numW2:K.numW1):0);
+      pdf.setFont(f, it.n===1?"bold":"normal"); pdf.setFontSize(it.n===1?K.tam1:K.tam2); pdf.setTextColor(0,0,0);
+      var pg=String(it.pg), wPg=pdf.getTextWidth(pg)/u, larg=xPg-wPg-3-xT, ls=pdf.splitTextToSize(tx, larg*u);
+      if(num) pdf.text(num, x0*u, yi*u);
+      ls.forEach(function(l, i){ pdf.text(l, xT*u, yi*u); if(i<ls.length-1) yi+=K.lh; });
+      var fimTx=xT+pdf.getTextWidth(ls[ls.length-1])/u+1.5, ini=Math.max(fimTx, xT);
+      pdf.setFont(f,"normal"); var pt=pdf.getTextWidth(".")/u, nPt=Math.max(0, Math.floor((xPg-wPg-1.5-ini)/pt));
+      if(nPt>2) pdf.text(".".repeat(nPt), (xPg-wPg-1.5)*u, yi*u, { align:"right" });
+      pdf.setFont(f, it.n===1?"bold":"normal"); pdf.text(pg, xPg*u, yi*u, { align:"right" });
+      yi+=it.n===1?K.passo1:K.passo2;
+    });
+    return yi;
+  }
+
   /* assinatura centrada: nome (normal) e cargo (negrito). Devolve o y da linha do cargo. o: { fonte, cx, y, nome, cargo } */
   function assinatura(pdf, o){
     var A=T.assinatura, u=U(pdf), y=o.y, f=o.fonte||"helvetica";
@@ -19650,7 +19673,7 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
 
   window.DOCPDF = { T:T, U:U, fonteCorpo:fonteCorpo, logos:logos, moldura:moldura, cabecalho:cabecalho, rodape:rodape,
     capa:capa, topico:topico, tabelaCab:tabelaCab, tabelaZebra:tabelaZebra, tabelaLinha:tabelaLinha,
-    seta:seta, sumarioLinha:sumarioLinha, assinatura:assinatura };
+    seta:seta, sumarioLinha:sumarioLinha, indice:indice, assinatura:assinatura };
 })();
 </script>
 <script>
@@ -45825,17 +45848,18 @@ window.UFOTO_rodapeHTML=rodapeHTML;
       titulo(t);
     }
     // título nível 1: preto, negrito, com régua abaixo (padrão do modelo Word)
+    const _IDX=[], DT=DOCPDF.T, CX=mL+cw/2;   // índice (títulos com a página) · centro da área de texto (manual §2.1)
     function titulo(t){ ensure(16);
-      yc=DOCPDF.topico(pdf, { fonte:FONT, x:mL, xFim:W-mR, y:yc, texto:t, separarNumero:true });
+      yc=DOCPDF.topico(pdf, { fonte:FONT, x:mL, xFim:W-mR, y:yc, texto:t, separarNumero:true }); _IDX.push({ t:t, n:1, pg:PG });
     }
     // subtítulo nível 2: preto, negrito, sem faixa
-    function subt(t){ pdf.setFont(FONT,"bold"); pdf.setFontSize(11.5); pdf.setTextColor(0,0,0);
+    function subt(t){ const S=DT.subtopico; pdf.setFont(FONT,"bold"); pdf.setFontSize(S.tam); pdf.setTextColor(0,0,0);
       const m=String(t).match(/^(\d+\.\d+)\.?\s*(.*)$/);
       const num=m?(m[1]+"."):""; const tit=(m?m[2]:String(t)).toUpperCase();
-      const x0=mL+(num?12:0); const ls=pdf.splitTextToSize(tit, W-mR-x0);
-      ensure(ls.length*5.6+4); yc+=1;
+      const x0=mL+(num?S.recuoNumero:0); const ls=pdf.splitTextToSize(tit, W-mR-x0);
+      ensure(ls.length*S.lh+4); yc+=1;
       if(num) pdf.text(num, mL, yc);
-      ls.forEach(l=>{ pdf.text(l, x0, yc); yc+=5.6; }); yc+=1.5;
+      ls.forEach(l=>{ pdf.text(l, x0, yc); yc+=S.lh; }); yc+=S.depois; _IDX.push({ t:t, n:2, pg:PG });
     }
     // realce automático: siglas/códigos em MAIÚSCULAS e nºs de processo saem em negrito
     function _ehDestaque(tok){
@@ -45949,7 +45973,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
       // legenda centralizada, negrito itálico (padrão do modelo)
       ensure(12); pdf.setFont(FONT,"bolditalic"); pdf.setFontSize(9.5); pdf.setTextColor(0,0,0);
       const capLs=pdf.splitTextToSize(rotulo, cw-8);
-      capLs.forEach(l=>{ pdf.text(l, W/2, yc, {align:"center"}); yc+=4.6; }); yc+=1.8;
+      capLs.forEach(l=>{ pdf.text(l, CX, yc, {align:"center"}); yc+=4.6; }); yc+=1.8;
       const wResp = comNA ? 11 : 14;
       const nResp = comNA ? 3 : 2;
       const wObs = 40;
@@ -46041,48 +46065,9 @@ window.UFOTO_rodapeHTML=rodapeHTML;
       yc+=5;
     }
 
-    // ---------- ÍNDICE ----------
-    pdf.addPage(); cab(); yc=topY;
-    pdf.setFont(FONT,"bold"); pdf.setFontSize(13); pdf.setTextColor(0,0,0);
-    pdf.text("ÍNDICE", W/2, yc+2, {align:"center"}); yc+=12;
-    (function(){
-      const itens=[
-        ["1.","APRESENTAÇÃO","3"],
-        ["1.1.","Referencial normativo e premissas gerais acerca das opções de medidas compensatórias","3"],
-        ["2.","IDENTIFICAÇÃO E QUALIFICAÇÃO DO PROPRIETÁRIO E DO IMÓVEL","6"],
-        ["3.","CADASTRO SOCIOECONÔMICO","7"],
-        ["3.1.","ATIVIDADE REALIZADA","7"],
-        ["3.2.","OBJETIVO","7"],
-        ["3.3.","METODOLOGIA","7"],
-        ["3.4.","SÍNTESE DA CARACTERIZAÇÃO SOCIOECONÔMICA","8"],
-        ["4.","PARECER SOCIAL","10"],
-        ["5.","CONCLUSÃO","13"],
-        ["6.","RELATÓRIO FOTOGRÁFICO DO IMÓVEL","14"],
-      ];
-      pdf.setFontSize(10); pdf.setTextColor(30,43,58);
-      itens.forEach(it=>{
-        const bold = (it[0].indexOf(".")===it[0].length-1 && it[0].length<=2); // nível 1
-        pdf.setFont(FONT, bold?"bold":"normal");
-        const num=it[0]; const titulo=it[1]; const pag=it[2];
-        const indent = bold?0:6;
-        const textoEsq = num+"  "+titulo;
-        ensure(6);
-        // texto à esquerda
-        const maxTextW = cw-indent-14;
-        const ls=pdf.splitTextToSize(textoEsq, maxTextW);
-        pdf.text(ls[0], mL+indent, yc);
-        // pontilhado + página
-        const larguraTexto=pdf.getTextWidth(ls[0]);
-        const xIni=mL+indent+larguraTexto+2; const xFim=W-mR-8;
-        pdf.setLineDashPattern([0.5,0.8],0); pdf.setDrawColor(150,160,172); pdf.setLineWidth(0.2);
-        if(xFim>xIni) pdf.line(xIni, yc-0.8, xFim, yc-0.8);
-        pdf.setLineDashPattern([],0);
-        pdf.text(pag, W-mR, yc, {align:"right"});
-        yc+=6;
-        // se o título quebrou em 2 linhas
-        for(let k=1;k<ls.length;k++){ ensure(5); pdf.text(ls[k], mL+indent, yc); yc+=5; }
-      });
-    })();
+    // ---------- ÍNDICE (25/10/2026) ----------
+    // página reservada aqui e preenchida no fim pelo motor (DOCPDF.indice) com a página real de cada título — antes os números eram fixos
+    pdf.addPage(); cab(); const _idxPag=pdf.getNumberOfPages();
 
     rod();
     nova();
@@ -46102,7 +46087,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
       if(areasArr.length){
         paragrafo(segMark);
         pdf.setFont(FONT,"bold"); pdf.setFontSize(11); pdf.setTextColor(0,0,0);
-        areasArr.forEach((a,i)=>{ ensure(6); pdf.text("ÁREA "+(i+1)+": "+a, W/2, yc, {align:"center"}); yc+=6; }); yc+=3;
+        areasArr.forEach((a,i)=>{ ensure(6); pdf.text("ÁREA "+(i+1)+": "+a, CX, yc, {align:"center"}); yc+=6; }); yc+=3;
       }
       quadroIdent();
     })();
@@ -46134,13 +46119,13 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     paragrafo(g("rel_tab2_coment"));
     topico("5. CONCLUSÃO"); paragrafo(g("rel_conclusao"));
     yc+=10; window.__REL_TB.sig=(yc+58>botY); ensure(58);
-    (function(){ var ld=(window.__localData?window.__localData('rel_local_data','rel_municipio','','fb_data'):g("rel_local_data")); if(ld){ pdf.setFont(FONT,"normal"); pdf.setFontSize(11); pdf.setTextColor(0,0,0); pdf.text(ld, W/2, yc, {align:"center"}); } yc+=8; })();
-    (function(){ var im=window.__getAssin?window.__getAssin('rel'):null; if(im){ try{ var fmt=/^data:image\/png/i.test(im)?"PNG":"JPEG"; pdf.addImage(im,fmt,W/2-27,yc,54,20); }catch(e){} yc+=22; } else { yc+=8; } })();
-    pdf.setDrawColor(60,60,60); pdf.setLineWidth(0.3); pdf.line(W/2-40, yc, W/2+40, yc); yc+=4.5;
-    pdf.setFont(FONT,"bold"); pdf.setFontSize(11); pdf.setTextColor(0,0,0); if(g("rel_resp_nome")){ pdf.text(g("rel_resp_nome"), W/2, yc, {align:"center"}); yc+=5; }
+    (function(){ var ld=(window.__localData?window.__localData('rel_local_data','rel_municipio','','fb_data'):g("rel_local_data")); if(ld){ pdf.setFont(FONT,"normal"); pdf.setFontSize(11); pdf.setTextColor(0,0,0); pdf.text(ld, CX, yc, {align:"center"}); } yc+=8; })();
+    (function(){ var im=window.__getAssin?window.__getAssin('rel'):null; if(im){ try{ var fmt=/^data:image\/png/i.test(im)?"PNG":"JPEG"; pdf.addImage(im,fmt,CX-27,yc,54,20); }catch(e){} yc+=22; } else { yc+=8; } })();
+    pdf.setDrawColor(60,60,60); pdf.setLineWidth(0.3); pdf.line(CX-40, yc, CX+40, yc); yc+=4.5;
+    pdf.setFont(FONT,"bold"); pdf.setFontSize(11); pdf.setTextColor(0,0,0); if(g("rel_resp_nome")){ pdf.text(g("rel_resp_nome"), CX, yc, {align:"center"}); yc+=5; }
     pdf.setFont(FONT,"normal");
-    if(g("rel_resp_cargo")){ pdf.text(g("rel_resp_cargo"), W/2, yc, {align:"center"}); yc+=5; }
-    if(g("rel_resp_reg")){ pdf.text(g("rel_resp_reg"), W/2, yc, {align:"center"}); yc+=5; }
+    if(g("rel_resp_cargo")){ pdf.text(g("rel_resp_cargo"), CX, yc, {align:"center"}); yc+=5; }
+    if(g("rel_resp_reg")){ pdf.text(g("rel_resp_reg"), CX, yc, {align:"center"}); yc+=5; }
     if(fotos.length){ rod(); nova(); titulo("6. RELATÓRIO FOTOGRÁFICO DO IMÓVEL");
       { const _pp=window.PROC_partes(g("rel_processo"),g("rel_sei")); campo("Nº do cadastro", _pp.cad); campo("Processo administrativo (SEI nº)", _pp.sei); }
       campo("Nome do Expropriado", g("rel_expropriado")); yc+=2;
@@ -46161,6 +46146,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
         col++; if(col===2){ col=0; yc+=fh+5+capH; } }
       if(col===1) yc+=fh+5+capH; }
     rod();
+    pdf.setPage(_idxPag); DOCPDF.indice(pdf, { fonte:FONT, x:mL, xFim:W-mR, y:topY, botY:botY, itens:_IDX }); pdf.setPage(pdf.getNumberOfPages());
     const _blob=pdf.output("blob"); const _nomeR="Relatorio_"+(window.__CTDsuf?window.__CTDsuf():"CTD 000")+".pdf"; if(opts&&opts.retornar) return {blob:_blob, nome:_nomeR}; await FS_salvar(_blob, _nomeR);
   };
 
@@ -46937,6 +46923,8 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     var FONT=DOCPDF.fonteCorpo(pdf);
     var M=DOCPDF.moldura(pdf), W=M.W, H=M.H, mL=M.mL, mR=M.mR, mB=M.mB, cw=M.cw;
     var LG=await DOCPDF.logos();
+    // 25/10/2026: hierarquia e centro do MANUAL-PADRAO-DE-DOCUMENTO (corpo 11 pt, nível 2 11,5, nível 3 sem número, centro x = 110)
+    var DT=DOCPDF.T, CX=mL+cw/2;
 
     var PG=0, yc=0;
     var topY=M.topY, botY=M.botY;
@@ -46944,7 +46932,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
       PG++;
       var sei=pf("par_sei");
       var docId="Parecer para Regularização Fundiária e Documental — DESP-1"+(pf("par_processo")?(" ("+pf("par_processo")+")"):"")+(sei?(" — SEI nº "+sei):"");
-      DOCPDF.cabecalho(pdf, { logos:LG, alias:{I:"parLogoI",E:"parLogoE"}, comp:"FAST", fonte:FONT, ident:docId, pagina:PG, mL:mL, xR:M.xR, larguraIdent:cw-25 });
+      DOCPDF.cabecalho(pdf, { logos:LG, alias:{I:"parLogoI",E:"parLogoE"}, comp:"FAST", fonte:FONT, ident:docId, pagina:PG, mL:mL, xR:M.xR, larguraIdent:cw-24 });
     }
     function rod(){ DOCPDF.rodape(pdf, { mL:mL, xR:M.xR, H:H }); }
     function nova(){ pdf.addPage(); cab(); yc=topY; }
@@ -46966,13 +46954,13 @@ window.UFOTO_rodapeHTML=rodapeHTML;
       yc+=6;
     }
     function tituloRom(t){
-      ensure(16); yc=DOCPDF.topico(pdf, { fonte:FONT, x:mL, xFim:W-mR, y:yc, texto:t });
+      ensure(16); yc=DOCPDF.topico(pdf, { fonte:FONT, x:mL, xFim:W-mR, y:yc, texto:t, separarNumero:true });
     }
     function subt(t){
-      ensure(10); pdf.setFont(FONT,"bold"); pdf.setFontSize(11.3); pdf.setTextColor(0,0,0);
+      var S=DT.subtopico; ensure(10); pdf.setFont(FONT,"bold"); pdf.setFontSize(S.tam); pdf.setTextColor(0,0,0);
       var ls=pdf.splitTextToSize(t, cw);
-      ls.forEach(function(l){ ensure(5.6); pdf.text(l, mL, yc); yc+=5.6; });
-      yc+=1.5;
+      ls.forEach(function(l){ ensure(S.lh); pdf.text(l, mL, yc); yc+=S.lh; });
+      yc+=S.depois;
     }
 
     // parágrafo com suporte a **negrito**, marcador "• " e os estilos do modo Conteúdo
@@ -46980,7 +46968,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     function romanoPDF(n){ var v=[[10,"X"],[9,"IX"],[5,"V"],[4,"IV"],[1,"I"]], r=""; v.forEach(function(p){ while(n>=p[0]){ r+=p[1]; n-=p[0]; } }); return r; }
     function parRica(t, opts){
       if(!t) return; opts=opts||{};
-      var fs0=opts.fontSize||10.6, LH0=opts.lh||5.7;
+      var fs0=opts.fontSize||DT.corpo.tam, LH0=opts.lh||DT.corpo.lh;
       var justif=(opts.justif!==false), nRom=0;
       String(t).split("\n").forEach(function(parText){
         if(!parText.trim()){ yc+=LH0*0.5; nRom=0; return; }
@@ -46996,9 +46984,10 @@ window.UFOTO_rodapeHTML=rodapeHTML;
         var x0=mL+li, wFull=cw-li;
         var segs=cleanText.split(/\*\*/);
         var words=[];
+        // 25/10/2026: trecho que começa colado no negrito anterior (ex.: "**SECO**,") fica grudado — sem espaço e sem quebra de linha antes
         segs.forEach(function(seg,si){
-          var bold=(si%2===1);
-          seg.split(/\s+/).filter(function(w){return w.length;}).forEach(function(w){ words.push({text:w,bold:bold}); });
+          var bold=(si%2===1), colado=(si>0 && seg.length && !/^\s/.test(seg) && !/\s$/.test(segs[si-1]));
+          seg.split(/\s+/).filter(function(w){return w.length;}).forEach(function(w,k){ words.push({text:w,bold:bold,glue:(k===0 && colado && words.length>0)}); });
         });
         if(kind==="b" && words.length){ words[0]={text:"•  "+words[0].text, bold:words[0].bold}; }
         if(!words.length) return;
@@ -47007,11 +46996,16 @@ window.UFOTO_rodapeHTML=rodapeHTML;
         function wWidth(w){ setFS(w.bold); return pdf.getTextWidth(w.text); }
         var wFirst=wFull-flI;
         var lines=[]; var cur=[], curLen=0, curW=wFirst;
+        function largura(ws){ var t=0; ws.forEach(function(q,i){ t+=wWidth(q)+(i>0 && !q.glue ? spW : 0); }); return t; }
         words.forEach(function(w){
           var ww=wWidth(w);
-          var add=cur.length?(spW+ww):ww;
-          if(cur.length && curLen+add>curW){ lines.push({w:cur, tw:curW}); cur=[w]; curLen=ww; curW=wFull; }
-          else { cur.push(w); curLen+=add; }
+          var add=cur.length?((w.glue?0:spW)+ww):ww;
+          if(cur.length && curLen+add>curW){
+            // não cabe: quebra antes da palavra; se ela está colada à anterior, as palavras coladas descem juntas
+            var k=cur.length; if(w.glue){ while(k>0 && cur[k-1] && (k-1>0) && cur[k-1].glue) k--; k--; }
+            if(k>0){ var desce=cur.slice(k); lines.push({w:cur.slice(0,k), tw:curW}); cur=desce.concat([w]); curW=wFull; curLen=largura(cur); return; }
+          }
+          cur.push(w); curLen+=add;
         });
         if(cur.length) lines.push({w:cur, tw:curW});
         lines.forEach(function(ln,idx){
@@ -47023,14 +47017,15 @@ window.UFOTO_rodapeHTML=rodapeHTML;
             else if(kind==="L"){ pdf.setFont(FONT,"italic"); pdf.setFontSize(fs); pdf.setTextColor(cor[0],cor[1],cor[2]); pdf.text(letra+")", mL+14, yc); }
           }
           var x=first?(x0+flI):x0;
-          if(!last && justif && ln.w.length>1){
-            var nat=0; ln.w.forEach(function(w){ nat+=wWidth(w); }); nat+=spW*(ln.w.length-1);
-            var extra=(ln.tw-nat)/(ln.w.length-1); if(extra<0) extra=0; if(extra>spW*3) extra=spW*3;
+          var gaps=0; ln.w.forEach(function(w,i){ if(i>0 && !w.glue) gaps++; });
+          if(!last && justif && gaps>0){
+            var nat=0; ln.w.forEach(function(w){ nat+=wWidth(w); }); nat+=spW*gaps;
+            var extra=(ln.tw-nat)/gaps; if(extra<0) extra=0; if(extra>spW*3) extra=spW*3;
             var cx=x;
-            ln.w.forEach(function(w,i){ setFS(w.bold); pdf.text(w.text,cx,yc); cx+=wWidth(w); if(i<ln.w.length-1) cx+=spW+extra; });
+            ln.w.forEach(function(w,i){ if(i>0 && !w.glue) cx+=spW+extra; setFS(w.bold); pdf.text(w.text,cx,yc); cx+=wWidth(w); });
           } else {
             var cx2=x;
-            ln.w.forEach(function(w,i){ setFS(w.bold); pdf.text(w.text,cx2,yc); cx2+=wWidth(w); if(i<ln.w.length-1) cx2+=spW; });
+            ln.w.forEach(function(w,i){ if(i>0 && !w.glue) cx2+=spW; setFS(w.bold); pdf.text(w.text,cx2,yc); cx2+=wWidth(w); });
           }
           yc+=LHp;
         });
@@ -47137,17 +47132,17 @@ window.UFOTO_rodapeHTML=rodapeHTML;
         var fmt=/^data:image\/png/i.test(x.src)?"PNG":"JPEG";
         try{ pdf.addImage(x.src,fmt,mL+(cw-iw)/2,yc,iw,ih); }catch(e){}
         yc+=ih+3.5;
-        if(leg){ pdf.setFont(FONT,"bolditalic"); pdf.setFontSize(9.5); pdf.setTextColor(0,0,0); pdf.splitTextToSize(leg,cw-8).forEach(function(l){ pdf.text(l,W/2,yc,{align:"center"}); yc+=4.4; }); }
-        if(fonte){ pdf.setFont(FONT,"italic"); pdf.setFontSize(8.5); pdf.setTextColor(90,100,115); pdf.text("Fonte: "+fonte,W/2,yc,{align:"center"}); yc+=6.5; pdf.setTextColor(0,0,0); }
+        if(leg){ pdf.setFont(FONT,"bolditalic"); pdf.setFontSize(9.5); pdf.setTextColor(0,0,0); pdf.splitTextToSize(leg,cw-8).forEach(function(l){ pdf.text(l,CX,yc,{align:"center"}); yc+=4.4; }); }
+        if(fonte){ pdf.setFont(FONT,"italic"); pdf.setFontSize(8.5); pdf.setTextColor(90,100,115); pdf.text("Fonte: "+fonte,CX,yc,{align:"center"}); yc+=6.5; pdf.setTextColor(0,0,0); }
         else yc+=2;
       });
     }
-    function subt3(t){
-      ensure(9); pdf.setFont(FONT,"bolditalic"); pdf.setFontSize(10.6); pdf.setTextColor(0,0,0);
-      pdf.splitTextToSize(t, cw).forEach(function(l){ ensure(5.2); pdf.text(l, mL, yc); yc+=5.2; });
-      yc+=1.2;
+    function subt3(t){   // nível 3 do manual: negrito azul-escuro, sem número
+      var S=DT.subsubtopico; ensure(9); pdf.setFont(FONT,"bold"); pdf.setFontSize(S.tam); pdf.setTextColor(S.cor[0],S.cor[1],S.cor[2]);
+      pdf.splitTextToSize(t, cw).forEach(function(l){ ensure(S.lh); pdf.text(l, mL, yc); yc+=S.lh; });
+      yc+=S.depois; pdf.setTextColor(0,0,0);
     }
-    function tituloSec(tp){ tituloRom((tp.num ? tp.num+" – " : "")+tp.head); }
+    function tituloSec(tp){ tituloRom((tp.num ? tp.num+" " : "")+tp.head); }   // "1. RELATÓRIO" (nº arábico, js/125)
 
     function identificacao(){
       { const _pp=window.PROC_partes(pf("par_processo"), pf("par_sei")); campo("Nº do cadastro", _pp.cad||pf("par_processo")); campo("Processo administrativo (SEI nº)", _pp.sei); }
@@ -47172,11 +47167,11 @@ window.UFOTO_rodapeHTML=rodapeHTML;
       if(areasLoc.length){
         ensure(6+areasLoc.length*6);
         pdf.setFont(FONT,"bold"); pdf.setFontSize(10.5); pdf.setTextColor(0,0,0);
-        areasLoc.forEach(function(a,i){ ensure(6); pdf.text("ÁREA "+(i+1)+": "+a, W/2, yc, {align:"center"}); yc+=6; });
+        areasLoc.forEach(function(a,i){ ensure(6); pdf.text("ÁREA "+(i+1)+": "+a, CX, yc, {align:"center"}); yc+=6; });
         yc+=5;
       } else if(pf("par_area_km")){
         ensure(8); pdf.setFont(FONT,"bold"); pdf.setFontSize(10.5); pdf.setTextColor(0,0,0);
-        pdf.text("Área: "+pf("par_area_km"), W/2, yc, {align:"center"}); yc+=10;
+        pdf.text("Área: "+pf("par_area_km"), CX, yc, {align:"center"}); yc+=10;
       }
     }
 
@@ -47224,17 +47219,17 @@ window.UFOTO_rodapeHTML=rodapeHTML;
         try{
           var iw=34, ih=iw*apl.img.h/apl.img.w;
           if(ih>10){ ih=10; iw=ih*apl.img.w/apl.img.h; }          // pequena: no máximo 34 × 10 mm
-          pdf.addImage(apl.img.src, /^data:image\/png/.test(apl.img.src)?"PNG":"JPEG", W/2-iw/2, yc-ih-0.5, iw, ih);
+          pdf.addImage(apl.img.src, /^data:image\/png/.test(apl.img.src)?"PNG":"JPEG", CX-iw/2, yc-ih-0.5, iw, ih);
         }catch(e){ console.warn("assinatura do aplicador:", e); }
       }
-      yc=DOCPDF.assinatura(pdf, { fonte:FONT, cx:W/2, y:yc, nome:apl.nome, cargo:"Analista de Regularização Fundiária" });
+      yc=DOCPDF.assinatura(pdf, { fonte:FONT, cx:CX, y:yc, nome:apl.nome, cargo:"Analista de Regularização Fundiária" });
     }
 
     // ---------- Corpo ----------
     yc=0; cab(); yc=topY;
-    pdf.setFont(FONT,"bold"); pdf.setFontSize(15); pdf.setTextColor(20,40,70);
+    pdf.setFont(FONT,"bold"); pdf.setFontSize(DT.topico.tam); pdf.setTextColor(0,0,0);   // título do documento sem capa (manual §2.4.3)
     var titLs=pdf.splitTextToSize("PARECER PARA REGULARIZAÇÃO FUNDIÁRIA E DOCUMENTAL", cw);
-    if(!_sel.semParecer){ titLs.forEach(function(l){ ensure(8); pdf.text(l, W/2, yc, {align:"center"}); yc+=7; }); yc+=4; }
+    if(!_sel.semParecer){ titLs.forEach(function(l){ ensure(8); pdf.text(l, CX, yc, {align:"center"}); yc+=7; }); yc+=4; }
 
     EST.topicos.forEach(function(tp){
       if(tp.oculto) return;                       // "Ocultar" no modo Conteúdo: fora do PDF
@@ -47302,15 +47297,15 @@ window.UFOTO_rodapeHTML=rodapeHTML;
           y=topY+5;
           if(desenhar){
             pdf.setFont(FONT,"bold"); pdf.setFontSize(7.5); pdf.setTextColor(122,133,148);
-            pdf.text("PARECER JURÍDICO — ANEXOS", W/2, y, {align:"center", charSpace:0.5});
+            pdf.text("PARECER JURÍDICO — ANEXOS", CX, y, {align:"center", charSpace:0.5});
           }
           y+=11;
           if(desenhar && ident){
             var fs=24; pdf.setFont(FONT,"bold"); pdf.setFontSize(fs); while(fs>14 && pdf.getTextWidth(ident)>cw-6){ fs--; pdf.setFontSize(fs); }
-            pdf.setTextColor(27,58,92); pdf.text(ident, W/2, y, {align:"center"});
+            pdf.setTextColor(27,58,92); pdf.text(ident, CX, y, {align:"center"});
           }
           y+=8;
-          if(desenhar){ pdf.setFont(FONT,"bold"); pdf.setFontSize(11.5); pdf.setTextColor(30,40,55); pdf.text("ANEXOS – CHECKLIST DOCUMENTAL", W/2, y, {align:"center", charSpace:0.4}); }
+          if(desenhar){ pdf.setFont(FONT,"bold"); pdf.setFontSize(11.5); pdf.setTextColor(30,40,55); pdf.text("ANEXOS – CHECKLIST DOCUMENTAL", CX, y, {align:"center", charSpace:0.4}); }
           y+=7;
           if(desenhar){   // quadro do processo (igual ao da capa do material técnico)
             var yb=botY-QH, mun=pf("par_municipio");
@@ -47328,7 +47323,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
         function quebra(h){
           if(y+h<=limite()) return false;
           pags++; primeira=false;
-          if(desenhar){ rod(); nova(); pdf.setFont(FONT,"bold"); pdf.setFontSize(8); pdf.setTextColor(122,133,148); pdf.text("ANEXOS – CHECKLIST DOCUMENTAL (continuação)", W/2, topY+2, {align:"center", charSpace:0.4}); }
+          if(desenhar){ rod(); nova(); pdf.setFont(FONT,"bold"); pdf.setFontSize(8); pdf.setTextColor(122,133,148); pdf.text("ANEXOS – CHECKLIST DOCUMENTAL (continuação)", CX, topY+2, {align:"center", charSpace:0.4}); }
           y=topY+8;
           return true;
         }
@@ -47420,14 +47415,14 @@ window.UFOTO_rodapeHTML=rodapeHTML;
       itens.forEach(function(it){
         rod(); nova();
         var yA=topY+70;
-        pdf.setDrawColor(31,111,192); pdf.setLineWidth(0.6); pdf.line(W/2-35, yA-12, W/2+35, yA-12);
+        pdf.setDrawColor(31,111,192); pdf.setLineWidth(0.6); pdf.line(CX-35, yA-12, CX+35, yA-12);
         pdf.setFont(FONT,"bold"); pdf.setFontSize(20); pdf.setTextColor(20,40,70);
-        pdf.text("ANEXO – ITEM "+it.num, W/2, yA, {align:"center"}); yA+=9;
+        pdf.text("ANEXO – ITEM "+it.num, CX, yA, {align:"center"}); yA+=9;
         pdf.setFont(FONT,"normal"); pdf.setFontSize(11); pdf.setTextColor(40,51,63);
-        pdf.splitTextToSize(it.crit||"", cw-30).forEach(function(l){ pdf.text(l, W/2, yA, {align:"center"}); yA+=5.4; });
-        pdf.line(W/2-35, yA+2, W/2+35, yA+2); yA+=12;
+        pdf.splitTextToSize(it.crit||"", cw-30).forEach(function(l){ pdf.text(l, CX, yA, {align:"center"}); yA+=5.4; });
+        pdf.line(CX-35, yA+2, CX+35, yA+2); yA+=12;
         pdf.setFontSize(9); pdf.setTextColor(90,100,112);
-        it.docs.forEach(function(d,k){ pdf.text((k+1)+". "+(d.nome||"documento")+"  —  pág. "+INF.get(d).pg, W/2, yA, {align:"center"}); yA+=5; });
+        it.docs.forEach(function(d,k){ pdf.text((k+1)+". "+(d.nome||"documento")+"  —  pág. "+INF.get(d).pg, CX, yA, {align:"center"}); yA+=5; });
         it.docs.forEach(function(d){
           var inf=INF.get(d);
           if(inf.pdf && inf.bytes){
@@ -47987,7 +47982,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
   function baseDe(id){ for(var i=0;i<TOPICOS.length;i++){ if(TOPICOS[i].id===id) return TOPICOS[i]; } return null; }
   function imgDe(id){ var s=S(); for(var i=0;i<s.imgs.length;i++){ if(s.imgs[i].id===id) return s.imgs[i]; } return null; }
 
-  // ordem final do documento: tópicos do modelo + os novos logo abaixo do tópico escolhido; seções (nível 1) renumeradas em romanos
+  // ordem final do documento: tópicos do modelo + os novos logo abaixo do tópico escolhido; seções (nível 1) numeradas 1., 2., 3.…
   function listaTopicos(){
     var s=S(), out=[], vistos={};
     function mk(x){ return {id:x.id, lv:x.level||2, num:"", head:x.head||"", txt:x.txt||"", extra:true}; }
@@ -47998,7 +47993,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     out.forEach(function(t){
       t.oculto=!!s.hide[t.id];
       if(t.oculto){ t.num=""; return; }
-      if(t.lv===1 && !t.semNum){ n++; t.num=romano(n); } else t.num="";
+      if(t.lv===1 && !t.semNum){ n++; t.num=n+"."; } else t.num="";   // 25/10/2026: arábico (manual §2.6; era romano)
     });
     return out;
   }
@@ -55760,22 +55755,8 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     rod();
     // índice: títulos (1., 2., 3.1…) com pontilhado até o número da página (o do cabeçalho)
     if(_idxPag){
-      pdf.setPage(_idxPag); let yi=topY;
-      yi=DOCPDF.topico(pdf, { fonte:FONT, x:mL, xFim:W-mR, y:yi, texto:"SUMÁRIO", separarNumero:false }); yi+=3;
-      _IDX.forEach(function(it){
-        if(yi>botY-6) return;
-        const m=String(it.t).match(/^(\d+(?:\.\d+)?\.?)\s+(.*)$/), num=m?m[1]:"", tx=(m?m[2]:it.t).toUpperCase();
-        const x0=mL+(it.n===2?8:0), xT=x0+(num?(it.n===2?12:9):0), xPg=W-mR;
-        pdf.setFont(FONT, it.n===1?"bold":"normal"); pdf.setFontSize(it.n===1?11:10.5); pdf.setTextColor(0,0,0);
-        const pg=String(it.pg), wPg=pdf.getTextWidth(pg), larg=xPg-wPg-3-xT, ls=pdf.splitTextToSize(tx, larg);
-        if(num) pdf.text(num, x0, yi);
-        ls.forEach(function(l, i){ pdf.text(l, xT, yi); if(i<ls.length-1) yi+=5.2; });
-        const fimTx=xT+pdf.getTextWidth(ls[ls.length-1])+1.5, ini=Math.max(fimTx, xT);
-        pdf.setFont(FONT,"normal"); const pt=pdf.getTextWidth("."), nPt=Math.max(0, Math.floor((xPg-wPg-1.5-ini)/pt));
-        if(nPt>2) pdf.text(".".repeat(nPt), xPg-wPg-1.5, yi, { align:"right" });
-        pdf.setFont(FONT, it.n===1?"bold":"normal"); pdf.text(pg, xPg, yi, { align:"right" });
-        yi+=it.n===1?7.2:6.2;
-      });
+      pdf.setPage(_idxPag);
+      DOCPDF.indice(pdf, { fonte:FONT, x:mL, xFim:W-mR, y:topY, botY:botY, itens:_IDX });   // 25/10/2026: desenho movido para o motor (o mesmo)
       pdf.setPage(pdf.getNumberOfPages());
     }
     let _blob=pdf.output("blob"); const _nome=(opts.modelo2?"DESP2_MODELO02_":"DESP2_")+(window.__CTDsuf?window.__CTDsuf():"CTD 000")+".pdf";
@@ -64933,7 +64914,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.25-2';
+window.APP_VERSAO = '2026.10.25-3';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.23-3';
 (function(){
