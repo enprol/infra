@@ -19680,38 +19680,26 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
     const W=doc.internal.pageSize.getWidth();
     const H=doc.internal.pageSize.getHeight();
     const ML=42, MR=W-42, MT=74, MB=H-62;
-    return {W,H,ML,MR,MT,MB, y:MT, procRef: val("fv_processo")};
+    return {W,H,ML,MR,MT,MB, CX:(ML+MR)/2, y:MT, procRef: val("fv_processo")};   // CX = centro da área de texto (25/10/2026)
   }
   // 15/10/2026: moldura do Memorial de Cálculo e do anexo Roteiro de Acesso = mesma dos relatórios DESP-1/DESP-2
   // (margens 30/20 mm, logos de 8 mm a 13 mm do topo, linha de identificação, régua a 25 mm, rodapé Times 6 pt)
   const MM = 72/25.4;
-  const REL_END=["Av. Des. Moreira, n° 1300, T. Norte, Conj. 1016/1021, Aldeota, 60.170-002, Fortaleza-CE","Rua Idelfonso Freire, nº 106, Sala 202, Centro, 56.506-520, Arcoverde-PE","Rua Pedro Batista Ferreira, nº 278, Centro, 76.500-000, Santa Terezinha de Goiás-GO","Rua Nilo Peçanha, 25, 1º Andar, Sala 07, Centro, 47.640-000, Santa Maria da Vitória-BA","Rua Irmã Ambrosina, nº 249, Conj 03 e 04, Centro, 61.760-405, Eusébio-CE","Rua dos Timbiras, nº 2213, Conj.1206/1209, Lourdes, 30.140-069, Belo Horizonte-MG"];
-  const REL_TEL=["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 31) 3253-5500"];
   function ctxRel(doc, procRef, titulo, pg0){
     const c = makeCtx(doc);
     c.padraoRel = true; c.rodapePadrao = true; c.procRef = procRef || c.procRef;
-    c.ML = 30*MM; c.MR = c.W - 20*MM; c.MT = 30*MM; c.MB = c.H - 29*MM; c.y = c.MT;
+    c.ML = 30*MM; c.MR = c.W - 20*MM; c.MT = 30*MM; c.MB = c.H - 29*MM; c.y = c.MT; c.CX = (c.ML + c.MR) / 2;
     c.relTitulo = titulo || ""; c.pg = pg0 || 0;
     return c;
   }
+  // 25/10/2026: cabeçalho e rodapé pelo motor (MANUAL-PADRAO-DE-DOCUMENTO §2.2–2.3). O documento é em pt; o DOCPDF converte de mm
+  // (antes as espessuras saíam em pt: réguas de 0,18/0,14 mm). Unidades e contatos do rodapé vêm da tela Padrões.
   function headerRel(doc,ctx){
-    const {W,ML,MR}=ctx; ctx.pg = (ctx.pg||0) + 1;
-    const LI=window.__LOGO_INFRA__, LE=window.__LOGO_ENPROL__, h=8*MM;
-    const logo=function(src,aEsq){ if(!src) return; try{ const pr=doc.getImageProperties(src), w=h*(pr.width/pr.height); doc.addImage(src,"JPEG", aEsq?ML:MR-w, 13*MM, w, h); }catch(e){} };
-    logo(LI,true); logo(LE,false);
-    doc.setFont("helvetica","normal"); doc.setFontSize(7); doc.setTextColor(90,90,90);
-    const idt = ctx.relTitulo + (ctx.procRef ? (": " + ctx.procRef) : "");
-    doc.text(doc.splitTextToSize(idt, MR-ML-70)[0] || "", ML, 23*MM);
-    if(!ctx.semPagina) doc.text("Página | " + ctx.pg, MR, 23*MM, {align:"right"});   // capa: sem número de página
-    doc.setDrawColor(31,111,192); doc.setLineWidth(0.5); doc.line(ML, 25*MM, MR, 25*MM);
+    ctx.pg = (ctx.pg||0) + 1;
+    DOCPDF.cabecalho(doc, { logos:{ I:window.__LOGO_INFRA__, E:window.__LOGO_ENPROL__ }, ident:ctx.relTitulo + (ctx.procRef ? (": " + ctx.procRef) : ""),
+      pagina:ctx.semPagina ? null : ctx.pg, mL:ctx.ML/MM, xR:ctx.MR/MM, larguraIdent:(ctx.MR-ctx.ML)/MM-24 });
   }
-  function footerRel(doc,ctx){
-    const {H,ML,MR}=ctx, yl = H - 26*MM;
-    doc.setDrawColor(31,111,192); doc.setLineWidth(0.4); doc.line(ML, yl, MR, yl);
-    doc.setFont("times","normal"); doc.setFontSize(6); doc.setTextColor(90,100,115);
-    let yy = yl + 3.2*MM;
-    for(let i=0;i<REL_END.length;i++){ doc.text(REL_END[i], ML, yy); doc.text(REL_TEL[i], MR-33*MM, yy, {align:"right"}); doc.text("comercial@enprol.com.br", MR, yy, {align:"right"}); yy += 2.8*MM; }
-  }
+  function footerRel(doc,ctx){ DOCPDF.rodape(doc, { mL:ctx.ML/MM, xR:ctx.MR/MM, H:ctx.H/MM }); }
   function header(doc,ctx){
     if(ctx.padraoRel){ headerRel(doc,ctx); return; }
     const {W,ML,MR}=ctx;
@@ -20056,7 +20044,7 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
   function desenharFicha(doc,ctx){
     novaPagina(doc,ctx);
     doc.setFont("helvetica","bold"); doc.setFontSize(13); doc.setTextColor(23,90,159);
-    doc.text("FICHA DE VISTORIA", ctx.W/2, ctx.y, {align:"center"}); ctx.y+=20;
+    doc.text("FICHA DE VISTORIA", ctx.CX, ctx.y, {align:"center"}); ctx.y+=20;
 
     campo2(doc,ctx,"Processo Nº", val("fv_processo"), "Data", dataBR(val("fv_data")));
 
@@ -20118,7 +20106,7 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
 
     // assinatura
     ctx.y+=20; ensure(doc,ctx,60);
-    const cx=ctx.W/2;
+    const cx=ctx.CX;
     doc.setDrawColor(60,60,60); doc.setLineWidth(0.5);
     doc.line(cx-130, ctx.y, cx+130, ctx.y); ctx.y+=13;
     doc.setFont("helvetica","normal"); doc.setFontSize(10); doc.setTextColor(30,40,55);
@@ -20253,7 +20241,7 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
     if(titulo){
       ensure(doc,ctx,16);
       doc.setFont("helvetica","bold"); doc.setFontSize(8.5); doc.setTextColor(23,90,159);
-      doc.text(titulo, ctx.W/2, ctx.y+8, {align:"center"});
+      doc.text(titulo, ctx.CX, ctx.y+8, {align:"center"});
       ctx.y+=14;
     }
     doc.setFontSize(8);
@@ -20302,7 +20290,7 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
     if(fonte){
       ensure(doc,ctx,12);
       doc.setFont("helvetica","italic"); doc.setFontSize(7); doc.setTextColor(110,120,132);
-      doc.text(fonte, ctx.W/2, ctx.y+8, {align:"center"});
+      doc.text(fonte, ctx.CX, ctx.y+8, {align:"center"});
       ctx.y+=12; doc.setTextColor(35,45,60);
     }
     ctx.y+=8;
@@ -20318,7 +20306,7 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
     // título
     ensure(doc,ctx,14);
     doc.setFont("helvetica","bold"); doc.setFontSize(8.5); doc.setTextColor(35,45,60);
-    doc.text(T.titulo, ctx.W/2, ctx.y+8, {align:"center"});
+    doc.text(T.titulo, ctx.CX, ctx.y+8, {align:"center"});
     ctx.y+=13;
     // cabeçalho nível 1: primeira coluna "Idade Aparente %" + "Estado de Conservação" (span A..H)
     const hH1=13, hH2=13;
@@ -20354,7 +20342,7 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
         novaPagina(doc,ctx);
         // repetir mini-cabeçalho ao continuar
         doc.setFont("helvetica","bold"); doc.setFontSize(7.5); doc.setTextColor(23,90,159);
-        doc.text(T.titulo+" (continuação)", ctx.W/2, ctx.y+6, {align:"center"}); ctx.y+=12;
+        doc.text(T.titulo+" (continuação)", ctx.CX, ctx.y+6, {align:"center"}); ctx.y+=12;
         doc.setFont("helvetica","normal"); doc.setFontSize(7); doc.setTextColor(35,45,60);
       }
       // zebra na 1ª coluna (idade) em azul claro, como o modelo
@@ -20373,7 +20361,7 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
     if(T.fonte){
       ensure(doc,ctx,12);
       doc.setFont("helvetica","italic"); doc.setFontSize(7); doc.setTextColor(110,120,132);
-      doc.text(T.fonte, ctx.W/2, ctx.y+8, {align:"center"});
+      doc.text(T.fonte, ctx.CX, ctx.y+8, {align:"center"});
       ctx.y+=12; doc.setTextColor(35,45,60);
     }
     ctx.y+=8;
@@ -20386,7 +20374,7 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
     ensure(doc,ctx,16);
     doc.setFillColor(31,111,192); doc.rect(ctx.ML,ctx.y,larg,14,"F");
     doc.setFont("helvetica","bold"); doc.setTextColor(255,255,255); doc.setFontSize(8);
-    doc.text(T.subhead, ctx.W/2, ctx.y+9.5, {align:"center"});
+    doc.text(T.subhead, ctx.CX, ctx.y+9.5, {align:"center"});
     ctx.y+=14;
     // itens
     ensure(doc,ctx,14);
@@ -20407,7 +20395,7 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
     ensure(doc,ctx,14);
     doc.setFillColor(224,233,245); doc.rect(ctx.ML,ctx.y,larg,13,"F");
     doc.setFont("helvetica","bold"); doc.setTextColor(23,90,159); doc.setFontSize(7.5);
-    doc.text(T.class_titulo, ctx.W/2, ctx.y+9, {align:"center"});
+    doc.text(T.class_titulo, ctx.CX, ctx.y+9, {align:"center"});
     ctx.y+=13;
     const w1=larg*0.22;
     doc.setFontSize(7.5);
@@ -20425,7 +20413,7 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
     ensure(doc,ctx,14);
     doc.setFillColor(224,233,245); doc.rect(ctx.ML,ctx.y,larg,13,"F");
     doc.setFont("helvetica","bold"); doc.setTextColor(23,90,159);
-    doc.text(T.dep_titulo, ctx.W/2, ctx.y+9, {align:"center"});
+    doc.text(T.dep_titulo, ctx.CX, ctx.y+9, {align:"center"});
     ctx.y+=13;
     const cw=larg/T.dep_cols.length;
     ensure(doc,ctx,26);
@@ -20443,7 +20431,7 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
     if(T.fonte){
       ensure(doc,ctx,14);
       doc.setFont("helvetica","italic"); doc.setFontSize(6.5); doc.setTextColor(110,120,132);
-      doc.text(doc.splitTextToSize(T.fonte, larg), ctx.W/2, ctx.y+8, {align:"center"});
+      doc.text(doc.splitTextToSize(T.fonte, larg), ctx.CX, ctx.y+8, {align:"center"});
       ctx.y+=14; doc.setTextColor(35,45,60);
     }
     ctx.y+=8;
@@ -20635,20 +20623,23 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
     ANX_ORDEM.forEach(function(a){ if(d[a.k] && (!ANX_SEL || ANX_SEL[a.k])) o[a.k] = R[n++]; });
     return o;
   }
+  // folha de rosto do anexo (centrada na área de texto: manual §2.1)
   function capaAnx(doc, ctx, romano, titulo){
     novaPagina(doc,ctx);
-    doc.setDrawColor(31,111,192); doc.setLineWidth(1.2); doc.line(ctx.W/2-90, ctx.H/2-34, ctx.W/2+90, ctx.H/2-34);
+    const cx=(ctx.ML+ctx.MR)/2;
+    doc.setDrawColor(31,111,192); doc.setLineWidth(1.2); doc.line(cx-90, ctx.H/2-34, cx+90, ctx.H/2-34);
     doc.setFont("helvetica","bold"); doc.setFontSize(24); doc.setTextColor(23,90,159);
-    doc.text("ANEXO " + romano, ctx.W/2, ctx.H/2-8, {align:"center"});
+    doc.text("ANEXO " + romano, cx, ctx.H/2-8, {align:"center"});
     doc.setFontSize(15); doc.setTextColor(30,40,55);
     const tl = [].concat(titulo);
-    tl.forEach(function(l,i){ doc.text(l, ctx.W/2, ctx.H/2+20+i*19, {align:"center"}); });
-    doc.line(ctx.W/2-90, ctx.H/2+36+(tl.length-1)*19, ctx.W/2+90, ctx.H/2+36+(tl.length-1)*19);
+    tl.forEach(function(l,i){ doc.text(l, cx, ctx.H/2+20+i*19, {align:"center"}); });
+    doc.line(cx-90, ctx.H/2+36+(tl.length-1)*19, cx+90, ctx.H/2+36+(tl.length-1)*19);
   }
+  // contexto de um anexo: moldura do manual, numeração própria a partir da folha de rosto (como o Roteiro de Acesso)
+  function ctxAnx(doc, procRef, k){ const a = ANX_ORDEM.filter(function(x){ return x.k === k; })[0]; return ctxRel(doc, procRef, "DESP-3 (Anexo — " + (a ? a.t : "") + ")", 0); }
   async function capaPdf(k, procRef){                                               // PDF de uma página: a capa do anexo k
     const a = ANX_ORDEM.filter(function(x){ return x.k === k; })[0];
-    const {jsPDF} = window.jspdf, doc = new jsPDF({unit:"pt",format:"a4",compress:true}), ctx = makeCtx(doc);
-    ctx.rodapePadrao = true; ctx.procRef = procRef;
+    const {jsPDF} = window.jspdf, doc = new jsPDF({unit:"pt",format:"a4",compress:true}), ctx = ctxAnx(doc, procRef, k);
     capaAnx(doc, ctx, anxPlano()[k] || "", a.capa); doc.deletePage(1);
     return PDFLib.PDFDocument.load(doc.output("arraybuffer"));
   }
@@ -20665,15 +20656,14 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
   async function anexoOrcamentos(out, procRef){
     const keys = benfTabelasRGV(); if(!keys.length || typeof window.BENF_imgSrc !== "function") return;
     const srcs = keys.map(function(k){ return window.BENF_imgSrc(k); }).filter(Boolean); if(!srcs.length) return;
-    const {jsPDF} = window.jspdf, doc = new jsPDF({unit:"pt",format:"a4",compress:true}), ctx = makeCtx(doc);
-    ctx.rodapePadrao = true; ctx.procRef = procRef;
+    const {jsPDF} = window.jspdf, doc = new jsPDF({unit:"pt",format:"a4",compress:true}), ctx = ctxAnx(doc, procRef, "orc");
     novaPagina(doc,ctx);                                                             // capa
-    doc.setDrawColor(31,111,192); doc.setLineWidth(1.2); doc.line(ctx.W/2-90, ctx.H/2-34, ctx.W/2+90, ctx.H/2-34);
+    doc.setDrawColor(31,111,192); doc.setLineWidth(1.2); doc.line(ctx.CX-90, ctx.H/2-34, ctx.CX+90, ctx.H/2-34);
     doc.setFont("helvetica","bold"); doc.setFontSize(24); doc.setTextColor(23,90,159);
-    doc.text("ANEXO " + (anxPlano().orc || "I"), ctx.W/2, ctx.H/2-8, {align:"center"});
+    doc.text("ANEXO " + (anxPlano().orc || "I"), ctx.CX, ctx.H/2-8, {align:"center"});
     doc.setFontSize(15); doc.setTextColor(30,40,55);
-    doc.text("ORÇAMENTOS", ctx.W/2, ctx.H/2+20, {align:"center"});
-    doc.line(ctx.W/2-90, ctx.H/2+36, ctx.W/2+90, ctx.H/2+36);
+    doc.text("ORÇAMENTOS", ctx.CX, ctx.H/2+20, {align:"center"});
+    doc.line(ctx.CX-90, ctx.H/2+36, ctx.CX+90, ctx.H/2+36);
     novaPagina(doc,ctx);
     secBar(doc,ctx,"TABELAS DO RGV — ANEXOS 3 E 4");
     paragrafo(doc,ctx,"Reprodução das tabelas do Relatório Genérico de Valores (RGV) — preços unitários de benfeitorias (Anexo 3) e orçamentos de cercas (Anexo 4) — que fundamentam os valores do memorial de cálculo das benfeitorias.",8.5);
@@ -20972,7 +20962,7 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
         doc.text("Mapa da Influência Vila", ctx.ML, ctx.y+11);
         doc.setDrawColor(211,219,228); doc.setLineWidth(0.4); doc.line(ctx.ML, ctx.y+15, ctx.MR, ctx.y+15);
         ctx.y += 22; doc.setTextColor(30,40,55);
-        inserirImagem(doc,ctx,vi,470); doc.setFont("helvetica","italic"); doc.setFontSize(8); doc.setTextColor(90,100,112); ensure(doc,ctx,12); doc.text("Figura — Área desapropriada e áreas de influência de povoado (Vila)", ctx.W/2, ctx.y, {align:"center"}); ctx.y += 14; doc.setTextColor(30,40,55);
+        inserirImagem(doc,ctx,vi,470); doc.setFont("helvetica","italic"); doc.setFontSize(8); doc.setTextColor(90,100,112); ensure(doc,ctx,12); doc.text("Figura — Área desapropriada e áreas de influência de povoado (Vila)", ctx.CX, ctx.y, {align:"center"}); ctx.y += 14; doc.setTextColor(30,40,55);
       } }
   }
 
@@ -20995,7 +20985,7 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
       inserirImagem(doc, ctx, ccuImg, 300);
       doc.setFont("helvetica","italic"); doc.setFontSize(8); doc.setTextColor(90,100,112);
       ensure(doc,ctx,12);
-      doc.text("Figura 1 — Detalhamento do levantamento das classes de CCU por glebas do imóvel", ctx.W/2, ctx.y, {align:"center"});
+      doc.text("Figura 1 — Detalhamento do levantamento das classes de CCU por glebas do imóvel", ctx.CX, ctx.y, {align:"center"});
       ctx.y+=14; doc.setTextColor(30,40,55);
     } else { paragrafo(doc,ctx,"(Sem imagem da Figura 1 carregada.)"); }
 
@@ -21240,7 +21230,7 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
     // garante que todo o bloco de assinatura caiba na mesma página
     ensure(doc,ctx,120);
     ctx.y+=58; // espaço para assinatura manuscrita
-    const cx=ctx.W/2;
+    const cx=ctx.CX;
     doc.setDrawColor(60,60,60); doc.setLineWidth(0.5);
     doc.line(cx-140, ctx.y, cx+140, ctx.y); ctx.y+=14;
     doc.setFont("helvetica","bold"); doc.setFontSize(10.5); doc.setTextColor(30,40,55);
@@ -21320,16 +21310,18 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
   }
   async function anexoMet(out, procRef){
     const c = anxCasos();
-    const {jsPDF} = window.jspdf, doc = new jsPDF({unit:"pt",format:"a4",compress:true}), ctx = makeCtx(doc);
-    ctx.rodapePadrao = true; ctx.procRef = procRef;
+    const {jsPDF} = window.jspdf, doc = new jsPDF({unit:"pt",format:"a4",compress:true}), ctx = ctxAnx(doc, procRef, "met");
+    // 25/10/2026: o texto do PDF-modelo da metodologia ocupa x 20–190 mm; os recortes são reduzidos (S) e deslocados (X0) para caber
+    // na área de texto do manual (30–190 mm). Alturas do plano já na escala.
+    const S = 160/170, X0 = (30 - 20*S) * MM;
     const plano = [], blocos = anxMetBlocos(c);
     capaAnx(doc, ctx, anxPlano().met, "METODOLOGIA");
     novaPagina(doc,ctx);
     blocos.forEach(function(b, i){
-      const h = b.b - b.t;
+      const h = (b.b - b.t) * S;
       if(i > 0 && ctx.y + h > ctx.MB){
         novaPagina(doc,ctx);
-        if(b.cab){ plano.push({ pag: doc.internal.getNumberOfPages(), p:b.p, t:b.cab.t, b:b.cab.b, y:ctx.y }); ctx.y += (b.cab.b - b.cab.t) + 4; }   // tabela partida: repete o cabeçalho
+        if(b.cab){ plano.push({ pag: doc.internal.getNumberOfPages(), p:b.p, t:b.cab.t, b:b.cab.b, y:ctx.y }); ctx.y += (b.cab.b - b.cab.t) * S + 4; }   // tabela partida: repete o cabeçalho
       }
       plano.push({ pag: doc.internal.getNumberOfPages(), p:b.p, t:b.t, b:b.b, y:ctx.y });
       ctx.y += h + (b.gap != null ? b.gap : 10);
@@ -21342,8 +21334,8 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
     const embs = await out.embedPages(plano.map(function(q){ return met.getPage(q.p); }),
       plano.map(function(q){ const sp = met.getPage(q.p); return { left:0, bottom:sp.getHeight() - q.b, right:sp.getWidth(), top:sp.getHeight() - q.t }; }));
     plano.forEach(function(q, i){
-      const SW = met.getPage(q.p).getWidth(), h = q.b - q.t, dest = out.getPage(base + q.pag - 2);
-      dest.drawPage(embs[i], { x:0, y:dest.getHeight() - q.y - h, width:SW, height:h });
+      const SW = met.getPage(q.p).getWidth(), h = (q.b - q.t) * S, dest = out.getPage(base + q.pag - 2);
+      dest.drawPage(embs[i], { x:X0, y:dest.getHeight() - q.y - h, width:SW * S, height:h });
     });
   }
   async function anexoEst(out, procRef){                                            // relatório do SisDEA tal qual, sem a capa original
@@ -21391,8 +21383,7 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
     try{ if(window.CAMPO_organizarFotos){ const o = await window.CAMPO_organizarFotos(lista); if(o && o.itens && o.itens.length) org = o; } }catch(e){ console.warn("organizar fotos:", e); }
     const itens = org.itens.filter(function(f){ return f && f.src; });
     let mapa = null; try{ if(window.CAMPO_mapaPara) mapa = await window.CAMPO_mapaPara(itens); }catch(e){ console.warn("mapa das fotos:", e); }
-    const {jsPDF} = window.jspdf, doc = new jsPDF({unit:"pt",format:"a4",compress:true}), ctx = makeCtx(doc);
-    ctx.rodapePadrao = true; ctx.procRef = procRef;
+    const {jsPDF} = window.jspdf, doc = new jsPDF({unit:"pt",format:"a4",compress:true}), ctx = ctxAnx(doc, procRef, "fot");
     capaAnx(doc, ctx, anxPlano().fot || "", "RELATÓRIO FOTOGRÁFICO");
     novaPagina(doc,ctx);
     secBar(doc,ctx,"RELATÓRIO FOTOGRÁFICO");
@@ -21403,7 +21394,7 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
       try{ doc.addImage(mapa.url, "JPEG", ctx.ML + (Lw - mw) / 2, ctx.y, mw, mh); }catch(e){}
       ctx.y += mh + 10;
       doc.setFont("helvetica","italic"); doc.setFontSize(8); doc.setTextColor(70,80,95);
-      doc.text("Mapa de localização das fotografias", ctx.W/2, ctx.y, {align:"center"}); ctx.y += 14; doc.setTextColor(30,40,55);
+      doc.text("Mapa de localização das fotografias", ctx.CX, ctx.y, {align:"center"}); ctx.y += 14; doc.setTextColor(30,40,55);
     }
     const gap = 14, FS = 8, LH = 9.6, fwMax = (Lw - gap) / 2;
     const cap = function(i){ const n = i + 1; return "Foto " + (n < 10 ? "0" : "") + n + (itens[i].legenda ? " – " + itens[i].legenda : ""); };
@@ -21518,15 +21509,15 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
     const R = roteiroDados(); if(!R) return;
     const {jsPDF} = window.jspdf, doc = new jsPDF({unit:"pt",format:"a4",compress:true}), ctx = ctxRel(doc, procRef, "DESP-3 (Anexo — Roteiro de Acesso)", 0);
     novaPagina(doc,ctx);                                                             // capa
-    doc.setDrawColor(31,111,192); doc.setLineWidth(1.2); doc.line(ctx.W/2-90, ctx.H/2-34, ctx.W/2+90, ctx.H/2-34);
+    doc.setDrawColor(31,111,192); doc.setLineWidth(1.2); doc.line(ctx.CX-90, ctx.H/2-34, ctx.CX+90, ctx.H/2-34);
     doc.setFont("helvetica","bold"); doc.setFontSize(24); doc.setTextColor(23,90,159);
-    doc.text("ANEXO " + anxRomanoRoteiro(), ctx.W/2, ctx.H/2-8, {align:"center"});
+    doc.text("ANEXO " + anxRomanoRoteiro(), ctx.CX, ctx.H/2-8, {align:"center"});
     doc.setFontSize(15); doc.setTextColor(30,40,55);
-    doc.text("ROTEIRO DE ACESSO", ctx.W/2, ctx.H/2+20, {align:"center"});
-    doc.line(ctx.W/2-90, ctx.H/2+36, ctx.W/2+90, ctx.H/2+36);
+    doc.text("ROTEIRO DE ACESSO", ctx.CX, ctx.H/2+20, {align:"center"});
+    doc.line(ctx.CX-90, ctx.H/2+36, ctx.CX+90, ctx.H/2+36);
     novaPagina(doc,ctx);                                                             // folha do roteiro
     const L = ctx.MR - ctx.ML;
-    doc.setFont("helvetica","bold"); doc.setFontSize(16); doc.setTextColor(23,90,159);
+    doc.setFont("helvetica","bold"); doc.setFontSize(DOCPDF.T.topico.tam); doc.setTextColor(23,90,159);   // nível 1 do manual (era 16 pt)
     doc.text("ROTEIRO DE ACESSO", ctx.ML, ctx.y + 14); ctx.y += 28;
     let qrUri = R.qrSrc;
     try{
@@ -21554,7 +21545,7 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
     ctx.y += 8;
     if(R.mapa){
       doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(30,40,55);
-      doc.text("CROQUI DE ACESSO À ÁREA ABRANGIDA", ctx.W/2, ctx.y + 8, {align:"center"}); ctx.y += 16;
+      doc.text("CROQUI DE ACESSO À ÁREA ABRANGIDA", ctx.CX, ctx.y + 8, {align:"center"}); ctx.y += 16;
       const maxH = Math.max(180, ctx.MB - ctx.y - 14);
       let iw = 0, ih = 0; try{ const pr = doc.getImageProperties(R.mapa); iw = pr.width; ih = pr.height; }catch(err){}
       let w = L, h = iw ? w * ih / iw : maxH; if(h > maxH){ h = maxH; w = iw ? h * iw / ih : w; }
@@ -64942,7 +64933,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.25-1';
+window.APP_VERSAO = '2026.10.25-2';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.23-3';
 (function(){
