@@ -20816,80 +20816,99 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
     const E = id => document.getElementById(id), L = ctx.MR-ctx.ML;
     const txt = id => { const e=E(id); return e ? String(e.value!=null && e.tagName!=="SPAN" && e.tagName!=="DIV" ? e.value : e.textContent).trim() : ""; };
     ctx.tituloComConteudo = true;
-    ctx.rodapePadrao = true;   // rodapé no padrão dos demais relatórios (endereços à esquerda, telefone/e-mail à direita)
+    ctx.rodapePadrao = true;
     novaPagina(doc,ctx);
+    /* 25/10/2026: tipografia do MANUAL-PADRAO-DE-DOCUMENTO (o documento é em pt; as medidas do motor vêm em mm × MM):
+       títulos de nível 1 (DOCPDF.topico) e 3 (T.subsubtopico), corpo Carlito 11 pt justificado, tabela 8,5–9 pt com a faixa de títulos do padrão */
+    const FT = DOCPDF.fonteCorpo(doc), DT = DOCPDF.T, mm = function(v){ return v*MM; };
+    const AZ = DT.tabela.cabTexto, FAIXA = DT.tabela.cabFundo;
+    function n1(t){
+      ensure(doc,ctx, mm(24));
+      if(ctx.y > ctx.MT + 1) ctx.y += mm(DT.espaco.antes);
+      const yb = ctx.y + mm(5);
+      const ny = DOCPDF.topico(doc, { fonte:FT, x:ctx.ML/MM, xFim:ctx.MR/MM, y:yb/MM, texto:t });
+      ctx.y = ny*MM - mm(4); doc.setTextColor(0,0,0);
+    }
+    function n3(t){
+      const S = DT.subsubtopico;
+      ensure(doc,ctx, mm(18));
+      ctx.y += mm(2);
+      doc.setFont(FT,"bold"); doc.setFontSize(S.tam); doc.setTextColor(S.cor[0],S.cor[1],S.cor[2]);
+      doc.splitTextToSize(t, L).forEach(function(l){ doc.text(l, ctx.ML, ctx.y + mm(4)); ctx.y += mm(S.lh); });
+      ctx.y += mm(S.depois) + mm(1.5); doc.setTextColor(0,0,0);
+    }
+    function corpo(t, o){
+      o = o || {};
+      const fz = o.tam || DT.corpo.tam, lh = mm(DT.corpo.lh);
+      String(sanTxt(t)).split(/\n\s*\n/).forEach(function(bl, bi){
+        const limpo = bl.replace(/\s*\n\s*/g," ").trim(); if(!limpo) return;
+        doc.setFont(FT, o.bold ? "bold" : "normal"); doc.setFontSize(fz);
+        const ls = doc.splitTextToSize(limpo, L);
+        ls.forEach(function(ln, i){
+          ensure(doc,ctx, lh);
+          doc.setFont(FT, o.bold ? "bold" : "normal"); doc.setFontSize(fz); doc.setTextColor(0,0,0);
+          if(i < ls.length-1) justificarLinha(doc, ln, ctx.ML, ctx.y + mm(4), L, fz); else doc.text(ln, ctx.ML, ctx.y + mm(4));
+          ctx.y += lh;
+        });
+        ctx.y += mm(2);
+      });
+    }
 
-    // --- canhoto de identificação do documento (sem capa): documento, processo administrativo, ocupante e localização
+    // --- identificação do documento (sem capa própria): documento, processo, ocupante e localização — campos "Rótulo: valor" como no Parecer
     (function(){
       const mun = [txt("av_municipio"), txt("av_uf")].filter(Boolean).join("/");
-      const campos = [
-        [["Documento","Memorial de Cálculo da avaliação"]],
-        [["Processo administrativo", txt("fv_processo") || "—"]],
-        [["Proprietário / ocupante", txt("av_nome") || "—"],["Município / UF", mun || "—"]]   /* ajustesVisual */
-      ];
-      doc.setFont("helvetica","bold"); doc.setFontSize(8.6);
-      const linhasC = campos.map(function(lin){
-        const fr = lin.length === 2 ? [0.64, 0.36] : lin.map(function(){ return 1/lin.length; });
-        const cel = lin.map(function(c, i){ return { rot:c[0], linhas: doc.splitTextToSize(String(c[1]), (L - 20) * fr[i] - 8), fr:fr[i] }; });
-        return { cel:cel, h: 21 + (Math.max.apply(null, cel.map(function(c){ return c.linhas.length; })) - 1) * 10 };
+      [["Documento","Memorial de Cálculo da avaliação"],["Processo administrativo", txt("fv_processo") || "—"],["Proprietário / ocupante", txt("av_nome") || "—"],["Município / UF", mun || "—"]].forEach(function(c){
+        ensure(doc,ctx, mm(6));
+        doc.setFont(FT,"bold"); doc.setFontSize(DT.corpo.tam); doc.setTextColor(0,0,0);
+        const rot = c[0] + ": ", w = doc.getTextWidth(rot);
+        doc.text(rot, ctx.ML, ctx.y + mm(4));
+        doc.setFont(FT,"normal");
+        doc.splitTextToSize(String(c[1]), L - w).forEach(function(l, k){ if(k) ensure(doc,ctx, mm(5.8)); doc.text(l, ctx.ML + (k ? 0 : w), ctx.y + mm(4)); ctx.y += mm(5.8); });
       });
-      const h = 12 + linhasC.reduce(function(t, l){ return t + l.h; }, 0), y0 = ctx.y;
-      doc.setFillColor(244,248,252); doc.setDrawColor(188,214,240); doc.setLineWidth(0.6);
-      doc.roundedRect(ctx.ML, y0, L, h, 3, 3, "FD");
-      doc.setFillColor(31,111,192); doc.rect(ctx.ML, y0, 4, h, "F");
-      let yy = y0 + 5;
-      linhasC.forEach(function(lin){
-        let xx = ctx.ML + 12;
-        lin.cel.forEach(function(c){
-          doc.setFont("helvetica","bold"); doc.setFontSize(6.3); doc.setTextColor(100,112,128);
-          doc.text(c.rot.toUpperCase(), xx, yy + 6);
-          doc.setFont("helvetica","bold"); doc.setFontSize(8.6); doc.setTextColor(20,40,70);
-          c.linhas.forEach(function(t, k){ doc.text(t, xx, yy + 16 + k * 10); });
-          xx += (L - 20) * c.fr;
-        });
-        yy += lin.h;
-      });
-      ctx.y = y0 + h + 10; doc.setTextColor(30,40,55);
+      ctx.y += mm(2);
     })();
 
-    // --- índice simples: o memorial de cálculo e os anexos que acompanham este PDF
+    // --- sumário: o memorial de cálculo e os anexos que acompanham este PDF
     (function(){
-      const c = anxCasos(), itens = ["Memorial de Cálculo"];
+      const itens = ["Memorial de Cálculo"];
       if(window.__AV_VILA_IMG__ && window.__AV_MODO__ !== "obs") itens.push("Mapa da Influência Vila");
       benfIndice().forEach(function(t){ itens.push(t); });
       { const pl = anxPlano(); ANX_ORDEM.forEach(function(x){ if(pl[x.k]) itens.push("Anexo " + pl[x.k] + " — " + x.t); }); }
-      subLbl(doc,ctx,"ÍNDICE");
-      doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(35,45,60);
-      itens.forEach(function(t){ ensure(doc,ctx,14); doc.text("•  " + t, ctx.ML+8, ctx.y+9); ctx.y += 14; });
-      ctx.y += 8;
+      n1("SUMÁRIO");
+      itens.forEach(function(t){
+        ensure(doc,ctx, mm(6.2));
+        doc.setFont(FT,"normal"); doc.setFontSize(DT.corpo.tam); doc.setTextColor(0,0,0);
+        doc.text("•", ctx.ML + mm(2), ctx.y + mm(4)); doc.text(t, ctx.ML + mm(7), ctx.y + mm(4));
+        ctx.y += mm(6.2);
+      });
     })();
 
-    secBar(doc,ctx,"MEMORIAL DE CÁLCULO");
+    n1("MEMORIAL DE CÁLCULO");
 
-    // --- explicação das variáveis (os mesmos textos da tela): a Situação vem antes da Escala de Valor da CCU; Área, N.A. e Influência Vila, depois do título da Memória de Cálculo
-    const varTexto = function(rot, id){
-      subLbl(doc,ctx,rot); paragrafo(doc,ctx, (txt(id) || "—").replace(/\n/g, id==="av_var_vila" ? "\n\n" : "\n"), 8.5);
-    };
+    // --- explicação das variáveis (os mesmos textos da tela)
+    const varTexto = function(rot, id){ n3(rot); corpo((txt(id) || "—").replace(/\n/g, id==="av_var_vila" ? "\n\n" : "\n")); };
 
     // --- Tabela de Nota Agronômica (CCU × Situação/Circulação)
-    subLbl(doc,ctx,"Tabela de Nota Agronômica (CCU × Situação/Circulação)");
+    n3("Tabela de Nota Agronômica (CCU × Situação/Circulação)");
     const ad = document.querySelector('input[name="av_antesdepois"]:checked');
-    doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.setTextColor(60,70,85);
-    doc.text('Cálculo de Nota Agronômica com "Antes e Depois": '+(ad && ad.value==="sim" ? "Sim" : "Não")+'     ·     Área avaliada de referência (ha): '+(txt("av_area_aval")||"—")+(E("av_area_base") ? " ("+E("av_area_base").options[E("av_area_base").selectedIndex].textContent.toLowerCase()+")" : ""), ctx.ML, ctx.y+6);
-    ctx.y += 14;
-    const cw = [.09,.11,.13,.17,.09,.25,.16].map(f=>f*L), hh = 15, hr = 13.5;
+    corpo('Cálculo de Nota Agronômica com "Antes e Depois": '+(ad && ad.value==="sim" ? "Sim" : "Não")+'. Área avaliada de referência (ha): '+(txt("av_area_aval")||"—")+(E("av_area_base") ? " ("+E("av_area_base").options[E("av_area_base").selectedIndex].textContent.toLowerCase()+")" : "")+'.');
+    const cw = [.09,.11,.13,.17,.09,.25,.16].map(f=>f*L), hh = mm(7), hr = mm(5.6), TB = 8.5, TC = 9;
     ensure(doc,ctx, hh*2 + hr*10);
     let x = ctx.ML;
-    doc.setFont("helvetica","bold"); doc.setFontSize(7.5); doc.setTextColor(255,255,255);
-    doc.setFillColor(23,90,159); doc.rect(ctx.ML,ctx.y,cw[0]+cw[1]+cw[2]+cw[3]+cw[4],hh,"F");
-    doc.setFillColor(21,128,61); doc.rect(ctx.ML+cw[0]+cw[1]+cw[2]+cw[3]+cw[4],ctx.y,cw[5]+cw[6],hh,"F");
-    doc.text("Classe de Capacidade de Uso do Solo — CCU", ctx.ML+(cw[0]+cw[1]+cw[2]+cw[3]+cw[4])/2, ctx.y+10, {align:"center"});
-    doc.text("Nota Agronômica — NA", ctx.ML+cw[0]+cw[1]+cw[2]+cw[3]+cw[4]+(cw[5]+cw[6])/2, ctx.y+10, {align:"center"});
+    const wCcu = cw[0]+cw[1]+cw[2]+cw[3]+cw[4];
+    // 1ª faixa: os dois blocos da tabela (CCU em azul, NA em verde — mesmo significado da tela)
+    doc.setFont(FT,"bold"); doc.setFontSize(TC); doc.setTextColor(255,255,255);
+    doc.setFillColor(23,90,159); doc.rect(ctx.ML,ctx.y,wCcu,hh,"F");
+    doc.setFillColor(21,128,61); doc.rect(ctx.ML+wCcu,ctx.y,cw[5]+cw[6],hh,"F");
+    doc.text("Classe de Capacidade de Uso do Solo — CCU", ctx.ML+wCcu/2, ctx.y+hh*0.66, {align:"center"});
+    doc.text("Nota Agronômica — NA", ctx.ML+wCcu+(cw[5]+cw[6])/2, ctx.y+hh*0.66, {align:"center"});
     ctx.y += hh;
+    // 2ª faixa: títulos de coluna no padrão (fundo azul-claro, texto azul-escuro, régua azul)
     const cab = ["Classe","Escala (%)","Área (ha)","Classif. % imóvel","CCU","Situação / Circulação","N.A."];
-    doc.setFillColor(31,111,192); doc.rect(ctx.ML,ctx.y,L,hh,"F");
-    doc.setFontSize(7); x = ctx.ML;
-    cab.forEach((c,i)=>{ doc.text(c, x+cw[i]/2, ctx.y+10, {align:"center"}); x+=cw[i]; });
+    doc.setFillColor(FAIXA[0],FAIXA[1],FAIXA[2]); doc.rect(ctx.ML,ctx.y,L,hh,"F");
+    doc.setFont(FT,"bold"); doc.setFontSize(TB); doc.setTextColor(AZ[0],AZ[1],AZ[2]); x = ctx.ML;
+    cab.forEach((c,i)=>{ doc.text(c, x+cw[i]/2, ctx.y+hh*0.66, {align:"center"}); x+=cw[i]; });
+    doc.setDrawColor(DT.tabela.reguaCor[0],DT.tabela.reguaCor[1],DT.tabela.reguaCor[2]); doc.setLineWidth(mm(DT.tabela.reguaLarg)); doc.line(ctx.ML, ctx.y+hh, ctx.MR, ctx.y+hh);
     ctx.y += hh;
     doc.setDrawColor(200,210,222); doc.setLineWidth(0.3);
     document.querySelectorAll("#av_na_tbody tr").forEach(tr=>{
@@ -20905,87 +20924,81 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
         else if(i === 0){ doc.setFillColor(240,245,250); doc.rect(x,ctx.y,w,hr,"FD"); }
         else doc.rect(x,ctx.y,w,hr);
         const forte = (i === 0) || (i === 6 && cel[6] && sel) || (i === 5 && sel);
-        doc.setFont("helvetica", forte ? "bold" : "normal"); doc.setFontSize(7.5);
-        if(i === 5 && sel) doc.setTextColor(255,255,255); else if(i === 6 && sel) doc.setTextColor(21,128,61); else doc.setTextColor(35,45,60);
-        doc.text(cel[i], x+w/2, ctx.y+9.2, {align:"center"});
+        doc.setFont(FT, forte ? "bold" : "normal"); doc.setFontSize(TB);
+        if(i === 5 && sel) doc.setTextColor(255,255,255); else if(i === 6 && sel) doc.setTextColor(21,128,61); else doc.setTextColor(40,51,63);
+        doc.text(cel[i], x+w/2, ctx.y+hr*0.68, {align:"center"});
         x += w;
       });
       ctx.y += hr;
     });
-    x = ctx.ML; doc.setFillColor(238,244,250);
+    x = ctx.ML;
     const tot = ["Total","", txt_t(".na-total-area"), (txt_t(".na-total-pct")||"0"), txt_t(".na-total-ccu"), "", ""];
     function txt_t(sel){ const e = document.querySelector("#av_na_tbody "+sel); return e ? e.textContent.trim() : ""; }
-    cw.forEach((w,i)=>{ doc.setFillColor(238,244,250); doc.setDrawColor(200,210,222); doc.rect(x,ctx.y,w,hr,"FD"); doc.setFont("helvetica","bold"); doc.setFontSize(7.5); doc.setTextColor(23,90,159); doc.text(tot[i], x+w/2, ctx.y+9.2, {align:"center"}); x+=w; });
-    ctx.y += hr + 8; doc.setTextColor(30,40,55);
+    cw.forEach((w,i)=>{ doc.setFillColor(FAIXA[0],FAIXA[1],FAIXA[2]); doc.setDrawColor(200,210,222); doc.rect(x,ctx.y,w,hr,"FD"); doc.setFont(FT,"bold"); doc.setFontSize(TB); doc.setTextColor(AZ[0],AZ[1],AZ[2]); doc.text(tot[i], x+w/2, ctx.y+hr*0.68, {align:"center"}); x+=w; });
+    ctx.y += hr + mm(4); doc.setTextColor(0,0,0);
 
     // --- Classes de Capacidade de Uso (CCU) por gleba (só sai se "Imprimir no PDF" estiver marcado)
     const imprimirGlebas = !E("av_imp_ccu_gleba") || E("av_imp_ccu_gleba").checked;
-    if(imprimirGlebas) subLbl(doc,ctx,"Classes de Capacidade de Uso (CCU) por gleba");
+    if(imprimirGlebas) n3("Classes de Capacidade de Uso (CCU) por gleba");
     const gl = imprimirGlebas ? document.querySelectorAll("#av_glebas .gleba-linha") : [];
     gl.forEach((g,idx)=>{
       const q = s => { const e = g.querySelector(s); return e ? (e.value!=null && e.tagName!=="DIV" ? e.value : e.textContent) : ""; };
-      const optTxt = s => { const e = g.querySelector(s); return (e && e.selectedIndex >= 0 && e.value !== "") ? e.options[e.selectedIndex].textContent.trim() : ""; };
       const fator = String(q(".g-fator")).trim() || "—";
-      const lin = doc.splitTextToSize(fator, L-20);
-      const alt = 20 + lin.length*9 + 4;
-      ensure(doc,ctx,alt+4);
+      doc.setFont(FT,"normal"); doc.setFontSize(10);
+      const lin = doc.splitTextToSize(fator, L-mm(8));
+      const alt = mm(9) + lin.length*mm(4.6) + mm(2);
+      ensure(doc,ctx,alt+mm(2));
       doc.setFillColor(247,250,253); doc.setDrawColor(188,214,240); doc.setLineWidth(0.5);
       doc.roundedRect(ctx.ML,ctx.y,L,alt,3,3,"FD");
-      doc.setFont("helvetica","bold"); doc.setFontSize(8.5); doc.setTextColor(23,90,159);
-      doc.text("Gleba "+String(idx+1).padStart(2,"0"), ctx.ML+8, ctx.y+12.5);
-      doc.setFontSize(7.5); doc.setTextColor(35,45,60);
-      doc.text("CLASSE "+String(q(".g-classe-disp")).trim()+"     ÁREA "+String(q(".g-area-disp")).trim()+" ha", ctx.ML+70, ctx.y+12.5);
-      doc.setFillColor(230,242,252); doc.roundedRect(ctx.MR-62,ctx.y+3,54,14,3,3,"F");
-      doc.setFont("helvetica","bold"); doc.setFontSize(8.5); doc.setTextColor(23,90,159);
-      doc.text(String(q(".pct-val")).trim(), ctx.MR-35, ctx.y+12.8, {align:"center"});
-      doc.setFont("helvetica","normal"); doc.setFontSize(7.3); doc.setTextColor(70,80,95);
-      lin.forEach((ln,li)=> doc.text(ln, ctx.ML+8, ctx.y+24+li*9));
-      ctx.y += alt + 4;
+      doc.setFont(FT,"bold"); doc.setFontSize(DT.corpo.tam); doc.setTextColor(AZ[0],AZ[1],AZ[2]);
+      doc.text("Gleba "+String(idx+1).padStart(2,"0"), ctx.ML+mm(3), ctx.y+mm(5.5));
+      doc.setFont(FT,"normal"); doc.setFontSize(10); doc.setTextColor(40,51,63);
+      doc.text("Classe "+String(q(".g-classe-disp")).trim()+"     Área "+String(q(".g-area-disp")).trim()+" ha", ctx.ML+mm(25), ctx.y+mm(5.5));
+      doc.setFont(FT,"bold"); doc.setFontSize(DT.corpo.tam); doc.setTextColor(AZ[0],AZ[1],AZ[2]);
+      doc.text(String(q(".pct-val")).trim(), ctx.MR-mm(3), ctx.y+mm(5.5), {align:"right"});
+      doc.setFont(FT,"normal"); doc.setFontSize(10); doc.setTextColor(40,51,63);
+      lin.forEach((ln,li)=> doc.text(ln, ctx.ML+mm(3), ctx.y+mm(10.5)+li*mm(4.6)));
+      ctx.y += alt + mm(2);
     });
-    if(imprimirGlebas && !gl.length){ paragrafo(doc,ctx,"(Sem glebas: preencha as áreas na Tabela de Nota Agronômica.)"); }
-    ctx.y += 2;
+    if(imprimirGlebas && !gl.length){ corpo("(Sem glebas: preencha as áreas na Tabela de Nota Agronômica.)"); }
 
     varTexto("Variável Situação","av_situacao_txt");
 
     // --- Escala de Valor da CCU (título e caixa na mesma página)
-    ensure(doc,ctx,17+46+24);
-    subLbl(doc,ctx,"Escala de Valor da CCU");
-    ensure(doc,ctx,46);
+    ensure(doc,ctx, mm(14) + mm(22));
+    n3("Escala de Valor da CCU");
+    ensure(doc,ctx, mm(22));
     doc.setFillColor(240,247,255); doc.setDrawColor(188,214,240);
-    doc.roundedRect(ctx.ML,ctx.y,L,40,4,4,"FD");
-    doc.setFont("courier","normal"); doc.setFontSize(9); doc.setTextColor(10,77,124);
-    doc.text(E("av_ccu_l1").textContent, ctx.ML+8, ctx.y+12);
-    doc.text(E("av_ccu_l2").textContent, ctx.ML+8, ctx.y+24);
+    doc.roundedRect(ctx.ML,ctx.y,L,mm(20),4,4,"FD");
+    doc.setFont("courier","normal"); doc.setFontSize(10); doc.setTextColor(AZ[0],AZ[1],AZ[2]);
+    doc.text(E("av_ccu_l1").textContent, ctx.ML+mm(3), ctx.y+mm(5.5));
+    doc.text(E("av_ccu_l2").textContent, ctx.ML+mm(3), ctx.y+mm(10.5));
     doc.setFont("courier","bold");
-    doc.text(E("av_ccu_l3").textContent, ctx.ML+8, ctx.y+35);
-    ctx.y += 48; doc.setTextColor(30,40,55);
+    doc.text(E("av_ccu_l3").textContent, ctx.ML+mm(3), ctx.y+mm(15.5));
+    ctx.y += mm(24); doc.setTextColor(0,0,0);
 
-    // --- N.A.
-    ensure(doc,ctx,22);
+    // --- N.A.: parte fixa normal, resultado em negrito; reduz só se não couber na largura
+    ensure(doc,ctx, mm(9));
     const es = E("av_na_escala"), esT = es && es.selectedIndex >= 0 ? es.options[es.selectedIndex].textContent.trim() : "";
-    // parte fixa em fonte normal; só o resultado (obtido, 3 casas e adotada) em negrito; o tamanho se ajusta para caber na largura da página
     const naIni = "N.A. = CCU "+txt("av_na_ccu")+" × escala "+(es ? es.value.replace(".",",") : "")+(esT ? " ("+esT+")" : "")+" = ";
     const naFim = txt("av_na_result")+" (3 casas: "+txt("av_na_result3")+")"+(E("av_na_casas") && E("av_na_casas").value === "3" ? "  —  adotada: "+txt("av_na_result3") : "");
-    let naFs = 10;
-    const naLarg = function(){ doc.setFont("helvetica","normal"); doc.setFontSize(naFs); const a = doc.getTextWidth(naIni); doc.setFont("helvetica","bold"); doc.setFontSize(naFs); return a + doc.getTextWidth(naFim); };
-    while(naFs > 7 && naLarg() > L) naFs -= 0.25;
-    doc.setTextColor(23,90,159); doc.setFont("helvetica","normal"); doc.setFontSize(naFs);
-    doc.text(naIni, ctx.ML, ctx.y+10);
+    let naFs = DT.corpo.tam;
+    const naLarg = function(){ doc.setFont(FT,"normal"); doc.setFontSize(naFs); const a = doc.getTextWidth(naIni); doc.setFont(FT,"bold"); doc.setFontSize(naFs); return a + doc.getTextWidth(naFim); };
+    while(naFs > 8 && naLarg() > L) naFs -= 0.25;
+    doc.setTextColor(0,0,0); doc.setFont(FT,"normal"); doc.setFontSize(naFs);
+    doc.text(naIni, ctx.ML, ctx.y+mm(4));
     const naX = ctx.ML + doc.getTextWidth(naIni);
-    doc.setFont("helvetica","bold"); doc.text(naFim, naX, ctx.y+10);
-    ctx.y += 22; doc.setTextColor(30,40,55);
+    doc.setFont(FT,"bold"); doc.text(naFim, naX, ctx.y+mm(4));
+    ctx.y += mm(8);
 
-    // --- Mapa da Influência Vila (tópico próprio). 23/10/2026, pedido do fiscal: saíram daqui o texto das variáveis (Área do Imóvel, Nota Agronômica, Influência Vila),
-    //     a tabela de variáveis/fragmentos do modelo e o card da equação (VTN/ha).
+    // --- Mapa da Influência Vila (tópico próprio)
     { const vi = window.__AV_VILA_IMG__;
       if(vi && window.__AV_MODO__ !== "obs"){
-        { const y0 = ctx.y; ensure(doc,ctx,330); if(ctx.y === y0) ctx.y += 12; }
-        ensure(doc,ctx,24);
-        doc.setFont("helvetica","bold"); doc.setFontSize(12); doc.setTextColor(23,90,159);
-        doc.text("Mapa da Influência Vila", ctx.ML, ctx.y+11);
-        doc.setDrawColor(211,219,228); doc.setLineWidth(0.4); doc.line(ctx.ML, ctx.y+15, ctx.MR, ctx.y+15);
-        ctx.y += 22; doc.setTextColor(30,40,55);
-        inserirImagem(doc,ctx,vi,470); doc.setFont("helvetica","italic"); doc.setFontSize(8); doc.setTextColor(90,100,112); ensure(doc,ctx,12); doc.text("Figura — Área desapropriada e áreas de influência de povoado (Vila)", ctx.CX, ctx.y, {align:"center"}); ctx.y += 14; doc.setTextColor(30,40,55);
+        ensure(doc,ctx, 330);
+        n1("MAPA DA INFLUÊNCIA VILA");
+        inserirImagem(doc,ctx,vi,470);
+        doc.setFont(FT,"bolditalic"); doc.setFontSize(9.5); doc.setTextColor(0,0,0); ensure(doc,ctx,14);
+        doc.text("Figura — Área desapropriada e áreas de influência de povoado (Vila)", ctx.CX, ctx.y + mm(1), {align:"center"}); ctx.y += mm(6);
       } }
   }
 
@@ -34517,24 +34530,20 @@ function AV_gerarDescSituacao(){
     try{ await prepararP1(); }catch(e){}
     if(!window.jspdf){ alert("Biblioteca de PDF ainda carregando. Tente de novo em instantes."); return; }
     var jsPDF = window.jspdf.jsPDF, pdf = new jsPDF({unit:"mm", format:"a4", compress:true});
-    var W = 210, H = 297, mL = 20, mR = 18, RW = W - mL - mR;
+    // 25/10/2026: moldura do motor (MANUAL-PADRAO-DE-DOCUMENTO §2.1–2.3): margens 30/20, cabeçalho com identificação e "Página | n",
+    // rodapé Times; o quadro "N.° do processo | expropriado" do modelo MD-INFRA fica logo abaixo do cabeçalho; centro = meio da área de texto
+    var M = DOCPDF.moldura(pdf), LG = await DOCPDF.logos(), PG = 0;
+    var W = M.W, H = M.H, mL = M.mL, mR = M.mR, RW = M.cw, CX = mL + RW/2;
     var b = blocos(), c = b.cad, y = 0;
     var logoE = window.__LOGO_ENPROL__, logoI = window.__LOGO_INFRA__;
     var qrM = null; try{ qrM = await qrAcesso(); }catch(e){}
 
-    function rodape(){
-      var yL = H - 26;
-      pdf.setDrawColor(31,111,192); pdf.setLineWidth(.5); pdf.line(mL, yL, W-mR, yL);
-      pdf.setFont("helvetica","normal"); pdf.setFontSize(5.6); pdf.setTextColor(90,107,124);
-      var yy = yL + 3.2;
-      for(var i = 0; i < END.length; i++){ pdf.text(END[i], mL, yy); pdf.text(TEL[i], W-mR, yy, {align:"right"}); yy += 2.8; }
-      pdf.setTextColor(0,0,0);
-    }
+    function rodape(){ DOCPDF.rodape(pdf, { mL:mL, xR:M.xR, H:H }); pdf.setTextColor(0,0,0); }
     function cabecalho(){
-      if(logoI){ var pI = imgProps(pdf, logoI); if(pI){ var wI = 11*(pI.width/pI.height); try{ pdf.addImage(logoI, fmtImg(logoI), mL, 10, wI, 11); }catch(e){} } }
-      if(logoE){ var pE = imgProps(pdf, logoE); if(pE){ var wE = 10*(pE.width/pE.height); try{ pdf.addImage(logoE, fmtImg(logoE), W-mR-wE, 10.5, wE, 10); }catch(e){} } }
-      // quadro "N.° DO PROCESSO/LOTE | NOME DO EXPROPRIADO"
-      var yq = 25, hq = 13, meio = mL + RW/2;
+      PG++;
+      DOCPDF.cabecalho(pdf, { logos:LG, ident:"MD (Memorial Descritivo): " + (c.processoCurto || ""), pagina:PG, mL:mL, xR:M.xR, larguraIdent:RW-24 });
+      // quadro "N.° DO PROCESSO/LOTE | NOME DO EXPROPRIADO" (modelo MD-INFRA), no início da área de texto
+      var yq = M.topY - 2, hq = 13, meio = mL + RW/2;
       pdf.setDrawColor(60,60,60); pdf.setLineWidth(.3);
       pdf.rect(mL, yq, RW, hq); pdf.line(meio, yq, meio, yq+hq); pdf.line(mL, yq+hq/2, W-mR, yq+hq/2);
       pdf.setFont("helvetica","normal"); pdf.setFontSize(7.4); pdf.setTextColor(0,0,0);
@@ -34546,7 +34555,7 @@ function AV_gerarDescSituacao(){
       y = yq + hq + 8;
     }
     function novaPagina(){ rodape(); pdf.addPage(); cabecalho(); }
-    function garantir(h){ if(y + h > H - 30) novaPagina(); }
+    function garantir(h){ if(y + h > M.botY) novaPagina(); }
     function par(txt, o){
       o = o || {};
       pdf.setFont("helvetica", o.bold ? "bold" : (o.italic ? "italic" : "normal"));
@@ -34554,7 +34563,7 @@ function AV_gerarDescSituacao(){
       var ls = pdf.splitTextToSize(txt, o.larg || RW);
       ls.forEach(function(l, i){
         garantir(5);
-        if(o.center) pdf.text(l, W/2, y, {align:"center"});
+        if(o.center) pdf.text(l, CX, y, {align:"center"});
         else if(o.just && i < ls.length-1) pdf.text(l, (o.x||mL), y, {align:"justify", maxWidth:(o.larg||RW)});
         else pdf.text(l, (o.x||mL), y);
         y += o.lh || 4.1;
@@ -34613,15 +34622,17 @@ function AV_gerarDescSituacao(){
       garantir(9); y += 2.4;
       pdf.setFont("helvetica","normal"); pdf.setFontSize(8.6);
       pdf.text(num, mL + 6, y);
-      pdf.setFont("helvetica","bold"); pdf.text(titulo, mL + 16, y);
+      pdf.setFont("helvetica","bold");
+      var tl = pdf.splitTextToSize(titulo, RW - 16);   // 25/10/2026: área de texto de 160 mm — título longo quebra (antes passava da margem)
+      tl.forEach(function(l, i){ if(i){ y += 4.1; garantir(5); } pdf.text(l, mL + 16, y); });
       y += 5.4; pdf.setFont("helvetica","normal");
     }
 
     cabecalho();
     pdf.setFont("helvetica","normal"); pdf.setFontSize(10.5);
-    pdf.text("M E M O R I A L   D E S C R I T I V O", W/2, y, {align:"center"}); y += 5.2;
+    pdf.text("M E M O R I A L   D E S C R I T I V O", CX, y, {align:"center"}); y += 5.2;
     pdf.setFontSize(8.6);
-    pdf.text(tituloMemorial(), W/2, y, {align:"center"}); y += 3;
+    pdf.text(tituloMemorial(), CX, y, {align:"center"}); y += 3;
 
     topico("i.", "DADOS GERAIS:");
     b.dados.forEach(function(d){ rot(d[0], d[1]); });
@@ -34693,12 +34704,12 @@ function AV_gerarDescSituacao(){
 
     garantir(34); y += 16;
     var imgAss = assinaturaResp(c);                          // 15/10/2026: a assinatura (imagem) do responsável técnico sobre a linha
-    if(imgAss){ try{ var wA = 62, hA = wA*144/1208; pdf.addImage(imgAss, "PNG", W/2 - wA/2, y - hA + 1.2, wA, hA); }catch(e){ console.warn("assinatura no memorial (PDF):", e); } }
-    pdf.setDrawColor(0,0,0); pdf.setLineWidth(.3); pdf.line(W/2-38, y, W/2+38, y); y += 4.4;
+    if(imgAss){ try{ var wA = 62, hA = wA*144/1208; pdf.addImage(imgAss, "PNG", CX - wA/2, y - hA + 1.2, wA, hA); }catch(e){ console.warn("assinatura no memorial (PDF):", e); } }
+    pdf.setDrawColor(0,0,0); pdf.setLineWidth(.3); pdf.line(CX-38, y, CX+38, y); y += 4.4;
     pdf.setFont("helvetica","normal"); pdf.setFontSize(8.6);
-    pdf.text(c.resp, W/2, y, {align:"center"}); y += 4;
-    pdf.text(c.respCargo, W/2, y, {align:"center"}); y += 4;
-    pdf.text(c.respCrea, W/2, y, {align:"center"});
+    pdf.text(c.resp, CX, y, {align:"center"}); y += 4;
+    pdf.text(c.respCargo, CX, y, {align:"center"}); y += 4;
+    pdf.text(c.respCrea, CX, y, {align:"center"});
     rodape();
 
     var nome = "MD-INFRA_" + (c.ferrovia||"FTN") + "_CTD-" + (c.ctd||"000") + sufixoArea() + ".pdf";
@@ -64914,7 +64925,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.25-3';
+window.APP_VERSAO = '2026.10.25-4';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.23-3';
 (function(){
