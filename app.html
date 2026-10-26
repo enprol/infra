@@ -39782,7 +39782,15 @@ function AV_gerarDescSituacao(){
     if(!DXF_MEDIDOR) DXF_MEDIDOR = document.createElement("canvas").getContext("2d");
     function noModelo(){ return modelo > 0 && !papelForcado; }
     function sp(){ return noModelo() ? D.modelo : folha; }
-    function XY(p){ return noModelo() ? [T.E(p[0]), T.N(p[1])] : [p[0], folha.H - p[1]]; }
+    /* 26/10/2026: no MODELO, a poligonal da área a desapropriar (contorno, hachura e divisas por trecho) e as demais áreas do
+       cadastro entram INTEIRAS — sem o recorte da janela de cada prancha, que as deixava em pedaços, um por prancha. Coordenadas
+       arredondadas ao mm para a mesma entidade, vinda de várias pranchas, entrar uma vez só (D.modelo.vistos). Nas pranchas nada muda. */
+    function inteira(){ return noModelo() && (cam === "ENP_AREA_DESAPROPRIAR" || cam === "ENP_AREAS_CONTEXTO" || (/^ENP_DIVISA_/.test(cam) && cam !== "ENP_DIVISA_SIMBOLO")); }
+    function XY(p){
+      if(!noModelo()) return [p[0], folha.H - p[1]];
+      var q = [T.E(p[0]), T.N(p[1])];
+      return inteira() ? [Math.round(q[0]*1000)/1000, Math.round(q[1]*1000)/1000] : q;
+    }
     function L(v){ return noModelo() ? v*k : v; }
     var JANELA = [[MAPA.x, MAPA.y], [MAPA.x + MAPA.w, MAPA.y], [MAPA.x + MAPA.w, MAPA.y + MAPA.h], [MAPA.x, MAPA.y + MAPA.h]];
     function recortes(){
@@ -39801,7 +39809,7 @@ function AV_gerarDescSituacao(){
     }
     // traço (aberto ou fechado), recortado pelos polígonos de recorte ativos
     function traco(pts, fechar, e, l){
-      var rs = recortes();
+      var rs = inteira() ? [] : recortes();
       if(!rs.length){
         if(pts.length === 2 && !fechar) D.linha(sp(), l, e, XY(pts[0]), XY(pts[1]));
         else D.poli(sp(), l, e, pts.map(XY), fechar);
@@ -39812,6 +39820,7 @@ function AV_gerarDescSituacao(){
       runs.forEach(function(q){ if(q.length === 2) D.linha(sp(), l, e, XY(q[0]), XY(q[1])); else D.poli(sp(), l, e, q.map(XY), false); });
     }
     function area(pts){
+      if(inteira()) return pts.length >= 3 ? pts : null;
       var a = pts;
       recortes().forEach(function(r){ if(a) a = dxfRecortarArea(a, r.pol); });
       return a;
@@ -64971,7 +64980,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.26-1';
+window.APP_VERSAO = '2026.10.26-2';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.23-3';
 (function(){
