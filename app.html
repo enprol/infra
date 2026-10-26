@@ -9227,7 +9227,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
         </div>
         <div class="drl-card" id="drl_sigef_card" style="display:none">
           <label for="drl_sigef_links">Links das parcelas no SIGEF (item 2 da Nota)</label>
-          <textarea id="drl_sigef_links" rows="4" placeholder="Um link por linha. Pode pôr o nome antes do link, ex.:&#10;Parcela Lote 02 A – https://sigef.incra.gov.br/geo/parcela/detalhe/…&#10;Parcela Lote 02 B – https://sigef.incra.gov.br/geo/parcela/detalhe/…"></textarea>
+          <textarea id="drl_sigef_links" rows="4" placeholder="Um link (ou só o código da parcela) por linha. Pode pôr o nome antes, ex.:&#10;Parcela Lote 02 A – https://sigef.incra.gov.br/geo/parcela/detalhe/…&#10;Parcela Lote 02 B – https://sigef.incra.gov.br/geo/parcela/detalhe/…"></textarea>
           <p class="hint-inline" style="margin:6px 0 0;">Cada linha vira um item, logo depois do item 2. Em branco, vale o link montado do código da parcela da Ficha (SIGEF), se houver.</p>
         </div>
         <div class="drl-card">
@@ -48954,9 +48954,26 @@ function DRL_ferroviaTxt(){ var f=((document.getElementById('fb_proc_ferrovia')|
 // 25/10/2026: os campos que vêm do cadastro (macros) saem em **negrito**; plain=true = sem a marcação (texto salvo por versão antiga)
 /* 26/10/2026: links das parcelas do SIGEF digitados na aba (#drl_sigef_links, um por linha, com ou sem nome antes) — itemizados
    logo depois do item 2; sem nada digitado, vale o link montado do código da Ficha (DRL_sigefUrl). Linha "• texto https://…" no texto. */
+// 26/10/2026: aceita o link completo OU só o código da parcela (uuid: a2a0fa4b-9ebf-…) — com o código, o link do SIGEF é montado
 function DRL_sigefLinks(){
   var t=((document.getElementById('drl_sigef_links')||{}).value||'');
-  return t.split(/\r?\n/).map(function(l){ return l.trim(); }).filter(function(l){ return /https?:\/\//i.test(l); });
+  return t.split(/\r?\n/).map(function(l){
+    l=l.trim(); if(!l) return '';
+    if(/https?:\/\/\S+/i.test(l)) return l;
+    var m=/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i.exec(l); if(!m) return '';
+    var rot=l.slice(0, m.index).replace(/[\s:–-]+$/,'').trim(), url='https://sigef.incra.gov.br/geo/parcela/detalhe/'+m[0].toLowerCase()+'/';
+    return rot ? rot+' – '+url : url;
+  }).filter(Boolean);
+}
+// texto editado à mão (ou de versão antiga) sem os links digitados: o item 2 passa a terminar com a lista dos links
+function DRL_aplicarLinks(t){
+  var links=DRL_sigefLinks(); if(!links.length || !t) return t;
+  var urls=links.map(function(l){ return (/https?:\/\/\S+/i.exec(l)||[''])[0]; });
+  if(urls.every(function(u){ return t.indexOf(u)>=0; })) return t;
+  var ps=t.split(/\n\s*\n/), i=ps.findIndex(function(p){ return /^\s*2\./.test(p); }); if(i<0) return t;
+  var base=ps[i].split('\n')[0].replace(/,\s*e (os documentos técnicos disponíveis no SIGEF.*|o levantamento técnico de campo)\.?\s*$/i,'').replace(/[.:\s]+$/,'');
+  ps[i]=base+', e os documentos técnicos disponíveis no SIGEF, através '+(links.length>1 ? 'dos endereços eletrônicos das parcelas:' : 'do endereço eletrônico da parcela:')+'\n'+links.map(function(l){ return '• '+l; }).join('\n');
+  return ps.join('\n\n');
 }
 function DRL_textoNota(d, plain, semLinks){
   var inc=DRL_codIncra(d), url=DRL_sigefUrl(), links=semLinks ? [] : DRL_sigefLinks();
@@ -48981,7 +48998,7 @@ async function DRL_textoNotaAtual(t, d){
   autos.push(novo.trim(), DRL_textoNota(d, true).trim(), DRL_textoNota(d, false, true).trim(), DRL_textoNota(d, true, true).trim(), DRL_paragrafo(d).trim(), DRL_paragrafoSemAnuencia(d).trim());
   // texto no formato do modelo sem anuência (retirado em 25/10/2026: parágrafo único da ENPROL, sem os itens) não cabe na Nota: refaz
   var doSemAnuencia=/^A ENPROL ENGENHARIA E PROJETOS LTDA, declara que esteve presente/i.test((t||'').trim()) && !/^1\. /m.test(t||'');
-  t=(t||'').trim(); return (!t || doSemAnuencia || autos.indexOf(t)>=0 || DRL_ehAutoAntigoSemAnuencia(t, d)) ? novo : t;
+  t=(t||'').trim(); return (!t || doSemAnuencia || autos.indexOf(t)>=0 || DRL_ehAutoAntigoSemAnuencia(t, d)) ? novo : DRL_aplicarLinks(t);
 }
 function DRL_refNota(){
   function v(){ for(var i=0;i<arguments.length;i++){ var e=document.getElementById(arguments[i]); var x=e?String(e.value||'').trim():''; if(x) return x; } return ''; }
@@ -65025,7 +65042,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.26-4';
+window.APP_VERSAO = '2026.10.26-5';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.23-3';
 (function(){
