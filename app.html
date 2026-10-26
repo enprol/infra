@@ -9495,7 +9495,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
         <textarea id="d2m2_car_imovel"></textarea><textarea id="d2m2_car_app"></textarea><textarea id="d2m2_car_rl"></textarea>
         <input type="hidden" id="d2m2_v_remN"><input type="hidden" id="d2m2_v_remS">
         <input type="hidden" id="d2m2_v_altmin"><input type="hidden" id="d2m2_v_altmax"><input type="hidden" id="d2m2_v_relevo">
-        <input type="hidden" id="d2m2_v_car"><input type="hidden" id="d2m2_v_sobrep"><input type="hidden" id="d2m2_v_mapver"><input type="hidden" id="d2m2_ctx_imp"><textarea id="d2m2_vet_sede"></textarea><textarea id="d2m2_vet_sigef"></textarea><textarea id="d2m2_vet_hidro"></textarea><textarea id="d2m2_extras"></textarea><textarea id="d2m2_ovr"></textarea><textarea id="d2m2_mapas"></textarea><input type="hidden" id="d2m2_desacoplado"><input type="hidden" id="d2m2_aj_20261026">
+        <input type="hidden" id="d2m2_v_car"><input type="hidden" id="d2m2_v_sobrep"><input type="hidden" id="d2m2_v_mapver"><input type="hidden" id="d2m2_ctx_imp"><textarea id="d2m2_vet_sede"></textarea><textarea id="d2m2_vet_sigef"></textarea><textarea id="d2m2_vet_hidro"></textarea><textarea id="d2m2_extras"></textarea><textarea id="d2m2_ovr"></textarea><textarea id="d2m2_mapas"></textarea><input type="hidden" id="d2m2_desacoplado"><input type="hidden" id="d2m2_aj_20261026"><input type="hidden" id="d2m2_aj_linha">
       </div>
 
       <div class="vactions" style="margin-top:16px;">
@@ -53720,9 +53720,31 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
   };
   var D2MAP_EST_PADRAO = JSON.parse(JSON.stringify(D2MAP_EST));
   // KMLs client-side por chave de camada
+  /* 26/10/2026 (CTD 006D): KML da área total exportado como LINHA fechada (LineString, 1º ponto = último), não como Polygon.
+     Sem polígono, remanescentes, recorte do relevo (curvas/hipsometria) e cruzamento com o CAR falhavam. Para a área total e a
+     área desapropriada, linha fechada (≥ 4 pontos) vira Polygon antes da leitura; os demais KMLs (vias, hidrografia…) não mudam. */
+  function d2fecharLinhas(txt){
+    if(!txt || txt.indexOf('LineString')<0) return txt;
+    try{
+      var doc=new DOMParser().parseFromString(txt,'application/xml'); if(doc.getElementsByTagName('parsererror').length) return txt;
+      var NS=doc.documentElement.namespaceURI||null, mudou=false;
+      Array.prototype.slice.call(doc.getElementsByTagNameNS('*','LineString')).forEach(function(ls){
+        var c=ls.getElementsByTagNameNS('*','coordinates')[0]; if(!c) return;
+        var pts=String(c.textContent||'').trim().split(/\s+/).map(function(t){ var q=t.split(','); return [+q[0],+q[1]]; }).filter(function(p){ return isFinite(p[0])&&isFinite(p[1]); });
+        if(pts.length<4) return;
+        var a=pts[0], b=pts[pts.length-1]; if(Math.abs(a[0]-b[0])>1e-9 || Math.abs(a[1]-b[1])>1e-9) return;
+        function el(n){ return NS ? doc.createElementNS(NS,n) : doc.createElement(n); }
+        var pg=el('Polygon'), ob=el('outerBoundaryIs'), lr=el('LinearRing'), cc=el('coordinates');
+        cc.textContent=c.textContent; lr.appendChild(cc); ob.appendChild(lr); pg.appendChild(ob);
+        ls.parentNode.replaceChild(pg, ls); mudou=true;
+      });
+      return mudou ? new XMLSerializer().serializeToString(doc) : txt;
+    }catch(e){ return txt; }
+  }
+  window.D2_fecharLinhasKML=d2fecharLinhas;
   function d2mapFonteKML(cam){
     try{
-      if(cam==='area')   return (window.IMV_get?window.IMV_get('area').kml:'');
+      if(cam==='area')   return d2fecharLinhas(window.IMV_get?window.IMV_get('area').kml:'');
       if(cam==='vias')   return (window.IMV_get?window.IMV_get('vias').kml:'');
       if(cam==='appest') return (window.IMV_get?window.IMV_get('app').kml:'');
       if(cam==='benf')   return (window.IMV_get?window.IMV_get('benf').kml:'');
@@ -53731,7 +53753,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       if(cam==='hidro')  return (window.IMV_get?window.IMV_get('hidro').kml:'');
       if(cam==='cercas') return (window.IMV_get?window.IMV_get('cercas').kml:'');
       if(cam==='culturas') return (window.IMV_get?window.IMV_get('culturas').kml:'');
-      if(cam==='desap')  return (window.REL_getKML?window.REL_getKML().kml:'');
+      if(cam==='desap')  return d2fecharLinhas(window.REL_getKML?window.REL_getKML().kml:'');
     }catch(e){}
     return '';
   }
@@ -63029,6 +63051,9 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     D2M2_modo(modoAtual(), true);
     var temArea = false; try{ temArea = !!(window.IMV_get && window.IMV_get("area").kml); }catch(e){}
     var temMapa = MAPAS.some(function(m){ return window.D2_m2Fig(m[0]); });
+    // 26/10/2026 (CTD 006D): área total em KML de LINHA fechada — os mapas salvos saíram sem remanescentes, relevo e CAR; refaz uma vez
+    var akml = temArea ? window.IMV_get("area").kml : "";
+    if(temArea && temMapa && !v("d2m2_aj_linha") && window.D2_fecharLinhasKML && window.D2_fecharLinhasKML(akml) !== akml){ setv("d2m2_aj_linha", "1"); setv("d2m2_v_mapver", MAPVER); sujo(); D2M2_gerarTodos(true); return; }
     if(temArea && temMapa && v("d2m2_v_mapver") !== MAPVER){ setv("d2m2_v_mapver", MAPVER); sujo(); D2M2_gerarTodos(true); return; }
     if(temArea && MAPAS.some(function(m){ return precisa(m[0]) && !window.D2_m2Fig(m[0]); })){ setv("d2m2_v_mapver", MAPVER); D2M2_gerarTodos(false); }
     else if(temArea && window.D2_m2Fig("m2_1") && !v("d2m2_v_remN")){ gerarMapa("m2_1"); }   // mapa salvo de uma versão antiga: refaz para calcular as áreas remanescentes dos textos
@@ -64980,7 +65005,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.26-2';
+window.APP_VERSAO = '2026.10.26-3';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.23-3';
 (function(){
