@@ -43023,11 +43023,137 @@ function AV_gerarDescSituacao(){
     if (window.PAR_gerarTexto){ try{ window.PAR_gerarTexto("titularidade"); }catch(e){} }
     return _retratoDe(montarPacote());
   }
+  function _lerCam(p, c){
+    var i = c.indexOf("/"), k = i < 0 ? c : c.slice(0, i);
+    if (i >= 0 && _CAM_SUB[k]) return (p[k] && typeof p[k] === "object") ? p[k][c.slice(i + 1)] : undefined;
+    return p[c];
+  }
+  function _gravarCam(p, c, v){
+    var i = c.indexOf("/"), k = i < 0 ? c : c.slice(0, i);
+    if (i >= 0 && _CAM_SUB[k]){ if (!p[k] || typeof p[k] !== "object") p[k] = {}; p[k][c.slice(i + 1)] = v; }
+    else p[c] = v;
+  }
+  /* Automático × feito pelo usuário (26/10/2026). Texto recalculado, mapa refeito ao abrir a aba e ajuste de versão
+     ao abrir não são trabalho de quem salvou: vão como `derivadas`, que o servidor só aplica se ninguém mexeu
+     naquele campo (nunca passam por cima de outra pessoa nem dão conflito).
+     - CAD_automatico(fn): o que fn mudar fica anotado com o valor que a automação deixou (a.auto[caminho] = hash);
+       se o usuário editar depois, o valor muda e volta a contar como dele.
+     - a.retratoDisco: o pacote como veio do servidor; o que a tela tem de diferente dele e o usuário não mexeu
+       (migração de campo, normalização) também vai como derivado. */
+  var _autoAtivo = 0;
+  // anota como automático o caminho c (valor `depois`), a menos que o usuário já o tivesse mudado antes da automação
+  function _anotarAuto(a, c, antes, depois){
+    a.auto = a.auto || {};
+    if (antes === depois) return;
+    if (antes === a.retrato[c] || antes === a.auto[c]) a.auto[c] = depois;
+  }
+  window.CAD_automatico = async function(fn){
+    var a = window.__CAD_ATUAL, antes = null;
+    _autoAtivo++;
+    try{
+      if (a && a.retrato && _autoAtivo === 1){ try{ antes = _retratoTela(); }catch(e){ antes = null; } }
+      return await fn();
+    }finally{
+      _autoAtivo--;
+      try{
+        if (antes && window.__CAD_ATUAL === a){
+          var depois = _retratoTela();
+          _caminhosMudados(antes, depois).forEach(function(c){ if (c in depois) _anotarAuto(a, c, antes[c], depois[c]); });
+        }
+      }catch(e){ console.warn("CAD_automatico: retrato falhou", e); }
+    }
+  };
+  // versão síncrona e barata para UM caminho, quando quem chama sabe o que muda (ex.: renumerar legendas → "d2doc")
+  window.CAD_automaticoEm = function(caminho, ler, fn){
+    var a = window.__CAD_ATUAL;
+    if (!a || !a.retrato || _autoAtivo) return fn();
+    var h = function(){ try{ var v = ler(); return v === undefined ? undefined : _hashTxt(JSON.stringify(v)); }catch(e){ return undefined; } };
+    var antes = h();
+    _autoAtivo++;
+    try{ return fn(); }
+    finally{ _autoAtivo--; if (window.__CAD_ATUAL === a) _anotarAuto(a, caminho, antes, h()); }
+  };
+  function _classificar(a, retratoNovo){
+    var auto = a.auto || {};
+    var mudancas = _caminhosMudados(a.retrato, retratoNovo).filter(function(c){ return !(auto[c] && auto[c] === retratoNovo[c]); });
+    var minhas = {}; mudancas.forEach(function(c){ minhas[c] = 1; });
+    var disco = a.retratoDisco || a.retrato;
+    var derivadas = Object.keys(retratoNovo).filter(function(c){ return !minhas[c] && disco[c] !== retratoNovo[c]; });
+    return { mudancas: mudancas, derivadas: derivadas };
+  }
   // o que esta tela mudou desde que abriu/salvou (o que o próximo Salvar manda); null = sem retrato
   window.CAD_mudancasDesdeAbertura = function(){
     var a = window.__CAD_ATUAL;
-    return (a && a.retrato) ? _caminhosMudados(a.retrato, _retratoTela()) : null;
+    return (a && a.retrato) ? _classificar(a, _retratoTela()) : null;
   };
+
+  /* Presença (26/10/2026): a tela com um cadastro aberto avisa o servidor a cada minuto (e ao trocar de aba) e
+     mostra quem mais está com ele aberto, e em qual aba. Servidor antigo (sem /api/presenca): nada aparece. */
+  var _PRES = { sessao: null, t: null, deb: null, fechado: "" };
+  function _sessaoTela(){
+    if (_PRES.sessao) return _PRES.sessao;
+    try{ _PRES.sessao = sessionStorage.getItem("enprol_sessao_tela"); }catch(e){}
+    if (!_PRES.sessao){
+      _PRES.sessao = "t" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10);
+      try{ sessionStorage.setItem("enprol_sessao_tela", _PRES.sessao); }catch(e){}
+    }
+    return _PRES.sessao;
+  }
+  function _urlPresenca(a){ return "/api/presenca/" + encodeURIComponent(a.secao) + "/" + encodeURIComponent(a.ctd); }
+  function _abaAtual(){
+    var b = document.querySelector(".sb-link.ativa") || document.querySelector(".tab.ativa");
+    return b ? String(b.textContent || "").replace(/\s+/g, " ").trim().slice(0, 60) : "";
+  }
+  function _haQuanto(iso){
+    var m = Math.round((Date.now() - Date.parse(iso)) / 60000);
+    return !(m >= 1) ? "agora" : m < 60 ? "há " + m + " min" : "há " + Math.floor(m / 60) + " h " + (m % 60) + " min";
+  }
+  function _mostrarPresenca(outros){
+    var box = document.getElementById("cadPresenca");
+    var chave = outros.map(function(o){ return (o.usuario || "") + "|" + (o.maquina || "") + "|" + (o.aba || ""); }).join(";");
+    if (!outros.length || chave === _PRES.fechado){ if (box) box.style.display = "none"; return; }
+    if (!box){
+      box = document.createElement("div");
+      box.id = "cadPresenca";
+      box.setAttribute("role", "status");
+      box.style.cssText = "position:fixed;top:104px;right:16px;z-index:9000;max-width:420px;background:#fff8e1;border:1px solid #e9c46a;"
+        + "border-radius:9px;box-shadow:0 4px 14px rgba(0,0,0,.12);padding:8px 30px 8px 12px;font-size:12.5px;line-height:1.45;color:#3d3a2a";
+      document.body.appendChild(box);
+    }
+    var esc = function(t){ return String(t == null ? "" : t).replace(/[&<>"]/g, function(ch){ return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]; }); };
+    box.innerHTML = '<button type="button" aria-label="Fechar aviso" style="position:absolute;top:4px;right:6px;border:0;background:none;font-size:16px;cursor:pointer;color:#7a6a3a">×</button>'
+      + "<b>👥 Também com este cadastro aberto:</b>"
+      + outros.map(function(o){
+          return "<div>• <b>" + esc(o.usuario || "sem conta") + "</b>" + (o.maquina ? " (" + esc(o.maquina) + ")" : "")
+            + (o.aba ? " — " + esc(o.aba) : "") + " · " + esc(_haQuanto(o.desde)) + "</div>";
+        }).join("")
+      + '<div style="color:#7a6a3a;margin-top:3px">Pode trabalhar ao mesmo tempo: ao salvar, o sistema junta as alterações; só avisa se os dois mexerem no mesmo campo.</div>';
+    box.querySelector("button").onclick = function(){ _PRES.fechado = chave; box.style.display = "none"; };
+    box.style.display = "";
+  }
+  async function _batimento(){
+    var a = window.__CAD_ATUAL;
+    if (!a || !a.ctd) return;
+    try{
+      var r = await _api("PUT", _urlPresenca(a), { sessao: _sessaoTela(), aba: _abaAtual() });
+      if (window.__CAD_ATUAL === a) _mostrarPresenca((r && r.outros) || []);
+    }catch(e){ /* servidor antigo ou rede fora: sem aviso */ }
+  }
+  function _iniciarPresenca(){
+    clearInterval(_PRES.t);
+    _batimento();
+    _PRES.t = setInterval(_batimento, 60000);
+  }
+  document.addEventListener("click", function(ev){
+    var b = ev.target && ev.target.closest && ev.target.closest(".sb-link, .tab");
+    if (!b || !window.__CAD_ATUAL) return;
+    clearTimeout(_PRES.deb); _PRES.deb = setTimeout(_batimento, 800);      // nova aba: avisa logo
+  }, true);
+  window.addEventListener("pagehide", function(){
+    var a = window.__CAD_ATUAL;
+    if (!a || !a.ctd) return;
+    try{ fetch(CAD_API + _urlPresenca(a) + "?sessao=" + encodeURIComponent(_sessaoTela()), { method: "DELETE", keepalive: true }); }catch(e){}
+  });
   var _NOME_CHAVE = { radios: "opções marcadas", imagens: "imagens da Avaliação", d2figs: "figuras do DESP 2", d2fotos: "fotos do DESP 2",
     d2ressalvas: "ressalvas do DESP 2", d2atividades: "atividades do DESP 2", d2impacto: "impacto (DESP 2)", d2fund: "situação fundiária (DESP 2)",
     d2doc: "documentação (DESP 2)", d2resp: "responsável (DESP 2)", fotos: "fotos da Ficha", familia: "família", estacas: "estacas",
@@ -43125,9 +43251,30 @@ function AV_gerarDescSituacao(){
       _tela(0);
       var pacote = _preservarOrfaos(montarPacote());
       var retratoNovo = _retratoDe(pacote);
-      // sem retrato (cadastro novo ou aberto de arquivo) o servidor faz como antes: 409 e "forçar"
-      var mudancas = (aberto && aberto.retrato) ? _caminhosMudados(aberto.retrato, retratoNovo) : undefined;
-      if (window.__comprimirImagensPacote){ _tela(1, "Reduzindo o tamanho das fotos…"); if (btn) btn.textContent = "💾 Otimizando imagens…"; pacote = await window.__comprimirImagensPacote(pacote); }
+      // sem retrato (cadastro novo ou aberto de arquivo) vai o pacote inteiro, com `sem_base`
+      var cls = (aberto && aberto.retrato) ? _classificar(aberto, retratoNovo) : null;
+      var mudancas = cls ? cls.mudancas : undefined;
+      var _comprimir = async function(p){
+        if (!window.__comprimirImagensPacote) return p;
+        _tela(1, "Reduzindo o tamanho das fotos…"); if (btn) btn.textContent = "💾 Otimizando imagens…";
+        return await window.__comprimirImagensPacote(p);
+      };
+      // 26/10/2026: com retrato, vai só o que mudou (delta) — não o cadastro inteiro com todas as fotos
+      var envio, pacoteCompleto = null;
+      var _envioCompleto = async function(){
+        if (!pacoteCompleto) pacoteCompleto = await _comprimir(pacote);
+        return { pacote: pacoteCompleto, mudancas: mudancas };
+      };
+      if (cls){
+        var todos = cls.mudancas.concat(cls.derivadas), parcial = {}, remover = [];
+        todos.forEach(function(c){ var v = _lerCam(pacote, c); if (v === undefined) remover.push(c); else _gravarCam(parcial, c, JSON.parse(JSON.stringify(v))); });
+        parcial = await _comprimir(parcial);
+        var delta = {};
+        todos.forEach(function(c){ var v = _lerCam(parcial, c); if (v !== undefined) delta[c] = v; });
+        envio = { delta: delta, remover: remover.length ? remover : undefined, mudancas: cls.mudancas, derivadas: cls.derivadas };
+      } else {
+        envio = await _envioCompleto();
+      }
       if (btn) btn.textContent = "💾 Salvando…";
       _tela(2, "Gravando em " + secao + "…");
       var processoSei = _rotuloProc();
@@ -43136,19 +43283,37 @@ function AV_gerarDescSituacao(){
       var baseVersao = (aberto && aberto.atualizado_em) ? aberto.atualizado_em : undefined;
       var urlPut = "/api/cadastros/" + encodeURIComponent(secao) + "/" + encodeURIComponent(ctd);
       var _aoRetentar = function(n, t){ _tela(2, "Servidor não respondeu — tentando de novo (" + n + "/" + t + ")…"); if (btn) btn.textContent = "💾 Servidor não respondeu — tentando de novo (" + n + "/" + t + ")…"; };
+      var _corpo = function(extra){
+        return Object.assign({ versao: VERSAO, processo_sei: processoSei || null, renomear_de: renomearDe || undefined,
+          base_atualizado_em: baseVersao, sem_base: aberto ? undefined : true }, envio, extra || {});
+      };
       var resp;
       try{
-        resp = await _apiComRetry("PUT", urlPut, {
-          versao: VERSAO, processo_sei: processoSei || null, pacote: pacote,
-          renomear_de: renomearDe || undefined, base_atualizado_em: baseVersao, mudancas: mudancas
-        }, _aoRetentar);
+        try{ resp = await _apiComRetry("PUT", urlPut, _corpo(), _aoRetentar); }
+        catch(eD){
+          // servidor ainda sem delta (400) ou cadastro que sumiu do disco (precisa_pacote): manda inteiro
+          var semDelta = eD && envio.delta && (eD.status === 400 || (eD.status === 409 && eD.payload && eD.payload.precisa_pacote));
+          if (!semDelta) throw eD;
+          envio = await _envioCompleto();
+          _tela(2, "Gravando em " + secao + "…");
+          resp = await _apiComRetry("PUT", urlPut, _corpo(), _aoRetentar);
+        }
       }catch(e409){
         if (!e409 || e409.status !== 409) throw e409;
         _telaOff();
         var quando = ""; try{ quando = new Date(e409.payload.atualizado_em_servidor).toLocaleString("pt-BR"); }catch(x){}
         var quem = (e409.payload && e409.payload.atualizado_por) ? " (" + e409.payload.atualizado_por + ")" : "";
         var cams = (e409.payload && e409.payload.caminhos) || null;
-        if (cams && mudancas){
+        if (e409.payload && e409.payload.ja_existe){
+          // tela sem cadastro aberto do servidor (novo, ou aberto de arquivo) com o nome de um que já existe
+          if (!confirm('ATENÇÃO — já existe no servidor o cadastro "' + ctd + '"' + (quando ? ", salvo em " + quando : "") + quem + ".\n\n" +
+                       "Esta tela não abriu esse cadastro do servidor (é um cadastro novo ou veio de um arquivo), então não dá para juntar as alterações.\n\n" +
+                       "OK = SUBSTITUIR o do servidor pelo que está na tela (a versão anterior fica na pasta _versoes, com as imagens).\n" +
+                       "Cancelar = não salvar. Para juntar, use “Salvar em arquivo”, abra o cadastro do servidor e refaça nele as alterações.")) return;
+          if (btn) btn.textContent = "💾 Salvando…";
+          _tela(2, "Gravando em " + secao + "…");
+          resp = await _apiComRetry("PUT", urlPut, _corpo({ forcar: true }), _aoRetentar);
+        } else if (cams && mudancas){
           // mesclagem: só estes campos foram mexidos pelos dois; todo o resto já se encaixa
           var lista = cams.slice(0, 15).map(function(c){ return "  • " + _rotuloCaminho(c); }).join("\n") + (cams.length > 15 ? "\n  … e mais " + (cams.length - 15) : "");
           var semBase = e409.payload.base_encontrada === false
@@ -43159,10 +43324,7 @@ function AV_gerarDescSituacao(){
                        "Cancelar = não salvar. Seus dados continuam na tela; use “Salvar em arquivo” para guardar uma cópia e confira com a outra pessoa.")) return;
           if (btn) btn.textContent = "💾 Salvando…";
           _tela(2, "Gravando em " + secao + "…");
-          resp = await _apiComRetry("PUT", urlPut, {
-            versao: VERSAO, processo_sei: processoSei || null, pacote: pacote,
-            renomear_de: renomearDe || undefined, base_atualizado_em: baseVersao, mudancas: mudancas, forcar_caminhos: cams
-          }, _aoRetentar);
+          resp = await _apiComRetry("PUT", urlPut, _corpo({ forcar_caminhos: cams }), _aoRetentar);
         } else {
           // sem mesclagem (cadastro sem retrato, ou servidor ainda sem a mesclagem): como antes
           if (!confirm("ATENÇÃO — conflito de gravação.\n\n" +
@@ -43171,17 +43333,17 @@ function AV_gerarDescSituacao(){
                        "Cancelar = não salvar. Seus dados continuam na tela; use “Salvar em arquivo” para guardar uma cópia e depois reabra o cadastro para ver o que mudou.")) return;
           if (btn) btn.textContent = "💾 Salvando…";
           _tela(2, "Gravando em " + secao + "…");
-          resp = await _apiComRetry("PUT", urlPut, {
-            versao: VERSAO, processo_sei: processoSei || null, pacote: pacote,
-            renomear_de: renomearDe || undefined, base_atualizado_em: baseVersao, forcar: true
-          }, _aoRetentar);
+          envio = await _envioCompleto(); envio.mudancas = undefined;
+          resp = await _apiComRetry("PUT", urlPut, _corpo({ forcar: true }), _aoRetentar);
         }
       }
       // o servidor devolve a pasta em que realmente gravou (pode ser a antiga, se o
       // nome novo já pertencia a outro cadastro) — é ela que vale daqui pra frente.
       _tela(3, "Cadastro gravado.");
       var ctdFinal = (resp && resp.ctd) || ctd;
-      window.__CAD_ATUAL = { secao: secao, ctd: ctdFinal, ctdCalc: ctdCalc, pacote: pacote, atualizado_em: (resp && resp.atualizado_em) || null, retrato: retratoNovo };
+      window.__CAD_ATUAL = { secao: secao, ctd: ctdFinal, ctdCalc: ctdCalc, pacote: pacote, atualizado_em: (resp && resp.atualizado_em) || null,
+        retrato: retratoNovo, retratoDisco: retratoNovo };
+      _iniciarPresenca();
       if (resp && resp.mesclado){
         // a tela ainda não tem o que a outra pessoa gravou: recarrega o cadastro (o que estava na tela já está salvo)
         _telaOff();
@@ -43292,6 +43454,10 @@ function AV_gerarDescSituacao(){
     _tp.baixar_ms = Math.round(performance.now() - _tp.ini);
     if (L) L.passo(3, "Lendo os dados…", null);
     await new Promise(function(r){ requestAnimationFrame(function(){ setTimeout(r, 0); }); });
+    // o pacote COMO ESTÁ no servidor (antes de migrar/normalizar): o que a tela tiver de diferente e o usuário não
+    // mexer vai no Salvar como "derivado" (ver _classificar)
+    var retratoDisco = null;
+    try{ retratoDisco = _retratoDe(js.pacote); }catch(e){ console.warn("retrato do disco falhou:", e); }
     var pacote = _migrar(js.pacote);
 
     // campos que estão no arquivo mas não existem no layout atual -> guarda em _orfaos
@@ -43312,7 +43478,9 @@ function AV_gerarDescSituacao(){
     // que o save compara pra saber se o usuário mudou o texto (e precisa renomear a pasta).
     window.__CAD_ATUAL = { secao: secao, ctd: ctd, ctdCalc: _ctdAtual(), pacote: pacote, atualizado_em: js.atualizado_em || null };
     // retrato logo depois de montar a tela (antes de o usuário mexer): base da mesclagem por campo
-    try{ window.__CAD_ATUAL.retrato = _retratoTela(); }catch(e){ console.warn("retrato do cadastro falhou (salvar volta ao modo antigo):", e); }
+    try{ window.__CAD_ATUAL.retrato = _retratoTela(); window.__CAD_ATUAL.retratoDisco = retratoDisco; }
+    catch(e){ console.warn("retrato do cadastro falhou (salvar volta ao modo antigo):", e); }
+    _iniciarPresenca();
     if (L) L.ocultar();
     _tp.total_ms = Math.round(performance.now() - _tp.ini); _tp.montar_ms = _tp.total_ms - _tp.baixar_ms;
     window.__CAD_TEMPOS = _tp; console.info("CADASTRO aberto — tempos (ms):", _tp);
@@ -62904,7 +63072,11 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     if((v("d2m2_ctx_txt") || docImgs().some(function(x){ return x.topico === "m2_ctx"; })) && !confirm("Substituir o subtítulo, o texto e as imagens do contexto histórico pelo subtópico “" + c.head + "” da DESP-2?")) return;
     trazerCtx(true); D2M2_render();
   };
+  // a numeração das legendas é automática: para o Salvar, não é alteração de quem só abriu a tela (CAD_automaticoEm, js/117)
   function renumerar(){
+    return window.CAD_automaticoEm ? window.CAD_automaticoEm("d2doc", function(){ return window.D2_getDoc ? window.D2_getDoc() : undefined; }, renumerar0) : renumerar0();
+  }
+  function renumerar0(){
     var n = 0, mudou = false, ctxOn = $("d2m2_ctx_on") && $("d2m2_ctx_on").checked, d = window.D2_getDoc ? window.D2_getDoc() : null;
     NUM = {};
     ordemImgs().forEach(function(o){
@@ -63257,7 +63429,10 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
       onUsar: function(png, rec){ var c = mapasCfg(); c.aj[id] = { enq:rec.enq, base:rec.base, transp:rec.transp, locLado:rec.locLado }; salvarMapasCfg(c); window.D2_m2Usar(id, png); D2M2_render(); }
     });
   }
-  window.D2M2_abrir = function(){
+  // 26/10/2026: o que esta função faz sozinha (textos, análise, mapas refeitos) é "automático" para o Salvar
+  // (CAD_automatico, js/117): entra no cadastro só se ninguém mexeu nesses campos — quem só abriu a aba não
+  // passa por cima do trabalho do DESP 2. Por isso devolve a promessa dos mapas.
+  function D2M2_abrir0(){
     desacoplar(); ajustarTextos();
     trazerCtx(false); incluirAnalise();
     D2M2_modo(modoAtual(), true);
@@ -63265,20 +63440,22 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     var temMapa = MAPAS.some(function(m){ return window.D2_m2Fig(m[0]); });
     // 26/10/2026 (CTD 006D): área total em KML de LINHA fechada — os mapas salvos saíram sem remanescentes, relevo e CAR; refaz uma vez
     var akml = temArea ? window.IMV_get("area").kml : "";
-    if(temArea && temMapa && !v("d2m2_aj_linha") && window.D2_fecharLinhasKML && window.D2_fecharLinhasKML(akml) !== akml){ setv("d2m2_aj_linha", "1"); setv("d2m2_v_mapver", MAPVER); sujo(); D2M2_gerarTodos(true); return; }
-    if(temArea && temMapa && v("d2m2_v_mapver") !== MAPVER){ setv("d2m2_v_mapver", MAPVER); sujo(); D2M2_gerarTodos(true); return; }
-    if(temArea && MAPAS.some(function(m){ return precisa(m[0]) && !window.D2_m2Fig(m[0]); })){ setv("d2m2_v_mapver", MAPVER); D2M2_gerarTodos(false); }
-    else if(temArea && window.D2_m2Fig("m2_1") && !v("d2m2_v_remN")){ gerarMapa("m2_1"); }   // mapa salvo de uma versão antiga: refaz para calcular as áreas remanescentes dos textos
-    else if(temArea && !v("d2m2_v_altmin")) relevo();
-  };
-  window.D2M2_gerarPDF = async function(opts){
+    if(temArea && temMapa && !v("d2m2_aj_linha") && window.D2_fecharLinhasKML && window.D2_fecharLinhasKML(akml) !== akml){ setv("d2m2_aj_linha", "1"); setv("d2m2_v_mapver", MAPVER); sujo(); return D2M2_gerarTodos(true); }
+    if(temArea && temMapa && v("d2m2_v_mapver") !== MAPVER){ setv("d2m2_v_mapver", MAPVER); sujo(); return D2M2_gerarTodos(true); }
+    if(temArea && MAPAS.some(function(m){ return precisa(m[0]) && !window.D2_m2Fig(m[0]); })){ setv("d2m2_v_mapver", MAPVER); return D2M2_gerarTodos(false); }
+    else if(temArea && window.D2_m2Fig("m2_1") && !v("d2m2_v_remN")){ return gerarMapa("m2_1"); }   // mapa salvo de uma versão antiga: refaz para calcular as áreas remanescentes dos textos
+    else if(temArea && !v("d2m2_v_altmin")) return relevo();
+  }
+  window.D2M2_abrir = function(){ return window.CAD_automatico ? window.CAD_automatico(D2M2_abrir0) : D2M2_abrir0(); };
+  window.D2M2_gerarPDF = function(opts){ return window.CAD_automatico ? window.CAD_automatico(function(){ return D2M2_gerarPDF0(opts); }) : D2M2_gerarPDF0(opts); };
+  async function D2M2_gerarPDF0(opts){
     opts = opts || {};
     if(!window.D2_gerarPDF) return null;
     var temArea = false; try{ temArea = !!(window.IMV_get && window.IMV_get("area").kml); }catch(e){}
     if(temArea && MAPAS.some(function(m){ return precisa(m[0]) && !window.D2_m2Fig(m[0]); })) await D2M2_gerarTodos(false);
     st("Montando o PDF…");
     try{ return await window.D2_gerarPDF(Object.assign({}, opts, { modelo2:true })); } finally { st(""); }
-  };
+  }
 
   /* ---------- modal de imagem (mapas e fotos): tela cheia, definição total, zoom e arraste ---------- */
   var LB = null;
@@ -65271,9 +65448,9 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.26-10';
+window.APP_VERSAO = '2026.10.26-11';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
-window.SERVIDOR_RECOMENDADO = '2026.10.26-10';
+window.SERVIDOR_RECOMENDADO = '2026.10.26-11';
 (function(){
   var SEM_VERSAO = '0000.00.00-0';
   var LEGADO_LAYOUT = '2026.10.07-0';   // servidor que já tem layout_antigo no health, mas ainda sem número de versão
