@@ -62777,6 +62777,25 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     setv("d2m2_ctx_imp", "1"); sujo();
     return true;
   }
+  /* 26/10/2026 (estrutura do CTD 006B para os CTD 006A–006Z do SPS-04): subtópico "Análise das parcelas do imóvel" depois do contexto
+     histórico (PA Riacho Seco), com o texto das glebas A e B — o mesmo em todos. Entra uma vez, como tópico novo editável (a imagem é
+     inserida à mão em "🖼 + Imagem"); quem já tem um tópico assim (006B) não ganha outro. */
+  var TXT_ANALISE = [
+    "O imóvel rural objeto da presente caracterização corresponde a uma propriedade originalmente constituída por uma única unidade territorial, posteriormente seccionada pela implantação da infraestrutura ferroviária integrante do empreendimento.",
+    "Em decorrência dessa intervenção, distinguem-se **três porções territoriais para fins de análise**: a faixa correspondente ao **corredor ferroviário**, abrangida pelo projeto, e as **duas glebas remanescentes norte e sul**, denominadas **Gleba A e Gleba B**, situadas em margens opostas da ferrovia e atualmente individualizadas e certificadas no Sistema de Gestão Fundiária (SIGEF).",
+    "Ressalta-se que a discriminação da área abrangida pelo projeto ferroviário e das áreas remanescentes possui finalidade descritiva e analítica, não devendo ser interpretada, isoladamente, como demonstração de que as três áreas integram o perímetro atual da propriedade rural.",
+    "**Para fins de caracterização do imóvel remanescente NORTE e SUL**, a área total considerada corresponde à soma das áreas das Glebas A e B, conforme suas respectivas delimitações e certificações. A faixa ferroviária é identificada separadamente, em razão de sua vinculação à intervenção que ocasionou o seccionamento territorial da propriedade."
+  ].join("\n");
+  function incluirAnalise(){
+    if(v("d2m2_parc_imp")) return;
+    if(!/\b006[A-Z]\b/i.test(campo("cadastro") || "") || sps() !== "04") return;
+    var ex = extras();
+    if(!ex.some(function(e){ return /an[áa]lise das parcelas?\b/i.test(e && e.head || ""); })){
+      ex.push({ id:"x_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), after:"m2_ctx", level:3, head:"Análise das parcelas do imóvel", txt:TXT_ANALISE });
+      salvarExtras();
+    }
+    setv("d2m2_parc_imp", "1"); sujo();
+  }
   window.D2M2_trazerCtx = function(){
     var c = ctxDesp2();
     if(!c){ alert("Este cadastro não tem, na DESP-2, o subtópico do contexto histórico (PA Riacho Seco) — ele só existe nos CTD 006A a 006Z do SPS-04."); return; }
@@ -62979,13 +62998,22 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     var doc = new DOMParser().parseFromString(txt, "application/xml"), fe = [];
     var co = function(el){ return el ? el.textContent.trim().split(/\s+/).map(function(t){ var q = t.split(","); return [+q[0], +q[1]]; }).filter(function(p){ return isFinite(p[0]) && isFinite(p[1]); }) : []; };
     Array.prototype.forEach.call(doc.getElementsByTagNameNS("*", "Placemark"), function(pm){
-      var nome = ((pm.getElementsByTagNameNS("*", "name")[0] || {}).textContent || "").trim(), r = { nome:nome, pts:[], aneis:[], linhas:[] };
+      var nome = ((pm.getElementsByTagNameNS("*", "name")[0] || {}).textContent || "").trim(), r = { nome:nome, pts:[], aneis:[], linhas:[], at:{} };
+      Array.prototype.forEach.call(pm.getElementsByTagNameNS("*", "SimpleData"), function(sd){ r.at[(sd.getAttribute("name") || "").toLowerCase()] = sd.textContent.trim(); });
       Array.prototype.forEach.call(pm.getElementsByTagNameNS("*", "LineString"), function(ls){ var c = co(ls.getElementsByTagNameNS("*", "coordinates")[0]); if(c.length > 1) r.linhas.push(c); });
       Array.prototype.forEach.call(pm.getElementsByTagNameNS("*", "Point"), function(pt){ var c = co(pt.getElementsByTagNameNS("*", "coordinates")[0]); if(c[0]) r.pts.push(c[0]); });
       Array.prototype.forEach.call(pm.getElementsByTagNameNS("*", "Polygon"), function(pg){ var ob = pg.getElementsByTagNameNS("*", "outerBoundaryIs")[0], c = co(ob && ob.getElementsByTagNameNS("*", "coordinates")[0]); if(c.length > 2) r.aneis.push(c); });
       if(r.pts.length || r.aneis.length || r.linhas.length) fe.push(r);
     });
     return fe;
+  }
+  /* 26/10/2026: dados de cada parcela SIGEF do arquivo (nome da área, código da parcela, do imóvel, situação, ART, data de aprovação),
+     lidos dos atributos do .gpkg/.zip/.kml do SIGEF e usados na lista do tópico "Parcelas SIGEF sobre o imóvel". Nomes de coluna tolerantes. */
+  function parcelaDe(a){
+    function g(cs){ for(var i = 0; i < cs.length; i++){ var x = a[cs[i]]; if(x != null && String(x).trim() !== "") return String(x).trim(); } return ""; }
+    var data = g(["data_aprov", "data_aprovacao", "data_aprovac", "dt_aprov", "aprovacao"]), m = /^(\d{4})-(\d{2})-(\d{2})/.exec(data);
+    if(m) data = m[3] + "/" + m[2] + "/" + m[1];
+    return { nome:g(["nome_area", "nome", "name", "denominaca", "denominacao"]), codigo:g(["parcela_co", "parcela_codigo", "codigo_parcela", "cod_parcela"]), imovel:g(["codigo_imo", "codigo_imovel", "cod_imovel"]), status:g(["status", "situacao_i", "situacao"]), art:g(["art", "numero_art", "n_art"]), data:data };
   }
   async function importarVet(tipo, arq){
     var feicoes = [];
@@ -62998,7 +63026,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
         var conv = conversor(prjN ? new TextDecoder().decode(await z.abrir(prjN)) : ""), cpg = cpgN ? new TextDecoder().decode(await z.abrir(cpgN)) : "";
         var at = dbfN ? lerDbf(await z.abrir(dbfN), cpg) : [];
         geo.forEach(function(g, i){ var a = at[i] || {}, nome = a.nome || a.name || a.parcela_co || a.codigo || a.denominaca || "";
-          feicoes.push({ nome:nome, pts:conv ? g.pts.map(conv) : g.pts, aneis:conv ? g.aneis.map(function(r){ return r.map(conv); }) : g.aneis, linhas:conv ? g.linhas.map(function(r){ return r.map(conv); }) : g.linhas }); });
+          feicoes.push({ nome:nome, at:Object.keys(a).reduce(function(o, k){ o[k.toLowerCase()] = a[k] == null ? "" : String(a[k]).trim(); return o; }, {}), pts:conv ? g.pts.map(conv) : g.pts, aneis:conv ? g.aneis.map(function(r){ return r.map(conv); }) : g.aneis, linhas:conv ? g.linhas.map(function(r){ return r.map(conv); }) : g.linhas }); });
       }
     } else if(/\.kml$/i.test(arq.name)) feicoes = kmlTudo(await arq.text());
     else if(/\.gpkg$/i.test(arq.name)) feicoes = kmlTudo(await window.GPKG_paraKml(arq));
@@ -63015,8 +63043,9 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     if(tipo === "sigef" && !polys.length) throw new Error("nenhum polígono no arquivo");
     if(tipo === "sede" && !pts.length) throw new Error("nenhum ponto ou polígono no arquivo");
     if(tipo === "hidro" && !lines.length && !polys.length) throw new Error("nenhuma linha ou polígono no arquivo");
+    var parcelas = tipo === "sigef" ? feicoes.filter(function(f){ return f.aneis.length; }).map(function(f){ return parcelaDe(f.at || {}); }).filter(function(p){ return p.nome || p.codigo || p.imovel || p.status || p.art || p.data; }) : [];
     var d = vetDado(tipo); d.arquivos = d.arquivos.filter(function(a){ return a.nome !== arq.name; });   // mesmo nome = troca
-    d.arquivos.push({ nome:arq.name, pts:tipo === "sede" ? pts : [], polys:polys, lines:tipo === "hidro" ? lines : [], nomes:tipo === "sede" ? nomes : [] });
+    d.arquivos.push({ nome:arq.name, pts:tipo === "sede" ? pts : [], polys:polys, lines:tipo === "hidro" ? lines : [], nomes:tipo === "sede" ? nomes : [], parcelas:parcelas });
     setv(VET_TIPOS[tipo].campo, JSON.stringify(d)); sujo();
   }
   function htmlVet(){
@@ -63128,7 +63157,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
   }
   window.D2M2_abrir = function(){
     desacoplar(); ajustarTextos();
-    trazerCtx(false);
+    trazerCtx(false); incluirAnalise();
     D2M2_modo(modoAtual(), true);
     var temArea = false; try{ temArea = !!(window.IMV_get && window.IMV_get("area").kml); }catch(e){}
     var temMapa = MAPAS.some(function(m){ return window.D2_m2Fig(m[0]); });
@@ -63329,12 +63358,31 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     var box = document.querySelector('#panel-desp2-modelo02 [data-m2car="' + tp + '"]'); if(box) box.insertAdjacentHTML("beforeend", '<div class="m2-car-no">Lendo e dissolvendo…</div>');
     importarCar(tp, t.files[0]).then(function(){ D2M2_render(); }).catch(function(e){ alert("CAR: " + (e && e.message || e)); D2M2_render(); });
   });
+  function parcelasSigef(){ var o = []; vetDado("sigef").arquivos.forEach(function(a){ (a.parcelas || []).forEach(function(p){ o.push(p); }); }); return o; }
+  // lista das parcelas no formato do CTD 006B (um bloco por parcela; só entram os dados que o arquivo trouxe)
+  function listaParcelas(){
+    var ps = parcelasSigef(); if(!ps.length) return "";
+    var PAL = ["", "uma", "duas", "três", "quatro", "cinco", "seis"], n = ps.length;
+    var intro = n === 1 ? "A parcela é:" : "As " + (PAL[n] || n) + " parcelas são:";
+    var blocos = ps.map(function(p, i){
+      var N = ("0" + (i + 1)).slice(-2), L = [];
+      L.push("**Nome da área " + N + ":** " + (p.nome || "[nome da área]"));
+      if(p.codigo) L.push("**Código da parcela:** " + p.codigo);
+      if(p.imovel) L.push("**Código do imóvel:** " + p.imovel);
+      if(p.status) L.push("**Status:** " + p.status);
+      if(p.art) L.push("**ART:** " + p.art);
+      if(p.data) L.push("**Data de aprovação:** " + p.data);
+      return L.join("\n");
+    });
+    return intro + "\n" + blocos.join("\n\n");
+  }
   function txtSig(){
     var t = "A imagem " + nImg("m2_sig") + " apresenta as parcelas certificadas no SIGEF que se sobrepõem à área do imóvel, em contraste com a faixa de domínio e com a área a ser desapropriada.";
     var s = valSobrep();
     if(s && s.n > 0 && window.D2_m2Fig && window.D2_m2Fig("m2_sig2")){
       t += " A imagem " + nImg("m2_sig2") + " detalha " + (s.n > 1 ? "as " + s.n + " áreas em que a área desapropriada se sobrepõe às parcelas certificadas, com **" + s.itens.map(haTxt).join("**, **").replace(/\*\*, \*\*([^*]+)$/, "** e **$1") + "**, totalizando **" + haTxt(s.ha) + "**." : "a área em que a área desapropriada se sobrepõe à parcela certificada, com **" + haTxt(s.ha) + "**.");
     }
+    var lp = listaParcelas(); if(lp) t += "\n" + lp;
     return t;
   }
   function txtCarac2(){ return "Na imagem " + nImg("m2_2") + " é possível notar as características relatadas até aqui, de acordo com os metadados disponíveis nas plataformas SICAR e/ou SIGEF, os quais foram utilizados para caracterizar ambientalmente o imóvel, inserindo a faixa de domínio, para que seja visualizado como a propriedade permanecerá após a passagem da ferrovia. Na imagem " + nImg("m2_3") + " é demonstrada a disposição do imóvel, com as vias de acesso internas, juntamente com a via de acesso externa."; }
@@ -65087,7 +65135,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.26-6';
+window.APP_VERSAO = '2026.10.26-7';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.23-3';
 (function(){
