@@ -9225,6 +9225,11 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
           </div>
           <textarea id="drl_nota_linhas" style="display:none" aria-hidden="true"></textarea>
         </div>
+        <div class="drl-card" id="drl_sigef_card" style="display:none">
+          <label for="drl_sigef_links">Links das parcelas no SIGEF (item 2 da Nota)</label>
+          <textarea id="drl_sigef_links" rows="4" placeholder="Um link por linha. Pode pôr o nome antes do link, ex.:&#10;Parcela Lote 02 A – https://sigef.incra.gov.br/geo/parcela/detalhe/…&#10;Parcela Lote 02 B – https://sigef.incra.gov.br/geo/parcela/detalhe/…"></textarea>
+          <p class="hint-inline" style="margin:6px 0 0;">Cada linha vira um item, logo depois do item 2. Em branco, vale o link montado do código da parcela da Ficha (SIGEF), se houver.</p>
+        </div>
         <div class="drl-card">
           <label for="drl_local_data">Local e data</label>
           <input type="text" id="drl_local_data" placeholder="Automático: município e a data do dia (ex.: SERTÂNIA – PE, 25 de outubro de 2026)">
@@ -48947,8 +48952,14 @@ function DRL_codIncra(d){
 }
 function DRL_ferroviaTxt(){ var f=((document.getElementById('fb_proc_ferrovia')||{}).value||'FTN').trim().toUpperCase(); return f==='FTN' ? 'Ferrovia Transnordestina – EF-232' : ('Ferrovia '+f); }
 // 25/10/2026: os campos que vêm do cadastro (macros) saem em **negrito**; plain=true = sem a marcação (texto salvo por versão antiga)
-function DRL_textoNota(d, plain){
-  var inc=DRL_codIncra(d), url=DRL_sigefUrl();
+/* 26/10/2026: links das parcelas do SIGEF digitados na aba (#drl_sigef_links, um por linha, com ou sem nome antes) — itemizados
+   logo depois do item 2; sem nada digitado, vale o link montado do código da Ficha (DRL_sigefUrl). Linha "• texto https://…" no texto. */
+function DRL_sigefLinks(){
+  var t=((document.getElementById('drl_sigef_links')||{}).value||'');
+  return t.split(/\r?\n/).map(function(l){ return l.trim(); }).filter(function(l){ return /https?:\/\//i.test(l); });
+}
+function DRL_textoNota(d, plain, semLinks){
+  var inc=DRL_codIncra(d), url=DRL_sigefUrl(), links=semLinks ? [] : DRL_sigefLinks();
   function B(x){ return plain ? x : '**'+x+'**'; }
   function doc(num, tipo){ return (num && num.trim()) ? ', inscrito(a) no '+DRL_docRotulo({cpfTipo:tipo})+' nº '+B(num.trim()) : ''; }
   var p1='1. O processo supracitado foi instaurado para indenizar a terra nua e as benfeitorias do imóvel '+B(DRL_bl(d.propId))+
@@ -48957,7 +48968,8 @@ function DRL_textoNota(d, plain){
     ', cujo(a) proprietário(a) é '+B(DRL_bl(d.nome))+doc(d.cpf, d.cpfTipo)+
     (d.ocupDif && d.ocupNome ? ', e ocupado por '+B(d.ocupNome)+doc(d.ocupCpf, d.ocupCpfTipo) : '')+'.';
   var p2='2. Para a instrução processual é necessária a Declaração de Respeito de Limites, que, na ausência desta, tomou como base os dados que constam na certidão de inteiro teor do imóvel, matrícula nº '+B(DRL_bl(d.matricula))+
-    (url ? ', e os documentos técnicos disponíveis no SIGEF, através do endereço eletrônico:\n'+url : ', e o levantamento técnico de campo.');
+    (links.length ? ', e os documentos técnicos disponíveis no SIGEF, através '+(links.length>1 ? 'dos endereços eletrônicos das parcelas:' : 'do endereço eletrônico da parcela:')+'\n'+links.map(function(l){ return '• '+l; }).join('\n')
+     : url ? ', e os documentos técnicos disponíveis no SIGEF, através do endereço eletrônico:\n'+url : ', e o levantamento técnico de campo.');
   var p3='3. Assim, em ambiente GIS e CAD, utilizando os dados vetoriais do levantamento de campo da área atingida pelo traçado da ferrovia, determinaram-se os limites Norte/Sul e as confrontações Leste/Oeste da área em questão'+
     ((DRL_KM.ini && DRL_KM.fim) ? ', entre o '+B('KM '+DRL_KM.ini)+' e o '+B('KM '+DRL_KM.fim)+' do eixo projetado' : '')+'.';
   return p1+'\n\n'+p2+'\n\n'+p3;
@@ -48966,7 +48978,7 @@ function DRL_textoNota(d, plain){
 async function DRL_textoNotaAtual(t, d){
   var sem=Object.assign({}, DRL_KM), autos=[]; DRL_KM.ini=DRL_KM.fim=''; autos.push(DRL_textoNota(d).trim(), DRL_textoNota(d, true).trim()); Object.assign(DRL_KM, sem);
   autos.push(DRL_textoNota(d).trim(), DRL_textoNota(d, true).trim()); await DRL_carregarKm(); var novo=DRL_textoNota(d);
-  autos.push(novo.trim(), DRL_textoNota(d, true).trim(), DRL_paragrafo(d).trim(), DRL_paragrafoSemAnuencia(d).trim());
+  autos.push(novo.trim(), DRL_textoNota(d, true).trim(), DRL_textoNota(d, false, true).trim(), DRL_textoNota(d, true, true).trim(), DRL_paragrafo(d).trim(), DRL_paragrafoSemAnuencia(d).trim());
   // texto no formato do modelo sem anuência (retirado em 25/10/2026: parágrafo único da ENPROL, sem os itens) não cabe na Nota: refaz
   var doSemAnuencia=/^A ENPROL ENGENHARIA E PROJETOS LTDA, declara que esteve presente/i.test((t||'').trim()) && !/^1\. /m.test(t||'');
   t=(t||'').trim(); return (!t || doSemAnuencia || autos.indexOf(t)>=0 || DRL_ehAutoAntigoSemAnuencia(t, d)) ? novo : t;
@@ -49153,10 +49165,15 @@ window.DRL_gerarPDF=async function(opts){
     pdf.setDrawColor(0,0,0); pdf.setLineWidth(.2); pdf.line(mL+11, y+.8, mL+11+pdf.getTextWidth(_ass), y+.8); y+=11;
     texto.split(/\n\s*\n/).forEach(function(par){
       par.split('\n').forEach(function(ln){
-        if(/^https?:\/\//i.test(ln.trim())){                               // link do SIGEF: azul e sublinhado, linha própria
-          garantir(8); y+=2; pdf.setFont(FONT,'normal'); pdf.setFontSize(10.5); pdf.setTextColor(10,60,170);
-          var u=ln.trim(); pdf.textWithLink ? pdf.textWithLink(u, mL, y, {url:u}) : pdf.text(u, mL, y);
-          pdf.setDrawColor(10,60,170); pdf.line(mL, y+.8, mL+pdf.getTextWidth(u), y+.8); pdf.setTextColor(0,0,0); y+=6;
+        var mLk=/^(•\s*)?(.*?)(https?:\/\/\S+)\s*$/i.exec(ln.trim());
+        if(mLk){                                                               // link do SIGEF: azul e sublinhado, linha própria (• = item da lista)
+          var bul=!!mLk[1], rot=mLk[2].replace(/[\s:–-]+$/,'').trim(), u=mLk[3], x0=mL+(bul?6:0);
+          garantir(8); y+=bul?0.5:2; pdf.setFont(FONT,'normal'); pdf.setFontSize(10.5); pdf.setTextColor(0,0,0);
+          if(bul) pdf.text('•', mL+1.5, y);
+          if(rot){ pdf.text(rot+' –', x0, y); x0+=pdf.getTextWidth(rot+' – '); }
+          var larg=mL+RW-x0, us=pdf.splitTextToSize(u, larg); pdf.setTextColor(10,60,170);
+          us.forEach(function(p, k){ if(k){ y+=5; garantir(6); } var xx=k?mL+(bul?6:0):x0; pdf.textWithLink ? pdf.textWithLink(p, xx, y, {url:u}) : pdf.text(p, xx, y); pdf.setDrawColor(10,60,170); pdf.line(xx, y+.8, xx+pdf.getTextWidth(p), y+.8); });
+          pdf.setTextColor(0,0,0); y+=bul?5.6:6;
         } else blocoRico(ln);
       });
       y+=4;
@@ -52252,7 +52269,9 @@ window.DRL_gerarWord=async function(opts){
     K.push(new Paragraph({spacing:{after:280},children:[R("Ass.: ",{bold:true}), new TextRun({text:"Nota de Declaração de Respeito de Limites e Confrontações",font:FONT,size:22,underline:{}}), R(".")]}));
     _tn.split(/\n\s*\n/).forEach(function(par){
       par.split('\n').forEach(function(ln){
-        if(/^https?:\/\//i.test(ln.trim())) K.push(new Paragraph({spacing:{before:80,after:200},children:[new TextRun({text:ln.trim(),font:FONT,size:21,color:"0A3CAA",underline:{}})]}));
+        var _mk=/^(•\s*)?(.*?)(https?:\/\/\S+)\s*$/i.exec(ln.trim());
+        if(_mk){ var _rot=_mk[2].replace(/[\s:–-]+$/,'').trim(), _ch=[]; if(_mk[1]) _ch.push(R("•  ")); if(_rot) _ch.push(R(_rot+" – ")); _ch.push(new TextRun({text:_mk[3],font:FONT,size:21,color:"0A3CAA",underline:{}}));
+          K.push(new Paragraph({spacing:{before:_mk[1]?0:80,after:_mk[1]?60:200},indent:_mk[1]?{left:340}:undefined,children:_ch})); }
         else K.push(new Paragraph({alignment:AlignmentType.JUSTIFIED,spacing:{after:200,line:300},children:String(ln).split('**').map(function(p, i){ return R(p, i%2 ? {bold:true} : {}); })}));
       });
     });
@@ -63537,6 +63556,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     var c = $("drl_nota_card"); if(!c) return;
     var nota = window.DRL_modelo && window.DRL_modelo() === "nota";
     c.style.display = nota ? "" : "none";
+    var sg = $("drl_sigef_card"); if(sg) sg.style.display = nota ? "" : "none";   // 26/10/2026: links das parcelas do SIGEF (item 2)
     if(nota) desenhar();
   }
   window.DRL_notaAdd = function(){ lerSalvo(); linhas.push({}); guardar(); desenhar(); };
@@ -65005,7 +65025,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.26-3';
+window.APP_VERSAO = '2026.10.26-4';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.23-3';
 (function(){
