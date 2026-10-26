@@ -42984,6 +42984,72 @@ function AV_gerarDescSituacao(){
     return pacote;
   }
 
+  /* 26/10/2026 — mesclagem por campo (times diferentes no mesmo cadastro).
+     Logo depois de abrir, guarda um "retrato" do pacote (um hash por caminho). Ao salvar, manda ao servidor
+     só a LISTA dos caminhos que mudaram desde o retrato; se outra pessoa salvou no meio, o servidor aplica
+     só esses caminhos sobre o que está no disco. Caminhos: "campos/<id>", "radios/<name>", "imagens/<chave>",
+     "d2figs/<chave>" e "<chave>" para o resto — mesma regra do servidor (servidor-cadastros/lib/mesclar.js). */
+  var _CAM_SUB = { campos: 1, radios: 1, imagens: 1, d2figs: 1 };
+  var _CAM_IGNORAR = { _app: 1, _versao: 1, _data: 1, _orfaos: 1 };
+  function _hashTxt(s){            // cyrb53: rápido e suficiente para "mudou ou não"
+    var h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+    for (var i = 0; i < s.length; i++){ var ch = s.charCodeAt(i); h1 = Math.imul(h1 ^ ch, 2654435761); h2 = Math.imul(h2 ^ ch, 1597334677); }
+    h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+    h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+    return (h2 >>> 0).toString(36) + (h1 >>> 0).toString(36) + "." + s.length;
+  }
+  function _retratoDe(pacote){
+    var r = {};
+    Object.keys(pacote || {}).forEach(function(k){
+      if (_CAM_IGNORAR[k]) return;
+      var v = pacote[k];
+      if (_CAM_SUB[k] && v && typeof v === "object" && !Array.isArray(v)){
+        Object.keys(v).forEach(function(s){
+          if (v[s] === undefined || (k === "radios" && /^leaflet-/.test(s))) return;   // rádio interno do mapa (nome muda a cada abertura)
+          r[k + "/" + s] = _hashTxt(JSON.stringify(v[s]));
+        });
+      } else if (v !== undefined) r[k] = _hashTxt(JSON.stringify(v));
+    });
+    return r;
+  }
+  function _caminhosMudados(antes, depois){
+    var out = [];
+    Object.keys(depois).forEach(function(c){ if (antes[c] !== depois[c]) out.push(c); });
+    Object.keys(antes).forEach(function(c){ if (!(c in depois)) out.push(c); });
+    return out;
+  }
+  // retrato da tela como ela está (mesma preparação do salvar)
+  function _retratoTela(){
+    if (window.PAR_gerarTexto){ try{ window.PAR_gerarTexto("titularidade"); }catch(e){} }
+    return _retratoDe(montarPacote());
+  }
+  // o que esta tela mudou desde que abriu/salvou (o que o próximo Salvar manda); null = sem retrato
+  window.CAD_mudancasDesdeAbertura = function(){
+    var a = window.__CAD_ATUAL;
+    return (a && a.retrato) ? _caminhosMudados(a.retrato, _retratoTela()) : null;
+  };
+  var _NOME_CHAVE = { radios: "opções marcadas", imagens: "imagens da Avaliação", d2figs: "figuras do DESP 2", d2fotos: "fotos do DESP 2",
+    d2ressalvas: "ressalvas do DESP 2", d2atividades: "atividades do DESP 2", d2impacto: "impacto (DESP 2)", d2fund: "situação fundiária (DESP 2)",
+    d2doc: "documentação (DESP 2)", d2resp: "responsável (DESP 2)", fotos: "fotos da Ficha", familia: "família", estacas: "estacas",
+    na: "nota agronômica", ccuGlebas: "glebas (CCU)", relAreas: "áreas do Relatório", relTabelas: "tabelas do Relatório", assinaturas: "assinaturas",
+    parChecklist: "checklist do Parecer", parPendencias: "pendências do Parecer", parPendExtras: "pendências extras do Parecer",
+    parPendExcluidas: "pendências excluídas do Parecer", campoFicha: "Ficha de Campo", avBenf: "benfeitorias (Avaliação)",
+    avBenfTotais: "totais das benfeitorias", avAmostra: "amostra (Avaliação)" };
+  function _rotuloCaminho(c){
+    var i = c.indexOf("/"), k = i < 0 ? c : c.slice(0, i), s = i < 0 ? "" : c.slice(i + 1);
+    if (k !== "campos") return (_NOME_CHAVE[k] || k) + (s ? " — " + s : "");
+    var el = document.getElementById(s), txt = "";
+    if (el){
+      var lb = document.querySelector('label[for="' + s + '"]') || (el.closest && el.closest("label"))
+            || (el.parentElement && el.parentElement.querySelector("label"))
+            || (el.parentElement && el.parentElement.parentElement && el.parentElement.parentElement.querySelector("label"));
+      txt = lb ? String(lb.textContent || "").replace(/\s+/g, " ").trim().slice(0, 70) : "";
+      var pn = el.closest && el.closest('[id^="panel-"]');
+      if (pn) txt = (txt ? txt + " " : "") + "[" + pn.id.replace(/^panel-/, "") + "]";
+    }
+    return (txt || s) + " (" + s + ")";
+  }
+
   // separa, no pacote a salvar, os campos que não existem mais no layout -> _orfaos
   function _preservarOrfaos(pacoteNovo){
     var anterior = (window.__CAD_ATUAL && window.__CAD_ATUAL.pacote) ? window.__CAD_ATUAL.pacote : null;
@@ -43058,6 +43124,9 @@ function AV_gerarDescSituacao(){
       var _telaOff = function(){ try{ if(window.CAD_load) window.CAD_load.ocultar(); }catch(x){} };
       _tela(0);
       var pacote = _preservarOrfaos(montarPacote());
+      var retratoNovo = _retratoDe(pacote);
+      // sem retrato (cadastro novo ou aberto de arquivo) o servidor faz como antes: 409 e "forçar"
+      var mudancas = (aberto && aberto.retrato) ? _caminhosMudados(aberto.retrato, retratoNovo) : undefined;
       if (window.__comprimirImagensPacote){ _tela(1, "Reduzindo o tamanho das fotos…"); if (btn) btn.textContent = "💾 Otimizando imagens…"; pacote = await window.__comprimirImagensPacote(pacote); }
       if (btn) btn.textContent = "💾 Salvando…";
       _tela(2, "Gravando em " + secao + "…");
@@ -43071,28 +43140,58 @@ function AV_gerarDescSituacao(){
       try{
         resp = await _apiComRetry("PUT", urlPut, {
           versao: VERSAO, processo_sei: processoSei || null, pacote: pacote,
-          renomear_de: renomearDe || undefined, base_atualizado_em: baseVersao
+          renomear_de: renomearDe || undefined, base_atualizado_em: baseVersao, mudancas: mudancas
         }, _aoRetentar);
       }catch(e409){
         if (!e409 || e409.status !== 409) throw e409;
         _telaOff();
         var quando = ""; try{ quando = new Date(e409.payload.atualizado_em_servidor).toLocaleString("pt-BR"); }catch(x){}
-        if (!confirm("ATENÇÃO — conflito de gravação.\n\n" +
-                     'O cadastro "' + ctd + '" foi salvo por outra pessoa (ou em outra máquina)' + (quando ? " em " + quando : "") + ", depois que você o abriu.\n\n" +
-                     "OK = salvar mesmo assim (as alterações dela serão substituídas — a versão anterior fica guardada na pasta _versoes do cadastro).\n" +
-                     "Cancelar = não salvar. Seus dados continuam na tela; use “Salvar em arquivo” para guardar uma cópia e depois reabra o cadastro para ver o que mudou.")) return;
-        if (btn) btn.textContent = "💾 Salvando…";
-        _tela(2, "Gravando em " + secao + "…");
-        resp = await _apiComRetry("PUT", urlPut, {
-          versao: VERSAO, processo_sei: processoSei || null, pacote: pacote,
-          renomear_de: renomearDe || undefined, base_atualizado_em: baseVersao, forcar: true
-        }, _aoRetentar);
+        var quem = (e409.payload && e409.payload.atualizado_por) ? " (" + e409.payload.atualizado_por + ")" : "";
+        var cams = (e409.payload && e409.payload.caminhos) || null;
+        if (cams && mudancas){
+          // mesclagem: só estes campos foram mexidos pelos dois; todo o resto já se encaixa
+          var lista = cams.slice(0, 15).map(function(c){ return "  • " + _rotuloCaminho(c); }).join("\n") + (cams.length > 15 ? "\n  … e mais " + (cams.length - 15) : "");
+          var semBase = e409.payload.base_encontrada === false
+            ? "\n(A versão que você abriu já saiu do histórico; por segurança, todos os campos que você alterou e que estão diferentes no servidor entram na lista.)\n" : "";
+          if (!confirm("ATENÇÃO — os mesmos campos foram alterados por outra pessoa" + quem + (quando ? " em " + quando : "") + ", depois que você abriu o cadastro:\n\n" +
+                       lista + "\n" + semBase + "\n" +
+                       "OK = salvar mantendo OS SEUS valores nesses campos. Tudo o mais que a outra pessoa fez continua (a versão anterior fica na pasta _versoes).\n" +
+                       "Cancelar = não salvar. Seus dados continuam na tela; use “Salvar em arquivo” para guardar uma cópia e confira com a outra pessoa.")) return;
+          if (btn) btn.textContent = "💾 Salvando…";
+          _tela(2, "Gravando em " + secao + "…");
+          resp = await _apiComRetry("PUT", urlPut, {
+            versao: VERSAO, processo_sei: processoSei || null, pacote: pacote,
+            renomear_de: renomearDe || undefined, base_atualizado_em: baseVersao, mudancas: mudancas, forcar_caminhos: cams
+          }, _aoRetentar);
+        } else {
+          // sem mesclagem (cadastro sem retrato, ou servidor ainda sem a mesclagem): como antes
+          if (!confirm("ATENÇÃO — conflito de gravação.\n\n" +
+                       'O cadastro "' + ctd + '" foi salvo por outra pessoa (ou em outra máquina)' + (quando ? " em " + quando : "") + ", depois que você o abriu.\n\n" +
+                       "OK = salvar mesmo assim (as alterações dela serão substituídas — a versão anterior fica guardada na pasta _versoes do cadastro).\n" +
+                       "Cancelar = não salvar. Seus dados continuam na tela; use “Salvar em arquivo” para guardar uma cópia e depois reabra o cadastro para ver o que mudou.")) return;
+          if (btn) btn.textContent = "💾 Salvando…";
+          _tela(2, "Gravando em " + secao + "…");
+          resp = await _apiComRetry("PUT", urlPut, {
+            versao: VERSAO, processo_sei: processoSei || null, pacote: pacote,
+            renomear_de: renomearDe || undefined, base_atualizado_em: baseVersao, forcar: true
+          }, _aoRetentar);
+        }
       }
       // o servidor devolve a pasta em que realmente gravou (pode ser a antiga, se o
       // nome novo já pertencia a outro cadastro) — é ela que vale daqui pra frente.
       _tela(3, "Cadastro gravado.");
       var ctdFinal = (resp && resp.ctd) || ctd;
-      window.__CAD_ATUAL = { secao: secao, ctd: ctdFinal, ctdCalc: ctdCalc, pacote: pacote, atualizado_em: (resp && resp.atualizado_em) || null };
+      window.__CAD_ATUAL = { secao: secao, ctd: ctdFinal, ctdCalc: ctdCalc, pacote: pacote, atualizado_em: (resp && resp.atualizado_em) || null, retrato: retratoNovo };
+      if (resp && resp.mesclado){
+        // a tela ainda não tem o que a outra pessoa gravou: recarrega o cadastro (o que estava na tela já está salvo)
+        _telaOff();
+        var nT = resp.n_trazidos || 0;
+        alert('Cadastro "' + ctdFinal + '" salvo.\n\nOutra pessoa' + (resp.trazido_de ? " (" + resp.trazido_de + ")" : "") + " tinha salvado este cadastro depois que você o abriu. " +
+              "As suas alterações foram juntadas às dela" + (nT ? " (" + nT + " alteração(ões) dela preservada(s))" : "") + ", sem apagar nada.\n\n" +
+              "A tela vai ser recarregada agora para mostrar o cadastro completo.");
+        window.CAD_abrirNuvem(ctdFinal, secao);
+        return;
+      }
       var extra = (pacote._orfaos && Object.keys(pacote._orfaos).length)
         ? ("\n(" + Object.keys(pacote._orfaos).length + " campo(s) de layout antigo preservados no arquivo.)") : "";
       if (renomearDe && resp && resp.renomeado){
@@ -43212,6 +43311,8 @@ function AV_gerarDescSituacao(){
     // ctdCalc = nome calculado do texto identificador NO MOMENTO da abertura; é com ele
     // que o save compara pra saber se o usuário mudou o texto (e precisa renomear a pasta).
     window.__CAD_ATUAL = { secao: secao, ctd: ctd, ctdCalc: _ctdAtual(), pacote: pacote, atualizado_em: js.atualizado_em || null };
+    // retrato logo depois de montar a tela (antes de o usuário mexer): base da mesclagem por campo
+    try{ window.__CAD_ATUAL.retrato = _retratoTela(); }catch(e){ console.warn("retrato do cadastro falhou (salvar volta ao modo antigo):", e); }
     if (L) L.ocultar();
     _tp.total_ms = Math.round(performance.now() - _tp.ini); _tp.montar_ms = _tp.total_ms - _tp.baixar_ms;
     window.__CAD_TEMPOS = _tp; console.info("CADASTRO aberto — tempos (ms):", _tp);
@@ -65170,9 +65271,9 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.26-9';
+window.APP_VERSAO = '2026.10.26-10';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
-window.SERVIDOR_RECOMENDADO = '2026.10.23-3';
+window.SERVIDOR_RECOMENDADO = '2026.10.26-10';
 (function(){
   var SEM_VERSAO = '0000.00.00-0';
   var LEGADO_LAYOUT = '2026.10.07-0';   // servidor que já tem layout_antigo no health, mas ainda sem número de versão
