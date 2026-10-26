@@ -62556,6 +62556,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
 
   /* ---------- lista de tópicos para o motor do PDF (D2_gerarPDF({modelo2:true})) ---------- */
   window.D2M2_topicos = function(){
+    incluirAnalise();
     renumerar();
     var base = window.D2_topicosDoc ? window.D2_topicosDoc() : [];
     function B(id, num, head){ var t = base.filter(function(x){ return x.id === id; })[0]; if(!t) t = { id:id, level:num.indexOf(".") > 0 && num.length > 2 ? 2 : 1, figs:[] }; t = Object.assign({}, t, { num:num, figs:[] }); if(head) t.head = head; return t; }
@@ -63358,7 +63359,41 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     var box = document.querySelector('#panel-desp2-modelo02 [data-m2car="' + tp + '"]'); if(box) box.insertAdjacentHTML("beforeend", '<div class="m2-car-no">Lendo e dissolvendo…</div>');
     importarCar(tp, t.files[0]).then(function(){ D2M2_render(); }).catch(function(e){ alert("CAR: " + (e && e.message || e)); D2M2_render(); });
   });
-  function parcelasSigef(){ var o = []; vetDado("sigef").arquivos.forEach(function(a){ (a.parcelas || []).forEach(function(p){ o.push(p); }); }); return o; }
+  /* 26/10/2026: parcelas SIGEF dos CTD 006A–006Z do SPS-04 (PA Riacho Seco), tiradas da camada Sigef Brasil_PE
+     (FTN/CADASTROS/SPS-04/MODELO/QGIS/CAMADAS) casando os polígonos do arquivo SIGEF de cada cadastro (todos 1:1 em área).
+     Usadas quando o arquivo SIGEF do cadastro foi importado sem os atributos. [nome da área, parcela, imóvel, status, ART, aprovação] */
+  var SIGEF_006 = {
+    "006A":[["P. A. RIACHO SECO - LOTE 01 - LOTE 01 A","b4a1aabc-27ef-43e6-a2d2-3de613409b85","9511377791301","CERTIFICADA","106544032013-PE","04/12/2017"],["P. A. RIACHO SECO - LOTE 01 - LOTE 01 B","c338197d-3b2f-451d-a4c4-786c4ad9841a","9511377791301","CERTIFICADA","106544032013-PE","04/12/2017"]],
+    "006B":[["P. A. RIACHO SECO - LOTE 02 - LOTE 02 A","a2a0fa4b-9ebf-4e69-8b52-7df3f4bb375e","9511377948723","CERTIFICADA","106544032013-PE","04/12/2017"],["P. A. RIACHO SECO - LOTE 02 - LOTE 02 B","e1a38038-caa9-41b3-b7ae-8d2eb0b0ef94","9511377948723","CERTIFICADA","106544032013-PE","04/12/2017"]],
+    "006C":[["P. A. RIACHO SECO - LOTE 03 - LOTE 03 A","3a30865d-6c26-4904-8410-276e9c12f472","9510134925230","CERTIFICADA","106544032013-PE","04/12/2017"],["P. A. RIACHO SECO - LOTE 03 - LOTE 03 B","534e9579-755f-4108-a324-0897beb3f456","9510134925230","CERTIFICADA","106544032013-PE","04/12/2017"]],
+    "006D":[["P. A. RIACHO SECO - LOTE 04 - LOTE 04 A","e927b876-190e-4da6-8469-40cc31baa13b","9510134893959","CERTIFICADA","106544032013-PE","04/12/2017"],["P. A. RIACHO SECO - LOTE 04 - LOTE 04 B","87083291-2e01-4026-8ae0-2387e7e63571","9510134893959","CERTIFICADA","106544032013-PE","04/12/2017"]],
+    "006E":[["P. A. RIACHO SECO - LOTE 05 - GLEBA A - LOTE 05 A","22733f9c-f872-4365-8897-62990639d88c","9510134872870","CERTIFICADA","106544032013-PE","04/12/2017"],["P. A. RIACHO SECO - LOTE 05 - GLEBA B - LOTE 05 B","e6bf827b-5c1a-4817-88d0-bae252fbc1fc","9510134872870","CERTIFICADA","106544032013-PE","04/12/2017"]],
+    "006F":[["P. A. RIACHO SECO - LOTE 06 - LOTE 06 A","89aa25e7-a73d-4862-bc78-d1741ebc4246","9510134808781","CERTIFICADA","106544032013-PE","04/12/2017"],["P. A. RIACHO SECO - LOTE 06 - LOTE 06 B","e0c74d01-a944-4ab2-94f7-df3ce57637d8","9510134808781","CERTIFICADA","106544032013-PE","04/12/2017"]],
+    "006G":[["P. A. RIACHO SECO - LOTE 07 - LOTE 07 B","04076fad-bdc6-47b6-b943-445ea465961e","9511377964419","CERTIFICADA","106544032013-PE","04/12/2017"],["P. A. RIACHO SECO - LOTE 07 -A - LOTE 07 A","719ce992-e073-4b71-a901-499b1ffad807","9511377964419","CERTIFICADA","106544032013-PE","04/12/2017"]],
+    "006I":[["P. A. RIACHO SECO - LOTE 09 - LOTE 09 A","418bc63b-7bbd-46e9-b76c-532ff33627cb","9511377967949","CERTIFICADA","106544032013-PE","04/12/2017"],["P. A. RIACHO SECO - LOTE 09 - LOTE 09 B","1ac2f461-b6f0-4acd-99f4-0af204ce16a6","9511377967949","CERTIFICADA","106544032013-PE","04/12/2017"]],
+    "006J":[["P. A. RIACHO SECO - LOTE 10 - LOTE 10 A","4ffec739-8672-4d0b-9e8b-238d80cfa231","9510134867796","CERTIFICADA","106544032013-PE","04/12/2017"],["P. A. RIACHO SECO - LOTE 10 - LOTE 10 B","6f055960-f086-4cc6-af5b-a7b483339845","9510134867796","CERTIFICADA","106544032013-PE","04/12/2017"]],
+    "006K":[["P. A. RIACHO SECO - LOTE 11 - LOTE 11 A","a059f0c0-3c5a-4be1-9a18-db9f9651a37b","9510134870312","CERTIFICADA","106544032013-PE","04/12/2017"],["P. A. RIACHO SECO - LOTE 11 - LOTE 11 B","e8d9f9dd-66bd-4e33-becb-5554f0dbb225","9510134870312","CERTIFICADA","106544032013-PE","04/12/2017"]],
+    "006M":[["P. A. RIACHO SECO - LOTE 13 - LOTE 13 A","6d433a11-2f02-4f70-93dc-3ed14b9f53f8","9510134909707","CERTIFICADA","106544032013-PE","04/12/2017"],["P. A. RIACHO SECO - LOTE 13 - LOTE 13 B","883e6b24-0bd4-4d16-863b-35b413eff713","9510134909707","CERTIFICADA","106544032013-PE","04/12/2017"]],
+    "006O":[["P. A. RIACHO SECO - LOTE 15 - LOTE 15 A","4faf1d5e-6dc5-46c2-b74d-40d0664ed2cb","9510134900165","CERTIFICADA","106544032013-PE","04/12/2017"],["P. A. RIACHO SECO - LOTE 15 - LOTE 15 B","59d528fa-850e-48ea-bc7b-92defebc446d","9510134900165","CERTIFICADA","106544032013-PE","04/12/2017"]],
+    "006P":[["P. A. RIACHO SECO - LOTE 16 - LOTE 16 A","297b8441-d641-4d7a-8e47-148df6491909","9510134912171","CERTIFICADA","106544032013-PE","04/12/2017"],["P. A. RIACHO SECO - LOTE 16 - LOTE 16 B","73a8291d-e585-4546-a165-b3bb986ea30c","9510134912171","CERTIFICADA","106544032013-PE","04/12/2017"]],
+    "006Q":[["P. A. RIACHO SECO - LOTE 17 - LOTE 17 A","bfae5fb2-9de6-481b-9c05-ba19c519384d","9511377970494","CERTIFICADA","106544032013-PE","13/12/2017"],["P. A. RIACHO SECO - LOTE 17 - LOTE 17 B","e5f8e15a-34f0-425b-a0ac-ecbcb151ff8b","9511377970494","CERTIFICADA","106544032013-PE","13/12/2017"]],
+    "006R":[["P. A. RIACHO SECO - LOTE 18 - LOTE 18 A","3ed57421-d81f-4fee-a9ed-9e1baff10fc7","9510136359950","CERTIFICADA","106544032013-PE","13/12/2017"],["P. A. RIACHO SECO - LOTE 18 - LOTE 18 B","5f3ab304-5fae-4b78-90ac-f2fd92469907","9510136359950","CERTIFICADA","106544032013-PE","13/12/2017"]],
+    "006S":[["P. A. RIACHO SECO - LOTE 19 - LOTE 19 A","366ecedf-8b10-453d-aed7-8d02574b25a4","9511377971970","CERTIFICADA","106544032013-PE","13/12/2017"],["P. A. RIACHO SECO - LOTE 19 - LOTE 19 B","e425db67-6b9b-4a42-a1e5-21d89eee0f74","9511377971970","CERTIFICADA","106544032013-PE","13/12/2017"]],
+    "006T":[["P. A. RIACHO SECO - LOTE 20 - LOTE 20 A","818c64d7-197e-40f3-b619-e32d9c665008","9511377973914","CERTIFICADA","106544032013-PE","13/12/2017"],["P. A. RIACHO SECO - LOTE 20 - LOTE 20 B","29003dd7-30ae-4546-a44f-7e182b7c17dd","9511377973914","CERTIFICADA","106544032013-PE","13/12/2017"]],
+    "006U":[["P. A. RIACHO SECO - LOTE 21 - LOTE 21 A","1fd87dbc-0204-469d-80f2-1a762b6f72a3","9510134918889","CERTIFICADA","106544032013-PE","13/12/2017"],["P. A. RIACHO SECO - LOTE 21 - LOTE 21 B","49e7e798-a9d6-4b33-852c-9df07535715d","9510134918889","CERTIFICADA","106544032013-PE","13/12/2017"]],
+    "006Y":[["PA RIACHO SECO - LOTE 41 - Lote 41","af2a5de7-0acf-421c-9a85-742ee38cc4da","9511378009968","CERTIFICADA","106544032013-PE","14/12/2017"]],
+    "006Z":[["PA RIACHO SECO - LOTE 42 - Lote 42","f96659b5-cf51-43a1-9ad1-4b2eaac458ea","9510134597047","CERTIFICADA","106544032013-PE","14/12/2017"]]
+  };
+  function parcelasSigef(){
+    var o = []; vetDado("sigef").arquivos.forEach(function(a){ (a.parcelas || []).forEach(function(p){ o.push(p); }); });
+    if(o.length || sps() !== "04") return o;
+    var m = /\b(006[A-Z])\b/i.exec(campo("cadastro") || ""), t = m && SIGEF_006[m[1].toUpperCase()];
+    if(!t || !vetDado("sigef").arquivos.length) return o;   // sem o arquivo SIGEF no cadastro não lista (o mapa também não tem as parcelas)
+    var imv = String(v("fb_sigef") || "").replace(/\D/g, "");
+    if(imv.length >= 10 && !t.some(function(p){ return p[2] === imv; })) return o;   // o código do imóvel da Ficha não bate: não arrisca
+    return t.map(function(p){ return { nome:p[0], codigo:p[1], imovel:p[2], status:p[3], art:p[4], data:p[5] }; })
+      .sort(function(a, b){ var x = a.nome.slice(-1), y = b.nome.slice(-1); return x < y ? -1 : x > y ? 1 : 0; });   // Gleba A antes da B
+  }
   // lista das parcelas no formato do CTD 006B (um bloco por parcela; só entram os dados que o arquivo trouxe)
   function listaParcelas(){
     var ps = parcelasSigef(); if(!ps.length) return "";
@@ -65135,7 +65170,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.26-8';
+window.APP_VERSAO = '2026.10.26-9';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.23-3';
 (function(){
