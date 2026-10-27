@@ -63438,8 +63438,10 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
   var PAD_FUND = "A área em questão encontra-se livre de conflito de divisas. É de conhecimento dos ocupantes a existência da faixa devido a processos anteriores de certificação do Assentamento Riacho Seco.";
   var PAD_ROT = "Partindo da paróquia São José, do distrito de Cruzeiro do Nordeste, segue pela AVENIDA JOSÉ CIRÍACO NEVES BEZERRA em direção à RUA FRANCISCO ANTÔNIO por 40m. Vire à direita na RUA FRANCISCO ANTÔNIO e siga por 210m, vire à esquerda por 66m e na segunda vire à direita por 32m, vire à esquerda por 21m, vire à direita e percorra 350m, até o ASSENTAMENTO RIACHO SECO.";
   var PAD_HIDRO = "A partir de informações coletadas in loco durante a vistoria técnica e do uso de ferramentas de geoprocessamento (GIS e CAD) — cruzando imagens de satélite atualizadas da Divisão de Satélites e Sistemas Ambientais (DSA/INPE), modelos digitais de elevação, e a partir destes geoprocessando dados de direções de fluxo de drenagem, confrontando com a base de dados do Sistema de Cadastro Ambiental Rural (SICAR), foi identificado curso d'água proveniente de uma barragem. A água é utilizada para irrigação de plantações e criação de animais.";
-  var PAD_PN = "A fim de evitar o encravamento do Remanescente SUL, onde se encontra a sede da propriedade, e assegurar a manutenção da viabilidade produtiva, operacional e logística do imóvel, uma PASSAGEM DE NÍVEL, de acesso comunitário entre as passagens já previstas no projeto ferroviário conforme sugestão de localização, no km 229+000, conforme indicados na imagem abaixo.";
-  var PAD_DREN = "Devido à existência de curso hídrico existente e de utilização comunitária, é pertinente avaliar a viabilidade de inserção de DISPOSITIVO DE DRENAGEM permitindo a continuidade do curso hídrico.\n";
+  var PAD_PN_V1 = "A fim de evitar o encravamento do Remanescente SUL, onde se encontra a sede da propriedade, e assegurar a manutenção da viabilidade produtiva, operacional e logística do imóvel, uma PASSAGEM DE NÍVEL, de acesso comunitário entre as passagens já previstas no projeto ferroviário conforme sugestão de localização, no km 229+000, conforme indicados na imagem abaixo.";
+  var PAD_DREN_V1 = "Devido à existência de curso hídrico existente e de utilização comunitária, é pertinente avaliar a viabilidade de inserção de DISPOSITIVO DE DRENAGEM permitindo a continuidade do curso hídrico.\n";
+  var PAD_PN = "A fim de evitar o encravamento do Remanescente SUL, onde se encontra a sede da propriedade, e assegurar a manutenção da viabilidade produtiva, operacional e logística do imóvel, uma **PASSAGEM DE NÍVEL**, de acesso comunitário entre as passagens já previstas no projeto ferroviário conforme sugestão de localização, no **km 229+000**, conforme indicados na imagem abaixo.";
+  var PAD_DREN = "Devido à existência de curso hídrico existente e de utilização comunitária, é pertinente avaliar a viabilidade de inserção de **DISPOSITIVO DE DRENAGEM** permitindo a continuidade do curso hídrico.\n";
   function ctdLetra006(){ var m = /(^|[^0-9A-Za-z])006([A-Z])(?![0-9A-Za-z])/i.exec(campo("cadastro") || ""); return (m && sps() === "04") ? m[2].toUpperCase() : ""; }
   function plantio49(){
     var e = $("fb_491_plantio"), t = e ? String(e.value || "").replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim() : "";
@@ -63449,17 +63451,28 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     var l = plantio49();
     return "Dentro da área da faixa de domínio não há atividade de criação e/ou plantação. Fora da área existem os cultivos e sem finalidade comercial de " + (l ? l.charAt(0).toLowerCase() + l.slice(1) : "[listar item 4.9 da Ficha de Vistoria]") + ".";
   }
-  function textoConclusao(dren){
+  function textoConclusaoV1(dren){
     return "De acordo com as situações relatadas anteriormente, é importante ressaltar que a propriedade será interceptada pelo projeto da ferrovia. Diante dos fatos, a conclusão será de acordo com a necessidade da propriedade, sem deixar de levar em consideração a economicidade do erário e a busca por mitigação de impacto da ferrovia.\n"
       + "No imóvel em estudo, verificou-se que com a passagem da ferrovia a área remanescente a sul ficará isolada e entende-se que a melhor opção será a construção de dispositivos de transposição de faixa.\n"
       + "Quanto às medidas de melhoria a serem implantadas, indica-se, como alternativa de melhoria:\n"
       + (dren ? "• Dispositivo de drenagem;\n" : "") + "• Passagem de nível de uso comunitário no km 229+000,00.\n"
       + "Essas estruturas mitigadoras são essenciais para restabelecer a continuidade territorial, garantir o acesso adequado à sede da gleba principal e assegurar a viabilidade operacional do imóvel.";
   }
+  function textoConclusao(dren){   // 1º parágrafo = o do texto-modelo (com os dados do cadastro); o resto é o padrão dos CTD 006A–Z
+    var p1 = String((AUTO_TXT.m2_concl && AUTO_TXT.m2_concl()) || "").split("\n")[0];
+    return (p1 ? p1 + "\n" : "")
+      + "Do ponto de vista geométrico e logístico, a implantação da nova faixa de domínio **provocará** o seccionamento da propriedade, isolando a área **remanescente sul** do imóvel.\n"
+      + "Quanto às medidas de melhoria a serem implantadas, indica-se, como alternativa de melhoria:\n"
+      + (dren ? "§A **DISPOSITIVO DE DRENAGEM.**\n" : "") + "§A **PASSAGEM DE NÍVEL.**\n"
+      + "Essas estruturas mitigadoras são essenciais para restabelecer a continuidade territorial, garantir o acesso adequado à sede da gleba principal e assegurar a viabilidade operacional e produtiva do imóvel.";
+  }
   function padroesCtd(){
     var L = ctdLetra006(), dren = "AHTW".indexOf(L) >= 0, mudou = false;
     function se(id, txt){ if(!v(id) && $(id)){ setv(id, txt); mudou = true; } }
-    if(L){ se("d2m2_fund", PAD_FUND); se("d2m2_rot", PAD_ROT); se("d2m2_estudo", dren ? PAD_DREN + PAD_PN : PAD_PN); if(!ovr("m2_concl")){ setOvr("m2_concl", textoConclusao(dren)); mudou = true; } }
+    if(L){ se("d2m2_fund", PAD_FUND); se("d2m2_rot", PAD_ROT); var e0 = v("d2m2_estudo"), eV1 = dren ? PAD_DREN_V1 + PAD_PN_V1 : PAD_PN_V1;
+      if((!e0 || e0 === eV1) && $("d2m2_estudo")){ setv("d2m2_estudo", dren ? PAD_DREN + PAD_PN : PAD_PN); mudou = true; }
+      var c0 = ovr("m2_concl");
+      if(!c0 || c0 === textoConclusaoV1(dren)){ setOvr("m2_concl", textoConclusao(dren)); mudou = true; } }
     se("d2m2_hidro", PAD_HIDRO);   // todos os CTD
     var ex = v("d2m2_expl");
     if(!ex){ setv("d2m2_expl", textoExpl()); mudou = true; }
@@ -65493,7 +65506,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.27-1';
+window.APP_VERSAO = '2026.10.27-2';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.26-11';
 (function(){
