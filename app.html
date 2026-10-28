@@ -34199,8 +34199,9 @@ function AV_gerarDescSituacao(){
   // 06/10/2026: a opção "Área remanescente" vale o nome do proprietário/posseiro do PRÓPRIO cadastro — na planta, no memorial,
   // no DRL e na tabela. O valor guardado continua "Área remanescente" (por isso o tipo "rem", em azul, ainda é reconhecido).
   function nomeRemanescente(){ var c = doCadastro(); return String(c.posseiro || c.expropriado || "").trim(); }
-  // 28/10/2026: só NA PLANTA (rótulo do confrontante no mapa) a área remanescente com posseiro sai com os dois, em linhas
-  // separadas: "EXPROPRIADO: X" / "POSSEIRO: Y" (ex.: CTD 006A). Memorial, DRL e tabela seguem com nomeRemanescente().
+  // 28/10/2026: na PLANTA (rótulo do confrontante no mapa) a área remanescente com posseiro sai com os dois, em linhas
+  // separadas: "EXPROPRIADO: X" / "POSSEIRO: Y" (ex.: CTD 006A); no MEMORIAL, numa linha (confrontantesMemorial).
+  // DRL e tabela seguem com nomeRemanescente().
   function rotuloRemanescente(){
     var c = doCadastro(), e = String(c.expropriado || "").trim(), p = String(c.posseiro || "").trim();
     return (e && p) ? ("EXPROPRIADO: " + e + "\nPOSSEIRO: " + p) : (p || e);
@@ -34219,6 +34220,11 @@ function AV_gerarDescSituacao(){
       if(ehFaixaEF(v)) return NOME_FAIXA_EF;                                   // 13/10/2026: peças técnicas imprimem a ferrovia
       return (nm && /remanescente/i.test(String(v || ""))) ? nm : v;
     });
+  }
+  // confrontantes do memorial (texto descritivo e limites): o remanescente com posseiro vira "EXPROPRIADO: X, POSSEIRO: Y"
+  function confrontantesMemorial(){
+    var cs = confrontantes(), br0 = confrontantesBrutos(), rot = rotuloRemanescente().replace("\n", ", ");
+    return cs.map(function(v, i){ return (rot && tipoConf(br0[i]) === "rem") ? rot : v; });
   }
   // matrícula do confrontante por trecho: em branco repete a do trecho anterior SÓ se o confrontante é o mesmo
   function matriculas(){
@@ -34322,14 +34328,14 @@ function AV_gerarDescSituacao(){
     return grupos;
   }
   // limites por rumo: usa o azimute de cada segmento (a face olha 90° à direita do caminhamento horário)
-  function limites(){
+  function limites(csDe){                                   // csDe: lista de confrontantes a usar (memorial); sem ela, confrontantes()
     var ex = extras();
     var man = { N:ex[limK("lim_n")]||"", S:ex[limK("lim_s")]||"", L:ex[limK("lim_l")]||"", O:ex[limK("lim_o")]||"" };
     if(!G) return man;
     // agrupa TRECHOS CONTÍGUOS com o mesmo confrontante e usa a normal externa do grupo
     // (caminhamento horário → a face olha para az-90). Lado de ponta às vezes pede ajuste:
     // por isso os 4 campos são editáveis no painel e, preenchidos, mandam.
-    var cs = confrontantes(), grupos = gruposConf(cs).map(function(g){ return { nome:g.nome, segs:g.segs.map(function(i){ return G.segs[i]; }) }; });
+    var cs = csDe || confrontantes(), grupos = gruposConf(cs).map(function(g){ return { nome:g.nome, segs:g.segs.map(function(i){ return G.segs[i]; }) }; });
     var peso = { N:{}, S:{}, L:{}, O:{} };
     grupos.forEach(function(g){
       if(!g.nome) return;
@@ -34418,7 +34424,7 @@ function AV_gerarDescSituacao(){
   // azimute, distância, confrontante, KM, área e perímetro) saem em negrito, como no modelo aprovado.
   function memorialPartes(){
     if(!G) return [];
-    var cs = confrontantes(), out = [], ult = null;
+    var cs = confrontantesMemorial(), out = [], ult = null;
     var N = function(t){ out.push({ t:t, b:false }); }, B = function(t){ out.push({ t:t, b:true }); };
     var v0 = G.v[0];
     N("Inicia-se a descrição deste perímetro no vértice "); B(v0.nome);
@@ -34465,7 +34471,7 @@ function AV_gerarDescSituacao(){
   window.MDP_memorialPartes = memorialPartes;
 
   function blocos(){
-    var c = doCadastro(), ex = extras(), lim = limites();
+    var c = doCadastro(), ex = extras(), lim = limites(G ? confrontantesMemorial() : null);
     return {
       cad: c, ex: ex, lim: lim,
       dados: [
@@ -65941,7 +65947,7 @@ body.ativ-cadastro:not(.modo-painel):has(.app-shell.recolhida) .cad-selo.tem{ di
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.28-9';
+window.APP_VERSAO = '2026.10.28-10';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.28-8';
 (function(){
