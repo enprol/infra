@@ -50926,7 +50926,7 @@ window.DRL_gerarPDF=async function(opts){
       var ref = (x && x.ref) || null;
       if(!ref){ var c = await candidatosCampo(src, ix); if(c.ativas.length && !c.noArq) ref = { p:c.ativas[0].p, gid:c.ativas[0].g.id, grupo:c.ativas[0].g.t }; }
       if(!ref) continue;
-      var g = ref.p.gps; if(!g || g.st === "nao" || !isFinite(g.E) || !isFinite(g.N)) continue;
+      var g = ref.p.gps; if(!g || g.st === "nao" || !isFinite(g.E) || !isFinite(g.N) || !norteOk(g.N, sul)) continue;
       var ll = utmInvF(g.E, g.N, g.z, sul);
       pts.push({ n:i + 1, p:ref.p, grupo:ref.grupo, gid:ref.gid, z:g.z, E:g.E, N:g.N, l:g.l || "", st:g.st, lon:ll[0], lat:ll[1] });
     }
@@ -51593,7 +51593,7 @@ window.DRL_gerarPDF=async function(opts){
           }
         }
       });
-      if(melhor && melhor.d <= 1500){ x.r = melhor.r; x.st = "corr"; } else x.st = "dist";
+      if(melhor && melhor.d <= 1500){ x.r = melhor.r; x.st = "corr"; } else if(longe(r) > 50000){ x.r = null; x.st = "nao"; } else x.st = "dist";
     });
   }
   function gravarGps(p, r, st, sul){
@@ -51642,7 +51642,7 @@ window.DRL_gerarPDF=async function(opts){
       todas.forEach(function(o){ var g = o.p.gps; if(g && g.st !== "nao" && g.z) votosZ[g.z] = (votosZ[g.z]||0) + 1; });
       var zmaj = +Object.keys(votosZ).sort(function(a, b){ return votosZ[b] - votosZ[a]; })[0] || null;
       feitas.forEach(function(x){
-        x.cands = x.cands.map(function(cd){ var z = zonaDe(cd, sul, ref, zmaj); return z ? { z:z, E:cd.E, N:cd.N, n:cd.n } : null; }).filter(Boolean);
+        x.cands = x.cands.map(function(cd){ var z = zonaDe(cd, sul, ref, zmaj); return z && norteOk(cd.N, sul) ? { z:z, E:cd.E, N:cd.N, n:cd.n } : null; }).filter(Boolean);
       });
       var ja = {};                                                    // leituras que já existiam servem de referência
       alvo.forEach(function(o){ ja[assinatura(o.p)] = 1; });
@@ -51667,7 +51667,7 @@ window.DRL_gerarPDF=async function(opts){
     var sul = !(f && f.gps && f.gps.lat > 0), out = [];
     todasFotos(f).forEach(function(o, i){
       var g = o.p.gps;
-      if(!g || g.st === "nao" || !isFinite(g.E) || !isFinite(g.N)) return;
+      if(!g || g.st === "nao" || !isFinite(g.E) || !isFinite(g.N) || !norteOk(g.N, sul)) return;
       var ll = utmInvF(g.E, g.N, g.z, sul);
       out.push({ n:i + 1, p:o.p, grupo:o.grupo, gid:o.gid, z:g.z, E:g.E, N:g.N, l:g.l || "", st:g.st, lon:ll[0], lat:ll[1] });
     });
@@ -65523,7 +65523,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.28-1';
+window.APP_VERSAO = '2026.10.28-2';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.26-11';
 (function(){
