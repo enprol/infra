@@ -9500,7 +9500,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
         <textarea id="d2m2_car_imovel"></textarea><textarea id="d2m2_car_app"></textarea><textarea id="d2m2_car_rl"></textarea>
         <input type="hidden" id="d2m2_v_remN"><input type="hidden" id="d2m2_v_remS">
         <input type="hidden" id="d2m2_v_altmin"><input type="hidden" id="d2m2_v_altmax"><input type="hidden" id="d2m2_v_relevo">
-        <input type="hidden" id="d2m2_v_car"><input type="hidden" id="d2m2_v_sobrep"><input type="hidden" id="d2m2_v_mapver"><input type="hidden" id="d2m2_ctx_imp"><input type="hidden" id="d2m2_est_img_imp"><textarea id="d2m2_vet_sede"></textarea><textarea id="d2m2_vet_sigef"></textarea><textarea id="d2m2_vet_hidro"></textarea><textarea id="d2m2_extras"></textarea><textarea id="d2m2_ovr"></textarea><textarea id="d2m2_mapas"></textarea><input type="hidden" id="d2m2_desacoplado"><input type="hidden" id="d2m2_aj_20261026"><input type="hidden" id="d2m2_aj_linha">
+        <input type="hidden" id="d2m2_v_car"><input type="hidden" id="d2m2_v_sobrep"><input type="hidden" id="d2m2_v_mapver"><input type="hidden" id="d2m2_ctx_imp"><input type="hidden" id="d2m2_est_img_imp"><input type="hidden" id="d2m2_aj_dup"><input type="hidden" id="d2m2_concl_v3"><textarea id="d2m2_vet_sede"></textarea><textarea id="d2m2_vet_sigef"></textarea><textarea id="d2m2_vet_hidro"></textarea><textarea id="d2m2_extras"></textarea><textarea id="d2m2_ovr"></textarea><textarea id="d2m2_mapas"></textarea><input type="hidden" id="d2m2_desacoplado"><input type="hidden" id="d2m2_aj_20261026"><input type="hidden" id="d2m2_aj_linha">
       </div>
 
       <div class="vactions" style="margin-top:16px;">
@@ -54105,6 +54105,15 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     });
     return out;
   }
+  /* 28/10/2026 (CTD 006D e mais 15 do 006): KML da área total com o mesmo polígono duas vezes (quase iguais). O recorte do relevo
+     (js/175) passou a usar a união dos polígonos; aqui só se conta quantos polígonos caem dentro de outro, para o Modelo 02 refazer
+     uma vez os mapas de relevo gerados antes da correção. */
+  window.D2_aneisSobrepostos=function(txt){
+    var ps=d2mapKML(d2fecharLinhas(txt||'')).polys, n=0;
+    for(var i=1;i<ps.length;i++){ var c=[0,0]; ps[i].forEach(function(p){ c[0]+=p[0]/ps[i].length; c[1]+=p[1]/ps[i].length; });
+      for(var j=0;j<i;j++) if(d2ptIn(c[0],c[1],ps[j])){ n++; break; } }
+    return n;
+  };
   // ---- camadas do servidor (faixa/eixo, SIGEF, CAR, RL, APP-CAR) ----
   function d2uf(){ var el=document.getElementById('fb_prop_uf')||document.getElementById('fb_uf'); var v=el?(el.value||'').trim():''; return (v||'PE').substring(0,2).toLowerCase(); }
   function d2bboxStr(bb){ return [bb.w,bb.s,bb.e,bb.n].join(','); }
@@ -63497,13 +63506,21 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
       + (dren ? "• Dispositivo de drenagem;\n" : "") + "• Passagem de nível de uso comunitário no km 229+000,00.\n"
       + "Essas estruturas mitigadoras são essenciais para restabelecer a continuidade territorial, garantir o acesso adequado à sede da gleba principal e assegurar a viabilidade operacional do imóvel.";
   }
-  function textoConclusao(dren){   // 1º parágrafo = o do texto-modelo (com os dados do cadastro); o resto é o padrão dos CTD 006A–Z
-    var p1 = String((AUTO_TXT.m2_concl && AUTO_TXT.m2_concl()) || "").split("\n")[0];
-    return (p1 ? p1 + "\n" : "")
-      + "Do ponto de vista geométrico e logístico, a implantação da nova faixa de domínio **provocará** o seccionamento da propriedade, isolando a área **remanescente sul** do imóvel.\n"
+  /* 28/10/2026: conclusão dos CTD 006A–Z na configuração do texto deixado no CTD 006B (antes era a do 006A, com o 1º parágrafo do
+     texto-modelo). Mantém o fecho de cada cadastro (cidade, data e "Atenciosamente,"); sem fecho, usa o do texto-modelo. */
+  function caudaConcl(t){
+    var L = String(t || "").split("\n"), i = L.length;
+    while(i > 0 && (!L[i-1].trim() || /atenciosamente|\b\d{1,2}\s+de\s+[a-zç]+(\s+de)?\s+\d{4}\b/i.test(L[i-1]))) i--;
+    return L.slice(i).filter(function(x){ return x.trim(); }).join("\n");
+  }
+  function textoConclusao(dren, cauda){
+    if(cauda == null) cauda = caudaConcl(AUTO_TXT.m2_concl && AUTO_TXT.m2_concl());
+    return "De acordo com as situações relatadas anteriormente, é importante ressaltar que a propriedade será interceptada pelo projeto da ferrovia. Diante dos fatos, a conclusão será de acordo com a necessidade da propriedade, sem deixar de levar em consideração a economicidade do erário e a busca por mitigação de impacto da ferrovia.\n"
+      + "No imóvel em estudo, verificou-se que com a passagem da ferrovia a área remanescente a sul ficará isolada e entende-se que a melhor opção será a construção de dispositivos de transposição de faixa.\n"
       + "Quanto às medidas de melhoria a serem implantadas, indica-se, como alternativa de melhoria:\n"
-      + (dren ? "§A **DISPOSITIVO DE DRENAGEM.**\n" : "") + "§A **PASSAGEM DE NÍVEL.**\n"
-      + "Essas estruturas mitigadoras são essenciais para restabelecer a continuidade territorial, garantir o acesso adequado à sede da gleba principal e assegurar a viabilidade operacional e produtiva do imóvel.";
+      + (dren ? "§A **Dispositivo de drenagem**\n" : "") + "§A **Passagem de nível de uso comunitário no km 229+000,00**\n"
+      + "Essas estruturas mitigadoras são essenciais para restabelecer a continuidade territorial, garantir o acesso adequado à sede da gleba principal e assegurar a viabilidade operacional do imóvel."
+      + (cauda ? "\n" + cauda : "");
   }
   /* 28/10/2026: o roteiro de acesso dos CTD 006A–006Z parte da paróquia São José (distrito de Cruzeiro do Nordeste), não do "centro do município".
      Troca só o começo da frase (DESP-2 e Modelo 02), na abertura do cadastro e do Modelo 02; conta como automático para o Salvar. */
@@ -63520,8 +63537,13 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     function se(id, txt){ if(!v(id) && $(id)){ setv(id, txt); mudou = true; } }
     if(L){ se("d2m2_fund", PAD_FUND); se("d2m2_rot", PAD_ROT); var e0 = v("d2m2_estudo"), eV1 = dren ? PAD_DREN_V1 + PAD_PN_V1 : PAD_PN_V1;
       if((!e0 || e0 === eV1) && $("d2m2_estudo")){ setv("d2m2_estudo", dren ? PAD_DREN + PAD_PN : PAD_PN); mudou = true; }
+      // conclusão: vazia sempre recebe o padrão; uma vez por cadastro (d2m2_concl_v3) troca as versões-padrão anteriores (todas têm
+      // "Quanto às medidas de melhoria") pela do 006B. Conclusão de outro tipo (ex.: 006Y, sem impacto) fica como está.
       var c0 = ovr("m2_concl");
-      if(!c0 || c0 === textoConclusaoV1(dren)){ setOvr("m2_concl", textoConclusao(dren)); mudou = true; } }
+      if(!c0){ setOvr("m2_concl", textoConclusao(dren)); mudou = true; }
+      else if(!v("d2m2_concl_v3") && $("d2m2_concl_v3") && (c0 === textoConclusaoV1(dren) || /Quanto às medidas de melhoria/i.test(c0))){
+        var c1 = textoConclusao(dren, caudaConcl(c0) || null); if(c1 !== c0){ setOvr("m2_concl", c1); mudou = true; } }
+      if($("d2m2_concl_v3") && !v("d2m2_concl_v3")){ setv("d2m2_concl_v3", "1"); mudou = true; } }
     se("d2m2_hidro", PAD_HIDRO);   // todos os CTD
     var ex = v("d2m2_expl");
     if(!ex){ setv("d2m2_expl", textoExpl()); mudou = true; }
@@ -63547,11 +63569,22 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     var temMapa = MAPAS.some(function(m){ return window.D2_m2Fig(m[0]); });
     // 26/10/2026 (CTD 006D): área total em KML de LINHA fechada — os mapas salvos saíram sem remanescentes, relevo e CAR; refaz uma vez
     var akml = temArea ? window.IMV_get("area").kml : "";
+    // 28/10/2026 (CTD 006D): área total com o mesmo polígono duas vezes — curvas de nível e hipsometria saíram vazias; refaz uma vez
+    var dup = temArea && temMapa && !v("d2m2_aj_dup") && $("d2m2_aj_dup") && window.D2_aneisSobrepostos && window.D2_aneisSobrepostos(akml) > 0;
+    if(dup){ setv("d2m2_aj_dup", "1"); sujo(); }
     if(temArea && temMapa && !v("d2m2_aj_linha") && window.D2_fecharLinhasKML && window.D2_fecharLinhasKML(akml) !== akml){ setv("d2m2_aj_linha", "1"); setv("d2m2_v_mapver", MAPVER); sujo(); return D2M2_gerarTodos(true); }
     if(temArea && temMapa && v("d2m2_v_mapver") !== MAPVER){ setv("d2m2_v_mapver", MAPVER); sujo(); return D2M2_gerarTodos(true); }
+    if(dup) return refazRelevo();
     if(temArea && MAPAS.some(function(m){ return precisa(m[0]) && !window.D2_m2Fig(m[0]); })){ setv("d2m2_v_mapver", MAPVER); return D2M2_gerarTodos(false); }
     else if(temArea && window.D2_m2Fig("m2_1") && !v("d2m2_v_remN")){ return gerarMapa("m2_1"); }   // mapa salvo de uma versão antiga: refaz para calcular as áreas remanescentes dos textos
     else if(temArea && !v("d2m2_v_altmin")) return relevo();
+  }
+  // só os mapas que usam o relevo ANADEM (curvas/hipsometria) e os valores de altitude e relevo do texto; depois, os que faltarem
+  async function refazRelevo(){
+    var ids = ["m2_2", "m2_5"].filter(function(id){ return !fora(id) && window.D2_m2Fig(id); });
+    for(var i = 0; i < ids.length; i++){ st("Refazendo " + legenda(ids[i])[0].replace(/ – .*/, "") + " (relevo)…"); await gerarMapa(ids[i]); }
+    if(ids.indexOf("m2_5") < 0) await relevo();
+    st(""); return D2M2_gerarTodos(false);
   }
   window.D2M2_abrir = function(){ return window.CAD_automatico ? window.CAD_automatico(D2M2_abrir0) : D2M2_abrir0(); };
   window.D2M2_gerarPDF = function(opts){ return window.CAD_automatico ? window.CAD_automatico(function(){ return D2M2_gerarPDF0(opts); }) : D2M2_gerarPDF0(opts); };
@@ -65383,7 +65416,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     }
     return d;
   }
-  function dentroDe(polys, p){ var par = false; for(var i = 0; i < polys.length; i++) if(noPoligonoLL(p[0], p[1], polys[i])) par = !par; return par; }
+  function dentroDe(polys, p){ for(var i = 0; i < polys.length; i++) if(noPoligonoLL(p[0], p[1], polys[i])) return true; return false; }   // união (polígonos sobrepostos não se anulam)
   // trechos de cada linha dentro dos polígonos (densifica a ~3 m para cortar na borda)
   function recortarLinhas(linhas, polys){
     var out = [], passo = 3e-5;
@@ -65450,16 +65483,21 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
         for(i = 0; i < W; i++) Z[o + i] = t.w[0]*L0[i] + t.w[1]*L1[i] + t.w[2]*L2[i] + t.w[3]*L3[i];
         if(j % 64 === 0) Object.keys(linhaC).forEach(function(r){ if(+r < t.i[0]) delete linhaC[r]; });   // linhas de origem que já ficaram para trás
       }
-      // 2) máscara: centro do pixel dentro da área (par/ímpar, por varredura de linha)
+      // 2) máscara: centro do pixel dentro da área (varredura de linha, polígono a polígono, e a UNIÃO deles)
+      /* 28/10/2026 (CTD 006D e mais 15 do 006): a área total veio com o mesmo polígono duas vezes (quase iguais). Na regra par/ímpar
+         sobre todos os anéis juntos um anulava o outro: sobravam só frestas, as curvas de nível sumiam e a hipsometria saía vazia. */
       var M = new Uint8Array(W * H);
       for(j = 0; j < H; j++){
-        var y = n1 - (j + .5) * res, xs = [];
-        pu.forEach(function(r){ for(var a = 0, b = r.length - 1; a < r.length; b = a++){ var ya = r[a][1], yb = r[b][1]; if((ya > y) !== (yb > y)) xs.push(r[a][0] + (y - ya) * (r[b][0] - r[a][0]) / (yb - ya)); } });
-        xs.sort(function(p, q){ return p - q; });
-        for(k = 0; k + 1 < xs.length; k += 2){
-          var c0 = Math.max(0, Math.ceil((xs[k] - e0) / res - .5)), c1 = Math.min(W - 1, Math.floor((xs[k+1] - e0) / res - .5));
-          for(i = c0; i <= c1; i++) M[j * W + i] = 1;
-        }
+        var y = n1 - (j + .5) * res;
+        pu.forEach(function(r){
+          var xs = [];
+          for(var a = 0, b = r.length - 1; a < r.length; b = a++){ var ya = r[a][1], yb = r[b][1]; if((ya > y) !== (yb > y)) xs.push(r[a][0] + (y - ya) * (r[b][0] - r[a][0]) / (yb - ya)); }
+          xs.sort(function(p, q){ return p - q; });
+          for(var kk = 0; kk + 1 < xs.length; kk += 2){
+            var c0 = Math.max(0, Math.ceil((xs[kk] - e0) / res - .5)), c1 = Math.min(W - 1, Math.floor((xs[kk+1] - e0) / res - .5));
+            for(var ii = c0; ii <= c1; ii++) M[j * W + ii] = 1;
+          }
+        });
       }
       var tl = utmInv(e0, n1), tr2 = utmInv(e0 + W * res, n1), bl = utmInv(e0, n1 - H * res);
       // 3a) hipsometria: falsa-cor linear entre a altitude mínima e a máxima DENTRO da área (como o QGIS ao abrir o recorte)
@@ -65557,7 +65595,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.28-4';
+window.APP_VERSAO = '2026.10.28-5';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.26-11';
 (function(){
