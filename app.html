@@ -34162,6 +34162,8 @@ function AV_gerarDescSituacao(){
       ctd: ctd, lote: lote, ferrovia: fer,
       expropriado: (expro || "").toUpperCase(),
       posseiro: ((nomeInf && nomeInf !== expro) ? nomeInf : "").toUpperCase(),
+      // os dois como estão na Ficha (1.3 e 1.3.2), sem depender do "Expropriado no documento" — carimbo (28/10/2026)
+      proprietario: (nomeProp || "").toUpperCase(), ocupante: ((nomeInf && nomeInf !== nomeProp) ? nomeInf : "").toUpperCase(),
       // 1.4 Propriedade (é onde fica a identificação do imóvel e o município dele); 1.3 é o endereço da pessoa
       denominacao: (ex.denominacao || gv("fb_prop_id") || "").toUpperCase(),
       municipio: (gv("fb_prop_mun") || gv("fb_municipio") || "").toUpperCase(),
@@ -34197,6 +34199,18 @@ function AV_gerarDescSituacao(){
   // 06/10/2026: a opção "Área remanescente" vale o nome do proprietário/posseiro do PRÓPRIO cadastro — na planta, no memorial,
   // no DRL e na tabela. O valor guardado continua "Área remanescente" (por isso o tipo "rem", em azul, ainda é reconhecido).
   function nomeRemanescente(){ var c = doCadastro(); return String(c.posseiro || c.expropriado || "").trim(); }
+  // 28/10/2026: só NA PLANTA (rótulo do confrontante no mapa) a área remanescente com posseiro sai com os dois, em linhas
+  // separadas: "EXPROPRIADO: X" / "POSSEIRO: Y" (ex.: CTD 006A). Memorial, DRL e tabela seguem com nomeRemanescente().
+  function rotuloRemanescente(){
+    var c = doCadastro(), e = String(c.expropriado || "").trim(), p = String(c.posseiro || "").trim();
+    return (e && p) ? ("EXPROPRIADO: " + e + "\nPOSSEIRO: " + p) : (p || e);
+  }
+  // texto do rótulo de um grupo de confrontantes no mapa; o mesmo formato digitado à mão ("EXPROPRIADO: X POSSEIRO: Y - LOTE 01A")
+  // também quebra antes do "POSSEIRO:"
+  function textoConfMapa(g){
+    var t = (tipoConf(confrontantesBrutos()[g.segs[0]]) === "rem" && rotuloRemanescente()) || g.nome;
+    return /EXPROPRIAD/i.test(t) ? String(t).replace(/[ \t]+(POSSEIR[OA](?:\(A\))?\s*:)/i, "\n$1") : t;
+  }
   var NOME_FAIXA_EF = "EF-232 – FTN";   /* lote8 */
   function ehFaixaEF(v){ return /^\s*faixa\s+de\s+dom[ií]nio(\s+da\s+ferrovia)?\s*$/i.test(String(v || "")); }
   function confrontantes(){
@@ -36668,7 +36682,7 @@ function AV_gerarDescSituacao(){
         if((mx - cgx)*nx + (my - cgy)*ny < 0){ nx = -nx; ny = -ny; }
         return { mx:mx, my:my, nx:nx, ny:ny, tx:tx, ty:ty };
       }
-      var nome = g.nome, posto = false, pref = prefixoDe(g);
+      var nome = textoConfMapa(g), posto = false, pref = prefixoDe(g);
       var fracs = [.5, .4, .6, .3, .7, .2, .8], escalas = [1, .88, .76, .64, .52, .44, .36];
       for(var fase = 0; fase < 4 && !posto; fase++){
         for(var si = 0; si < escalas.length && !posto; si++){
@@ -36769,7 +36783,7 @@ function AV_gerarDescSituacao(){
       var aMax = 0; pts.forEach(function(p){ var a = ((p[0]-q0.x)*q0.tx + (p[1]-q0.y)*q0.ty)*dir; if(a > aMax) aMax = a; });
       var cima = q0.tx >= 0 ? -1 : 1;                   // normal (-ty, tx)*cima aponta para cima na tela (y do papel cresce para baixo)
       var lados = [cima, -cima];   // 13/10/2026: a margem mais ao norte primeiro
-      var nome = g.nome, posto = false, pref = "";
+      var nome = textoConfMapa(g), posto = false, pref = "";
       var escalas = [1, .88, .76, .64], folgas = [2, 5, 9, 14, 20, 28, 38];
       for(var si = 0; si < escalas.length && !posto; si++){
         var tz = tam*escalas[si], hz = tz*.3528*.78, tp2 = tz*.82, hp = pref ? tp2*.3528*.78 + 1.2 : 0;
@@ -36909,7 +36923,7 @@ function AV_gerarDescSituacao(){
   function confManual(P, T, g, tam, caixas){
     var k = "c" + g.segs[0], r = rotPosDe(k); if(!r) return false;
     var tz = tam*(+r.esc || 1), hz = tz*.3528*.78, stp = hz*1.35;
-    var lns = quebrar(P, g.nome, +r.larg || 60, { tam:tz, bold:true }), hbox = hz + (lns.length - 1)*stp;
+    var lns = quebrar(P, textoConfMapa(g), +r.larg || 60, { tam:tz, bold:true }), hbox = hz + (lns.length - 1)*stp;
     var w = Math.max.apply(null, lns.map(function(t){ return P.largura(t, { tam:tz, bold:true }); })) + 1.4;
     var ang = isFinite(r.ang) ? +r.ang : 0, rr = ang*Math.PI/180, up = [-Math.sin(rr), -Math.cos(rr)];
     var cx = T.x(r.E), cy = T.y(r.N);
@@ -37920,12 +37934,15 @@ function AV_gerarDescSituacao(){
   }
   /* quebra o texto em linhas que cabem na largura (por palavra) */
   function quebrar(P, txt, maxW, o){
-    var pal = String(txt == null ? "" : txt).split(/\s+/).filter(Boolean), out = [], cur = "";
-    pal.forEach(function(p){
-      var t = cur ? (cur + " " + p) : p;
-      if(cur && P.largura(t, o) > maxW){ out.push(cur); cur = p; } else cur = t;
+    var out = [];
+    String(txt == null ? "" : txt).split("\n").forEach(function(par){   // "\n" = quebra obrigatória (28/10/2026); dentro dela, pela largura
+      var pal = par.split(/\s+/).filter(Boolean), cur = "";
+      pal.forEach(function(p){
+        var t = cur ? (cur + " " + p) : p;
+        if(cur && P.largura(t, o) > maxW){ out.push(cur); cur = p; } else cur = t;
+      });
+      if(cur) out.push(cur);
     });
-    if(cur) out.push(cur);
     return out.length ? out : [""];
   }
 
@@ -38189,9 +38206,11 @@ function AV_gerarDescSituacao(){
         { f:.08, l:"Lote:", v:"SPS-" + (c.lote || "") },
         { f:.27, l:"Segmento:", v:seg } ] },
       { p:1.10, cel:row2 },
-      { p:1.55, cel:[
+      { p:(c.ocupante ? 1.95 : 1.55), cel:[             // com posseiro, a faixa cresce para caber o nome em 2 linhas
+        // 28/10/2026: com posseiro, a metade de baixo se divide em Proprietário(a) | Posseiro(a), nome inteiro (até 2 linhas)
         { f:.42, dupla:[ { l:"Propriedade:", v:c.denominacao || "" },
-                         { l:c.posseiro ? "Posseiro(a):" : "Expropriado(a):", v:c.posseiro || c.expropriado || "" } ] },
+                         c.ocupante ? { lado:[ { l:"Proprietário(a):", v:c.proprietario, quebra:true }, { l:"Posseiro(a):", v:c.ocupante, quebra:true } ] }
+                                    : { l:c.posseiro ? "Posseiro(a):" : "Expropriado(a):", v:c.posseiro || c.expropriado || "" } ] },
         { f:.11, l:"Matrícula:", v:c.matricula || "" },
         { f:.20, l:"Datum:", v:"SIRGAS 2000 UTM " + G.fuso + "S" },
         { f:.09, l:"Escala:", v:"1/" + br(T.esc,0) },
@@ -38203,12 +38222,34 @@ function AV_gerarDescSituacao(){
     var dy0 = y + 23.2*V, dispH = y + h - 1 - dy0;
     var somaP = faixas.reduce(function(a, r){ return a + r.p; }, 0), yy = dy0;
     function celula(cel, cx, cw, cy, ch){
+      if(cel.lado){                                       // célula partida ao meio na vertical (Proprietário | Posseiro)
+        var w0 = cw/cel.lado.length;
+        cel.lado.forEach(function(d, k){ if(k) P.linha(cx + k*w0, cy, cx + k*w0, cy + ch, { cor:"#9aa7b5", peso:.1 }); celula(d, cx + k*w0, w0, cy, ch); });
+        return;
+      }
       var ls = String(cel.l).split("\n"), tl = ls.length > 1 ? 4.9 : TL, gl = tl*.3528*1.3;
       ls.forEach(function(t, k){ P.texto(cx + 1.8, cy + 2.8 + k*gl, cortar(P, t, cw - 3, { tam:tl }), { tam:tl, cor:"#4a5a6a" }); });
+      var vy0 = cy + 2.8 + ls.length*gl;
+      if(cel.quebra && valorQuebrado(cel.v, cx + 2.4, cw - 4, cy + 2.8 + (ls.length - 1)*gl + .7, cy + ch - .5)) return;
       var vv = caber(P, cel.v, cw - 6.4, TV, true, 4.2);
       // valor logo abaixo do rótulo, não no pé da célula
-      var vy = Math.min(cy + ch - 1.4, cy + 2.8 + ls.length*gl + TV*.3528*.95);
+      var vy = Math.min(cy + ch - 1.4, vy0 + TV*.3528*.95);
       P.texto(cx + 4.4, vy, vv.txt, { tam:vv.tam, bold:true });
+    }
+    // nome inteiro: numa linha se couber num corpo legível; senão em 2 linhas, no maior corpo em que as duas caibam
+    // na largura e na altura entre o rótulo (yTopo = logo abaixo da linha dele) e o pé da célula. false = nem assim
+    // (cai no caber() de uma linha).
+    function valorQuebrado(v, x0, maxW, yTopo, yPe){
+      v = String(v || ""); if(!v) return true;
+      for(var t = TV; t >= 5.2; t -= .15) if(P.largura(v, { tam:t, bold:true }) <= maxW){ P.texto(x0, Math.min(yPe, yTopo + 1.2 + t*.3528*.75), v, { tam:t, bold:true }); return true; }
+      for(var t2 = TV; t2 >= 3.4; t2 -= .15){
+        var lns = quebrar(P, v, maxW, { tam:t2, bold:true }), lh = t2*.3528*1.08, b0 = yTopo + t2*.3528*.75;
+        if(lns.length > 2 || lns.some(function(s){ return P.largura(s, { tam:t2, bold:true }) > maxW; })) continue;
+        if(b0 + (lns.length - 1)*lh > yPe) continue;
+        lns.forEach(function(s, k){ P.texto(x0, b0 + k*lh, s, { tam:t2, bold:true }); });
+        return true;
+      }
+      return false;
     }
     faixas.forEach(function(row, ri){
       var hr = dispH*row.p/somaP, cx = tx;
@@ -65900,7 +65941,7 @@ body.ativ-cadastro:not(.modo-painel):has(.app-shell.recolhida) .cad-selo.tem{ di
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.28-8';
+window.APP_VERSAO = '2026.10.28-9';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.28-8';
 (function(){
