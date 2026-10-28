@@ -43497,6 +43497,7 @@ function AV_gerarDescSituacao(){
     // retrato logo depois de montar a tela (antes de o usuário mexer): base da mesclagem por campo
     try{ window.__CAD_ATUAL.retrato = _retratoTela(); window.__CAD_ATUAL.retratoDisco = retratoDisco; }
     catch(e){ console.warn("retrato do cadastro falhou (salvar volta ao modo antigo):", e); }
+    try{ if (window.D2M2_ajustarRoteiro) await window.D2M2_ajustarRoteiro(); }catch(e){ console.warn("ajuste do roteiro:", e); }   // CTD 006A–Z (automático)
     _iniciarPresenca();
     if (L) L.ocultar();
     _tp.total_ms = Math.round(performance.now() - _tp.ini); _tp.montar_ms = _tp.total_ms - _tp.baixar_ms;
@@ -63483,7 +63484,17 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
       + (dren ? "§A **DISPOSITIVO DE DRENAGEM.**\n" : "") + "§A **PASSAGEM DE NÍVEL.**\n"
       + "Essas estruturas mitigadoras são essenciais para restabelecer a continuidade territorial, garantir o acesso adequado à sede da gleba principal e assegurar a viabilidade operacional e produtiva do imóvel.";
   }
+  /* 28/10/2026: o roteiro de acesso dos CTD 006A–006Z parte da paróquia São José (distrito de Cruzeiro do Nordeste), não do "centro do município".
+     Troca só o começo da frase (DESP-2 e Modelo 02), na abertura do cadastro e do Modelo 02; conta como automático para o Salvar. */
+  function ajustarRoteiroCtd(){
+    if(!ctdLetra006()) return;
+    function troca(id, re, novo){ var e = $(id); if(!e || !re.test(e.value || "")) return; e.value = e.value.replace(re, novo); try{ e.dispatchEvent(new Event("input", { bubbles:true })); }catch(x){} sujo(); }
+    troca("d2_tx_roteiro_de_acesso", /PARTINDO DO CENTRO DO MUNIC[IÍ]PIO DE CRUZEIRO DO NORDESTE/i, "PARTINDO DA PARÓQUIA SÃO JOSÉ, NO DISTRITO DE CRUZEIRO DO NORDESTE");
+    troca("d2m2_rot", /Partindo do CENTRO do munic[ií]pio de CRUZEIRO DO NORDESTE/i, "Partindo da paróquia São José, do distrito de Cruzeiro do Nordeste");
+  }
+  window.D2M2_ajustarRoteiro = function(){ return window.CAD_automatico ? window.CAD_automatico(ajustarRoteiroCtd) : ajustarRoteiroCtd(); };
   function padroesCtd(){
+    ajustarRoteiroCtd();
     var L = ctdLetra006(), dren = "AHTW".indexOf(L) >= 0, mudou = false;
     function se(id, txt){ if(!v(id) && $(id)){ setv(id, txt); mudou = true; } }
     if(L){ se("d2m2_fund", PAD_FUND); se("d2m2_rot", PAD_ROT); var e0 = v("d2m2_estudo"), eV1 = dren ? PAD_DREN_V1 + PAD_PN_V1 : PAD_PN_V1;
@@ -65523,7 +65534,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.28-2';
+window.APP_VERSAO = '2026.10.28-3';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.26-11';
 (function(){
