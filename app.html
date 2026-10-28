@@ -41406,14 +41406,31 @@ function AV_gerarDescSituacao(){
     ["MEMORIAL DESCRITIVO"],
     ["memPdf", "Memorial — PDF"], ["memWord", "Memorial — Word"],
     ["TUDO JUNTO"],
+    ["combo", "Planta PDF + Memorial PDF + DWG — 3 downloads num clique"],
     ["dossie", "Dossiê ZIP — planta, DXF, memorial e KML"]
   ];
   var EXP_FN = {
     pdfTudo:function(){ return window.MDP_pdfPranchas(); },
     jpg:function(){ return window.MDP_jpgQuadro(); }, dxf:function(){ return window.MDP_exportarDxf(); },
     dwg:function(){ return window.MDP_exportarDxf({ dwg:true }); }, memPdf:function(){ return window.MDP_pdfMemorial(); },
-    memWord:function(){ return window.MDP_wordMemorial(); }, dossie:function(){ return window.MDP_v2Dossie(); }
+    memWord:function(){ return window.MDP_wordMemorial(); }, dossie:function(){ return window.MDP_v2Dossie(); },
+    combo:function(){ return mesaExpCombo(); }
   };
+  /* 28/10/2026: um clique baixa o PDF da planta (pranchas), o PDF do memorial e o DWG, um depois do outro. Sem o CADCraft nesta máquina o DWG não sai (avisa no fim). */
+  var _comboRodando = false;
+  async function mesaExpCombo(){
+    if(_comboRodando) return; _comboRodando = true;
+    var falhou = [];
+    try{
+      var passos = [["PDF da planta", function(){ return window.MDP_pdfPranchas(); }], ["PDF do memorial", function(){ return window.MDP_pdfMemorial(); }]];
+      var dwgOk = await cadDwgDisponivel(); if(dwgOk) passos.push(["DWG da planta", function(){ return window.MDP_exportarDxf({ dwg:true }); }]); else falhou.push("DWG da planta (CADCraft não encontrado nesta máquina)");
+      for(var i = 0; i < passos.length; i++){
+        try{ await passos[i][1](); }catch(e){ falhou.push(passos[i][0] + ": " + (e && e.message || e)); }
+        await new Promise(function(r){ setTimeout(r, 900); });   // dá tempo ao navegador de iniciar cada download antes do próximo
+      }
+    } finally { _comboRodando = false; }
+    if(falhou.length) alert("Não baixei tudo:\n- " + falhou.join("\n- ") + "\n\nSe o navegador perguntou sobre baixar vários arquivos, permita.");
+  }
   function mesaExpWidget(clsBt){
     var w = document.createElement("div"); w.className = "v2-wrap mz-exp-wrap";
     w.innerHTML =
@@ -65506,7 +65523,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.27-2';
+window.APP_VERSAO = '2026.10.28-1';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.26-11';
 (function(){
