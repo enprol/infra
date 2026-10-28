@@ -21397,10 +21397,14 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
 
 
   /* ---- Anexos Relatório Fotográfico (fotos da aba Campo) e ART (23/10/2026) ---- */
-  // fotos da aba Campo (menos o arquivo morto); sem nenhuma, as da Ficha de Vistoria (5.3)
+  // 28/10/2026: o laudo (DESP 3) leva só a área desapropriada e, como subtópico dela, as Benfeitorias (e as galerias antigas
+  // de benfeitorias). Acesso e Imagens gerais do imóvel ficam nos relatórios da DESP 1/2.
+  const GID_LAUDO = /^(fotosAreaDesap|fotosBenf|fotosBenfTotal|fotosBenfFaixa|(reprodutivas|pastagem|naoReprodutivas|acessorias)\.\d+\.fotos)$/;
+  // fotos da aba Campo desses tópicos (o arquivo morto nunca entra); Campo sem nenhuma foto: as da Ficha de Vistoria (5.3)
   function fotosCampoAnexo(){
-    let l = []; try{ l = ((window.CAMPO_getFotos ? window.CAMPO_getFotos() : []) || []).filter(function(f){ return f && f.src; }); }catch(e){}
-    if(!l.length){ try{ l = ((window.FB_getFotos ? window.FB_getFotos() : []) || []).filter(function(f){ return f && f.src; }); }catch(e){} }
+    let todas = []; try{ todas = ((window.CAMPO_getFotos ? window.CAMPO_getFotos() : []) || []).filter(function(f){ return f && f.src; }); }catch(e){}
+    if(todas.length) return todas.filter(function(f){ return !f.gid || GID_LAUDO.test(f.gid); });
+    let l = []; try{ l = ((window.FB_getFotos ? window.FB_getFotos() : []) || []).filter(function(f){ return f && f.src; }); }catch(e){}
     return l;
   }
   // ART: PDF do Anexo 11 ou, sem ele, a ART do responsável técnico escolhido no banco de profissionais
@@ -21418,6 +21422,14 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
     const lista = fotosCampoAnexo(); if(!lista.length) throw new Error("sem fotografias na aba Campo");
     let org = { itens:lista.map(function(f){ return { src:f.src, legenda:String(f.legenda || "").trim() }; }), temTopicos:false };
     try{ if(window.CAMPO_organizarFotos){ const o = await window.CAMPO_organizarFotos(lista); if(o && o.itens && o.itens.length) org = o; } }catch(e){ console.warn("organizar fotos:", e); }
+    // só área desapropriada + Benfeitorias (GID_LAUDO); a mesma imagem que também está em outro tópico pode ter caído nele: refiltra.
+    // Sem tópicos (fotos só da Ficha), vai tudo.
+    const subBenf = function(f){ return !!(f.ref && f.ref.gid !== "fotosAreaDesap"); };
+    if(org.temTopicos){
+      org.itens = org.itens.filter(function(f){ return f && f.ref && GID_LAUDO.test(f.ref.gid); });
+      if(!org.itens.some(function(f){ return f.src; })) throw new Error("sem fotografias da área desapropriada nem de benfeitorias na aba Campo");
+      org.itens.forEach(function(f){ if(subBenf(f)) f.topico = "Benfeitorias"; });   // as galerias antigas de benfeitorias juntas no subtópico
+    }
     const itens = org.itens.filter(function(f){ return f && f.src; });
     let mapa = null; try{ if(window.CAMPO_mapaPara) mapa = await window.CAMPO_mapaPara(itens); }catch(e){ console.warn("mapa das fotos:", e); }
     const {jsPDF} = window.jspdf, doc = new jsPDF({unit:"pt",format:"a4",compress:true}), ctx = ctxAnx(doc, procRef, "fot");
@@ -21440,12 +21452,13 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
     const capH = 4 + nCap * LH, rowGap = 10;
     const fh = Math.min(fwMax * 0.75, (ctx.MB - ctx.MT - 8) / 3 - capH - rowGap), fw = fh / 0.75 > fwMax ? fwMax : fh / 0.75, x0 = ctx.ML + (Lw - (fw * 2 + gap)) / 2;
     const rowH = fh + capH + rowGap;
-    const grupos = []; itens.forEach(function(x, i){ const t = org.temTopicos ? (x.topico || "Demais fotografias") : ""; let g = grupos[grupos.length - 1]; if(!g || g.t !== t){ g = { t:t, idx:[] }; grupos.push(g); } g.idx.push(i); });
+    const grupos = []; itens.forEach(function(x, i){ const t = org.temTopicos ? (x.topico || "Demais fotografias") : ""; let g = grupos[grupos.length - 1]; if(!g || g.t !== t){ g = { t:t, idx:[], sub:org.temTopicos && subBenf(x) }; grupos.push(g); } g.idx.push(i); });
     grupos.forEach(function(g){
       if(g.t){
         if(ctx.y + 24 + rowH > ctx.MB) novaPagina(doc,ctx);                           // título nunca fica sozinho no fim da página
-        doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor(27,58,92); doc.text(g.t, ctx.ML, ctx.y + 8);
-        doc.setDrawColor(190,200,212); doc.setLineWidth(0.5); doc.line(ctx.ML, ctx.y + 12, ctx.MR, ctx.y + 12);
+        const xi = ctx.ML + (g.sub ? 12 : 0);                                          // subtópico (Benfeitorias): recuado e menor
+        doc.setFont("helvetica","bold"); doc.setFontSize(g.sub ? 9 : 10); doc.setTextColor(27,58,92); doc.text(g.t, xi, ctx.y + 8);
+        doc.setDrawColor(190,200,212); doc.setLineWidth(0.5); doc.line(xi, ctx.y + 12, ctx.MR, ctx.y + 12);
         doc.setTextColor(30,40,55); ctx.y += 20;
       }
       for(let k = 0; k < g.idx.length; k += 2){
@@ -49843,9 +49856,10 @@ window.DRL_gerarPDF=async function(opts){
   var GAL_FIXAS = [
     ["fotosAcesso", "Acesso"],
     ["fotosBenfTotal", "Benfeitorias reprodutivas e não reprodutivas (imóvel como um todo)"],
-    ["fotosBenfFaixa", "Benfeitorias na área da faixa de domínio"]
+    ["fotosBenfFaixa", "Benfeitorias na área da faixa de domínio"],
+    ["fotosBenf", "Benfeitorias"]
   ];
-  var GAL_LEGADO = [["fotosImovel", "Imóvel — vista geral"], ["fotosAreaDesap", "Área desapropriada"]];
+  var GAL_LEGADO = [["fotosImovel", "Imagens gerais do imóvel"], ["fotosAreaDesap", "Imagens da área desapropriada"]];
   function garantirEstrutura(f){
     if(!f.geral || typeof f.geral !== "object") f.geral = {};
     if(!f.campos || typeof f.campos !== "object") f.campos = {};
@@ -49882,12 +49896,16 @@ window.DRL_gerarPDF=async function(opts){
   function galerias(f){
     var out = [];
     function add(id, t, arr, fixa){ out.push({ id:id, t:t, arr:arr, fixa:!!fixa }); }
-    // 20/10/2026: tópicos do relatório fotográfico = Imóvel — vista geral, Acesso, Área desapropriada (sempre presentes).
-    // "Benfeitorias (imóvel como um todo)" e "Benfeitorias na faixa de domínio" foram desativados: só aparecem enquanto
+    // 28/10/2026: tópicos do relatório fotográfico, nesta ordem (sempre presentes): Acesso, Imagens gerais do imóvel,
+    // Imagens da área desapropriada, Benfeitorias (fotos das benfeitorias calculadas, levadas para lá à mão).
+    // A ordem vale para todos os relatórios (CAMPO_organizarFotos ordena pelo índice daqui) e as pastas no servidor seguem
+    // a mesma numeração (CAMPO_TOPICO_PASTA, server.js).
+    // "Benfeitorias (imóvel como um todo)" e "Benfeitorias na faixa de domínio" (20/10/2026: desativados) só aparecem enquanto
     // ainda tiverem fotos (cadastros antigos) — esvaziadas, somem; as fotos nunca ficam órfãs.
-    add("fotosImovel", "Imóvel — vista geral", f.fotosImovel = f.fotosImovel || []);
     add("fotosAcesso", GAL_FIXAS[0][1], f.fotosAcesso = f.fotosAcesso || [], true);
-    add("fotosAreaDesap", "Área desapropriada", f.fotosAreaDesap = f.fotosAreaDesap || []);
+    add("fotosImovel", GAL_LEGADO[0][1], f.fotosImovel = f.fotosImovel || []);
+    add("fotosAreaDesap", GAL_LEGADO[1][1], f.fotosAreaDesap = f.fotosAreaDesap || []);
+    add("fotosBenf", GAL_FIXAS[3][1], f.fotosBenf = f.fotosBenf || [], true);
     f.fotosBenfTotal = f.fotosBenfTotal || []; f.fotosBenfFaixa = f.fotosBenfFaixa || [];
     if(f.fotosBenfTotal.length) add("fotosBenfTotal", GAL_FIXAS[1][1], f.fotosBenfTotal, true);
     if(f.fotosBenfFaixa.length) add("fotosBenfFaixa", GAL_FIXAS[2][1], f.fotosBenfFaixa, true);
@@ -50242,7 +50260,7 @@ window.DRL_gerarPDF=async function(opts){
         else { g.arr.length = 0; clone(gNova.arr).forEach(function(p){ g.arr.push(p); }); }
         nFotos += x.totalNova;
       } else {
-        if(!g){ g = galeriaPorId(f, "fotosBenfTotal"); }   // galeria antiga que esta ficha não tem: não perde a foto
+        if(!g){ g = galeriaPorId(f, "fotosBenf"); }        // galeria antiga que esta ficha não tem: não perde a foto
         clone(x.novas).forEach(function(p){ g.arr.push(p); });
         nFotos += x.novas.length;
       }
@@ -50818,7 +50836,7 @@ window.DRL_gerarPDF=async function(opts){
   window.CAMPO_render = CAMPO_render;
   window.CAMPO_getFotos = function(){
     if(!CAMPO) return [];
-    return todasFotos(CAMPO).map(function(o){ return {src:o.p.src, legenda:legenda(o)}; });
+    return todasFotos(CAMPO).map(function(o){ return {src:o.p.src, legenda:legenda(o), gid:o.gid}; });   // gid: tópico do Campo (o laudo filtra por ele)
   };
 
   /* ---------------- envio para a Ficha de Vistoria ---------------- */
@@ -50843,7 +50861,8 @@ window.DRL_gerarPDF=async function(opts){
      Foto que não é do Campo (ex.: digitada na Ficha) vai no fim, em "Demais fotografias" se houver tópicos.
      A legenda que for só o nome do tópico (preenchida sozinha antes) é descartada: o título do tópico já a diz. */
   function norm(s){ return String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim().toLowerCase(); }
-  function topicoPDF(t){ t = String(t || "").split(" (")[0]; return /^área desapropriada$/i.test(t) ? "Área abrangida pelo projeto" : t; }
+  var NOMES_ANTIGOS = { "imovel — vista geral":1, "area desapropriada":1, "area abrangida pelo projeto":1 };   // legenda preenchida sozinha com o nome antigo do tópico
+  function topicoPDF(t){ t = String(t || "").split(" (")[0]; return /^(imagens da )?área desapropriada$/i.test(t) ? "Área abrangida pelo projeto" : t; }
   /* ---- casamento de fotos entre abas (20/10/2026) ----
      A mesma foto pode estar na DESP 2 / Ficha / Relatório como CÓPIA com bytes diferentes (gravada em outra hora, recomprimida):
      o hash exato não a reconhece. Então o casamento é: 1º igualdade exata; 2º PARECIDO VISUAL (dHash, até DH_CASA bits de diferença).
@@ -50908,7 +50927,7 @@ window.DRL_gerarPDF=async function(opts){
         if(c.ativas.length && !c.noArq){
           var g0 = c.ativas[0].k + ":" + c.ativas[0].ri, ch = c.ativas[Math.min(usou[g0] || 0, c.ativas.length - 1)]; usou[g0] = (usou[g0] || 0) + 1;
           o.topico = topicoPDF(ch.g.t); o.rank = ch.ri; o.ref = { p:ch.p, gid:ch.g.id, grupo:ch.g.t }; tem = true;
-          var l = norm(o.legenda); if(l && (l === norm(topicoPDF(ch.g.t)) || l === norm(String(ch.g.t).split(" (")[0]))) o.legenda = "";
+          var l = norm(o.legenda); if(l && (l === norm(topicoPDF(ch.g.t)) || l === norm(String(ch.g.t).split(" (")[0]) || NOMES_ANTIGOS[l])) o.legenda = "";
         } else if(c.mortas.length) o.morta = true;                            // é cópia de foto do arquivo morto: não vai para o relatório
       }
       itens = itens.filter(function(o){ return !o.morta; });
@@ -51778,7 +51797,7 @@ window.DRL_gerarPDF=async function(opts){
     });
     return lista;
   }
-  var COR_GAL = { fotosImovel:"#2f9e6a", fotosAcesso:"#1f6fc0", fotosAreaDesap:"#d8372c", fotosBenfTotal:"#e0962b", fotosBenfFaixa:"#8e5bd0" };
+  var COR_GAL = { fotosImovel:"#2f9e6a", fotosAcesso:"#1f6fc0", fotosAreaDesap:"#d8372c", fotosBenf:"#e0962b", fotosBenfTotal:"#e0962b", fotosBenfFaixa:"#8e5bd0" };
   function corGaleria(gid){ return COR_GAL[gid] || "#5b6b7b"; }
   function legendaGalerias(f){
     var vis = {}, out = [];
@@ -51821,7 +51840,7 @@ window.DRL_gerarPDF=async function(opts){
     var sul = !(CAMPO.gps && CAMPO.gps.lat > 0), n = 0, set = ps ? ps.filter(Boolean) : null;
     var destino = CAMPO.fotosAreaDesap = CAMPO.fotosAreaDesap || [];
     todasFotos(CAMPO).forEach(function(o){
-      var g = o.p.gps; if(o.gid === "fotosAreaDesap" || o.p.galManual) return;
+      var g = o.p.gps; if(o.gid === "fotosAreaDesap" || o.gid === "fotosBenf" || o.p.galManual) return;   // benfeitoria fica no tópico dela
       if(set && set.indexOf(o.p) < 0) return;
       if(!g || !(g.st === "ok" || g.st === "corr" || g.st === "man") || !isFinite(g.E) || !isFinite(g.N)) return;
       var ll = utmInvF(g.E, g.N, g.z, sul);
@@ -53353,7 +53372,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     var cls = D2_classificaFotos();
     var resumo = cls.n ? ('<div class="d2-imp-resumo" role="status"><b>✓ ' + (cls.n - cls.nM) + ' fotografia' + ((cls.n - cls.nM) !== 1 ? 's' : '') + ' no Anexo 1</b>'
         + ' <span>(' + [cls.nC ? cls.nC + ' do Campo' : '', cls.nF ? cls.nF + ' da Ficha de Vistoria' : '', cls.nM ? cls.nM + ' cópia(s) do arquivo morto — não saem no relatório' : ''].filter(Boolean).join(' · ') + ')</span>'
-        + '<p>Entram no relatório por tópico (Imóvel — vista geral, Acesso, Área abrangida pelo projeto), com o mapa de localização e as descrições feitas na aba Campo — nada a editar aqui.</p>'
+        + '<p>Entram no relatório por tópico (Acesso, Imagens gerais do imóvel, Área abrangida pelo projeto, Benfeitorias), com o mapa de localização e as descrições feitas na aba Campo — nada a editar aqui.</p>'
         + '<button type="button" class="vbtn vbtn-ghost vbtn-sm" onclick="D2_remImportadas()">Remover as importadas</button></div>') : '';
     host.innerHTML = resumo + (D2_fotos.length ? D2_fotos.map(function(ft,i){
       if(cls.imp[i]) return '';
@@ -65881,9 +65900,9 @@ body.ativ-cadastro:not(.modo-painel):has(.app-shell.recolhida) .cad-selo.tem{ di
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.28-7';
+window.APP_VERSAO = '2026.10.28-8';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
-window.SERVIDOR_RECOMENDADO = '2026.10.26-11';
+window.SERVIDOR_RECOMENDADO = '2026.10.28-8';
 (function(){
   var SEM_VERSAO = '0000.00.00-0';
   var LEGADO_LAYOUT = '2026.10.07-0';   // servidor que já tem layout_antigo no health, mas ainda sem número de versão
