@@ -61426,7 +61426,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
   var prev = { url:null, voltar:null, salvar:null, gen:0 };
   function fecharPrevia(){
     var ov = $("relprev_ov"); if(!ov || ov.hidden) return;
-    ov.hidden = true; var f = $("relprev_if"); f.hidden = true; f.removeAttribute("src");
+    ov.hidden = true; ov.style.zIndex = ""; var f = $("relprev_if"); f.hidden = true; f.removeAttribute("src");
     if(prev.url){ URL.revokeObjectURL(prev.url); prev.url = null; }
     prev.gen++;
     try{ if(prev.voltar && prev.voltar.focus) prev.voltar.focus(); }catch(e){}
@@ -61450,6 +61450,27 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     fr.src = prev.url + "#view=FitH"; fr.hidden = false; msg.hidden = true;
   }
   window.DOCS_previa = previa;
+  /* 28/10/2026: a mesma janela de pré-visualização para quem gera o PDF por conta própria (Baixar material técnico › Visualizar).
+     Abre já com "Gerando…"; o chamador entrega o PDF com .mostrar(blob) ou o erro com .falhar(texto). Fica por cima de outros modais. */
+  window.DOCS_previaJanela = function(titulo, origem, salvar){
+    var ov = $("relprev_ov"); if(!ov) return null;
+    if(ov.parentNode !== document.body) document.body.appendChild(ov);
+    var meu = ++prev.gen, msg = $("relprev_msg"), fr = $("relprev_if");
+    prev.voltar = origem || document.activeElement; prev.salvar = salvar || null;
+    var bs = $("relprev_salvar"); if(bs) bs.hidden = !salvar;
+    $("relprev_tit").textContent = "Pré-visualização — " + titulo;
+    ov.style.zIndex = "100100";
+    msg.textContent = "Gerando a pré-visualização…"; msg.hidden = false; fr.hidden = true; ov.hidden = false; $("relprev_x").focus();
+    return {
+      vivo: function(){ return meu === prev.gen && !ov.hidden; },
+      falhar: function(t){ if(meu === prev.gen){ msg.textContent = t; msg.hidden = false; fr.hidden = true; } },
+      mostrar: function(blob){
+        if(meu !== prev.gen) return;
+        prev.url = URL.createObjectURL(blob.type === "application/pdf" ? blob : new Blob([blob], { type:"application/pdf" }));
+        fr.src = prev.url + "#view=FitH"; fr.hidden = false; msg.hidden = true;
+      }
+    };
+  };
   window.RELPAD_previa = function(painel){                                 // compatibilidade com o padrão de 13/10
     var cfg = DOCS.filter(function(c){ return c.painel === painel; })[0]; if(!cfg) return;
     var d = docsDe(cfg)[0]; if(d) previa(d, d.partes ? partesPadrao(d) : null);
@@ -64483,8 +64504,9 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
 
   async function gerar(modo){
     var m = marcados(); if(!m.length || gerando) return;
-    var ver = (modo === "ver"), aba = null;
-    if(ver){ try{ aba = window.open("", "_blank"); if(aba) aba.document.write("<title>Visualizar PDF</title><p style=\"font:14px sans-serif;padding:24px\">Gerando o PDF… aguarde.</p>"); }catch(e){ aba = null; } }   // abre já no clique (senão o navegador bloqueia o pop-up)
+    var ver = (modo === "ver"), pv = null, aba = null;
+    if(ver){ pv = window.DOCS_previaJanela ? window.DOCS_previaJanela("Material técnico", $("mtec_ver"), function(){ return gerar(); }) : null;   // mesma pré-visualização das abas (28/10/2026)
+      if(!pv){ try{ aba = window.open("", "_blank"); }catch(e){ aba = null; } } }
     var zip = !ver && (document.querySelector('input[name="mtec_fmt"]:checked') || {}).value === "zip";
     var anxSel = {}; ANX.forEach(function(a){ anxSel[a.k] = !!sel[a.k]; });
     var num = numeracao(), feitos = [], falhas = [];
@@ -64505,7 +64527,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
           feitos.push({ it:it, parte:parte, rot:rot, bytes:bytes }); chip(it.k, "ok", "pronto");
         } else { falhas.push(it.t); chip(it.k, "er", "não gerado"); }
       }
-      if(!feitos.length){ $("mtec_resumo").innerHTML = "Nada foi gerado. Confira se os itens marcados estão preenchidos."; if(aba){ try{ aba.close(); }catch(e){} } return; }
+      if(!feitos.length){ $("mtec_resumo").innerHTML = "Nada foi gerado. Confira se os itens marcados estão preenchidos."; if(pv) pv.falhar("Nada foi gerado. Confira se os itens marcados estão preenchidos."); if(aba){ try{ aba.close(); }catch(e){} } return; }
       $("mtec_bar").style.width = "92%"; $("mtec_resumo").textContent = zip ? "Compactando…" : "Juntando em um PDF…";
       var base = "Material_Tecnico_" + (sufixo() || "cadastro").replace(/\s+/g, "_");
       var blob, nome;
@@ -64532,6 +64554,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
       }
       $("mtec_bar").style.width = "100%";
       if(ver){
+        if(pv){ pv.mostrar(blob); $("mtec_resumo").innerHTML = "<b>Pré-visualização aberta</b> — " + feitos.length + " item(ns), na ordem de impressão." + (falhas.length ? '<br><span style="color:var(--gl-err,#AE3F38)">Não gerado(s): ' + esc(falhas.join("; ")) + "</span>" : ""); return; }
         var url = URL.createObjectURL(blob);
         if(aba){ aba.location.href = url; } else { window.open(url, "_blank"); }
         $("mtec_resumo").innerHTML = "<b>Visualização aberta em nova aba</b> — " + feitos.length + " item(ns), na ordem de impressão." + (falhas.length ? '<br><span style="color:var(--gl-err,#AE3F38)">Não gerado(s): ' + esc(falhas.join("; ")) + "</span>" : "");
@@ -64542,7 +64565,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
       else { var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = nome; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function(){ URL.revokeObjectURL(a.href); }, 5000); }
       $("mtec_resumo").innerHTML = "<b>" + esc(nome) + "</b> — " + feitos.length + " item(ns)" + (falhas.length ? '<br><span style="color:var(--gl-err,#AE3F38)">Não gerado(s): ' + esc(falhas.join("; ")) + "</span>" : "");
     }catch(e){
-      console.error("material técnico:", e);
+      console.error("material técnico:", e); if(pv) pv.falhar("Não foi possível gerar a pré-visualização: " + (e && e.message || e));
       $("mtec_resumo").innerHTML = '<span style="color:var(--gl-err,#AE3F38)">Erro: ' + esc(e && e.message || e) + "</span>";
     }finally{
       window.ENP_loading = loadOrig;
@@ -65534,7 +65557,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.28-3';
+window.APP_VERSAO = '2026.10.28-4';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.26-11';
 (function(){
