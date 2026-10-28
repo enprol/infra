@@ -64167,6 +64167,199 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
   if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", ligar); else ligar();
   setTimeout(ligar, 1200);
 })();
+</script><style>/* =====================================================================
+   Selo do cadastro aberto (28/10/2026): identifica o cadastro em trabalho
+   em qualquer aba da DESP 1, 2 e 3.
+   - cartão no topo do menu lateral (#sbSub): CTD, lote (SPS), proprietário,
+     imóvel e município;
+   - selo compacto no cabeçalho (CTD + SPS) só quando o menu está recolhido
+     ou no celular (o menu vira gaveta);
+   - clique em qualquer um = detalhes (processo, posseiro, resp. técnico).
+   Cor do lote: SPS-04 azul-aço, SPS-07 verde-água, outros cinza.
+   ===================================================================== */
+.cad-card, .cad-selo, .cad-selo-pop{ --selo-cor:#8496AB; --selo-cor-esc:#55616F; }
+:is(.cad-card, .cad-selo, .cad-selo-pop)[data-sps="04"]{ --selo-cor:#7FB0DE; --selo-cor-esc:#1B3A5C; }
+:is(.cad-card, .cad-selo, .cad-selo-pop)[data-sps="07"]{ --selo-cor:#5CC2B5; --selo-cor-esc:#22695F; }
+
+/* ---------- cartão no menu lateral (fundo marinho) ---------- */
+.cad-card{ display:none; position:relative; width:calc(100% - 16px); box-sizing:border-box; margin:0 8px 8px; padding:10px 12px 10px 16px;
+  text-align:left; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.13); border-radius:10px; overflow:hidden;
+  color:#DCE6F0; font-family:var(--gl-font, "Segoe UI", sans-serif); cursor:pointer;
+  transition:background-color var(--gl-t, 180ms) var(--gl-ease, ease), border-color var(--gl-t, 180ms) var(--gl-ease, ease); }
+.cad-card.tem{ display:block; }
+.cad-card::before{ content:""; position:absolute; left:0; top:0; bottom:0; width:5px; background:var(--selo-cor); }
+.cad-card:hover{ background:rgba(255,255,255,.10); border-color:rgba(255,255,255,.22); }
+.cad-card:focus-visible{ outline:2px solid #fff; outline-offset:2px; }
+.cad-card-eyebrow{ display:flex; align-items:center; gap:6px; font-size:10.5px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:#8496AB; }
+.cad-card-eyebrow svg{ width:13px; height:13px; color:var(--selo-cor); }
+.cad-card-l1{ display:flex; align-items:center; gap:8px; margin-top:5px; }
+.cad-card-ctd{ font-size:19px; font-weight:700; line-height:1.1; color:#fff; letter-spacing:.2px; }
+.cad-card .cad-selo-sps{ background:var(--selo-cor); color:#0F2236; }
+.cad-card-prop{ margin-top:6px; font-size:12.5px; font-weight:600; line-height:1.3; color:#F2F6FA;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.cad-card-imv{ margin-top:2px; font-size:11.5px; line-height:1.3; color:#A9B7C6; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.cad-card-mais{ position:absolute; right:10px; top:10px; width:14px; height:14px; color:#8496AB; }
+.cad-selo-novo{ font-size:10.5px; font-weight:700; color:#E9B35F; }
+
+/* ---------- selo compacto no cabeçalho ---------- */
+.cad-selo{ display:none; flex:0 0 auto; align-items:center; gap:8px; height:36px; box-sizing:border-box; padding:0 10px 0 0; margin-left:2px;
+  background:var(--gl-sel, #E7EDF4); border:1px solid #CBD6E3; border-radius:var(--gl-r-s, 8px); overflow:hidden;
+  color:var(--gl-ink, #0F2236); font-family:var(--gl-font, "Segoe UI", sans-serif); cursor:pointer; white-space:nowrap;
+  transition:border-color var(--gl-t, 180ms) var(--gl-ease, ease), box-shadow var(--gl-t, 180ms) var(--gl-ease, ease); }
+.cad-selo::before{ content:""; align-self:stretch; width:5px; flex:0 0 5px; background:var(--selo-cor-esc); }
+body.ativ-cadastro:not(.modo-painel):has(.app-shell.recolhida) .cad-selo.tem{ display:inline-flex; }
+.cad-selo:hover{ border-color:#9FB2C8; box-shadow:0 2px 8px -2px rgba(15,34,54,.14); }
+.cad-selo:focus-visible{ outline:2px solid var(--gl-navy, #1B3A5C); outline-offset:2px; }
+.cad-selo-ctd{ font-size:13.5px; font-weight:700; letter-spacing:.2px; }
+.cad-selo-sps{ font-size:10.5px; font-weight:700; letter-spacing:.4px; color:#fff; background:var(--selo-cor-esc); padding:2px 6px; border-radius:4px; }
+
+/* ---------- detalhes ---------- */
+.cad-selo-pop{ position:fixed; z-index:9500; width:min(380px, calc(100vw - 32px)); box-sizing:border-box; background:#fff;
+  border:1px solid var(--gl-line, #DCE1E8); border-radius:var(--gl-r, 10px); box-shadow:0 12px 32px -8px rgba(15,34,54,.28);
+  font-family:var(--gl-font, "Segoe UI", sans-serif); color:var(--gl-txt, #1E2935); overflow:hidden; }
+.cad-selo-pop[hidden]{ display:none; }
+.cad-selo-pop-top{ display:flex; align-items:center; gap:8px; padding:12px 14px; border-bottom:1px solid var(--gl-line-2, #ECEFF3);
+  border-left:5px solid var(--selo-cor-esc); }
+.cad-selo-pop-top b{ font-size:15px; color:var(--gl-ink, #0F2236); }
+.cad-selo-pop .cad-selo-novo{ color:var(--gl-warn, #A66A12); }
+.cad-selo-pop dl{ margin:0; padding:10px 14px 4px; display:grid; grid-template-columns:auto 1fr; gap:6px 12px; font-size:12.5px; }
+.cad-selo-pop dt{ color:var(--gl-mut, #55616F); }
+.cad-selo-pop dd{ margin:0; font-weight:600; color:var(--gl-ink, #0F2236); overflow-wrap:anywhere; }
+.cad-selo-pop-acoes{ display:flex; justify-content:flex-end; gap:8px; padding:8px 14px 12px; }
+.cad-selo-pop-acoes button{ height:32px; padding:0 12px; border:1px solid var(--gl-line, #DCE1E8); border-radius:var(--gl-r-s, 8px);
+  background:var(--gl-surf, #fff); color:var(--gl-txt, #1E2935); font:600 12.5px var(--gl-font, "Segoe UI", sans-serif); cursor:pointer;
+  transition:background-color var(--gl-t, 180ms) var(--gl-ease, ease); }
+.cad-selo-pop-acoes button:hover{ background:var(--gl-hover, #F3F5F8); }
+.cad-selo-pop-acoes button:focus-visible{ outline:2px solid var(--gl-navy, #1B3A5C); outline-offset:2px; }
+
+/* celular: o menu vira gaveta, então o selo do cabeçalho aparece sempre */
+@media (max-width:720px){
+  body.ativ-cadastro:not(.modo-painel) .cad-selo.tem{ display:inline-flex; }
+  .cad-selo{ height:32px; gap:6px; padding-right:8px; } .cad-selo-ctd{ font-size:12.5px; }
+}
+@media (prefers-reduced-motion:reduce){ .cad-card, .cad-selo, .cad-selo-pop-acoes button{ transition:none; } }
+</style><script>/* Selo do cadastro aberto (28/10/2026): identifica, em qualquer aba da DESP 1, 2 e 3, o cadastro em que se está trabalhando.
+   - cartão no topo do menu lateral (#sbSub): CTD, lote (SPS), proprietário, imóvel e município;
+   - selo compacto no cabeçalho (CTD + SPS), que o CSS só mostra com o menu recolhido ou no celular;
+   - título da aba do navegador = CTD · proprietário;
+   - clique em qualquer um = detalhes (processo, posseiro, resp. técnico) e "Copiar nº do processo".
+   Fonte: window.__CAD_ATUAL (cadastro aberto do servidor, js/117) e os campos do formulário (D2_campo, js/131). Só lê. */
+(function(){
+  "use strict";
+  var SVG = "http://www.w3.org/2000/svg";
+  var TITULO0 = null, ultimo = "", card = null, selo = null, pop = null, ancora = null;
+
+  function campo(k){ try{ return String((window.D2_campo ? window.D2_campo(k) : "") || "").replace(/\s+/g, " ").trim(); }catch(e){ return ""; } }
+  function dados(){
+    var a = window.__CAD_ATUAL, partes = a && a.ctd ? String(a.ctd).split(" - ") : [], ctd = partes[0] || "", novo = false;
+    if(!ctd){ var c = campo("cadastro"); if(!c) return null; ctd = /^CTD/i.test(c) ? c : "CTD " + c; novo = true; }
+    var mSps = /SPS[ \-]?0*(\d{1,2})/i.exec(partes[1] || campo("trecho") || "");
+    return { ctd:ctd, novo:novo, sps:mSps ? ("0" + mSps[1]).slice(-2) : "", sei:campo("sei") || (partes[2] || "").replace(/-(\d{4}-\d{2})$/, "/$1"),
+      prop:campo("proprietario"), posse:campo("posseiro"), imovel:campo("imovel"), mun:campo("municipio"), resp:campo("responsavel") };
+  }
+  function el(tag, cls, txt){ var e = document.createElement(tag); if(cls) e.className = cls; if(txt != null) e.textContent = txt; return e; }
+  function icone(cls, d){   // traços no estilo Lucide (24×24, contorno)
+    var s = document.createElementNS(SVG, "svg"); s.setAttribute("viewBox", "0 0 24 24"); if(cls) s.setAttribute("class", cls); s.setAttribute("aria-hidden", "true");
+    s.setAttribute("fill", "none"); s.setAttribute("stroke", "currentColor"); s.setAttribute("stroke-width", "2"); s.setAttribute("stroke-linecap", "round"); s.setAttribute("stroke-linejoin", "round");
+    d.forEach(function(p){ var q = document.createElementNS(SVG, "path"); q.setAttribute("d", p); s.appendChild(q); });
+    return s;
+  }
+  var MAPA = ["M3 7l6-3 6 3 6-3v13l-6 3-6-3-6 3z", "M9 4v13", "M15 7v13"];   // mapa dobrado (imóvel)
+  function clique(alvo){ return function(ev){ ev.stopPropagation(); (pop && !pop.hidden && ancora === alvo) ? fechar() : abrir(alvo); }; }
+  function botao(cls, id){ var b = el("button", cls); b.type = "button"; b.id = id; b.setAttribute("aria-haspopup", "dialog"); b.setAttribute("aria-expanded", "false"); b.addEventListener("click", clique(b)); return b; }
+
+  // os dois lugares; se alguém reescrever o menu ou o cabeçalho, volta na próxima conferência
+  function garantir(){
+    var sub = document.getElementById("sbSub");
+    if(sub && (!card || card.parentNode !== sub)){
+      if(!card){
+        card = botao("cad-card", "cadSeloCard");
+        var eb = el("span", "cad-card-eyebrow"); eb.appendChild(icone(null, MAPA)); eb.appendChild(el("span", null, "Cadastro em trabalho"));
+        var l1 = el("span", "cad-card-l1"); l1.appendChild(el("b", "cad-card-ctd")); l1.appendChild(el("span", "cad-selo-sps")); l1.appendChild(el("span", "cad-selo-novo"));
+        card.appendChild(eb); card.appendChild(l1); card.appendChild(el("span", "cad-card-prop")); card.appendChild(el("span", "cad-card-imv"));
+        card.appendChild(icone("cad-card-mais", ["M6 9l6 6 6-6"]));
+      }
+      sub.insertBefore(card, sub.firstChild); ultimo = "";
+    }
+    var ref = document.getElementById("btnTrocarAtiv");
+    if(ref && ref.parentNode && (!selo || selo.parentNode !== ref.parentNode)){
+      if(!selo){ selo = botao("cad-selo", "cadSelo"); selo.appendChild(el("b", "cad-selo-ctd")); selo.appendChild(el("span", "cad-selo-sps")); }
+      ref.parentNode.insertBefore(selo, ref.nextSibling); ultimo = "";
+    }
+  }
+  function sps(e, d){ var s = e.querySelector(".cad-selo-sps"); s.textContent = d.sps ? "SPS-" + d.sps : ""; s.style.display = d.sps ? "" : "none"; }
+
+  function atualizar(){
+    garantir();
+    var d = dados(), chave = d ? JSON.stringify(d) : "";
+    if(chave === ultimo) return; ultimo = chave;
+    if(TITULO0 === null) TITULO0 = document.title;
+    var els = [card, selo].filter(Boolean);
+    if(!d){ els.forEach(function(e){ e.classList.remove("tem"); }); document.title = TITULO0; fechar(); return; }
+    var imv = [d.imovel, d.mun].filter(Boolean).join(" · ");
+    var rot = "Cadastro em trabalho: " + d.ctd + (d.sps ? " (SPS-" + d.sps + ")" : "") + (d.prop ? ", " + d.prop : "") + (imv ? ", " + imv : "");
+    els.forEach(function(e){ e.classList.add("tem"); e.setAttribute("data-sps", d.sps); sps(e, d); e.title = rot + ". Clique para ver os detalhes."; e.setAttribute("aria-label", rot + ". Ver detalhes"); });
+    if(card){
+      card.querySelector(".cad-card-ctd").textContent = d.ctd;
+      card.querySelector(".cad-selo-novo").textContent = d.novo ? "ainda não salvo" : "";
+      card.querySelector(".cad-card-prop").textContent = d.prop || "proprietário não preenchido";
+      var im = card.querySelector(".cad-card-imv"); im.textContent = imv; im.style.display = imv ? "" : "none";
+    }
+    if(selo) selo.querySelector(".cad-selo-ctd").textContent = d.ctd;
+    document.title = d.ctd + (d.prop ? " · " + d.prop : "") + " — INFRA";
+    if(pop && !pop.hidden) montarPop(d);
+  }
+
+  function montarPop(d){
+    pop.setAttribute("data-sps", d.sps); pop.textContent = "";
+    var top = el("div", "cad-selo-pop-top"); top.appendChild(el("b", null, d.ctd));
+    if(d.sps) top.appendChild(el("span", "cad-selo-sps", "SPS-" + d.sps));
+    if(d.novo) top.appendChild(el("span", "cad-selo-novo", "ainda não salvo"));
+    pop.appendChild(top);
+    var dl = el("dl");
+    [["Processo SEI", d.sei], ["Proprietário", d.prop], ["Posseiro", d.posse], ["Imóvel", d.imovel], ["Município", d.mun], ["Resp. técnico", d.resp]].forEach(function(p){
+      if(!p[1]) return; dl.appendChild(el("dt", null, p[0])); dl.appendChild(el("dd", null, p[1]));
+    });
+    if(!dl.childNodes.length){ dl.appendChild(el("dt", null, "Dados")); dl.appendChild(el("dd", null, "preencha a Ficha de Vistoria")); }
+    pop.appendChild(dl);
+    var ac = el("div", "cad-selo-pop-acoes");
+    if(d.sei){
+      var cp = el("button", null, "Copiar nº do processo"); cp.type = "button";
+      cp.onclick = function(){
+        var ok = function(){ cp.textContent = "Copiado"; setTimeout(function(){ cp.textContent = "Copiar nº do processo"; }, 1500); };
+        try{ navigator.clipboard.writeText(d.sei).then(ok, function(){ cp.textContent = "Não foi possível copiar"; }); }catch(e){ cp.textContent = "Não foi possível copiar"; }
+      };
+      ac.appendChild(cp);
+    }
+    var fc = el("button", null, "Fechar"); fc.type = "button"; fc.onclick = function(){ var a = ancora; fechar(); if(a) a.focus(); }; ac.appendChild(fc);
+    pop.appendChild(ac);
+  }
+  function posicionar(){
+    if(!pop || pop.hidden || !ancora) return;
+    var r = ancora.getBoundingClientRect(), w = pop.offsetWidth, h = pop.offsetHeight;
+    var lateral = ancora === card;   // do menu lateral, abre ao lado; do cabeçalho, embaixo
+    var x = lateral ? r.right + 8 : r.left, y = lateral ? r.top : r.bottom + 6;
+    pop.style.left = Math.round(Math.max(16, Math.min(x, window.innerWidth - w - 16))) + "px";
+    pop.style.top = Math.round(Math.max(8, Math.min(y, window.innerHeight - h - 8))) + "px";
+  }
+  function abrir(alvo){
+    var d = dados(); if(!d) return;
+    if(!pop){ pop = el("div", "cad-selo-pop"); pop.setAttribute("role", "dialog"); pop.setAttribute("aria-label", "Detalhes do cadastro"); pop.hidden = true;
+      pop.addEventListener("click", function(ev){ ev.stopPropagation(); }); document.body.appendChild(pop); }
+    if(ancora && ancora !== alvo) ancora.setAttribute("aria-expanded", "false");
+    ancora = alvo; montarPop(d); pop.hidden = false; alvo.setAttribute("aria-expanded", "true"); posicionar();
+  }
+  function fechar(){ if(pop) pop.hidden = true; if(ancora) ancora.setAttribute("aria-expanded", "false"); ancora = null; }
+
+  document.addEventListener("click", fechar);
+  document.addEventListener("keydown", function(ev){ if(ev.key === "Escape" && pop && !pop.hidden){ var a = ancora; fechar(); if(a) a.focus(); } });
+  window.addEventListener("resize", posicionar);
+  window.addEventListener("scroll", posicionar, true);
+  // leve: só compara o texto e mexe no DOM quando muda (abrir/novo cadastro, edição do proprietário/imóvel)
+  setInterval(atualizar, 1500);
+  if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", atualizar); else atualizar();
+  window.CAD_seloAtualizar = function(){ ultimo = ""; atualizar(); };
+})();
 </script><style>
 /* ===== DESP 3 › Avaliação FTN › Aspectos Gerais do laudo (SGPD) — 18/10/2026 =====
    Mesmo visual das seções da aba (vsec/vcard/vfield); só o que falta: caixas de seleção e textarea bloqueada. */
@@ -65595,7 +65788,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.28-5';
+window.APP_VERSAO = '2026.10.28-6';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.26-11';
 (function(){
