@@ -54385,7 +54385,12 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
   async function d2fetchFixo(bb){
     var lista=await d2fetchJSON('/api/mapa/fixos'); if(!Array.isArray(lista)) return {limites:[],eixos:[]};
     var agg={limites:[],eixos:[]};
-    function inBB(l){ return l.some(function(p){ return p[0]>=bb.w&&p[0]<=bb.e&&p[1]>=bb.s&&p[1]<=bb.n; }); }
+    // 29/10/2026 (CTD 006Y/006Z): o eixo do SPS-04 tem tangentes longas sem vértice dentro do quadro — vale também o SEGMENTO que cruza o quadro
+    function dentro(p){ return p[0]>=bb.w&&p[0]<=bb.e&&p[1]>=bb.s&&p[1]<=bb.n; }
+    function cruza(a,b){ if(Math.max(a[0],b[0])<bb.w||Math.min(a[0],b[0])>bb.e||Math.max(a[1],b[1])<bb.s||Math.min(a[1],b[1])>bb.n) return false;
+      var cs=[[bb.w,bb.s],[bb.e,bb.s],[bb.e,bb.n],[bb.w,bb.n]].map(function(q){ return (b[0]-a[0])*(q[1]-a[1])-(b[1]-a[1])*(q[0]-a[0]); });
+      return cs.some(function(v){ return v>=0; }) && cs.some(function(v){ return v<=0; }); }
+    function inBB(l){ for(var i=0;i<l.length;i++){ if(dentro(l[i]) || (i && cruza(l[i-1],l[i]))) return true; } return false; }
     for(var i=0;i<lista.length;i++){ try{ var t=await (await fetch('/api/mapa/fixo/'+encodeURIComponent(lista[i].arquivo))).text(); var p=d2fixoParse(t);
       p.limites.forEach(function(l){ if(inBB(l)) agg.limites.push(l); }); p.eixos.forEach(function(l){ if(inBB(l)) agg.eixos.push(l); });
     }catch(e){} }
@@ -55295,10 +55300,12 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     var z=d2zonaDe(areaPolys[0][0][0]), faixa=m2faixaPoligonos(fx||{}, z);
     if(!faixa.length) return null;
     var eixosU=(fx.eixos||[]).map(function(l){ return m2U(l,z); });
-    var cFaixa=m2centro(faixa[0]);   // sem eixo: norte/sul pela latitude do pedaço em relação ao centro da faixa
+    // 29/10/2026: sem eixo, o lado vem das linhas-limite da faixa (a mais próxima do pedaço é a do lado dele). Antes era a latitude
+    // em relação ao centro da faixa INTEIRA do SPS, e nos CTD 006W–Z tudo caía no sul (norte pintado como sul)
+    var refU=eixosU.length?eixosU:(fx.limites||[]).map(function(l){ return m2U(l,z); });
     var pecas=m2exec(ClipperLib.ClipType.ctDifference, areaPolys.map(function(r){ return m2U(r,z); }), faixa);
     var lados={ norte:{ha:0,polys:[],maior:null}, sul:{ha:0,polys:[],maior:null} };
-    pecas.forEach(function(ex){ var ha=m2haEx(ex); if(ha<0.0001) return; var c=m2centro(ex.outer), L=(eixosU.length?m2lado(c,eixosU)>0:c.Y>cFaixa.Y)?lados.norte:lados.sul;
+    pecas.forEach(function(ex){ var ha=m2haEx(ex); if(ha<0.0001) return; var c=m2centro(ex.outer), L=m2lado(c,refU)>0?lados.norte:lados.sul;
       L.ha+=ha; L.polys.push(m2LL(ex.outer,z)); if(!L.maior||ha>L.maior.ha) L.maior={ha:ha, c:d2utmInv(c.X/100,c.Y/100,z,true)}; });
     return lados;
   }
@@ -55307,16 +55314,23 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
      com a área total. Quando a diferença é pequena (até 0,5%), Norte e Sul são proporcionalizadas para somar EXATAMENTE a
      remanescente informada, já em 4 casas: 006 = área certificada (Técnica 1.4); demais = área remanescente da identificação
      ou área total − área desapropriada. Diferença maior = dado divergente: fica a medida do desenho. */
+  /* 29/10/2026 (Fernando): nos CTD 006A–Z, Norte + Sul = remanescente da PLANTA (carimbo da Mesa, areasParcela006 em js/110):
+     área ocupada (sem ela, a total da 1.4) − sobreposição das glebas SIGEF com a área desapropriada (d2m2_v_sobrep, o mapa
+     m2_sig2 é gerado antes do m2_1). Vale mesmo acima de 0,5%: a planta manda; o desenho só reparte entre norte e sul. */
+  function m2ehRem(){ return /^006[A-Z]$/i.test(gid("fb_proc_ctd")) && /^0?4$/.test(gid("fb_proc_lote")); }
   function m2remAlvo(){
-    var ehRem=/^006[A-Z]$/i.test(gid("fb_proc_ctd")) && /^0?4$/.test(gid("fb_proc_lote"));
-    if(ehRem) return num(gid("fb_area_total")||C("areaTotal"));
+    if(m2ehRem()){
+      var base=num(gid("fb_area_ocupada")); if(!(base>0)) base=num(gid("fb_area_total")||C("areaTotal"));
+      var sob=0; try{ var s=JSON.parse(gid("d2m2_v_sobrep")||"null"); if(s && s.ha>0) sob=+s.ha; }catch(e){}
+      return base>0 ? base-sob : NaN;
+    }
     var r=num(C("areaRem")); if(r>0) return r;
     var t=num(gid("fb_area_total")||C("areaTotal")), d=num(gid("fb_area_desap")||C("areaDesap"));
     return (t>0 && d>=0) ? t-d : NaN;
   }
   function m2ajustarRem(rem){
     var alvo=m2remAlvo(), soma=rem.norte.ha+rem.sul.ha;
-    if(!(alvo>0) || !(soma>0) || Math.abs(alvo-soma)/alvo>0.005) return;
+    if(!(alvo>0) || !(soma>0) || (!m2ehRem() && Math.abs(alvo-soma)/alvo>0.005)) return;
     var a4=Math.round(alvo*1e4)/1e4;
     if(!rem.sul.polys.length){ rem.norte.ha=a4; return; }
     if(!rem.norte.polys.length){ rem.sul.ha=a4; return; }
@@ -63643,7 +63657,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     novaImg(id);
   };
   window.D2M2_irArt = function(){ var b = document.querySelector('.sb-link[data-alvo="panel-anx11"]'); if(b && window.trocarAba){ window.trocarAba(b); return; } var pn = $("panel-anx11"); if(pn) pn.scrollIntoView(); };
-  var MAPVER = "8";   // sobe quando muda o desenho/enquadramento dos mapas: os já salvos no cadastro são refeitos uma vez
+  var MAPVER = "10";   // sobe quando muda o desenho/enquadramento dos mapas: os já salvos no cadastro são refeitos uma vez
   /* 25/10/2026 (independência do modelo original): na 1ª abertura, o que estava editado à mão na DESP-2 para Apresentação,
      Metodologia e Conclusão vira texto próprio do Modelo 02 (o PDF continua igual); depois disso nada mais vem da DESP-2. */
   function desacoplar(){
@@ -65983,7 +65997,7 @@ body.ativ-cadastro:not(.modo-painel):has(.app-shell.recolhida) .cad-selo.tem{ di
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.29-4';
+window.APP_VERSAO = '2026.10.29-5';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.28-8';
 (function(){
