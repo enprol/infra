@@ -34898,17 +34898,34 @@ function AV_gerarDescSituacao(){
   var CAR  = { x:6, y:235, w:408, h:56 };
   var KC = 1, KV = 1;                                                // fatores do carimbo (horizontal / vertical)
   // medidas do quadro do mapa / tabela de um formato, SEM mexer no estado (o plano de pranchas precisa delas por prancha)
-  function geomFmt(id){
-    var f = FORMATOS[id] || FORMATOS.a3, m = 6, tabw = TAB_LARG, carh = 62;
+  function geomFmt(id, cols){
+    var f = FORMATOS[id] || FORMATOS.a3, m = 6, tabw = TAB_LARG*(cols || 1), carh = 62;
     var mw = f.W - m*2 - tabw - 2, mh = f.H - m*2 - carh - 2;
     return { mw:mw, mh:mh, tabh:Math.min(mh, 227), tabw:tabw };
   }
+  /* 29/10/2026 (Fernando, CTD 006Z): a tabela de vértices da prancha 1 pode ter até DUAS colunas lado a lado (o quadro da
+     tabela dobra de largura, a planta estreita) antes de abrir uma prancha só de tabela. Só vira 2 quando os vértices não
+     cabem em uma coluna e o desenho ainda cabe na janela mais estreita (na escala escolhida, ou em alguma das automáticas);
+     planta geral e planta dividida em quadros ficam com uma coluna. TAB_COLS vale para o formato aplicado. */
+  var TAB_COLS = 1;
+  function colsTabela(id){
+    try{
+      if(!G || !G.segs || geralAtivo()) return 1;
+      var g1 = geomFmt(id, 1);
+      if(G.segs.length <= capacidadeTabela(g1.tabh - 12.8 - 47)) return 1;
+      var g2 = geomFmt(id, 2), bb = limitesPlanta(), fg = folgaConfMm();
+      var cabe = function(e){ return (bb[1]-bb[0])*1.12/(e/1000) + fg <= g2.mw - 6 && (bb[3]-bb[2])*1.12/(e/1000) + fg <= g2.mh - 6; };
+      var esc = OPC.escala || escLer();
+      return (esc ? cabe(esc) : ESCALAS.some(cabe)) ? 2 : 1;
+    }catch(e){ return 1; }
+  }
   function aplicarFormato(id){
-    var f = FORMATOS[id] || FORMATOS.a3, gF = geomFmt(id);
+    TAB_COLS = colsTabela(id);
+    var f = FORMATOS[id] || FORMATOS.a3, gF = geomFmt(id, TAB_COLS);
     FL.id = FORMATOS[id] ? id : "a3"; FL.nome = f.nome; FL.W = f.W; FL.H = f.H;
     FL.m = 6;                                                        // 13/10/2026: margem da borda = a do A3 em todos os formatos
     CAR.h  = 62;                                                     // 13/10/2026: carimbo e tabela com as MEDIDAS do A3 em qualquer formato — só o quadro da planta cresce
-    TAB.w  = TAB_LARG;                                               // 21/10/2026: tabela de coordenadas mais estreita (100 → 80 mm) em todos os formatos; a planta ganha a diferença
+    TAB.w  = gF.tabw;                                                // 21/10/2026: tabela de coordenadas mais estreita (100 → 80 mm) em todos os formatos; a planta ganha a diferença (29/10/2026: × TAB_COLS)
     var ext = (FL.id === "a3x" || FL.id === "a2x");                  // estendidos: o quadro OBSERVAÇÃO se alonga (largura do carimbo do A3 estendido)
     MAPA.x = FL.m; MAPA.y = FL.m;
     MAPA.w = gF.mw;
@@ -37126,14 +37143,14 @@ function AV_gerarDescSituacao(){
   var COL_P = [0, 8, 16, 34, 49, 75, 100];
   var ALT_LIN_MIN = 2.9, ALT_LIN_MAX = 4.7, ALT_CAB = 4.2;
   function capacidadeTabela(hDisp){ return Math.max(1, Math.floor((hDisp - ALT_CAB)/ALT_LIN_MIN)); }
-  function desenharGradeCoords(P, x, y, larg, de, ate, hDisp){
+  function desenharGradeCoords(P, x, y, larg, de, ate, hDisp, nLin){   // nLin: altura de linha como se fossem nLin linhas (colunas lado a lado alinhadas)
     var fr = larg/100, CX = [], CF = [];
     for(var i = 0; i < 6; i++){ CX.push(x + COL_P[i]*fr); CF.push(x + COL_P[i+1]*fr); }
     var cab = ["Vért.","Vért.","AZIMUTE","DIST. (m)","N (m)","E (m)"], y0 = y;
     P.ret(x, y, larg, ALT_CAB, { peso:.15, fill:"#eef2f6" });
     cab.forEach(function(t, i){ P.texto((CX[i]+CF[i])/2, y + 2.95, t, { tam:TAM.tabCab, bold:true, align:"center" }); });
     y += ALT_CAB;
-    var n = Math.max(1, ate - de);
+    var n = Math.max(1, nLin || (ate - de));
     var alt = Math.min(ALT_LIN_MAX, Math.max(ALT_LIN_MIN, (hDisp - ALT_CAB)/n));
     var tam = Math.min(TAM.tab, Math.max(3.8, alt*1.46));
     // 21/10/2026: com a tabela mais estreita, o corpo diminui até o maior azimute/dist./N/E caber na própria coluna
@@ -37280,7 +37297,7 @@ function AV_gerarDescSituacao(){
       return fp;
     }
     var hP1 = TAB.h - 12.8 - 47;
-    var cap1 = capacidadeTabela(hP1);
+    var cap1 = capacidadeTabela(hP1)*TAB_COLS;           // 29/10/2026: até 2 colunas de tabela na prancha 1
     if(total <= cap1) return [{ n:1, total:1, de:0, ate:total, fmt:base }];
     var pos = cap1, fs = [{ n:1, total:0, de:0, ate:cap1, fmt:base }], k = 0;
     while(pos < total && k < 400){
@@ -37950,7 +37967,13 @@ function AV_gerarDescSituacao(){
       } else if(geral){
         y = desenharResumoAreas(P, TAB.x + 2, y, larg);
       } else {
-        y = desenharGradeCoords(P, TAB.x + 2, y, larg, pg.de, pg.ate, TAB.y + TAB.h - 47 - y).y;
+        if(TAB_COLS > 1 && pg.ate - pg.de > 1){
+          // duas tabelas lado a lado (a 2ª continua a 1ª), mesma altura de linha
+          var gapT = 4, cwT = (larg - gapT)/2, porT = Math.ceil((pg.ate - pg.de)/2), hT = TAB.y + TAB.h - 47 - y;
+          var yA = desenharGradeCoords(P, TAB.x + 2, y, cwT, pg.de, pg.de + porT, hT, porT).y;
+          var yB = desenharGradeCoords(P, TAB.x + 2 + cwT + gapT, y, cwT, pg.de + porT, pg.ate, hT, porT).y;
+          y = Math.max(yA, yB);
+        } else y = desenharGradeCoords(P, TAB.x + 2, y, larg, pg.de, pg.ate, TAB.y + TAB.h - 47 - y).y;
         if(pg.total > 1){
           P.texto(TAB.x + 2, y + 3.4, "continua na folha " + (NUMF.off + pg.n + 1) + "/" + NUMF.total + " →", { tam:5, bold:true, cor:"#0a5c86" });
           y += 3.4;
@@ -40544,7 +40567,10 @@ function AV_gerarDescSituacao(){
           if(!m.g){ ST.area = m.i; if(m.i === est0.area){ ST.inicio = est0.ini; ST.inverter = est0.inv; } else { ST.inicio = 0; ST.inverter = false; } }
           G = null; PAN.x = 0; PAN.y = 0; CACHE_SAT.chave = ""; OPC.folha = 0; analisar(); OPC.escala = escLer();
         }
-        var r = await window.MDP_pdfPlanta({ retornar:true }); if(r && r.blob) pl.push(r);
+        /* 29/10/2026 (Fernando): a planta do material técnico sai nas DUAS versões, com ortofoto e sem satélite (como no PDF das
+           pranchas); antes saía só a do estado atual da Mesa (sem ortofoto). Sem ortofoto no servidor, preparar() cai no satélite. */
+        var vp = [{ sobre:{ ortofoto:true, satelite:false }, sufixo:"_COM-ORTOFOTO" }, { sobre:{ satelite:false, ortofoto:false }, sufixo:"_SEM-SATELITE" }];
+        for(var vi = 0; vi < vp.length; vi++){ var r = await window.MDP_pdfPlanta({ sobre:vp[vi].sobre, sufixo:vp[vi].sufixo, retornar:true }); if(r && r.blob) pl.push(r); }
         if(!multi || !m.g){ var q = await window.MDP_pdfMemorial({ retornar:true }); if(q && q.blob) me.push(q); }
       }
     } finally {
@@ -66173,7 +66199,7 @@ body.ativ-cadastro:not(.modo-painel):has(.app-shell.recolhida) .cad-selo.tem{ di
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.29-10';
+window.APP_VERSAO = '2026.10.29-11';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.29-7';
 (function(){
