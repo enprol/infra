@@ -63305,11 +63305,16 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     trazerCtx(true); D2M2_render();
   };
   // a numeração das legendas é automática: para o Salvar, não é alteração de quem só abriu a tela (CAD_automaticoEm, js/117)
-  function renumerar(){
+  /* 29/10/2026: ao abrir o cadastro, os campos restaurados disparam D2M2_campoMudou → previas() antes de os mapas (d2figs)
+     chegarem; sem eles a imagem do Estudo virava "Imagem 2" (era 11) e qualquer Salvar gravava isso (006Y, 006Z). Com o
+     painel escondido só calcula os números (textos); as legendas são reescritas com o painel aberto ou no PDF (D2M2_topicos). */
+  function painelVisivel(){ var p = $("panel-desp2-modelo02"); return !!(p && p.offsetParent); }
+  function renumerar(soNum){
+    if(soNum) return renumerar0(true);
     return window.CAD_automaticoEm ? window.CAD_automaticoEm("d2doc", function(){ return window.D2_getDoc ? window.D2_getDoc() : undefined; }, renumerar0) : renumerar0();
   }
-  function renumerar0(){
-    var n = 0, mudou = false, ctxOn = $("d2m2_ctx_on") && $("d2m2_ctx_on").checked, d = window.D2_getDoc ? window.D2_getDoc() : null;
+  function renumerar0(soNum){
+    var n = 0, mudou = false, ctxOn = $("d2m2_ctx_on") && $("d2m2_ctx_on").checked, d = (!soNum && window.D2_getDoc) ? window.D2_getDoc() : null;
     NUM = {};
     ordemImgs().forEach(function(o){
       if(o[0] === "m2_ctx" && !ctxOn) return;
@@ -63325,7 +63330,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
       });
       docImgs().filter(function(x){ return x.topico === o[0]; }).forEach(function(x){
         NUM[x.id] = ++n; var leg = "Imagem " + n + " – " + semNum(x.leg);
-        if(leg !== x.leg){ x.leg = leg; mudou = true; }
+        if(!soNum && leg !== x.leg){ x.leg = leg; mudou = true; }
       });
     });
     if(mudou) sujo();
@@ -63453,13 +63458,13 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
 
   /* ---------- painel ---------- */
   function previas(){   // só os dados do topo e a prévia dos textos automáticos (sem redesenhar o documento: mantém o cursor)
-    renumerar();
+    renumerar(!painelVisivel());
     var d = $("d2m2_dados"); if(d) d.innerHTML = dadosLinhas().map(function(x){ return '<div><b>' + esc(x[0]) + ':</b> ' + esc(x[1]) + '</div>'; }).join("");
     Array.prototype.forEach.call(document.querySelectorAll("#d2m2doc_main [data-m2auto]"), function(a){ var k = a.getAttribute("data-m2auto"), rot = a.querySelector(".dd-auto-rot"); a.innerHTML = (rot ? rot.outerHTML : "") + mdHtml(AUTO_TXT[k]()); });
   }
   window.D2M2_render = function(){
     var main = $("d2m2doc_main"); if(!main) return;
-    renumerar();
+    renumerar(!painelVisivel());
     var y = window.scrollY, ativo = document.activeElement && document.activeElement.getAttribute && document.activeElement.getAttribute("data-m2f");
     $("d2m2doc_nav").innerHTML = navHtml();
     main.innerHTML = docHtml();
@@ -65971,7 +65976,7 @@ body.ativ-cadastro:not(.modo-painel):has(.app-shell.recolhida) .cad-selo.tem{ di
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.29-1';
+window.APP_VERSAO = '2026.10.29-2';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.28-8';
 (function(){
