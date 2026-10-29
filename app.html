@@ -9498,7 +9498,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
       <!-- guardados no cadastro (ocultos): valores calculados pelos mapas e as camadas do CAR carregadas -->
       <div hidden aria-hidden="true">
         <textarea id="d2m2_car_imovel"></textarea><textarea id="d2m2_car_app"></textarea><textarea id="d2m2_car_rl"></textarea>
-        <input type="hidden" id="d2m2_v_remN"><input type="hidden" id="d2m2_v_remS">
+        <input type="hidden" id="d2m2_v_remN"><input type="hidden" id="d2m2_v_remS"><input type="hidden" id="d2m2_v_remPosse">
         <input type="hidden" id="d2m2_v_altmin"><input type="hidden" id="d2m2_v_altmax"><input type="hidden" id="d2m2_v_relevo">
         <input type="hidden" id="d2m2_v_car"><input type="hidden" id="d2m2_v_sobrep"><input type="hidden" id="d2m2_v_mapver"><input type="hidden" id="d2m2_ctx_imp"><input type="hidden" id="d2m2_est_img_imp"><input type="hidden" id="d2m2_aj_dup"><input type="hidden" id="d2m2_concl_v3"><textarea id="d2m2_vet_sede"></textarea><textarea id="d2m2_vet_sigef"></textarea><textarea id="d2m2_vet_hidro"></textarea><textarea id="d2m2_extras"></textarea><textarea id="d2m2_ovr"></textarea><textarea id="d2m2_mapas"></textarea><input type="hidden" id="d2m2_desacoplado"><input type="hidden" id="d2m2_aj_20261026"><input type="hidden" id="d2m2_aj_linha">
       </div>
@@ -54731,8 +54731,29 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       }
     });
     // rótulos avulsos de quem gerou o mapa (modelo 02: "REMAN. NORTE / ÁREA = x ha", "SEDE"): centrados no ponto, uma linha por item
-    (o.rotulos||[]).forEach(function(r){ if(!r||r.lon==null) return; var q=PX(r.lon,r.lat), ls=r.linhas||[], lh=(r.tam||12)+3;
-      if(q[0]<mapL+40||q[0]>mapR-40||q[1]<mapT+16||q[1]>mapB-16) return;
+    // 29/10/2026: com r.polys (o pedaço rotulado), o texto que não cabe dentro dele vai para fora, num lugar livre (sem cobrir
+    // r.evitar), com linha de chamada até o pedaço — ex.: a remanescente norte de 0,15 ha do CTD 006Z sumia sob o rótulo
+    function pipPx(p, rings){ var d=false; rings.forEach(function(r){ for(var i=0,j=r.length-1;i<r.length;j=i++){ var xi=r[i][0],yi=r[i][1],xj=r[j][0],yj=r[j][1]; if(((yi>p[1])!==(yj>p[1]))&&(p[0]<(xj-xi)*(p[1]-yi)/(yj-yi)+xi)) d=!d; } }); return d; }
+    function pontosCaixa(cx,cy,w,h){ var o=[]; for(var a=0;a<=4;a++) for(var b=0;b<=2;b++) o.push([cx-w/2+w*a/4, cy-h/2+h*b/2]); return o; }
+    (o.rotulos||[]).forEach(function(r){ if(!r||r.lon==null) return; var q=PX(r.lon,r.lat), ls=r.linhas||[], lh=(r.tam||12)+3, anc=null;
+      if(r.polys && r.polys.length){
+        var sz=r.tam||12, w=Math.max.apply(null, ls.map(function(t){ return String(t).length; }))*sz*0.62+8, h=ls.length*lh+6;
+        var PP=r.polys.map(function(g){ return g.map(function(p){ return PX(p[0],p[1]); }); }), EV=(r.evitar||r.polys).map(function(g){ return g.map(function(p){ return PX(p[0],p[1]); }); });
+        var cabe=pontosCaixa(q[0],q[1],w,h).every(function(p){ return pipPx(p,PP); });
+        if(!cabe){
+          var livre=function(cx,cy){ return cx-w/2>mapL+6 && cx+w/2<mapR-6 && cy-h/2>mapT+6 && cy+h/2<mapB-6 && !pontosCaixa(cx,cy,w,h).some(function(p){ return pipPx(p,EV); }); };
+          var achou=null;
+          for(var rd=Math.max(w,h)*0.5+20; rd<=420 && !achou; rd+=14){ for(var k=0;k<24 && !achou;k++){ var ang=-Math.PI/2+k*Math.PI/12, cx=q[0]+Math.cos(ang)*rd, cy=q[1]+Math.sin(ang)*rd; if(livre(cx,cy)) achou=[cx,cy]; } }
+          if(achou){ anc=q; q=achou; }
+        }
+      }
+      if(!anc && (q[0]<mapL+40||q[0]>mapR-40||q[1]<mapT+16||q[1]>mapB-16)) return;
+      if(anc){   // linha de chamada da borda da caixa até o pedaço
+        var hw=w/2, hh=h/2, dx=anc[0]-q[0], dy=anc[1]-q[1], t0=Math.min(dx?hw/Math.abs(dx):Infinity, dy?hh/Math.abs(dy):Infinity), bx=q[0]+dx*Math.min(1,t0), by=q[1]+dy*Math.min(1,t0);
+        s+='<line x1="'+bx.toFixed(1)+'" y1="'+by.toFixed(1)+'" x2="'+anc[0].toFixed(1)+'" y2="'+anc[1].toFixed(1)+'" stroke="#ffffff" stroke-width="3.4" stroke-linecap="round"/>';
+        s+='<line x1="'+bx.toFixed(1)+'" y1="'+by.toFixed(1)+'" x2="'+anc[0].toFixed(1)+'" y2="'+anc[1].toFixed(1)+'" stroke="#111111" stroke-width="1.4" stroke-linecap="round"/>';
+        s+='<circle cx="'+anc[0].toFixed(1)+'" cy="'+anc[1].toFixed(1)+'" r="3.2" fill="#ffffff" stroke="#111111" stroke-width="1.2"/>';
+      }
       ls.forEach(function(t,i){ s+=TH(q[0],q[1]+(i-(ls.length-1)/2)*lh+4,t,{size:r.tam||12,weight:'700',fill:r.cor||'#ffffff',halo:3.2}); }); });
     // texto das estacas ao longo do eixo ferroviário: BRANCO com halo escuro, na escala do mapa, um pouco ao lado do eixo (a linha continua visível)
     var EST=d2estacasEscala(o.estacas||[], mapW/Math.max(1,(e1-e0)));
@@ -55296,7 +55317,9 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     if(!a){ var sx=0, sy=0; path.forEach(function(p){ sx+=p.X; sy+=p.Y; }); return {X:sx/path.length, Y:sy/path.length}; }
     return {X:cx/(3*a), Y:cy/(3*a)}; }
   // área total MENOS a faixa de domínio, separada em norte e sul do eixo
-  function m2remanescentes(areaPolys, fx){
+  /* 29/10/2026 (Fernando, CTD 006Y/006Z): com as parcelas SIGEF (sigPolys), o lado cuja área fica quase toda fora delas
+     (<50% certificada) é POSSE: entra no mapa e no total do imóvel, mas não compõe a parcela certificada (lado.posse) */
+  function m2remanescentes(areaPolys, fx, sigPolys){
     var z=d2zonaDe(areaPolys[0][0][0]), faixa=m2faixaPoligonos(fx||{}, z);
     if(!faixa.length) return null;
     var eixosU=(fx.eixos||[]).map(function(l){ return m2U(l,z); });
@@ -55304,9 +55327,13 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     // em relação ao centro da faixa INTEIRA do SPS, e nos CTD 006W–Z tudo caía no sul (norte pintado como sul)
     var refU=eixosU.length?eixosU:(fx.limites||[]).map(function(l){ return m2U(l,z); });
     var pecas=m2exec(ClipperLib.ClipType.ctDifference, areaPolys.map(function(r){ return m2U(r,z); }), faixa);
-    var lados={ norte:{ha:0,polys:[],maior:null}, sul:{ha:0,polys:[],maior:null} };
-    pecas.forEach(function(ex){ var ha=m2haEx(ex); if(ha<0.0001) return; var c=m2centro(ex.outer), L=m2lado(c,refU)>0?lados.norte:lados.sul;
+    var lados={ norte:{ha:0,cert:0,polys:[],maior:null}, sul:{ha:0,cert:0,polys:[],maior:null} };
+    var SU=(sigPolys||[]).filter(function(r){ return r && r.length>2; }).map(function(r){ var p=m2U(r,z); return ClipperLib.Clipper.Orientation(p)?p:p.reverse(); });
+    // menos de 10 m²: encontro de limites (ex.: 006Y, parcela SIGEF passa 3 m² da faixa); o menor norte real (006Z) tem ~1.500 m²
+    pecas.forEach(function(ex){ var ha=m2haEx(ex); if(ha<0.001) return; var c=m2centro(ex.outer), L=m2lado(c,refU)>0?lados.norte:lados.sul;
+      if(SU.length) m2exec(ClipperLib.ClipType.ctIntersection, [ex.outer].concat(ex.holes||[]), SU).forEach(function(e){ L.cert+=m2haEx(e); });
       L.ha+=ha; L.polys.push(m2LL(ex.outer,z)); if(!L.maior||ha>L.maior.ha) L.maior={ha:ha, c:d2utmInv(c.X/100,c.Y/100,z,true)}; });
+    [lados.norte, lados.sul].forEach(function(L){ L.posse=!!(SU.length && L.polys.length && L.cert<L.ha*0.5); });
     return lados;
   }
   /* 23/10/2026: as remanescentes medidas no KML (UTM) diferem uns m² da área informada (SIGEF mede no sistema geodésico
@@ -55332,6 +55359,13 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     var alvo=m2remAlvo(), soma=rem.norte.ha+rem.sul.ha;
     if(!(alvo>0) || !(soma>0) || (!m2ehRem() && Math.abs(alvo-soma)/alvo>0.005)) return;
     var a4=Math.round(alvo*1e4)/1e4;
+    // posse: fica a medida do desenho (não é a parcela certificada); a remanescente da planta vai toda para o lado certificado
+    if(rem.norte.posse || rem.sul.posse){
+      [rem.norte, rem.sul].forEach(function(L){ if(L.posse) L.ha=Math.round(L.ha*1e4)/1e4; });
+      if(rem.norte.posse && !rem.sul.posse && rem.sul.polys.length) rem.sul.ha=a4;
+      if(rem.sul.posse && !rem.norte.posse && rem.norte.polys.length) rem.norte.ha=a4;
+      return;
+    }
     if(!rem.sul.polys.length){ rem.norte.ha=a4; return; }
     if(!rem.norte.polys.length){ rem.sul.ha=a4; return; }
     var n4=Math.round(rem.norte.ha*alvo/soma*1e4)/1e4;
@@ -55443,7 +55477,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       areaLabel:'', desapLabel:'', kmEnt:'000 + 000,00', kmSai:'000 + 000,00', base:((document.getElementById('d2m2_base')||{}).value==='sat'?'sat':'orto'), transp:25, locLado:'auto', solos:'' };
     if(aj.base==='sat'||aj.base==='orto') T.base=aj.base; if(aj.transp!=null && isFinite(aj.transp)) T.transp=+aj.transp; if(aj.locLado) T.locLado=aj.locLado;
     var need={}; sp.need.forEach(function(c){ need[c]=true; });
-    var valores={};
+    var valores={}, voltaP=null;
     var volta=m2est(Object.assign({ hidro:{ nome:'Curso hídrico identificado' } }, sp.car ? { car:{ nome:'Imóvel no CAR (SICAR)', op:.16, cor:'#ffd24a', peso:2.4, dash:'' }, appcar:{ nome:'APP (CAR)', cor:'#0b5a1c', op:.45 }, rl:{ nome:'Reserva Legal (CAR)' } } : {}));
     try{
       // Imagem 4: o CAR (arquivo carregado na aba ou base estadual) é buscado ANTES de enquadrar, para o quadro pegar o perímetro inteiro do CAR
@@ -55484,13 +55518,18 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
         if(sp.rem){
           if(!area.length){ c.falhou.push('áreas remanescentes (sem o KML da área total)'); return; }
           var fx=c.geom.faixa; if(!fx){ try{ fx=await d2fetchFixo(c.bb); }catch(e){} }
-          var rem=fx?m2remanescentes(area, fx):null;
+          var sigR=null; if(fx){ try{ sigR=await d2sigefBuscar(c.bb, area, st); }catch(e){} }   // INCRA; sem ele, o arquivo de parcelas do Formulário
+          var rem=fx?m2remanescentes(area, fx, sigR&&sigR.polys):null;
           if(!rem){ c.falhou.push('áreas remanescentes (faixa de domínio não encontrada)'); return; }
           var fmt=function(v){ return v.toLocaleString('pt-BR',{minimumFractionDigits:4,maximumFractionDigits:4}); };
           m2ajustarRem(rem);
-          if(rem.norte.polys.length){ c.geom.remN={polys:rem.norte.polys,lines:[],pts:[]}; c.rotulos.push({ lon:rem.norte.maior.c[0], lat:rem.norte.maior.c[1], linhas:['REMAN. NORTE','ÁREA = '+fmt(rem.norte.ha)+' ha'] }); }
-          if(rem.sul.polys.length){ c.geom.remS={polys:rem.sul.polys,lines:[],pts:[]}; c.rotulos.push({ lon:rem.sul.maior.c[0], lat:rem.sul.maior.c[1], linhas:['REMAN. SUL','ÁREA = '+fmt(rem.sul.ha)+' ha'] }); }
-          valores.remNorte=rem.norte.ha; valores.remSul=rem.sul.ha;
+          var rotRem=function(L, nome){ return L.posse ? [nome+' — POSSE','NÃO CERTIFICADA NO SIGEF','ÁREA = '+fmt(L.ha)+' ha'] : [nome,'ÁREA = '+fmt(L.ha)+' ha']; };
+          var remTodos=rem.norte.polys.concat(rem.sul.polys);   // o rótulo que sai do pedaço não cobre nenhuma das remanescentes
+          if(rem.norte.polys.length){ c.geom.remN={polys:rem.norte.polys,lines:[],pts:[]}; c.rotulos.push({ lon:rem.norte.maior.c[0], lat:rem.norte.maior.c[1], linhas:rotRem(rem.norte,'REMAN. NORTE'), polys:rem.norte.polys, evitar:remTodos }); }
+          if(rem.sul.polys.length){ c.geom.remS={polys:rem.sul.polys,lines:[],pts:[]}; c.rotulos.push({ lon:rem.sul.maior.c[0], lat:rem.sul.maior.c[1], linhas:rotRem(rem.sul,'REMAN. SUL'), polys:rem.sul.polys, evitar:remTodos }); }
+          var nomesP={}; if(rem.norte.posse) nomesP.remN={ nome:'Área remanescente norte — posse (não certificada no SIGEF)' }; if(rem.sul.posse) nomesP.remS={ nome:'Área remanescente sul — posse (não certificada no SIGEF)' };
+          if(nomesP.remN || nomesP.remS) voltaP=m2est(nomesP);   // legenda (montada depois deste extra); desfeito no fim
+          valores.remNorte=rem.norte.ha; valores.remSul=rem.sul.ha; valores.remPosse=(rem.norte.posse?'N':'')+(rem.sul.posse?'S':'');
         }
         if(sp.acessos){
           var vias=d2mapKML(d2mapFonteKML('vias')), ls=vias.lines.concat(vias.polys);
@@ -55523,7 +55562,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       var res={ ok:true, falhou:r.falhou, valores:valores };
       try{ if(window.D2M2_guardarValores) window.D2M2_guardarValores(id, res); if(window.CAD_marcarSujo) window.CAD_marcarSujo(); }catch(e){}
       return res;
-    } finally { if(volta2) volta2(); volta(); }
+    } finally { if(volta2) volta2(); if(voltaP) voltaP(); volta(); }
   };
   window.D2_m2Fig=function(id){ return figs[id]||null; };
   window.D2_m2Usar=function(id, png){ aplicarFig(id, png, id+'.png'); try{ if(window.CAD_marcarSujo) window.CAD_marcarSujo(); }catch(e){} };
@@ -62903,6 +62942,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     var x = r && r.valores || {};
     if(x.remNorte != null) setv("d2m2_v_remN", x.remNorte.toFixed(4));
     if(x.remSul != null) setv("d2m2_v_remS", x.remSul.toFixed(4));
+    if(x.remPosse != null) setv("d2m2_v_remPosse", x.remPosse);   // "N", "S", "NS" ou "": lado de posse, fora das parcelas SIGEF
     if(x.car) setv("d2m2_v_car", JSON.stringify(x.car));
     if(x.sobrep) setv("d2m2_v_sobrep", JSON.stringify(x.sobrep));
     sujo();
@@ -63035,11 +63075,22 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
       "**Para fins de caracterização do imóvel remanescente**, a **área total considerada** corresponde à soma das áreas das **Glebas A e B**, conforme suas respectivas delimitações e certificações. A faixa ferroviária é identificada separadamente, em razão de sua vinculação à intervenção que ocasionou o seccionamento territorial da propriedade."
     ].join("\n");
     var n = v("d2m2_v_remN"), s = v("d2m2_v_remS");
-    return [
-      "Após a passagem da ferrovia o imóvel restará com área remanescente a norte e a sul da faixa de domínio projetada, com a seguinte disposição:",
-      "A área do imóvel, o qual foi interceptado, ficará com uma área remanescente a norte de " + (n ? haTxt(+n) : "[gere o mapa das áreas remanescentes]") + " e uma área remanescente a sul de " + (s ? haTxt(+s) : "[gere o mapa das áreas remanescentes]") + ", conforme demonstrado na imagem " + nImg("m2_1") + ".",
+    // 29/10/2026 (CTD 006Y): remanescente só de um lado da faixa — não escreve "a norte de 0,0000 ha"
+    var so = (n && s) ? (!(+n > 0) && +s > 0 ? ["sul", s] : (!(+s > 0) && +n > 0 ? ["norte", n] : null)) : null;
+    if(so) return [
+      "Após a passagem da ferrovia o imóvel restará com área remanescente somente a " + so[0] + " da faixa de domínio projetada, com a seguinte disposição:",
+      "A área do imóvel, o qual foi interceptado, ficará com uma área remanescente a " + so[0] + " de " + haTxt(+so[1]) + ", conforme demonstrado na imagem " + nImg("m2_1") + ".",
       "Esclarecendo que essas medidas das áreas remanescentes expostas neste trabalho foram extraídas utilizando os dados de documentos obtidos, e a vetorização de dados metadados disponíveis em plataformas governamentais como SICAR e SIGEF, comparadas às feições do terreno visualizadas em imagens de satélite."
     ].join("\n");
+    // 29/10/2026 (CTD 006Y/006Z): lado de posse (fora das parcelas SIGEF) aparece, com a ressalva de que não compõe a parcela certificada
+    var ps = v("d2m2_v_remPosse") || "", lp = [ps.indexOf("N") >= 0 ? "norte" : "", ps.indexOf("S") >= 0 ? "sul" : ""].filter(Boolean);
+    var posse = !lp.length ? [] : [(lp.length > 1 ? "As áreas remanescentes a norte e a sul não estão certificadas" : "A área remanescente a " + lp[0] + " não está certificada") + " no SIGEF e não " + (lp.length > 1 ? "compõem" : "compõe") + " a parcela certificada; trata-se de área de posse, que integra a área total do imóvel."];
+    return [
+      "Após a passagem da ferrovia o imóvel restará com área remanescente a norte e a sul da faixa de domínio projetada, com a seguinte disposição:",
+      "A área do imóvel, o qual foi interceptado, ficará com uma área remanescente a norte de " + (n ? haTxt(+n) : "[gere o mapa das áreas remanescentes]") + (lp.indexOf("norte") >= 0 ? " (posse)" : "") + " e uma área remanescente a sul de " + (s ? haTxt(+s) : "[gere o mapa das áreas remanescentes]") + (lp.indexOf("sul") >= 0 ? " (posse)" : "") + ", conforme demonstrado na imagem " + nImg("m2_1") + "."
+    ].concat(posse, [
+      "Esclarecendo que essas medidas das áreas remanescentes expostas neste trabalho foram extraídas utilizando os dados de documentos obtidos, e a vetorização de dados metadados disponíveis em plataformas governamentais como SICAR e SIGEF, comparadas às feições do terreno visualizadas em imagens de satélite."
+    ]).join("\n");
   }
   function txtPl(){
     var ns = PLS.filter(function(id){ return noRel(id); }).map(nImg), a = campo("areaDesap"), km = campo("km");
@@ -63657,7 +63708,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     novaImg(id);
   };
   window.D2M2_irArt = function(){ var b = document.querySelector('.sb-link[data-alvo="panel-anx11"]'); if(b && window.trocarAba){ window.trocarAba(b); return; } var pn = $("panel-anx11"); if(pn) pn.scrollIntoView(); };
-  var MAPVER = "10";   // sobe quando muda o desenho/enquadramento dos mapas: os já salvos no cadastro são refeitos uma vez
+  var MAPVER = "12";   // sobe quando muda o desenho/enquadramento dos mapas: os já salvos no cadastro são refeitos uma vez
   /* 25/10/2026 (independência do modelo original): na 1ª abertura, o que estava editado à mão na DESP-2 para Apresentação,
      Metodologia e Conclusão vira texto próprio do Modelo 02 (o PDF continua igual); depois disso nada mais vem da DESP-2. */
   function desacoplar(){
@@ -65997,7 +66048,7 @@ body.ativ-cadastro:not(.modo-painel):has(.app-shell.recolhida) .cad-selo.tem{ di
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.29-5';
+window.APP_VERSAO = '2026.10.29-6';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.28-8';
 (function(){
