@@ -38065,12 +38065,15 @@ function AV_gerarDescSituacao(){
      total da Técnica 1.4) − sobreposição das glebas SIGEF com a área desapropriada (Modelo 02, d2m2_v_sobrep): a faixa que
      a certificação invade não é remanescente. Área total da parcela/lote = remanescente + área a desapropriar (Técnica 1.4;
      sem ela, a dos KML). Os valores digitados antes (regra antiga: remanescente = certificada) saem uma vez (areas_v2). */
+  /* 29/10/2026: + áreas vazias do mesmo mapa (d2m2_v_sobrep.vazio): área total do imóvel sem SIGEF e fora da desapropriada
+     (frestas nas bordas; nos 006Y/Z, também a posse ao norte). Fecha: remanescente + desapropriada = área total do KML. */
   function sobrepSigefHa(){ try{ var s = JSON.parse(gv("d2m2_v_sobrep") || "null"); return (s && s.ha > 0) ? s.ha : 0; }catch(e){ return 0; } }
+  function vazioSigefHa(){ try{ var s = JSON.parse(gv("d2m2_v_sobrep") || "null"); return (s && s.vazio > 0) ? s.vazio : 0; }catch(e){ return 0; } }
   function areasParcela006(c){
     var base = numBr(gv("fb_area_ocupada")); if(!(base > 0)) base = numBr(c.areaTotal);
     if(!(base > 0)) return { rem:"", parc:"" };
     var des = numBr(c.areaDesap); if(!(des > 0)) des = totalDesapHa();
-    var rem = Math.round((base - sobrepSigefHa())*1e4)/1e4;
+    var rem = Math.round((base - sobrepSigefHa() + vazioSigefHa())*1e4)/1e4;
     return { rem:br(rem, 4) + " ha", parc:br(Math.round((rem + des)*1e4)/1e4, 4) + " ha" };
   }
   function migrarAreas006(){
@@ -39208,7 +39211,7 @@ function AV_gerarDescSituacao(){
       carCel("area_total_desap", "Área total a desapropriar", au.area_total_desap, "somada do(s) KML da área desapropriada");
     if(mod === "sps04_006"){
       migrarAreas006(); ex = extras();
-      h += carCel("area_parcela", "Área total da propriedade (parcela/lote)", au.parcela_006, "remanescente + área a desapropriar") + carCel("area_remanescente", "Área remanescente (parcela/lote)", au.rem_006, "área ocupada − sobreposição SIGEF (Modelo 02)");
+      h += carCel("area_parcela", "Área total da propriedade (parcela/lote)", au.parcela_006, "remanescente + área a desapropriar") + carCel("area_remanescente", "Área remanescente (parcela/lote)", au.rem_006, "área ocupada − sobreposição SIGEF + áreas vazias (Modelo 02)");
     } else {
       h += carCel("area_rem_desap", "Área remanescente a desapropriar", "0,0000 ha", "descreva se houver") + carCel("area_remanescente", "Área remanescente da propriedade", au.area_remanescente, "área total − área a desapropriar");
     }
@@ -40170,7 +40173,7 @@ function AV_gerarDescSituacao(){
     if(G && !(ex0.area_total_prop) && !au.area_total_prop) h += aviso("A área total do imóvel não está preenchida na Técnica (1.4 Propriedade): o carimbo sai sem ela e sem a área remanescente.");
     if(mod === "sps04_006"){
       h += inputEx("area_parcela", "Área total da propriedade (parcela/lote)", ph(au.parcela_006, "remanescente + área a desapropriar"));
-      h += inputEx("area_remanescente", "Área remanescente da propriedade (parcela/lote)", ph(au.rem_006, "área ocupada − sobreposição SIGEF (Modelo 02)"));
+      h += inputEx("area_remanescente", "Área remanescente da propriedade (parcela/lote)", ph(au.rem_006, "área ocupada − sobreposição SIGEF + áreas vazias (Modelo 02)"));
     } else {
       h += inputEx("area_rem_desap", "Área remanescente a desapropriar", "automático: 0,0000 ha — descreva se houver");
       h += inputEx("area_remanescente", "Área remanescente da propriedade", ph(au.area_remanescente, "área total − área a desapropriar"));
@@ -54274,6 +54277,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     benf:  { nome:'Benfeitorias',                tipo:'pt',   cor:'#ffffff', peso:1.4 },
     sigef: { nome:'Parcela SIGEF (intercepta)',  tipo:'fill', cor:'#e879f9', op:.14, peso:1.4 },
     sobrep:{ nome:'Sobreposição SIGEF × área desapropriada', tipo:'fill', cor:'#ffd400', op:.5, peso:2.4 },   // modelo 02, 2º mapa do SIGEF (amarelo: destaca do vermelho da área desapropriada)
+    vazio: { nome:'Área vazia (sem SIGEF)', tipo:'fill', cor:'#00e5ff', op:.55, peso:2.4 },   // modelo 02, 2º mapa do SIGEF (ciano: frestas nas bordas)
     car:   { nome:'Feição CAR (intercepta)',     tipo:'fill', cor:'#ffd24a', op:.14, peso:1.3, dash:'5 3' },
     drenagem:{nome:'Linha de drenagem (ANADEM)', tipo:'line', cor:'#37a9ff', peso:2.4, sombra:true },
     curvas:{ nome:'Curvas de nível (5 m)',       tipo:'line', cor:'#000000', peso:.9 },
@@ -55279,7 +55283,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       // metros de cerca dentro da área desapropriada
       var metrosCerca=null;
       if(geom.cercas){ var dpz=d2mapKML(d2mapFonteKML('desap')); if(dpz.polys.length) metrosCerca=d2metrosDentro(geom.cercas.lines.concat(geom.cercas.polys), dpz.polys); }
-      var ORDER=['hipso','decliv','curvas','sigef','car','rl','appcar','appest','culturas','remN','remS','drenagem','hidro','faixa','area','remanescente','vias','acExt','acInt','rota','desap','sobrep','cercas','benf','benfr','benfnr','sede'];
+      var ORDER=['hipso','decliv','curvas','sigef','car','rl','appcar','appest','culturas','remN','remS','drenagem','hidro','faixa','area','remanescente','vias','acExt','acInt','rota','desap','sobrep','vazio','cercas','benf','benfr','benfnr','sede'];
       var camadas=[], legend=[];
       var _volta=d2estTrocar(fid);                              // figura extra: estilo só dela (legenda)
       try{
@@ -55404,8 +55408,9 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
   function m2remAlvo(){
     if(m2ehRem()){
       var base=num(gid("fb_area_ocupada")); if(!(base>0)) base=num(gid("fb_area_total")||C("areaTotal"));
-      var sob=0; try{ var s=JSON.parse(gid("d2m2_v_sobrep")||"null"); if(s && s.ha>0) sob=+s.ha; }catch(e){}
-      return base>0 ? base-sob : NaN;
+      // + áreas vazias (29/10/2026): o que da área total não é SIGEF nem desapropriada também é remanescente
+      var sob=0, vaz=0; try{ var s=JSON.parse(gid("d2m2_v_sobrep")||"null"); if(s && s.ha>0) sob=+s.ha; if(s && s.vazio>0) vaz=+s.vazio; }catch(e){}
+      return base>0 ? base-sob+vaz : NaN;
     }
     var r=num(C("areaRem")); if(r>0) return r;
     var t=num(gid("fb_area_total")||C("areaTotal")), d=num(gid("fb_area_desap")||C("areaDesap"));
@@ -55415,11 +55420,13 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     var alvo=m2remAlvo(), soma=rem.norte.ha+rem.sul.ha;
     if(!(alvo>0) || !(soma>0) || (!m2ehRem() && Math.abs(alvo-soma)/alvo>0.005)) return;
     var a4=Math.round(alvo*1e4)/1e4;
-    // posse: fica a medida do desenho (não é a parcela certificada); a remanescente da planta vai toda para o lado certificado
+    // posse: fica a medida do desenho (não é a parcela certificada); o lado certificado leva a remanescente da planta,
+    // menos a posse quando a planta já a conta (a posse é área vazia: sem SIGEF e fora da desapropriada)
     if(rem.norte.posse || rem.sul.posse){
+      var vazC=false; try{ var sv=JSON.parse(gid("d2m2_v_sobrep")||"null"); vazC=!!(m2ehRem() && sv && sv.vazio>0); }catch(e){}
       [rem.norte, rem.sul].forEach(function(L){ if(L.posse) L.ha=Math.round(L.ha*1e4)/1e4; });
-      if(rem.norte.posse && !rem.sul.posse && rem.sul.polys.length) rem.sul.ha=a4;
-      if(rem.sul.posse && !rem.norte.posse && rem.norte.polys.length) rem.norte.ha=a4;
+      if(rem.norte.posse && !rem.sul.posse && rem.sul.polys.length) rem.sul.ha=Math.round((a4-(vazC?rem.norte.ha:0))*1e4)/1e4;
+      if(rem.sul.posse && !rem.norte.posse && rem.norte.polys.length) rem.norte.ha=Math.round((a4-(vazC?rem.sul.ha:0))*1e4)/1e4;
       return;
     }
     if(!rem.sul.polys.length){ rem.norte.ha=a4; return; }
@@ -55502,6 +55509,29 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
         var c=m2centro(ex.outer); out.push({ outer:m2LL(ex.outer,z), holes:(ex.holes||[]).map(function(h){ return m2LL(h,z); }), ha:ha, c:d2utmInv(c.X/100,c.Y/100,z,true) }); }); });
     return out;
   }
+  /* 29/10/2026 (Fernando): áreas VAZIAS = área total do imóvel que não está em parcela SIGEF nem na área desapropriada
+     (as frestas entre a certificação e a desapropriada, nas bordas desta). Integram a remanescente: área total − desapropriada
+     = SIGEF − sobreposição + vazias. Mesmo formato de m2sobreposicoes; o ponto do rótulo fica DENTRO da peça (fresta fina). */
+  function m2vazios(sigPolys, desap, area){
+    var z=d2zonaDe(desap[0][0][0]), ori=function(p){ return ClipperLib.Clipper.Orientation(p)?p:p.slice().reverse(); };
+    var SD=sigPolys.filter(function(r){ return r && r.length>2; }).concat(desap).map(function(r){ return ori(m2U(r,z)); });
+    var out=[];
+    m2exec(ClipperLib.ClipType.ctDifference, area.map(function(r){ return ori(m2U(r,z)); }), SD).forEach(function(ex){ var ha=m2haEx(ex); if(ha<0.0001) return;
+      var p=m2ptDentro(ex.outer); out.push({ outer:m2LL(ex.outer,z), holes:(ex.holes||[]).map(function(h){ return m2LL(h,z); }), ha:ha, c:d2utmInv(p.X/100,p.Y/100,z,true) }); });
+    return out.sort(function(a,b){ return b.ha-a.ha; });
+  }
+  // ponto dentro do anel (UTM cm): o centroide, ou o meio do trecho mais largo de uma horizontal que corta a peça
+  function m2ptDentro(path){
+    var c=m2centro(path), ll=path.map(function(q){ return [q.X,q.Y]; });
+    if(m2pip([c.X,c.Y],[ll])) return c;
+    var y0=Infinity, y1=-Infinity; path.forEach(function(q){ y0=Math.min(y0,q.Y); y1=Math.max(y1,q.Y); });
+    var best=null;
+    for(var k=1;k<20;k++){ var y=y0+(y1-y0)*k/20, xs=[];
+      for(var i=0,j=path.length-1;i<path.length;j=i++){ var a=path[j], b=path[i]; if((a.Y>y)!==(b.Y>y)) xs.push(a.X+(b.X-a.X)*(y-a.Y)/(b.Y-a.Y)); }
+      xs.sort(function(p,q){ return p-q; });
+      for(var t=0;t+1<xs.length;t+=2){ var w=xs[t+1]-xs[t]; if(!best || w>best.w) best={ w:w, X:(xs[t]+xs[t+1])/2, Y:y }; } }
+    return best ? {X:best.X, Y:best.Y} : c;
+  }
   /* gera um mapa do modelo 02 e grava em figs[id] (vai no cadastro com as figuras da DESP 2).
      Devolve { ok, falhou:[...], valores:{ remNorte, remSul, altMin, altMax, car:{cad, cod, fonte, haApp, haRl, haImovel} } } */
   /* 26/10/2026: planta de situação (a Figura 3B da DESP-2) no Modelo 02: o quadro do mapa da Planta de Situação da Mesa (MDP), uma imagem por
@@ -55550,17 +55580,19 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
         if(!dsp0.length) return { ok:false, falhou:['sobreposição SIGEF (sem o KML da área desapropriada)'] };
         sigPre=await d2sigefBuscar(d2bboxDe([{polys:ref0,lines:[]}], 0.3), ref0, st);
         sobPre=sigPre.polys.length ? m2sobreposicoes(sigPre.polys, dsp0) : [];
-        var totS=sobPre.reduce(function(s,x){ return s+x.ha; }, 0);
-        var vs={ n:sobPre.length, ha:+totS.toFixed(4), itens:sobPre.map(function(x){ return +x.ha.toFixed(4); }), fonte:sigPre.fonte, erro:sigPre.erro||'' };
+        var vazPre=(sigPre.polys.length && ref0!==dsp0) ? m2vazios(sigPre.polys, dsp0, ref0) : [];   // vazias: só com SIGEF e com o KML da área total
+        var totS=sobPre.reduce(function(s,x){ return s+x.ha; }, 0), totV=vazPre.reduce(function(s,x){ return s+x.ha; }, 0);
+        var vs={ n:sobPre.length, ha:+totS.toFixed(4), itens:sobPre.map(function(x){ return +x.ha.toFixed(4); }), vazio:+totV.toFixed(4), vazioItens:vazPre.map(function(x){ return +x.ha.toFixed(4); }), fonte:sigPre.fonte, erro:sigPre.erro||'' };
         if(!sigPre.polys.length){ var semSig={ ok:false, falhou:[sigPre.erro?'SIGEF ('+sigPre.erro+'; sem arquivo de parcelas no Formulário)':'SIGEF (nenhuma parcela certificada no imóvel)'], valores:{ sobrep:{ n:0, ha:0, itens:[], fonte:'', erro:sigPre.erro||'', semSigef:true } } };
           window.D2_m2Limpar(id); try{ if(window.D2M2_guardarValores) window.D2M2_guardarValores(id, semSig); }catch(e){} return semSig; }
-        if(!sobPre.length){ var semSob={ ok:false, semSobreposicao:true, falhou:['a área desapropriada não sobrepõe parcela SIGEF'], valores:{ sobrep:vs } };
+        if(!sobPre.length && !vazPre.length){ var semSob={ ok:false, semSobreposicao:true, falhou:['a área desapropriada não sobrepõe parcela SIGEF'], valores:{ sobrep:vs } };
           window.D2_m2Limpar(id); try{ if(window.D2M2_guardarValores) window.D2M2_guardarValores(id, semSob); }catch(e){} return semSob; }
         valores.sobrep=vs;
         var fmt4=function(v){ return v.toLocaleString('pt-BR',{minimumFractionDigits:4,maximumFractionDigits:4}); };
-        var volta2=m2est({ sobrep:{ nome:'Sobreposição SIGEF × área desapropriada'+(sobPre.length>1?' — total '+fmt4(totS)+' ha':' — '+fmt4(totS)+' ha') } });
+        var volta2=m2est({ sobrep:{ nome:'Sobreposição SIGEF × área desapropriada'+(sobPre.length>1?' — total '+fmt4(totS)+' ha':' — '+fmt4(totS)+' ha') },
+          vazio:{ nome:'Área vazia (sem SIGEF) — '+fmt4(totV)+' ha' } });   // curto: a legenda corta nomes longos
       }
-      var r=await d2mapGerar({ fid:id, regra:{}, rot:false, need:need, foco:'area', txt:T, st:st, enq:aj.enq||null, focoExtra:(!sp.focoArea && carPre && carPre.imovel) || null, focoSo:sobPre ? sobPre.map(function(x){ return x.outer; }) : null, extra:async function(c){
+      var r=await d2mapGerar({ fid:id, regra:{}, rot:false, need:need, foco:'area', txt:T, st:st, enq:aj.enq||null, focoExtra:(!sp.focoArea && carPre && carPre.imovel) || null, focoSo:sobPre ? sobPre.concat(vazPre).map(function(x){ return x.outer; }) : null, extra:async function(c){
         var area=c.geom.area?c.geom.area.polys:d2mapKML(d2mapFonteKML('area')).polys;
         if(sobPre){
           c.geom.sigef={ polys:sigPre.polys, lines:[], pts:[] };
@@ -55568,7 +55600,15 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
           c.geom.sobrep={ polys:aneisS, lines:[], pts:[], evenodd:true };
           var fmtA=function(v){ return v.toLocaleString('pt-BR',{minimumFractionDigits:4,maximumFractionDigits:4}); };
           sobPre.forEach(function(x, i){ c.rotulos.push({ lon:x.c[0], lat:x.c[1], linhas:[sobPre.length>1?'SOBREPOSIÇÃO '+(i+1):'SOBREPOSIÇÃO', 'ÁREA = '+fmtA(x.ha)+' ha'] }); });
-          if(sobPre.length>1){ var tot=sobPre.reduce(function(s,x){ return s+x.ha; }, 0); c.rotulos.push({ lon:(c.bb.w+(c.bb.e-c.bb.w)*0.5), lat:(c.bb.n-(c.bb.n-c.bb.s)*0.06), linhas:['TOTAL SOBREPOSTO = '+fmtA(tot)+' ha'], tam:13 }); }
+          if(vazPre.length){
+            var aneisV=[]; vazPre.forEach(function(x){ aneisV.push(x.outer); x.holes.forEach(function(h){ aneisV.push(h); }); });
+            c.geom.vazio={ polys:aneisV, lines:[], pts:[], evenodd:true };
+            // rótulo das peças de 10 m² ou mais (as menores ficam só no total); fresta fina: o rótulo sai com chamada
+            var vazRot=vazPre.filter(function(x){ return x.ha>=0.001; }), todasV=vazPre.map(function(x){ return x.outer; });
+            vazRot.forEach(function(x, i){ c.rotulos.push({ lon:x.c[0], lat:x.c[1], linhas:[vazRot.length>1?'ÁREA VAZIA '+(i+1):'ÁREA VAZIA', 'SEM SIGEF', 'ÁREA = '+fmtA(x.ha)+' ha'], polys:[x.outer], evitar:todasV }); });
+          }
+          var linT=[]; if(sobPre.length>1) linT.push('TOTAL SOBREPOSTO = '+fmtA(totS)+' ha'); if(vazPre.length>1) linT.push('TOTAL VAZIO (SEM SIGEF) = '+fmtA(totV)+' ha');
+          if(linT.length) c.rotulos.push({ lon:(c.bb.w+(c.bb.e-c.bb.w)*0.5), lat:(c.bb.n-(c.bb.n-c.bb.s)*0.06), linhas:linT, tam:13 });
           if(sigPre.fonte==='arquivo') c.falhou.push('SIGEF do INCRA ('+(sigPre.erro||'sem parcelas')+' — usadas as parcelas do arquivo carregado)');
         }
         if(sp.rem){
@@ -62974,7 +63014,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
 
   var MAPAS = [
     ["m2_sig", "Imagem 1 – Parcelas SIGEF sobrepostas à área do imóvel", "parcelas SIGEF que se sobrepõem à área do imóvel, faixa de domínio e área desapropriada (sem a consulta ao INCRA: as parcelas do arquivo carregado no Formulário)"],
-    ["m2_sig2", "Imagem 2 – Sobreposição da área desapropriada com as parcelas SIGEF", "só quando a área desapropriada sobrepõe parcela SIGEF: enquadra as sobreposições, com a área de cada uma e o total; parcelas SIGEF, área desapropriada, faixa de domínio"],
+    ["m2_sig2", "Imagem 2 – Sobreposição da área desapropriada com as parcelas SIGEF", "só quando a área desapropriada sobrepõe parcela SIGEF ou há área vazia (sem SIGEF e fora da desapropriada): enquadra as sobreposições e as vazias, com a área de cada uma e os totais; parcelas SIGEF, área desapropriada, faixa de domínio"],
     ["m2_pl", "Imagem 2 – Planta de situação da área a ser desapropriada", "quadro da Planta de Situação (Técnica › Planta e Memorial Descritivo): área a desapropriar com vértices, eixo, estaqueamento, faixa de domínio, APP/RL e hidrografia sobre o satélite esmaecido; mesmo enquadramento, escala e camadas escolhidos na Mesa de Desenho"],
     ["m2_1", "Imagem 2 – Áreas remanescentes", "remanescentes norte e sul (com a área), faixa de domínio e eixo ferroviário"],
     ["m2_2", "Imagem 3 – Caracterização do imóvel", "curvas de nível, linha de drenagem, curso hídrico identificado, APP e Reserva Legal (CAR), sede, faixa"],
@@ -63224,7 +63264,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
 
 
   /* ---------- mapas ---------- */
-  // os mapas sempre entram (o SIGEF é o primeiro), menos o 2º do SIGEF quando a última conta não achou sobreposição
+  // os mapas sempre entram (o SIGEF é o primeiro), menos o 2º do SIGEF quando a última conta não achou sobreposição nem área vazia
   /* 25/10/2026: mapas automáticos editáveis e removíveis. #d2m2_mapas = { aj:{ id:{ enq, base, transp, locLado } }, fora:{ id:1 } }
      aj = ajuste feito em “✎ Editar mapa” (vale também ao regerar); fora = tirado do relatório (não sai no PDF nem é regerado). */
   function mapasCfg(){ try{ var o = JSON.parse(v("d2m2_mapas") || "{}") || {}; o.aj = o.aj || {}; o.fora = o.fora || {}; return o; }catch(e){ return { aj:{}, fora:{} }; } }
@@ -63232,7 +63272,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
   function fora(id){ return !!mapasCfg().fora[id]; }
   function ajMapa(id){ return mapasCfg().aj[id] || null; }
   function noRel(id){ return !fora(id) && !!(window.D2_m2Fig && window.D2_m2Fig(id)); }
-  function precisa(id){ if(fora(id)) return false; if(ePl(id) && id !== "m2_pl") return false; if(id === "m2_sig2"){ var s = valSobrep(); return !(s && s.n === 0); } return true; }
+  function precisa(id){ if(fora(id)) return false; if(ePl(id) && id !== "m2_pl") return false; if(id === "m2_sig2"){ var s = valSobrep(); return !(s && s.n === 0 && s.vazio != null && !(s.vazio > 0)); } return true; }   // conta antiga sem as vazias (s.vazio ausente): refaz uma vez
   var gerando = false, AVISO = {};   // AVISO[id] = o que ficou de fora do último mapa gerado (visível no quadro e no status)
   async function gerarMapa(id){
     if(ePl(id) && id !== "m2_pl") id = "m2_pl";   // as imagens 2…6 da planta nascem juntas, da 1ª
@@ -63498,7 +63538,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     var s = valSobrep();
     var msg = !s ? "Sobreposição com o SIGEF ainda não calculada — gere o mapa das parcelas SIGEF."
       : s.semSigef ? "Sem parcelas SIGEF (" + (s.erro ? "consulta ao INCRA indisponível e nenhum arquivo carregado no Formulário" : "nenhuma parcela certificada no imóvel") + "): o mapa da sobreposição não é gerado."
-      : "A área desapropriada não sobrepõe parcela SIGEF: o mapa da sobreposição não entra no relatório.";
+      : "A área desapropriada não sobrepõe parcela SIGEF e não há área vazia (sem SIGEF e fora da desapropriada): o mapa da sobreposição não entra no relatório.";
     return '<p class="dd-nota" data-m2map="m2_sig2">' + esc(msg) + ' ' + btn("gerar", "↻ Verificar de novo", "Refaz a conta da sobreposição", ' data-m2id="m2_sig2"') + '</p>';
   }
   // planta de situação: a 1ª sempre aparece (com o botão de gerar); as das outras áreas só quando existem
@@ -63764,7 +63804,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     novaImg(id);
   };
   window.D2M2_irArt = function(){ var b = document.querySelector('.sb-link[data-alvo="panel-anx11"]'); if(b && window.trocarAba){ window.trocarAba(b); return; } var pn = $("panel-anx11"); if(pn) pn.scrollIntoView(); };
-  var MAPVER = "12";   // sobe quando muda o desenho/enquadramento dos mapas: os já salvos no cadastro são refeitos uma vez
+  var MAPVER = "13";   // sobe quando muda o desenho/enquadramento dos mapas: os já salvos no cadastro são refeitos uma vez
   /* 25/10/2026 (independência do modelo original): na 1ª abertura, o que estava editado à mão na DESP-2 para Apresentação,
      Metodologia e Conclusão vira texto próprio do Modelo 02 (o PDF continua igual); depois disso nada mais vem da DESP-2. */
   function desacoplar(){
@@ -64148,8 +64188,14 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
   function txtSig(){
     var t = "A imagem " + nImg("m2_sig") + " apresenta as parcelas certificadas no SIGEF que se sobrepõem à área do imóvel, em contraste com a faixa de domínio e com a área a ser desapropriada.";
     var s = valSobrep();
-    if(s && s.n > 0 && window.D2_m2Fig && window.D2_m2Fig("m2_sig2")){
+    var temFig = window.D2_m2Fig && window.D2_m2Fig("m2_sig2");
+    if(s && s.n > 0 && temFig){
       t += " A imagem " + nImg("m2_sig2") + " detalha " + (s.n > 1 ? "as " + s.n + " áreas em que a área desapropriada se sobrepõe às parcelas certificadas, com **" + s.itens.map(haTxt).join("**, **").replace(/\*\*, \*\*([^*]+)$/, "** e **$1") + "**, totalizando **" + haTxt(s.ha) + "**." : "a área em que a área desapropriada se sobrepõe à parcela certificada, com **" + haTxt(s.ha) + "**.");
+    }
+    // 29/10/2026: áreas vazias (sem SIGEF e fora da desapropriada), no mesmo mapa
+    if(s && s.vazio > 0 && temFig){
+      var nv = (s.vazioItens || []).length;
+      t += (s.n > 0 ? " A mesma imagem indica " : " A imagem " + nImg("m2_sig2") + " indica ") + (nv > 1 ? "as " + nv + " áreas do imóvel não cobertas" : "a área do imóvel não coberta") + " pelas parcelas certificadas nem pela área desapropriada (área vazia, sem certificação no SIGEF), " + (nv > 1 ? "totalizando" : "com") + " **" + haTxt(s.vazio) + "**, que integra a área remanescente.";
     }
     var lp = listaParcelas(); if(lp) t += "\n" + lp;
     return t;
@@ -66104,7 +66150,7 @@ body.ativ-cadastro:not(.modo-painel):has(.app-shell.recolhida) .cad-selo.tem{ di
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.29-8';
+window.APP_VERSAO = '2026.10.29-9';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.29-7';
 (function(){
