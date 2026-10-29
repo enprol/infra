@@ -15955,6 +15955,25 @@ if(document.readyState === "loading") document.addEventListener("DOMContentLoade
       if(geralEl) geralEl.textContent = money(tot12 + (isFinite(tot13)?tot13:0));
     };
 
+    // tabelas do RGV dos itens lançados (29/10/2026, como no anexo Orçamentos da FTN, js/098): quadros do Anexo 3 (página)
+    // + o recorte de cada composição citada (CONFIG/RGV via /api/rgv); as páginas de cerca (anexo4cercas-*) saíram — a 289 é do CUB
+    async function tabelasRgv(raiz){
+      var keys = [], srcs = [], comp = false;
+      var por = function(k){ if(k && !/^anexo4cercas/.test(k) && keys.indexOf(k) === -1) keys.push(k); };
+      raiz.querySelectorAll("tr[data-img]").forEach(function(tr){
+        (tr.dataset.img||"").split("|").forEach(por);
+        if(typeof window.BENF_composicoes === "function") window.BENF_composicoes({ tabela: tr.dataset.tabela,
+          disc: (tr.querySelector(".bnf-disc")||{}).value, unid: (tr.querySelector(".bnf-unid")||{}).value }).forEach(por);
+      });
+      keys.sort();                                                                   // "anexo3-*" antes de "comp-*"
+      if(window.BENF_carregarComposicoes) await window.BENF_carregarComposicoes(keys);
+      keys.forEach(function(k){
+        if(/^comp-/.test(k)){ (window.BENF_compSrcs ? window.BENF_compSrcs(k) : []).forEach(function(s){ srcs.push(s); comp = true; }); }
+        else { var s = window.BENF_imgSrc(k); if(s) srcs.push(s); }
+      });
+      return { srcs: srcs, titulo: "Anexo — Tabelas de referência (" + (comp ? "RGV: Anexo 3 e composições" : "Anexo 3 — RGV") + ")" };
+    }
+
     window.BENF2_exportarImagem = async function(){
       await window.BENF_carregarImgs();   // as tabelas de referencia entram no anexo
       var btn = document.getElementById("benf2_export_btn");
@@ -15967,11 +15986,8 @@ if(document.readyState === "loading") document.addEventListener("DOMContentLoade
         var clone = original.cloneNode(true);
         var header = clone.querySelector(".calc-header"); if(header) header.remove();
         var imovelBox = clone.querySelector(".calc-imovel-box"); if(imovelBox) imovelBox.remove();
-        // coleta as tabelas de referência (Anexo 3) usadas nas linhas, antes de remover os botões
-        var tabelasUsadasBenf2 = [];
-        clone.querySelectorAll("tr[data-img]").forEach(function(tr){
-          (tr.dataset.img||"").split("|").forEach(function(k){ if(k && tabelasUsadasBenf2.indexOf(k)===-1) tabelasUsadasBenf2.push(k); });
-        });
+        // tabelas de referência do RGV usadas nas linhas (lidas da tela, com os valores atuais)
+        var rgv = await tabelasRgv(original);
         clone.querySelectorAll(".bnf-add").forEach(function(b){ b.remove(); });
         // remove a coluna de ação (botão remover) inteira, não só o botão, para a tabela caber na largura útil
         clone.querySelectorAll(".bnf-rm").forEach(function(b){ var td=b.closest("td"); if(td) td.remove(); });
@@ -16039,17 +16055,15 @@ if(document.readyState === "loading") document.addEventListener("DOMContentLoade
         corpo.appendChild(clone);
         pagina.appendChild(corpo);
 
-        // anexa o print das tabelas do Anexo 3 (RGV) usadas nos itens lançados acima
-        if(tabelasUsadasBenf2.length && typeof window.BENF_imgSrc === "function"){
+        // anexa o print das tabelas do RGV (Anexo 3 e composições) usadas nos itens lançados acima
+        if(rgv.srcs.length){
           var refBox = document.createElement("div");
           refBox.style.cssText = "margin-top:18px;";
           var refTit = document.createElement("div");
           refTit.style.cssText = "font-size:14px; font-weight:800; color:#0a4d7c; border-bottom:2px solid #1F6FC0; padding-bottom:6px; margin-bottom:12px;";
-          refTit.textContent = "Anexo — Tabelas de referência (Anexo 3 — RGV)";
+          refTit.textContent = rgv.titulo;
           refBox.appendChild(refTit);
-          tabelasUsadasBenf2.forEach(function(key){
-            var src = window.BENF_imgSrc(key);
-            if(!src) return;
+          rgv.srcs.forEach(function(src){
             var img = document.createElement("img");
             img.src = src;
             img.style.cssText = "display:block; width:100%; max-width:100%; border:1px solid #d3dbe4; border-radius:6px; margin-bottom:16px;";
@@ -16119,10 +16133,7 @@ if(document.readyState === "loading") document.addEventListener("DOMContentLoade
         var clone = original.cloneNode(true);
         var header = clone.querySelector(".calc-header"); if(header) header.remove();
         var imovelBox = clone.querySelector(".calc-imovel-box"); if(imovelBox) imovelBox.remove();
-        var tabelasUsadasBenf2 = [];
-        clone.querySelectorAll("tr[data-img]").forEach(function(tr){
-          (tr.dataset.img||"").split("|").forEach(function(k){ if(k && tabelasUsadasBenf2.indexOf(k)===-1) tabelasUsadasBenf2.push(k); });
-        });
+        var rgv = await tabelasRgv(original);
         clone.querySelectorAll(".bnf-add").forEach(function(b){ b.remove(); });
         clone.querySelectorAll(".bnf-rm").forEach(function(b){ var td=b.closest("td"); if(td) td.remove(); });
         clone.querySelectorAll("table.bnf2-tab thead tr").forEach(function(tr){
@@ -16273,16 +16284,15 @@ if(document.readyState === "loading") document.addEventListener("DOMContentLoade
           itens.push({tipo:"atomo", el: tg, h: tg.getBoundingClientRect().height});
         });
 
-        // anexo — print das tabelas de referência (Anexo 3), um item por imagem
-        if(tabelasUsadasBenf2.length && typeof window.BENF_imgSrc === "function"){
+        // anexo — print das tabelas do RGV (Anexo 3 e composições), um item por imagem
+        if(rgv.srcs.length){
           var refTit = document.createElement("div");
           refTit.style.cssText = "font-size:14px; font-weight:800; color:#0a4d7c; border-bottom:2px solid #1F6FC0; padding-bottom:6px; margin-bottom:12px; margin-top:18px;";
-          refTit.textContent = "Anexo — Tabelas de referência (Anexo 3 — RGV)";
+          refTit.textContent = rgv.titulo;
           medidorWrap.appendChild(refTit);
           itens.push({tipo:"atomo", el: refTit, h: refTit.getBoundingClientRect().height});
-          for(var ri=0; ri<tabelasUsadasBenf2.length; ri++){
-            var src = window.BENF_imgSrc(tabelasUsadasBenf2[ri]);
-            if(!src) continue;
+          for(var ri=0; ri<rgv.srcs.length; ri++){
+            var src = rgv.srcs[ri];
             var img = document.createElement("img");
             img.style.cssText = "display:block; width:100%; max-width:100%; border:1px solid #d3dbe4; border-radius:6px;";
             img.src = src;
@@ -66094,7 +66104,7 @@ body.ativ-cadastro:not(.modo-painel):has(.app-shell.recolhida) .cad-selo.tem{ di
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.29-7';
+window.APP_VERSAO = '2026.10.29-8';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.29-7';
 (function(){
