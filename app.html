@@ -54793,28 +54793,38 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     // rótulos avulsos de quem gerou o mapa (modelo 02: "REMAN. NORTE / ÁREA = x ha", "SEDE"): centrados no ponto, uma linha por item
     // 29/10/2026: com r.polys (o pedaço rotulado), o texto que não cabe dentro dele vai para fora, num lugar livre (sem cobrir
     // r.evitar), com linha de chamada até o pedaço — ex.: a remanescente norte de 0,15 ha do CTD 006Z sumia sob o rótulo
+    // 29/10/2026 (2): os rótulos são postos POR ÚLTIMO e não cobrem texto nenhum: estacas, blocos de KM, norte, localização,
+    // escala e os rótulos já postos (_OCUP, caixas em px). r.solto = sem alvo (ex.: TOTAL): muda de lugar sem linha de chamada.
+    var _OCUP=[];
+    (function(){ var locD=(o.locLado==='dir'), iw=152, ih=116, ix=locD?(mapR-22-iw):(mapL+22), iy=mapB-22-ih;
+      _OCUP.push([mapL+22,mapT+20,mapL+70,mapT+102], [ix-6,iy-6,ix+iw+6,iy+ih+6], [locD?(mapL+26):(mapR-218),mapB-62,locD?(mapL+236):(mapR-8),mapB-12]); })();
     function pipPx(p, rings){ var d=false; rings.forEach(function(r){ for(var i=0,j=r.length-1;i<r.length;j=i++){ var xi=r[i][0],yi=r[i][1],xj=r[j][0],yj=r[j][1]; if(((yi>p[1])!==(yj>p[1]))&&(p[0]<(xj-xi)*(p[1]-yi)/(yj-yi)+xi)) d=!d; } }); return d; }
     function pontosCaixa(cx,cy,w,h){ var o=[]; for(var a=0;a<=4;a++) for(var b=0;b<=2;b++) o.push([cx-w/2+w*a/4, cy-h/2+h*b/2]); return o; }
-    (o.rotulos||[]).forEach(function(r){ if(!r||r.lon==null) return; var q=PX(r.lon,r.lat), ls=r.linhas||[], lh=(r.tam||12)+3, anc=null;
-      if(r.polys && r.polys.length){
-        var sz=r.tam||12, w=Math.max.apply(null, ls.map(function(t){ return String(t).length; }))*sz*0.62+8, h=ls.length*lh+6;
-        var PP=r.polys.map(function(g){ return g.map(function(p){ return PX(p[0],p[1]); }); }), EV=(r.evitar||r.polys).map(function(g){ return g.map(function(p){ return PX(p[0],p[1]); }); });
-        var cabe=pontosCaixa(q[0],q[1],w,h).every(function(p){ return pipPx(p,PP); });
-        if(!cabe){
-          var livre=function(cx,cy){ return cx-w/2>mapL+6 && cx+w/2<mapR-6 && cy-h/2>mapT+6 && cy+h/2<mapB-6 && !pontosCaixa(cx,cy,w,h).some(function(p){ return pipPx(p,EV); }); };
+    function bateOcup(b, folga){ return _OCUP.some(function(c){ return b[0]-folga<c[2] && b[2]+folga>c[0] && b[1]-folga<c[3] && b[3]+folga>c[1]; }); }
+    function desenharRotulos(){
+      (o.rotulos||[]).forEach(function(r){ if(!r||r.lon==null) return; var q=PX(r.lon,r.lat), ls=r.linhas||[], sz=r.tam||12, lh=sz+3, anc=null;
+        var w=Math.max.apply(null, ls.map(function(t){ return String(t).length; }))*sz*0.62+8, h=ls.length*lh+6;
+        var caixa=function(cx,cy){ return [cx-w/2, cy-h/2, cx+w/2, cy+h/2]; };
+        var PP=(r.polys||[]).map(function(g){ return g.map(function(p){ return PX(p[0],p[1]); }); }), EV=(r.evitar||r.polys||[]).map(function(g){ return g.map(function(p){ return PX(p[0],p[1]); }); });
+        var noQuadro=function(cx,cy){ return cx-w/2>mapL+6 && cx+w/2<mapR-6 && cy-h/2>mapT+6 && cy+h/2<mapB-6; };
+        var livre=function(cx,cy){ return noQuadro(cx,cy) && !bateOcup(caixa(cx,cy),3) && !(EV.length && pontosCaixa(cx,cy,w,h).some(function(p){ return EV.some(function(g){ return pipPx(p,[g]); }); })); };   // anel a anel: sobreposição dentro da desapropriada não se anula
+        var fica=PP.length ? (pontosCaixa(q[0],q[1],w,h).every(function(p){ return pipPx(p,PP); }) && !bateOcup(caixa(q[0],q[1]),3))
+          : livre(q[0],q[1]);
+        if(!fica){
           var achou=null;
-          for(var rd=Math.max(w,h)*0.5+20; rd<=420 && !achou; rd+=14){ for(var k=0;k<24 && !achou;k++){ var ang=-Math.PI/2+k*Math.PI/12, cx=q[0]+Math.cos(ang)*rd, cy=q[1]+Math.sin(ang)*rd; if(livre(cx,cy)) achou=[cx,cy]; } }
-          if(achou){ anc=q; q=achou; }
+          for(var rd=PP.length?Math.max(w,h)*0.5+20:16; rd<=520 && !achou; rd+=12){ for(var k=0;k<24 && !achou;k++){ var ang=-Math.PI/2+k*Math.PI/12, cx=q[0]+Math.cos(ang)*rd, cy=q[1]+Math.sin(ang)*rd; if(livre(cx,cy)) achou=[cx,cy]; } }
+          if(achou){ if(!r.solto) anc=q; q=achou; }
         }
-      }
-      if(!anc && (q[0]<mapL+40||q[0]>mapR-40||q[1]<mapT+16||q[1]>mapB-16)) return;
-      if(anc){   // linha de chamada da borda da caixa até o pedaço
-        var hw=w/2, hh=h/2, dx=anc[0]-q[0], dy=anc[1]-q[1], t0=Math.min(dx?hw/Math.abs(dx):Infinity, dy?hh/Math.abs(dy):Infinity), bx=q[0]+dx*Math.min(1,t0), by=q[1]+dy*Math.min(1,t0);
-        s+='<line x1="'+bx.toFixed(1)+'" y1="'+by.toFixed(1)+'" x2="'+anc[0].toFixed(1)+'" y2="'+anc[1].toFixed(1)+'" stroke="#ffffff" stroke-width="3.4" stroke-linecap="round"/>';
-        s+='<line x1="'+bx.toFixed(1)+'" y1="'+by.toFixed(1)+'" x2="'+anc[0].toFixed(1)+'" y2="'+anc[1].toFixed(1)+'" stroke="#111111" stroke-width="1.4" stroke-linecap="round"/>';
-        s+='<circle cx="'+anc[0].toFixed(1)+'" cy="'+anc[1].toFixed(1)+'" r="3.2" fill="#ffffff" stroke="#111111" stroke-width="1.2"/>';
-      }
-      ls.forEach(function(t,i){ s+=TH(q[0],q[1]+(i-(ls.length-1)/2)*lh+4,t,{size:r.tam||12,weight:'700',fill:r.cor||'#ffffff',halo:3.2}); }); });
+        if(!anc && (q[0]<mapL+40||q[0]>mapR-40||q[1]<mapT+16||q[1]>mapB-16)) return;
+        _OCUP.push(caixa(q[0],q[1]));
+        if(anc){   // linha de chamada da borda da caixa até o pedaço
+          var hw=w/2, hh=h/2, dx=anc[0]-q[0], dy=anc[1]-q[1], t0=Math.min(dx?hw/Math.abs(dx):Infinity, dy?hh/Math.abs(dy):Infinity), bx=q[0]+dx*Math.min(1,t0), by=q[1]+dy*Math.min(1,t0);
+          s+='<line x1="'+bx.toFixed(1)+'" y1="'+by.toFixed(1)+'" x2="'+anc[0].toFixed(1)+'" y2="'+anc[1].toFixed(1)+'" stroke="#ffffff" stroke-width="3.4" stroke-linecap="round"/>';
+          s+='<line x1="'+bx.toFixed(1)+'" y1="'+by.toFixed(1)+'" x2="'+anc[0].toFixed(1)+'" y2="'+anc[1].toFixed(1)+'" stroke="#111111" stroke-width="1.4" stroke-linecap="round"/>';
+          s+='<circle cx="'+anc[0].toFixed(1)+'" cy="'+anc[1].toFixed(1)+'" r="3.2" fill="#ffffff" stroke="#111111" stroke-width="1.2"/>';
+        }
+        ls.forEach(function(t,i){ s+=TH(q[0],q[1]+(i-(ls.length-1)/2)*lh+4,t,{size:sz,weight:'700',fill:r.cor||'#ffffff',halo:3.2}); }); });
+    }
     // texto das estacas ao longo do eixo ferroviário: BRANCO com halo escuro, na escala do mapa, um pouco ao lado do eixo (a linha continua visível)
     var EST=d2estacasEscala(o.estacas||[], mapW/Math.max(1,(e1-e0)));
     // pontos de KM dos perímetros (as bolinhas): estaca que cairia em cima de uma delas é omitida; e a etiqueta inteira tem que caber no quadro
@@ -54827,6 +54837,8 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       if(q[0]<mapL+34||q[0]>mapR-34||q[1]<mapT+22||q[1]>mapB-22) return;
       var ar=a*Math.PI/180; q=[q[0]+4.2*Math.sin(ar), q[1]+4.2*Math.cos(ar)];       // a âncora do texto é a linha de base: desce meia altura para centrar na linha do eixo
       if(t._perto) q=[q[0]+12.5*Math.sin(ar), q[1]+12.5*Math.cos(ar)]; s+=TH(q[0],q[1],t.txt,{size:(EST.tam||12),weight:'700',rot:-a,fill:'#ffffff',halo:3.4});
+      var _tw=String(t.txt).length*(EST.tam||12)*0.62+6, _th=(EST.tam||12)+6, _ex=(Math.abs(_tw*Math.cos(ar))+Math.abs(_th*Math.sin(ar)))/2, _ey=(Math.abs(_tw*Math.sin(ar))+Math.abs(_th*Math.cos(ar)))/2, _cy=q[1]-4;
+      _OCUP.push([q[0]-_ex,_cy-_ey,q[0]+_ex,_cy+_ey]);   // os rótulos avulsos (desenharRotulos) não cobrem as estacas
     });
     // rótulo da ÁREA TOTAL dentro do perímetro
     function rotuloNoPoligono(cam,label,cor){ if(!label) return; var ac=(o.camadas||[]).filter(function(c){return c.cam===cam;})[0]; if(!ac||!ac.geom.polys||!ac.geom.polys.length) return; var _ar=function(r){ var q=0; for(var k=0;k<r.length;k++){ var j=(k+1)%r.length; q+=r[k][0]*r[j][1]-r[j][0]*r[k][1]; } return Math.abs(q); }; var ring=ac.geom.polys.slice().sort(function(a,b){ return _ar(b)-_ar(a); })[0],cx=0,cy=0; ring.forEach(function(p){cx+=p[0];cy+=p[1];}); cx/=ring.length; cy/=ring.length; var qc=PX(cx,cy); var ls=String(label).split('\n').slice(0,3); ls.forEach(function(ln,i){ s+=TH(qc[0],qc[1]+(i-(ls.length-1)/2)*18,ln,{size:15,weight:'700',fill:cor||'#fff'}); }); }
@@ -54944,6 +54956,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
         s+='<circle cx="'+lb.q[0].toFixed(1)+'" cy="'+lb.q[1].toFixed(1)+'" r="4.5" fill="#fff" stroke="#ff020c" stroke-width="2.2"/>';
         var lns=['KM= '+(lb.km||'000 + 000,00'),'(PROJETO ATUAL)','E= '+lb.u.E.toFixed(3),'N= '+lb.u.N.toFixed(3)];
         lns.forEach(function(ln,i){ s+=TH(lb.lx, lb.ly-24+i*14, ln, {anchor:anchor,size:10,weight:'700',fill:(i===0?'#ffd7d7':'#ffffff')}); });
+        var _bw=0; lns.forEach(function(l){ _bw=Math.max(_bw,mx.measureText(l).width); }); _OCUP.push(caixa(lb.lx,lb.ly,_bw+6,anchor));
       });
       // VÁRIOS PERÍMETROS: um rótulo compacto por perímetro (nome + KM inicial/final), sem E/N nem "PROJETO ATUAL" — cada um posicionado
       // pela mesma busca da máscara, longe da faixa, das estacas, dos perímetros e dos rótulos já postos. Chamadas finas até os dois vértices.
@@ -54974,9 +54987,11 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
           L.pts.forEach(function(x){ s+='<line x1="'+x.q[0].toFixed(1)+'" y1="'+x.q[1].toFixed(1)+'" x2="'+L.c.lx.toFixed(1)+'" y2="'+yFim.toFixed(1)+'" stroke="#fff" stroke-opacity=".55" stroke-width="3.2"/><line x1="'+x.q[0].toFixed(1)+'" y1="'+x.q[1].toFixed(1)+'" x2="'+L.c.lx.toFixed(1)+'" y2="'+yFim.toFixed(1)+'" stroke="#000" stroke-width="1.2"/>'; });
           L.pts.forEach(function(x){ s+='<circle cx="'+x.q[0].toFixed(1)+'" cy="'+x.q[1].toFixed(1)+'" r="3.8" fill="#fff" stroke="#ff020c" stroke-width="2"/>'; });
           L.tl.forEach(function(ln,i){ s+=TH(L.c.lx, L.c.ly-24+i*14, ln, {anchor:anchor,size:10,weight:'700',fill:(i===0?'#ffd7d7':'#ffffff')}); });
+          _OCUP.push(L.c.box);
         });
       }
     }
+    desenharRotulos();   // por último: já sabem onde estão estacas, blocos de KM e quadros fixos
     // alfinetes em gota (roteiro de acesso): ponta no ponto, cabeça com a letra
     (o.pinos||[]).forEach(function(pn){ var q=PX(pn.lon,pn.lat); s+=d2pinoSVG(q[0],q[1],pn.letra,(D2MAP_EST.pino||{}).cor||'#e8141b'); s+=TH(q[0]+15,q[1]-27,pn.rotulo||'',{anchor:'start',size:11,weight:'700'}); });
     s+='</g>';
@@ -55037,16 +55052,23 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       });
       tlin.push(ln);
     });
-    var ultSimb=cy0+44+(rowsPerCol-1)*lrow, ultBase=tlin.length?(ultSimb+lrow+(tlin.length-1)*tlh):ultSimb;
+    // 29/10/2026: nome que não cabe na coluna: fonte até 8,5 e, se ainda não couber, 2 linhas (a linha da legenda cresce)
+    var lfs = nCols>1 ? 10 : 11, sww = nCols>1 ? 20 : 26, _livreW=colW-sww-14, _cw=function(t,f){ return String(t).length*f*0.56; };
+    var _lay=items.map(function(it){ var f=lfs, nm=String(it.nome||'').replace(/ (ha)\b/g,' $1').replace(/— /g,'— '), ln=[nm];   // "— 1,9874 ha" não se separa
+      while(f>8.5 && _cw(nm,f)>_livreW) f-=0.5;
+      if(_cw(nm,f)>_livreW){ var ws=nm.split(' '), a='', k=0; while(k<ws.length && _cw((a?a+' ':'')+ws[k],f)<=_livreW){ a=(a?a+' ':'')+ws[k]; k++; } if(a && k<ws.length) ln=[a, ws.slice(k).join(' ')]; }
+      return { f:f, ln:ln, h:lrow+(ln.length-1)*(f+2) }; });
+    var _colY=[], _ultY=cy0+44;
+    items.forEach(function(it,i){ var col=Math.floor(i/rowsPerCol), y=(_colY[col]==null?cy0+44:_colY[col]); _lay[i].y=y; _colY[col]=y+_lay[i].h; _ultY=Math.max(_ultY, y+_lay[i].h-lrow); });
+    var ultSimb=_ultY, ultBase=tlin.length?(ultSimb+lrow+(tlin.length-1)*tlh):ultSimb;
     var lh=Math.max(60, ultBase+10-(cy0+8));
     var svgH=Math.max(889, Math.ceil(cy0+8+lh+10));
     s+='<rect x="'+lx+'" y="'+(cy0+8)+'" width="'+lw+'" height="'+lh+'" fill="#f7f9fb" stroke="#c3ccd4" stroke-width=".8"/>';
     s+='<text x="'+(lx+14)+'" y="'+(cy0+26)+'" font-family="Arial" font-size="9.5" font-weight="700" fill="#4a5a6a" letter-spacing=".6">LEGENDA</text>';
     tlin.forEach(function(t,i){ s+='<text x="'+(lx+14)+'" y="'+(ultSimb+lrow+i*tlh)+'" font-family="monospace" font-size="'+tfs+'" font-weight="700" fill="#16202b" xml:space="preserve">'+d2esc(t)+'</text>'; });
-    var lfs = nCols>1 ? 10 : 11, sww = nCols>1 ? 20 : 26;
     items.forEach(function(it,i){
-      var col=Math.floor(i/rowsPerCol), rowi=i%rowsPerCol;
-      var sw=lx+14+col*colW, row=cy0+44+rowi*lrow;
+      var col=Math.floor(i/rowsPerCol);
+      var sw=lx+14+col*colW, row=_lay[i].y;
       if(it.tipo==='pino'){ var px0=sw+sww/2, py0=row+3; s+='<path d="M'+px0+','+py0+' C'+(px0-2)+','+(py0-5)+' '+(px0-6)+','+(py0-8)+' '+(px0-6)+','+(py0-13)+' A6,6 0 1,1 '+(px0+6)+','+(py0-13)+' C'+(px0+6)+','+(py0-8)+' '+(px0+2)+','+(py0-5)+' '+px0+','+py0+' Z" fill="'+it.cor+'" stroke="#7a0a0e" stroke-width=".8"/><circle cx="'+px0+'" cy="'+(py0-13)+'" r="2.6" fill="#fff"/>'; }
       else if(it.tipo==='line'||it.tipo==='faixa'||it.tipo==='drenagem'){ var lw=Math.max(2,Math.min(4,it.peso||3));
         if(d2claro(it.cor)) s+='<line x1="'+sw+'" y1="'+(row-3)+'" x2="'+(sw+sww)+'" y2="'+(row-3)+'" stroke="#3a4652" stroke-width="'+(lw+2)+'"/>';
@@ -55057,7 +55079,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
         +'<rect x="'+sw+'" y="'+(row-10)+'" width="'+sww+'" height="13" fill="url(#d2lgrad'+i+')" stroke="#6b7782" stroke-width=".8"/>'; }   // hipsometria: rampa verde-amarelo-vermelho
       else if(it.tipo==='hatch'){ s+='<rect x="'+sw+'" y="'+(row-10)+'" width="'+sww+'" height="13" fill="'+it.cor+'" fill-opacity=".18" stroke="none"/><line x1="'+sw+'" y1="'+(row+3)+'" x2="'+(sw+sww)+'" y2="'+(row-10)+'" stroke="'+it.cor+'" stroke-width="1.6"/>'; }
       else s+='<rect x="'+sw+'" y="'+(row-10)+'" width="'+sww+'" height="13" fill="'+it.cor+'" fill-opacity=".45" stroke="'+it.cor+'" stroke-width="1.4"'+(it.dash?' stroke-dasharray="'+it.dash+'"':'')+'/>';
-      s+='<text x="'+(sw+sww+8)+'" y="'+row+'" font-family="Arial" font-size="'+lfs+'" font-weight="600" fill="#16202b">'+d2esc(it.nome)+'</text>';
+      _lay[i].ln.forEach(function(t,k){ s+='<text x="'+(sw+sww+8)+'" y="'+(row+k*(_lay[i].f+2))+'" font-family="Arial" font-size="'+_lay[i].f+'" font-weight="600" fill="#16202b">'+d2esc(t)+'</text>'; });
     });
     // georref discreta — logo abaixo dos textos do carimbo
     s+='<text x="'+mapL+'" y="'+(cy0+128)+'" font-family="monospace" font-size="9" fill="#8a97a3">SIRGAS 2000 · UTM '+zone+(south?'S':'N')+' · Universal Transversa de Mercator</text>';
@@ -55599,16 +55621,17 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
           var aneisS=[]; sobPre.forEach(function(x){ aneisS.push(x.outer); x.holes.forEach(function(h){ aneisS.push(h); }); });
           c.geom.sobrep={ polys:aneisS, lines:[], pts:[], evenodd:true };
           var fmtA=function(v){ return v.toLocaleString('pt-BR',{minimumFractionDigits:4,maximumFractionDigits:4}); };
-          sobPre.forEach(function(x, i){ c.rotulos.push({ lon:x.c[0], lat:x.c[1], linhas:[sobPre.length>1?'SOBREPOSIÇÃO '+(i+1):'SOBREPOSIÇÃO', 'ÁREA = '+fmtA(x.ha)+' ha'] }); });
+          var todasSV=sobPre.concat(vazPre).map(function(x){ return x.outer; }).concat(dsp0);   // nenhum rótulo cobre sobreposição, vazia nem a desapropriada
+          sobPre.forEach(function(x, i){ c.rotulos.push({ lon:x.c[0], lat:x.c[1], linhas:[sobPre.length>1?'SOBREPOSIÇÃO '+(i+1):'SOBREPOSIÇÃO', 'ÁREA = '+fmtA(x.ha)+' ha'], polys:[x.outer], evitar:todasSV }); });
           if(vazPre.length){
             var aneisV=[]; vazPre.forEach(function(x){ aneisV.push(x.outer); x.holes.forEach(function(h){ aneisV.push(h); }); });
             c.geom.vazio={ polys:aneisV, lines:[], pts:[], evenodd:true };
             // rótulo das peças de 10 m² ou mais (as menores ficam só no total); fresta fina: o rótulo sai com chamada
-            var vazRot=vazPre.filter(function(x){ return x.ha>=0.001; }), todasV=vazPre.map(function(x){ return x.outer; });
-            vazRot.forEach(function(x, i){ c.rotulos.push({ lon:x.c[0], lat:x.c[1], linhas:[vazRot.length>1?'ÁREA VAZIA '+(i+1):'ÁREA VAZIA', 'SEM SIGEF', 'ÁREA = '+fmtA(x.ha)+' ha'], polys:[x.outer], evitar:todasV }); });
+            var vazRot=vazPre.filter(function(x){ return x.ha>=0.001; });
+            vazRot.forEach(function(x, i){ c.rotulos.push({ lon:x.c[0], lat:x.c[1], linhas:[vazRot.length>1?'ÁREA VAZIA '+(i+1):'ÁREA VAZIA', 'SEM SIGEF', 'ÁREA = '+fmtA(x.ha)+' ha'], polys:[x.outer], evitar:todasSV }); });
           }
           var linT=[]; if(sobPre.length>1) linT.push('TOTAL SOBREPOSTO = '+fmtA(totS)+' ha'); if(vazPre.length>1) linT.push('TOTAL VAZIO (SEM SIGEF) = '+fmtA(totV)+' ha');
-          if(linT.length) c.rotulos.push({ lon:(c.bb.w+(c.bb.e-c.bb.w)*0.5), lat:(c.bb.n-(c.bb.n-c.bb.s)*0.06), linhas:linT, tam:13 });
+          if(linT.length) c.rotulos.push({ lon:(c.bb.w+(c.bb.e-c.bb.w)*0.5), lat:(c.bb.n-(c.bb.n-c.bb.s)*0.06), linhas:linT, tam:13, solto:true, evitar:todasSV });
           if(sigPre.fonte==='arquivo') c.falhou.push('SIGEF do INCRA ('+(sigPre.erro||'sem parcelas')+' — usadas as parcelas do arquivo carregado)');
         }
         if(sp.rem){
@@ -63804,7 +63827,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     novaImg(id);
   };
   window.D2M2_irArt = function(){ var b = document.querySelector('.sb-link[data-alvo="panel-anx11"]'); if(b && window.trocarAba){ window.trocarAba(b); return; } var pn = $("panel-anx11"); if(pn) pn.scrollIntoView(); };
-  var MAPVER = "13";   // sobe quando muda o desenho/enquadramento dos mapas: os já salvos no cadastro são refeitos uma vez
+  var MAPVER = "14";   // sobe quando muda o desenho/enquadramento dos mapas: os já salvos no cadastro são refeitos uma vez
   /* 25/10/2026 (independência do modelo original): na 1ª abertura, o que estava editado à mão na DESP-2 para Apresentação,
      Metodologia e Conclusão vira texto próprio do Modelo 02 (o PDF continua igual); depois disso nada mais vem da DESP-2. */
   function desacoplar(){
@@ -66150,7 +66173,7 @@ body.ativ-cadastro:not(.modo-painel):has(.app-shell.recolhida) .cad-selo.tem{ di
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.29-9';
+window.APP_VERSAO = '2026.10.29-10';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.29-7';
 (function(){
