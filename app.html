@@ -38005,6 +38005,26 @@ function AV_gerarDescSituacao(){
   function trechoAuto(c){ var s = sps2(c.lote); return s === "07" ? TRECHO_SPS07 : (s === "04" ? TRECHO_SPS04 : ""); }
   function totalDesapHa(){ return (ANEIS.length > 1 && aneisUtm().length > 1) ? somaAreasHa() : G.area_ha; }
   function remPropAuto(c){ var tt = numBr(c.areaTotal); return isFinite(tt) ? (br(Math.max(0, tt - totalDesapHa()), 4) + " ha") : ""; }
+  /* 29/10/2026: carimbo dos CTD 006A–Z. Remanescente da parcela/lote = área ocupada (KML da área total; sem ela, a área
+     total da Técnica 1.4) − sobreposição das glebas SIGEF com a área desapropriada (Modelo 02, d2m2_v_sobrep): a faixa que
+     a certificação invade não é remanescente. Área total da parcela/lote = remanescente + área a desapropriar (Técnica 1.4;
+     sem ela, a dos KML). Os valores digitados antes (regra antiga: remanescente = certificada) saem uma vez (areas_v2). */
+  function sobrepSigefHa(){ try{ var s = JSON.parse(gv("d2m2_v_sobrep") || "null"); return (s && s.ha > 0) ? s.ha : 0; }catch(e){ return 0; } }
+  function areasParcela006(c){
+    var base = numBr(gv("fb_area_ocupada")); if(!(base > 0)) base = numBr(c.areaTotal);
+    if(!(base > 0)) return { rem:"", parc:"" };
+    var des = numBr(c.areaDesap); if(!(des > 0)) des = totalDesapHa();
+    var rem = Math.round((base - sobrepSigefHa())*1e4)/1e4;
+    return { rem:br(rem, 4) + " ha", parc:br(Math.round((rem + des)*1e4)/1e4, 4) + " ha" };
+  }
+  function migrarAreas006(){
+    var ex = extras(); if(ex.areas_v2 || modeloCarimbo() !== "sps04_006") return;
+    (window.CAD_automatico || function(f){ f(); })(function(){
+      var o = extras(); delete o.area_parcela; delete o.area_remanescente; o.areas_v2 = 1;
+      var el = $("mdp_extras"); if(!el) return;
+      el.value = JSON.stringify(o); el.dispatchEvent(new Event("input", {bubbles:true}));
+    });
+  }
   function dataImpressao(){ var d = new Date(), z = function(n){ return String(n).padStart(2, "0"); }; return z(d.getDate()) + "/" + z(d.getMonth() + 1) + "/" + d.getFullYear(); }
   // segmento = KM inicial ao KM final e extensão, do(s) KML inserido(s); na planta geral, os totais
   function segmentoAuto(km){
@@ -38029,8 +38049,9 @@ function AV_gerarDescSituacao(){
     return km ? ("KM=" + kmTxt(km.ini) + " ao KM=" + kmTxt(km.fim) + " = " + br(cm2(km.fim) - cm2(km.ini), 2) + "m") : "";
   }
   function autoCarimbo(c){
+    var ap = areasParcela006(c);
     return { trecho:trechoAuto(c), segmento:segmentoAuto(), area_total_prop:haTxt(c.areaTotal),
-             area_total_desap:br(totalDesapHa(), 4) + " ha", area_remanescente:remPropAuto(c) };
+             area_total_desap:br(totalDesapHa(), 4) + " ha", area_remanescente:remPropAuto(c), parcela_006:ap.parc, rem_006:ap.rem };
   }
   function desenharCarimbo(P, T, c, ex, lim, op, pg){ CAMDXF(P, "ENP_CARIMBO");
     pg = pg || { n:1, total:1 };
@@ -38191,12 +38212,13 @@ function AV_gerarDescSituacao(){
     var totDesap = ex.area_total_desap || (br(totalDesapHa(), 4) + " ha");
     var aDesap = br(geralC ? somaAreasHa() : G.area_ha, 4) + " ha", perimTxt = br(geralC ? somaPerim() : G.perim, 2) + " m";
     var areaProp = ex.area_total_prop || haTxt(c.areaTotal);
+    if(modelo === "sps04_006"){ migrarAreas006(); ex = extras(); var ap6 = areasParcela006(c); }
     var row2 = (modelo === "sps04_006") ? [
         { f:.20, l:"Área Total da Propriedade\nMatrícula:", v:areaProp },
         { f:.16, l:"Área Total a Desapropriar:", v:totDesap },
-        { f:.17, l:"Área Total da Propriedade\nParcela/Lote:", v:ex.area_parcela || "" },
+        { f:.17, l:"Área Total da Propriedade\nParcela/Lote:", v:ex.area_parcela || ap6.parc },
         { f:.16, l:"Área a Desapropriar:\n" + (geralC ? "Planta geral" : "Parcela/Lote:"), v:aDesap },
-        { f:.19, l:"Área Remanescente da\nPropriedade Parcela/Lote:", v:ex.area_remanescente || "" },
+        { f:.19, l:"Área Remanescente da\nPropriedade Parcela/Lote:", v:ex.area_remanescente || ap6.rem },
         { f:.12, l:"Perímetro:", v:perimTxt } ] : [
         { f:.17, l:"Área Total da Propriedade:", v:areaProp },
         { f:.13, l:"Área a Desapropriar:" + (geralC ? "\nPlanta geral" : ""), v:aDesap },
@@ -39129,7 +39151,8 @@ function AV_gerarDescSituacao(){
       carCel("area_total_prop", "Área total da propriedade (matrícula)", au.area_total_prop, "Técnica › 1.4 Propriedade", { obrig:true, aviso:(!ex.area_total_prop && !au.area_total_prop) ? "Área total não preenchida na Técnica (1.4): o carimbo sai sem ela e sem a remanescente." : "" }) +
       carCel("area_total_desap", "Área total a desapropriar", au.area_total_desap, "somada do(s) KML da área desapropriada");
     if(mod === "sps04_006"){
-      h += carCel("area_parcela", "Área total da propriedade (parcela/lote)", "", "ex.: 15,2797 ha") + carCel("area_remanescente", "Área remanescente (parcela/lote)", "", "ex.: 12,8000 ha");
+      migrarAreas006(); ex = extras();
+      h += carCel("area_parcela", "Área total da propriedade (parcela/lote)", au.parcela_006, "remanescente + área a desapropriar") + carCel("area_remanescente", "Área remanescente (parcela/lote)", au.rem_006, "área ocupada − sobreposição SIGEF (Modelo 02)");
     } else {
       h += carCel("area_rem_desap", "Área remanescente a desapropriar", "0,0000 ha", "descreva se houver") + carCel("area_remanescente", "Área remanescente da propriedade", au.area_remanescente, "área total − área a desapropriar");
     }
@@ -40074,8 +40097,9 @@ function AV_gerarDescSituacao(){
   // tópico 5 (05/10/2026): modelo do carimbo + campos que dependem dele. Em branco = preenchimento automático
   // (o valor que vai sair aparece em cinza); o que você digitar vale no lugar do automático.
   function camposCarimbo(){
+    migrarAreas006();
     var c = doCadastro(), mod = modeloCarimbo(), au = G ? autoCarimbo(c) : {}, ex0 = extras();
-    var ph = function(v, dica){ return v ? ("automático: " + v) : (dica || ""); };
+    var ph =function(v, dica){ return v ? ("automático: " + v) : (dica || ""); };
     var vem = function(rot, v, onde){ return '<div class="vfield grow"><label>' + esc(rot) + ' <span class="hint-auto">' + esc(onde) + '</span></label><input type="text" class="bloqueado" readonly value="' + esc(v || "—") + '"></div>'; };
     var h = '<div class="vfield grow"><label>Responsável técnico <span class="hint-auto">cadastro de profissionais</span></label><select data-prof data-valor="' + esc(ex0.resp_prof || (window.PROF_padrao ? window.PROF_padrao() : "antonio")) + '" onchange="MDP_setEx(\'resp_prof\',this.value)"></select></div>';
     h += '<div class="vfield grow"><label>Modelo do carimbo</label><select onchange="MDP_carModelo(this.value)">' +
@@ -40089,8 +40113,8 @@ function AV_gerarDescSituacao(){
     h += inputEx("area_total_prop", "Área total da propriedade (matrícula)", ph(au.area_total_prop, "Técnica › 1.4 Propriedade"));
     if(G && !(ex0.area_total_prop) && !au.area_total_prop) h += aviso("A área total do imóvel não está preenchida na Técnica (1.4 Propriedade): o carimbo sai sem ela e sem a área remanescente.");
     if(mod === "sps04_006"){
-      h += inputEx("area_parcela", "Área total da propriedade (parcela/lote)", "descrito por você — ex.: 15,2797 ha");
-      h += inputEx("area_remanescente", "Área remanescente da propriedade (parcela/lote)", "descrito por você — ex.: 12,8000 ha");
+      h += inputEx("area_parcela", "Área total da propriedade (parcela/lote)", ph(au.parcela_006, "remanescente + área a desapropriar"));
+      h += inputEx("area_remanescente", "Área remanescente da propriedade (parcela/lote)", ph(au.rem_006, "área ocupada − sobreposição SIGEF (Modelo 02)"));
     } else {
       h += inputEx("area_rem_desap", "Área remanescente a desapropriar", "automático: 0,0000 ha — descreva se houver");
       h += inputEx("area_remanescente", "Área remanescente da propriedade", ph(au.area_remanescente, "área total − área a desapropriar"));
@@ -65947,7 +65971,7 @@ body.ativ-cadastro:not(.modo-painel):has(.app-shell.recolhida) .cad-selo.tem{ di
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.28-10';
+window.APP_VERSAO = '2026.10.29-1';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.28-8';
 (function(){
