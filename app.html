@@ -15437,9 +15437,10 @@ if(document.readyState === "loading") document.addEventListener("DOMContentLoade
   // maquina a cada revalidacao de 5 min. Agora vem de benf-imgs.json, so
   // quando alguem realmente precisa delas (abrir o picker ou gerar um PDF que
   // anexa as tabelas de referencia).
-  const BENF_IMGS_FONTES = [
-    "https://enprol.github.io/infra/benf-imgs.json",  // publicado junto com o app.html
-    "/benf-imgs.json"                                  // se um dia o server.js servir local
+  // 29/10/2026: só do servidor local (server.js serve /benf-imgs.json, que vai no instalador). Saiu do GitHub Pages:
+  // as páginas do RGV não ficam mais no repositório público.
+  const BENF_IMGS_FONTES = () => [
+    (typeof window.CAD_SERVIDOR_URL === "string" ? window.CAD_SERVIDOR_URL : "").replace(/\/+$/, "") + "/benf-imgs.json"
   ];
 
   function load(){                       // so a tabela — continua sincrono
@@ -15454,7 +15455,7 @@ if(document.readyState === "loading") document.addEventListener("DOMContentLoade
     if(IMGS) return Promise.resolve(IMGS);
     if(_imgsPromise) return _imgsPromise;
     _imgsPromise = (async function(){
-      for(const url of BENF_IMGS_FONTES){
+      for(const url of BENF_IMGS_FONTES()){
         try{
           const r = await fetch(url, { signal: AbortSignal.timeout(60000) });
           if(!r.ok) continue;
@@ -15572,6 +15573,43 @@ if(document.readyState === "loading") document.addEventListener("DOMContentLoade
     const imgFull = info.img+"|anexo4cercas-019";
     return {valor:v, tabela: rotuloComPagina(info.label.split(" — ")[0], info.img), img: imgFull};
   };
+
+  // ---- composições do RGV (Anexos 4 e 5, Tabelas 60-244) que fundamentam uma linha lançada ----
+  // 29/10/2026, pedido do fiscal: o anexo Orçamentos traz o recorte de cada tabela de composição citada (não a página
+  // inteira). Devolve chaves "comp-NNN" (recortes de ferramentas/rgv-composicoes.js); a imagem vem de BENF_compSrcs
+  // depois de BENF_carregarComposicoes(chaves).
+  window.BENF_composicoes = function(l){
+    load();
+    const out = [], add = n => { const k = "comp-"+String(n).padStart(3,"0"); if(out.indexOf(k) === -1) out.push(k); };
+    const m = String((l && l.tabela) || "").match(/Tabela\s*(\d+)/i), n = m ? parseInt(m[1],10) : 0, disc = String((l && l.disc) || "");
+    if(n >= 50 && n <= 53){                         // cerca: insumos (60), fio adicional (61 farpado / 62 liso) e a do espaçamento
+      const e = disc.match(/espa[çc]amento\s*([\d.,]+)\s*m/i), f = disc.match(/(\d+)\s*fio/i), esp = e ? parseFloat(e[1].replace(",", ".")) : NaN;
+      add(60);
+      if(!f || +f[1] > 0) add(n === 50 || n === 52 ? 61 : 62);
+      if(esp >= 0.5 && esp <= 10) add((n <= 51 ? 63 : 83) + Math.round(esp / 0.5) - 1);   // 0,5 a 10 m: eucalipto 63-82, madeira de lei 83-102
+    } else if(n === 57) add(242);                   // plantas domésticas por cova
+    else if(n === 58){                              // mecanização: equipamento em h/m (243) ou operação em h/t (244)
+      const it = (DB.t58_mecanizacao || []).find(x => x.descricao === disc.trim());
+      const u = String((l && l.unid) || (it && it.unidade) || "").toLowerCase().replace(/\s/g, "");
+      if(u === "h/m") add(243); else if(u === "h/t") add(244); else { add(243); add(244); }
+    } else if(n >= 103 && n <= 244) add(n);         // demais itens: a tabela citada já é a composição
+    return out;
+  };
+  // os recortes moram na base (Z:\…\CONFIG\RGV\FTN, fora do GitHub público) e vêm do servidor local só os citados:
+  // GET /api/rgv/FTN?itens=comp-060,… -> { "comp-060": [dataURL, parte 2…] }. Nunca rejeita: sem servidor novo, o anexo sai só com o Anexo 3.
+  const RGV_CONTRATO = "FTN", COMP = {};
+  window.BENF_carregarComposicoes = async function(keys){
+    const faltam = (keys || []).filter(k => /^comp-\d{3}$/.test(k) && !COMP[k]);
+    if(!faltam.length) return;
+    const srv = (typeof window.CAD_SERVIDOR_URL === "string" ? window.CAD_SERVIDOR_URL : "").replace(/\/+$/, "");
+    try{
+      const r = await fetch(srv + "/api/rgv/" + RGV_CONTRATO + "?itens=" + encodeURIComponent(faltam.join(",")), { cache: "no-store" });
+      if(!r.ok) throw new Error("HTTP " + r.status);
+      Object.assign(COMP, await r.json());
+    }catch(e){ console.error("BENF: composições do RGV indisponíveis —", e); }
+  };
+  // imagens (data URI) de uma composição; a que passa de página no RGV vem em partes
+  window.BENF_compSrcs = function(key){ return (COMP[key] || []).slice(); };
 
   document.addEventListener("DOMContentLoaded", load);
 })();
@@ -20612,18 +20650,20 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
   // glebas por classe, escala de valor da CCU — mais a memória de cálculo (IV) e, em seguida, a tabela do imóvel avaliando.
   // Sem os textos longos das variáveis, sem as tabelas de referência e sem a amostra do SISDEA.
   /* memBenf — Memorial de cálculo das benfeitorias (itens 12 e 13) no PDF da Avaliação FTN */
-  // tabelas do RGV que fundamentam os valores das benfeitorias lançadas (Anexo 3) + orçamentos de cercas (Anexo 4), ordenadas
+  // tabelas do RGV que fundamentam os valores das benfeitorias lançadas: quadros do Anexo 3 (página) e, depois, o recorte de
+  // cada composição citada (Anexos 4 e 5, comp-NNN; 29/10/2026, pedido do fiscal). As páginas de cerca (anexo4cercas-*) saíram:
+  // a 289 nem era de cerca, e as 290/291 traziam tabelas sem relação com o item.
   function benfTabelasRGV(){
     if(typeof window.BNF_lerLinhas !== "function") return [];
-    const keys = []; let cerca = false;
+    const keys = [];
+    const por = function(k){ if(k && !/^anexo4cercas/.test(k) && keys.indexOf(k) === -1) keys.push(k); };
     ["121","122","123","124","13"].forEach(function(g){
       window.BNF_lerLinhas(g).filter(function(l){ return l.disc || l.vu; }).forEach(function(l){
-        String(l.img||"").split("|").forEach(function(k){ if(k && keys.indexOf(k) === -1) keys.push(k); });
-        if(g === "13" && /cerca/i.test(l.disc)) cerca = true;
+        String(l.img||"").split("|").forEach(por);
+        if(typeof window.BENF_composicoes === "function") window.BENF_composicoes(l).forEach(por);
       });
     });
-    if(cerca || keys.some(function(k){ return /^anexo4cercas/.test(k); })) ["anexo4cercas-019","anexo4cercas-020","anexo4cercas-021"].forEach(function(k){ if(keys.indexOf(k) === -1) keys.push(k); });
-    return keys.sort();
+    return keys.sort();                                                              // "anexo3-*" antes de "comp-*"
   }
   // numeração em sequência dos anexos que vêm depois de I–III: Orçamentos e Roteiro de Acesso
   /* hubMaterial — anexos do memorial, na ordem; a numeração segue o que estiver disponível E selecionado */
@@ -20679,7 +20719,13 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
   }
   async function anexoOrcamentos(out, procRef){
     const keys = benfTabelasRGV(); if(!keys.length || typeof window.BENF_imgSrc !== "function") return;
-    const srcs = keys.map(function(k){ return window.BENF_imgSrc(k); }).filter(Boolean); if(!srcs.length) return;
+    if(window.BENF_carregarComposicoes) await window.BENF_carregarComposicoes(keys);   // só as citadas, do servidor local (CONFIG/RGV)
+    const srcs = []; let comComp = false;                                            // comComp: alguma composição entrou de fato
+    keys.forEach(function(k){
+      if(/^comp-/.test(k)){ if(window.BENF_compSrcs) window.BENF_compSrcs(k).forEach(function(s){ srcs.push(s); comComp = true; }); }
+      else { const s = window.BENF_imgSrc(k); if(s) srcs.push(s); }
+    });
+    if(!srcs.length) return;
     const {jsPDF} = window.jspdf, doc = new jsPDF({unit:"pt",format:"a4",compress:true}), ctx = ctxAnx(doc, procRef, "orc");
     novaPagina(doc,ctx);                                                             // capa
     doc.setDrawColor(31,111,192); doc.setLineWidth(1.2); doc.line(ctx.CX-90, ctx.H/2-34, ctx.CX+90, ctx.H/2-34);
@@ -20689,8 +20735,8 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
     doc.text("ORÇAMENTOS", ctx.CX, ctx.H/2+20, {align:"center"});
     doc.line(ctx.CX-90, ctx.H/2+36, ctx.CX+90, ctx.H/2+36);
     novaPagina(doc,ctx);
-    secBar(doc,ctx,"TABELAS DO RGV — ANEXOS 3 E 4");
-    paragrafo(doc,ctx,"Reprodução das tabelas do Relatório Genérico de Valores (RGV) — preços unitários de benfeitorias (Anexo 3) e orçamentos de cercas (Anexo 4) — que fundamentam os valores do memorial de cálculo das benfeitorias.",8.5);
+    secBar(doc,ctx,comComp ? "TABELAS DO RGV — ANEXOS 3, 4 E 5" : "TABELAS DO RGV — ANEXO 3");
+    paragrafo(doc,ctx,"Reprodução das tabelas do Relatório Genérico de Valores (RGV) — quadros sintetizados de preços unitários de benfeitorias (Anexo 3)" + (comComp ? " e composições de preços unitários das benfeitorias lançadas (Anexos 4 e 5)" : "") + " — que fundamentam os valores do memorial de cálculo das benfeitorias.",8.5);
     srcs.forEach(function(src){ inserirImagem(doc, ctx, src, 640); ctx.y += 10; });
     doc.deletePage(1);
     const ax = await PDFLib.PDFDocument.load(doc.output("arraybuffer"));
@@ -20796,7 +20842,7 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
     /* ordemBenf */
     if(benfTabelasRGV().length && anxPlano().orc){
       doc.setFont("helvetica","italic"); doc.setFontSize(7.5); doc.setTextColor(90,100,112);
-      ensure(doc,ctx,12); doc.text("As tabelas do RGV que fundamentam os valores unitários (preços e orçamentos de cercas) estão no Anexo " + (anxPlano().orc || "") + " — Orçamentos.", ctx.ML, ctx.y + 8);
+      ensure(doc,ctx,12); doc.text("As tabelas do RGV que fundamentam os valores unitários (preços e composições) estão no Anexo " + (anxPlano().orc || "") + " — Orçamentos.", ctx.ML, ctx.y + 8);
       ctx.y += 14; doc.setTextColor(30,40,55);
     }
     /* resumoBenf — fecha o bloco com os valores totais */
@@ -66048,9 +66094,9 @@ body.ativ-cadastro:not(.modo-painel):has(.app-shell.recolhida) .cad-selo.tem{ di
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.29-6';
+window.APP_VERSAO = '2026.10.29-7';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
-window.SERVIDOR_RECOMENDADO = '2026.10.28-8';
+window.SERVIDOR_RECOMENDADO = '2026.10.29-7';
 (function(){
   var SEM_VERSAO = '0000.00.00-0';
   var LEGADO_LAYOUT = '2026.10.07-0';   // servidor que já tem layout_antigo no health, mas ainda sem número de versão
