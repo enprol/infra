@@ -45876,7 +45876,9 @@ window.UFOTO_rodapeHTML=rodapeHTML;
   }
   window.REL_gerarTexto=function(qual){
     const nome=g("rel_nome")||f19("fb_nome"), estciv=g("rel_estcivil")||f19("fb_estcivil");
-    const rg=g("rel_rg"), cpf=g("rel_cpf"), end=g("rel_endereco"), mun=g("rel_municipio"), cep=g("rel_cep");
+    // 30/10/2026: "Não informado" / CEP 00.000-000 na Ficha = sem o dado (não entra no texto da qualificação)
+    const inf=s=>(/^\s*(n[ãa]o\s+(informad|disponibilizad|possui)|-+\s*$)/i.test(s||"") || /^[0.\-\s]+$/.test(s||"")) ? "" : s;
+    const rg=inf(g("rel_rg")), cpf=inf(g("rel_cpf")), end=inf(g("rel_endereco")), mun=inf(g("rel_municipio")), cep=inf(g("rel_cep"));
     const imovel=g("rel_prop_id"), at=g("rel_area_total"), ad=g("rel_area_desap"), matr=g("rel_matricula"), cib=g("rel_cib"), cart=g("rel_cartorio");
     const ferro=g("rel_ferrovia"), lote=g("rel_lote"), subtr=g("rel_subtrecho"), proc=g("rel_processo"), sei=g("rel_sei"), contr=g("rel_contrato"), os=g("rel_os");
     const grau=REL_fraseGrau();
@@ -45888,7 +45890,12 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     }
     if(qual==="qualificacao"){
       let t="";
-      if(nome){ t+=nome; if(estciv) t+=", "+estciv.toLowerCase(); if(rg) t+=", portador(a) da cédula de identidade RG nº "+rg; if(cpf) t+=" e inscrito(a) no CPF sob o nº "+cpf; if(end) t+=", residente e domiciliado(a) na "+end; if(mun) t+=", "+mun; if(cep) t+=", CEP "+cep; t+=". "; }
+      // 30/10/2026 (Fernando): titular falecido = espólio — não se qualifica como pessoa viva (estado civil, "residente e domiciliado")
+      if(nome && /^\s*esp[óo]lio\b/i.test(nome)){
+        t+=nome.trim()+", sucessão do(a) titular falecido(a)"; if(rg) t+=", portador(a) em vida da cédula de identidade RG nº "+rg; if(cpf) t+=(rg?" e":",")+" inscrito(a) no CPF sob o nº "+cpf;
+        if(end) t+=", com endereço para correspondência na "+end; if(mun) t+=", "+mun; if(cep) t+=", CEP "+cep; t+=". ";
+      }
+      else if(nome){ t+=nome; if(estciv) t+=", "+estciv.toLowerCase(); if(rg) t+=", portador(a) da cédula de identidade RG nº "+rg; if(cpf) t+=" e inscrito(a) no CPF sob o nº "+cpf; if(end) t+=", residente e domiciliado(a) na "+end; if(mun) t+=", "+mun; if(cep) t+=", CEP "+cep; t+=". "; }
       if(imovel){ t+="O imóvel em questão, denominado "+imovel+(at?(", possui uma área total de "+at+" ha"):"")+(cib?(", encontrando-se cadastrado no ITR sob o CIB nº "+cib):"")+". "; }
       if(cart){ t+="A propriedade apresenta registro formal no "+cart+(matr?(", sob a Matrícula nº "+matr):"")+". "; }
       if(ad){ t+="A área abrangida pela atual desapropriação é de "+ad+" ha, destinada a faixa de domínio da ferrovia"+(subtr?(" no trecho "+subtr):"")+(proc?(()=>{ const pp=window.PROC_partes(proc,sei); return ", por meio do processo administrativo "+(pp.cad||proc)+(pp.sei?(" (SEI nº "+pp.sei+")"):""); })():"")+". "; }
@@ -66299,7 +66306,7 @@ body.ativ-cadastro:not(.modo-painel):has(.app-shell.recolhida) .cad-selo.tem{ di
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.30-2';
+window.APP_VERSAO = '2026.10.30-3';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.29-7';
 (function(){
