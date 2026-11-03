@@ -38978,7 +38978,7 @@ function AV_gerarDescSituacao(){
             : ("quadro do mapa " + br(MAPA.w,0) + " × " + br(MAPA.h,0) + " mm na folha " + FL.nome)) +
           " · escala 1:" + T.esc.toLocaleString("pt-BR") + " · " + G.v.length + " vértices · " + br(G.area_ha,4) + " ha" +
           (T.folhas > 1 ? " · " + T.folhas + " pranchas" : "") +
-          " — arraste o vazio para mover o mapa, ou um rótulo, leader ou cota para mover só ele · roda = zoom · Ctrl+K = comandos";
+          " — segure a roda do mouse e arraste para mover o mapa; com o botão esquerdo, arraste um rótulo, leader ou cota para mover só ele · roda = zoom · Ctrl+K = comandos";
       }
       if(load) load.style.display = "none";
     }catch(e){ console.warn("planta/composição:", e); aviso("Não consegui desenhar: " + (e.message || e)); }
@@ -41522,7 +41522,7 @@ function AV_gerarDescSituacao(){
     var hud = $("v2_hud"), T = COMP.T; if(!hud) return;
     if(COMP.vista === "folha" || !T || !G){ hud.style.display = "none"; return; }
     hud.style.display = "block";
-    if(!ev){ hud.innerHTML = '<span class="k">roda</span> zoom · <span class="k">arrastar</span> mover · <span class="k">clique</span> referência · <span class="k">Ctrl+K</span> comandos'; return; }
+    if(!ev){ hud.innerHTML = '<span class="k">roda</span> zoom · <span class="k">segurar a roda</span> mover o mapa · <span class="k">arrastar</span> mover elemento · <span class="k">Ctrl+K</span> comandos'; return; }
     var mm = compMm(ev); if(!mm) return;
     var E = T.E(mm[0]), N = T.N(mm[1]), nv = null;
     G.v.forEach(function(q, i){ var d = Math.hypot(q.E - E, q.N - N); if(!nv || d < nv.d) nv = { d:d, i:i, q:q }; });
@@ -41635,7 +41635,7 @@ function AV_gerarDescSituacao(){
         '<span class="pct" aria-live="polite">100%</span>' +
         '<button type="button" data-l="+" title="Aproximar" aria-label="Aproximar">+</button>' +
         '<span class="sep"></span><button type="button" class="aj" data-l="0" title="Mostrar a prancha inteira">Ajustar</button>' +
-        '<span class="dica">roda = zoom · arraste = mover · 2 cliques = aproximar</span>';
+        '<span class="dica">roda = zoom · segurar a roda = mover · 2 cliques = aproximar</span>';
       b.addEventListener("mousedown", function(ev){ ev.stopPropagation(); });
       b.addEventListener("click", function(ev){
         var bt = ev.target.closest && ev.target.closest("[data-l]"); if(!bt) return;
@@ -41674,9 +41674,10 @@ function AV_gerarDescSituacao(){
   function lupaLigar(pal){
     var esq = $("mdp_comp_esq"); if(!esq || esq.__lupa) return; esq.__lupa = true;
     esq.addEventListener("mousedown", function(ev){
-      if(COMP.vista !== "folha" || LUPA.k <= 1.001 || ev.button !== 0) return;
+      if(COMP.vista !== "folha" || LUPA.k <= 1.001 || ev.button !== 1) return;   // vista da prancha ampliada: PAN também só com o botão do meio
       LUPA.drag = { x:ev.clientX, y:ev.clientY, sl:esq.scrollLeft, st:esq.scrollTop }; esq.classList.add("movendo"); ev.preventDefault();
     });
+    esq.addEventListener("auxclick", function(ev){ if(ev.button === 1) ev.preventDefault(); });
     window.addEventListener("mousemove", function(ev){ var d = LUPA.drag; if(!d) return; esq.scrollLeft = d.sl - (ev.clientX - d.x); esq.scrollTop = d.st - (ev.clientY - d.y); });
     window.addEventListener("mouseup", function(){ if(LUPA.drag){ LUPA.drag = null; esq.classList.remove("movendo"); } });
     pal.addEventListener("dblclick", function(ev){ if(COMP.vista !== "folha") return; ev.preventDefault(); if(LUPA.k > 1.001) lupaPara(1, ev.clientX, ev.clientY); else lupaPara(3, ev.clientX, ev.clientY); });
@@ -41693,11 +41694,21 @@ function AV_gerarDescSituacao(){
       var mm = compMm(ev); if(!mm) return;
       v2ZoomPasso(ev.deltaY < 0 ? -1 : 1, mm, COMP.T.E(mm[0]), COMP.T.N(mm[1]));
     }, { passive:false });
+    /* 03/11/2026 (Fernando): como no AutoCAD — o PAN é só com o botão do meio (roda pressionada), também nos modos de cota e
+       leader; o botão esquerdo só pega e move elementos (rótulos, leaders, KM, indicações). Clique esquerdo sem arrastar no
+       vazio continua marcando a referência (v2Cliques). */
     pal.addEventListener("mousedown", function(ev){
-      if(ev.button !== 0 || ev.shiftKey || COMP.cota || COMP.leader || COMP.vista === "folha" || !COMP.T) return;
-      var cv = $("mdp_comp_cv"), r = cv.getBoundingClientRect();
-      V2.drag = { x:ev.clientX, y:ev.clientY, moved:false, px:PAN.x, py:PAN.y, mmPx:MAPA.w/(r.width || 1) };
+      if(COMP.vista === "folha" || !COMP.T) return;
+      if(ev.button === 1){
+        ev.preventDefault();                                     // sem a rolagem automática do navegador
+        var cv = $("mdp_comp_cv"), r = cv.getBoundingClientRect();
+        V2.drag = { x:ev.clientX, y:ev.clientY, moved:false, px:PAN.x, py:PAN.y, mmPx:MAPA.w/(r.width || 1), meio:true };
+        return;
+      }
+      if(ev.button !== 0 || ev.shiftKey || COMP.cota || COMP.leader) return;
+      V2.clk = { x:ev.clientX, y:ev.clientY };
     });
+    pal.addEventListener("auxclick", function(ev){ if(ev.button === 1) ev.preventDefault(); });
     pal.addEventListener("mousemove", function(ev){
       if(V2.drag) return;
       if(V2.hudRaf) return; V2.hudRaf = requestAnimationFrame(function(){ V2.hudRaf = 0; v2Hud(ev); });
@@ -41710,11 +41721,13 @@ function AV_gerarDescSituacao(){
       if(d.moved) ["mdp_comp_cv", "mdp_comp_svg", "v2_svg"].forEach(function(id){ var e = $(id); if(e) e.style.transform = "translate(" + dx + "px," + dy + "px)"; });
     });
     window.addEventListener("mouseup", function(ev){
+      var k = V2.clk; V2.clk = null;
+      if(k && ev.button === 0 && Math.hypot(ev.clientX - k.x, ev.clientY - k.y) <= 4 && ev.target && pal.contains(ev.target) && !COMP.arr) v2Cliques(ev);
       var d = V2.drag; if(!d) return; V2.drag = null; pal.classList.remove("v2-arrastando");
       if(d.moved){
         PAN.x = d.px + (ev.clientX - d.x)*d.mmPx; PAN.y = d.py + (ev.clientY - d.y)*d.mmPx;
         v2LimparTransf(); CACHE_SAT.chave = ""; compPintar();
-      } else if(ev.target && pal.contains(ev.target)) v2Cliques(ev);
+      }
     });
   }
 
@@ -41755,7 +41768,7 @@ function AV_gerarDescSituacao(){
   }
   function v2Paleta(){
     var C = v2Comandos();
-    var ov = v2Modal("v2_pal_ov", "⌨ Comandos", '<input type="text" id="v2_pal_in" class="v2-pal-in" placeholder="Digite: escala, ir para P12, camada, PDF, vizinhos, desfazer…" autocomplete="off"><div id="v2_pal_l" class="v2-pal-l"></div><div class="v2-p" style="margin:8px 0 0">Atalhos no mapa: <span class="k">roda</span> zoom · <span class="k">arrastar</span> mover · <span class="k">clique</span> ponto de referência · <span class="k">+</span>/<span class="k">−</span> zoom · <span class="k">0</span> ajustar · <span class="k">C</span> cota · <span class="k">V</span> impressão · <span class="k">N</span> vizinhos · <span class="k">Ctrl+Z</span>/<span class="k">Ctrl+Y</span> · <span class="k">Esc</span> limpa/fecha</div>', "");
+    var ov = v2Modal("v2_pal_ov", "⌨ Comandos", '<input type="text" id="v2_pal_in" class="v2-pal-in" placeholder="Digite: escala, ir para P12, camada, PDF, vizinhos, desfazer…" autocomplete="off"><div id="v2_pal_l" class="v2-pal-l"></div><div class="v2-p" style="margin:8px 0 0">Atalhos no mapa: <span class="k">roda</span> zoom · <span class="k">segurar a roda</span> mover o mapa · <span class="k">arrastar</span> mover elemento ·<span class="k">clique</span> ponto de referência · <span class="k">+</span>/<span class="k">−</span> zoom · <span class="k">0</span> ajustar · <span class="k">C</span> cota · <span class="k">V</span> impressão · <span class="k">N</span> vizinhos · <span class="k">Ctrl+Z</span>/<span class="k">Ctrl+Y</span> · <span class="k">Esc</span> limpa/fecha</div>', "");
     var inp = ov.querySelector("#v2_pal_in"), lst = ov.querySelector("#v2_pal_l"), sel = 0, vis = [];
     function norm(t){ return String(t).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase(); }
     function pinta(){
@@ -66556,7 +66569,7 @@ body.ativ-cadastro:not(.modo-painel):has(.app-shell.recolhida) .cad-selo.tem{ di
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.11.03-3';
+window.APP_VERSAO = '2026.11.03-4';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.29-7';
 (function(){
