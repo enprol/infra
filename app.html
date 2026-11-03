@@ -37060,13 +37060,33 @@ function AV_gerarDescSituacao(){
   window.MDP_leaders = leadersLer;
   function desenharLeaders(P, T){ CAMDXF(P, "ENP_LEADERS");
     var L = leadersLer(); if(!L.length) return;
-    var e = EST("leader"), tam = TAM.leader, lh = tam*.3528*1.28;
+    var e = EST("leader"), tam = TAM.leader, lh = tam*.3528*1.28, NUMS = L.some(function(c){ return c.obs; }) ? obsNumeros() : {};
     L.forEach(function(c, il){
-      if(!isFinite(c.aE) || !isFinite(c.aN) || !isFinite(c.bE) || !isFinite(c.bN)) return;
-      var A = [T.x(c.aE), T.y(c.aN)], B = [T.x(c.bE), T.y(c.bN)];
-      if(!noMapa(A, -1) && !noMapa(B, -1)) return;
+      if(c.obs && !NUMS[c.obs] && typeof window.BNF_lerLinhas === "function") return;   // benfeitoria excluída na Técnica: a indicação não sai
+      if(!isFinite(c.aE) || !isFinite(c.aN) || (!c.off && (!isFinite(c.bE) || !isFinite(c.bN)))) return;
+      // c.off = deslocamento do círculo em mm de PAPEL em relação à ponta (indicações do Carimbo): a ponta fica presa ao
+      // ponto do terreno (UTM) e o símbolo mantém o tamanho no papel em qualquer escala, quadro ou prancha unificada
+      var A = [T.x(c.aE), T.y(c.aN)], B = c.off ? [A[0] + c.off[0], A[1] + c.off[1]] : [T.x(c.bE), T.y(c.bN)];
+      if(c.obs ? !noMapa(A, -1) : (!noMapa(A, -1) && !noMapa(B, -1))) return;     // indicação de benfeitoria: só na prancha/área em que a PONTA está
       var dx = A[0] - B[0], dy = A[1] - B[1], Lp = Math.hypot(dx, dy); if(Lp < .8) return;
       var ux = dx/Lp, uy = dy/Lp;
+      if(c.circ){                                                                  // 03/11/2026: texto dentro de círculo sem preenchimento; a haste sai da borda dele
+        var tc = 8.5, lc = String((c.obs && NUMS[c.obs]) || c.txt || "").split("\n"), lhc = tc*.3528*1.15;
+        var wc = Math.max.apply(null, lc.map(function(s){ return s ? P.largura(s, { tam:tc, bold:true }) : 0; })), hc = lc.length*lhc;
+        var rc = Math.max(3.4, Math.hypot(wc/2, hc/2) + 1);
+        if(c.off){                                                                  // formato menor / outra escala: o círculo não sai da janela do mapa
+          B = [Math.max(MAPA.x + rc + 1, Math.min(MAPA.x + MAPA.w - rc - 1, B[0])), Math.max(MAPA.y + rc + 1, Math.min(MAPA.y + MAPA.h - rc - 1, B[1]))];
+          dx = A[0] - B[0]; dy = A[1] - B[1]; Lp = Math.hypot(dx, dy) || 1; ux = dx/Lp; uy = dy/Lp;
+        }
+        if(Lp > rc + .8){
+          P.linha(B[0] + ux*rc, B[1] + uy*rc, A[0], A[1], { cor:e.cor, peso:e.peso });
+          seta(P, A[0], A[1], ux, uy, e.cor);
+        }
+        P.circ(B[0], B[1], rc, { cor:e.cor, peso:e.peso });
+        lc.forEach(function(s, k){ if(s) P.texto(B[0], B[1] - hc/2 + (k + 1)*lhc - lhc*.22, s, { tam:tc, align:"center", cor:e.cor, bold:true }); });
+        if(HIT) hitAdd({ tipo:"leader", i:il, A:A, B:B, box:[B[0] - rc, B[1] - rc, B[0] + rc, B[1] + rc] });
+        return;
+      }
       P.linha(B[0], B[1], A[0], A[1], { cor:e.cor, peso:e.peso });                 // haste de B até a ponta
       seta(P, A[0], A[1], ux, uy, e.cor);                                           // ponta da seta em A
       var lado = (c.lado === 1 || c.lado === -1) ? c.lado : (A[0] <= B[0] ? 1 : -1), sh = 4;
@@ -38148,8 +38168,93 @@ function AV_gerarDescSituacao(){
         out.push({ desc:d, qtd:(l.qtd || "").trim(), unid:(l.unid || "").trim(), cat:g[1] });
       });
     });
+    // 03/11/2026 (Fernando): a ordem numérica é escolhida arrastando no Carimbo › 06 (extras().obs_ordem = chaves); o que não
+    // está na lista (benfeitoria nova) vem depois, na ordem da Técnica. Chave repetida ganha #2, #3…
+    var vistas = {};
+    // chave = categoria + descrição (+ #n se repetida): mudar só a quantidade na Técnica não solta a indicação da planta
+    out.forEach(function(o){ var k = o.cat + "|" + o.desc; vistas[k] = (vistas[k] || 0) + 1; o.key = k + "#" + vistas[k]; });
+    var ord = extras().obs_ordem;
+    if(Array.isArray(ord) && ord.length){
+      var pos = function(o){ var p = ord.indexOf(o.key); return p < 0 ? 1e6 : p; };
+      out = out.map(function(o, i){ return { o:o, i:i, p:pos(o) }; }).sort(function(a, b){ return (a.p - b.p) || (a.i - b.i); }).map(function(r){ return r.o; });
+    }
     return out;
   }
+  // arrastar e soltar na lista do Carimbo › 06: move a benfeitoria `de` para a posição `para` (índices da lista de benfeitorias)
+  window.MDP_obsMover = function(de, para){
+    var l = obsBenfeitorias(); de = de|0; para = para|0;
+    if(!l[de] || para < 0 || para >= l.length || de === para) return;
+    var it = l.splice(de, 1)[0]; l.splice(para, 0, it);
+    setExtra("obs_ordem", l.map(function(o){ return o.key; }));
+    renderCampos(); agendarPreview(60);
+  };
+  // nº impresso de cada benfeitoria no quadro OBSERVAÇÃO (anotações livres primeiro, depois as benfeitorias na ordem escolhida)
+  function obsNumeros(){
+    var m = {}, n0 = (extras().obs || []).filter(Boolean).length;
+    obsBenfeitorias().forEach(function(o, k){ m[o.key] = String(n0 + k + 1).padStart(2, "0"); });
+    return m;
+  }
+  // "Indicar" (Carimbo › 06): fecha a gaveta, liga a ◯ Leader e a leader nasce com o nº daquela benfeitoria (acompanha a ordem)
+  /* 03/11/2026 (Fernando): a gaveta do Carimbo continua aberta; o desenho sai da vista "prancha"; UM clique no local já
+     coloca a leader com o nº da benfeitoria (círculo ao lado da ponta, arrastável); Enter confirma e passa para a próxima
+     benfeitoria ainda sem indicação; Esc encerra. A leader guarda a ponta em UTM e o círculo em mm de papel (c.off). */
+  /* As indicações são presas ao nº do Carimbo: benfeitoria excluída na Técnica → a leader dela sai e as demais renumeram
+     (o nº é sempre lido da lista); benfeitoria nova → fica pendente e a Mesa pede a indicação. Só vale quando o
+     cadastro já usa indicações (alguma leader ligada a benfeitoria). */
+  function indPendentes(){
+    var L = leadersLer(); if(!L.some(function(c){ return c.obs; }) || typeof window.BNF_lerLinhas !== "function") return [];
+    var usadas = {}; L.forEach(function(c){ if(c.obs) usadas[c.obs] = 1; });
+    return obsBenfeitorias().map(function(o, bi){ return { o:o, bi:bi }; }).filter(function(r){ return !usadas[r.o.key]; });
+  }
+  function indSincronizar(){
+    var L = leadersLer(); if(!L.some(function(c){ return c.obs; }) || typeof window.BNF_lerLinhas !== "function") return false;
+    var ks = {}; obsBenfeitorias().forEach(function(o){ ks[o.key] = 1; });
+    var N = L.filter(function(c){ return !c.obs || ks[c.obs]; });
+    if(N.length === L.length) return false;
+    COMP.sel = null; leadersGravar(N); return true;
+  }
+  function indMarcar(){
+    var bi = COMP.ind ? COMP.ind.bi : -1;
+    Array.prototype.forEach.call(document.querySelectorAll("#mdp_aba_car .car-obs-lista li.car-obs-arr"), function(li, k){ li.classList.toggle("indicando", k === bi); });
+  }
+  function indProxima(de){
+    var bn = obsBenfeitorias(), usadas = {}; leadersLer().forEach(function(c){ if(c.obs) usadas[c.obs] = 1; });
+    for(var k = de; k < bn.length; k++) if(!usadas[bn[k].key]) return k;
+    return -1;
+  }
+  function indIniciar(bi){
+    var bn = obsBenfeitorias(), o = bn[bi]; if(!o){ COMP.ind = null; indMarcar(); compDica(); return; }
+    if(COMP.vista === "folha") compVista("quadro");                 // sai da vista prancha: só no quadro dá para marcar
+    compLeaderModo(true, true);
+    COMP.indObs = o.key; COMP.indNum = obsNumeros()[o.key]; COMP.ind = { bi:bi, fase:"espera" };
+    indMarcar(); compDica();
+  }
+  window.MDP_obsIndicar = function(bi){ if(!compAberto()) return; indIniciar(bi|0); };
+  function indColocar(q, q2){   // q = ponta da seta (1º clique); q2 = onde o círculo fica (2º clique)
+    var LL = leadersLer().filter(function(c){ return c.obs !== COMP.indObs; }), bi = COMP.ind.bi;   // reindicar substitui a anterior
+    var dx = q2.mm[0] - q.mm[0], dy = q2.mm[1] - q.mm[1];
+    if(Math.hypot(dx, dy) < 2.5) return;                                                        // 2º clique colado na ponta: ignora
+    LL.push({ aE:q.E, aN:q.N, off:[Math.round(dx*100)/100, Math.round(dy*100)/100], txt:COMP.indNum || "1", circ:1, obs:COMP.indObs });
+    var prox = indProxima(bi + 1), nx = prox >= 0 ? obsNumeros()[obsBenfeitorias()[prox].key] : "";
+    COMP.ind.fase = "ajuste";
+    COMP.ind.msg = "Nº " + COMP.indNum + " colocado — arraste o círculo ou a ponta para ajustar · Enter confirma" + (prox >= 0 ? " e segue para o nº " + nx : " (é a última)") + " · Esc encerra";
+    COMP.sel = { tipo:"leader", i:LL.length - 1 }; COMP.focoTxt = true;   // mantém a seleção até pintar (o nº é travado: sem campo de texto)
+    leadersGravar(LL); compLeaderModo(false); leaderMexeu();
+  }
+  function indConfirmar(){
+    if(!COMP.ind || COMP.ind.fase !== "ajuste") return;
+    var prox = indProxima(COMP.ind.bi + 1);
+    COMP.sel = null; COMP.arr = null; compSelDesenhar();
+    if(prox < 0){ COMP.ind = null; indMarcar(); compDica(); v2Toast("Todas as benfeitorias foram indicadas."); return; }
+    indIniciar(prox);
+  }
+  function indEncerrar(){ COMP.ind = null; indMarcar(); if(COMP.leader) compLeaderModo(false); else compDica(); }
+  var OBS_ARR = null;
+  window.MDP_obsDS = function(ev, i){ OBS_ARR = i; try{ ev.dataTransfer.effectAllowed = "move"; ev.dataTransfer.setData("text/plain", String(i)); }catch(e){} ev.currentTarget.classList.add("arrastando"); };
+  window.MDP_obsDO = function(ev){ if(OBS_ARR == null) return; ev.preventDefault(); ev.currentTarget.classList.add("alvo"); };
+  window.MDP_obsDL = function(ev){ ev.currentTarget.classList.remove("alvo"); };
+  window.MDP_obsDD = function(ev, i){ ev.preventDefault(); var de = OBS_ARR; OBS_ARR = null; if(de != null) window.MDP_obsMover(de, i); };
+  window.MDP_obsDE = function(ev){ OBS_ARR = null; ev.currentTarget.classList.remove("arrastando"); };
 
   // trecho do SPS-04 (Salgueiro → Suape): vale para todos os cadastros do lote enquanto o campo estiver em branco
   var TRECHO_SPS04 = "Salgueiro/PE, km 178+800 AO km 252+214,196 - Suape/PE";   // 21/10/2026: corrigido (antes saía o km do SPS-07)
@@ -38843,6 +38948,9 @@ function AV_gerarDescSituacao(){
     var ov = compAberto(); if(!ov) return;
     var cv = $("mdp_comp_cv"), load = $("mdp_comp_load"), esq = $("mdp_comp_esq");
     if(!cv || !esq) return;
+    if(indSincronizar()){ var pa = $("mdp_aba_car"); if(pa && !pa.hidden) renderCarimboPainel(); v2Toast("Benfeitoria excluída na Técnica: indicação removida e numeração refeita."); }
+    var pend = indPendentes();
+    if(pend.length !== (COMP.pendAviso || 0)){ COMP.pendAviso = pend.length; if(pend.length) v2Toast(pend.length + " benfeitoria(s) nova(s) sem indicação na planta — Carimbo › 06 › Indicar."); var pb = $("mdp_aba_car"); if(pb && !pb.hidden) renderCarimboPainel(); }
     if(!G){ if(load){ load.textContent = "Insira o KML em Técnica › Áreas de Locação para compor a planta."; load.style.display = "block"; } return; }
     var meu = ++COMP.tok, folha = (COMP.vista === "folha");
     var aviso = function(t){ if(load && meu === COMP.tok){ load.textContent = t; load.style.display = "block"; } };
@@ -38893,6 +39001,7 @@ function AV_gerarDescSituacao(){
     }
     if(btc) btc.disabled = (COMP.vista === "folha");
     var btl = $("mdp_bt_leader"); if(btl) btl.disabled = (COMP.vista === "folha");
+    var btlc = $("mdp_bt_leader_c"); if(btlc) btlc.disabled = (COMP.vista === "folha");
     compPintar();
   }
 
@@ -38921,6 +39030,8 @@ function AV_gerarDescSituacao(){
     if(cur && cur.nome) h += alvo(cur, "#20d47e", 1.3);
     if(p0 && cur && COMP.leader){
       h += '<line x1="' + cur.mm[0].toFixed(2) + '" y1="' + cur.mm[1].toFixed(2) + '" x2="' + p0.mm[0].toFixed(2) + '" y2="' + p0.mm[1].toFixed(2) + '" stroke="#ff2f6d" stroke-width=".4"/>';
+      if(COMP.ind && COMP.indNum) h += '<circle cx="' + cur.mm[0].toFixed(2) + '" cy="' + cur.mm[1].toFixed(2) + '" r="3.4" fill="#fff" fill-opacity=".85" stroke="#ff2f6d" stroke-width=".45"/>' +
+        '<text x="' + cur.mm[0].toFixed(2) + '" y="' + (cur.mm[1] + 1.3).toFixed(2) + '" fill="#ff2f6d" font-size="3.6" font-weight="700" text-anchor="middle">' + COMP.indNum + '</text>';   // prévia: o círculo com o nº segue o mouse
     } else if(p0 && cur){
       var m = Math.hypot(cur.E - p0.E, cur.N - p0.N);
       h += '<line x1="' + p0.mm[0].toFixed(2) + '" y1="' + p0.mm[1].toFixed(2) + '" x2="' + cur.mm[0].toFixed(2) + '" y2="' + cur.mm[1].toFixed(2) + '" stroke="#ff2f6d" stroke-width=".4" stroke-dasharray="1.6 1.2"/>' +
@@ -38931,25 +39042,27 @@ function AV_gerarDescSituacao(){
   function compSvgLimpar(){ var sv = $("mdp_comp_svg"); if(sv) sv.innerHTML = ""; }
   function compDica(){
     var d = $("mdp_cota_dica"); if(!d) return;
+    if(COMP.ind && COMP.ind.fase === "ajuste"){ d.textContent = COMP.ind.msg || ""; return; }
     d.textContent = (!COMP.cota && !COMP.leader) ? "" : (COMP.leader
-      ? (COMP.p0 ? "Agora clique onde o TEXTO da leader deve ficar — Esc cancela" : "Clique no ponto que a SETA vai apontar — perto de um vértice ela encaixa nele")
+      ? (COMP.p0 ? "Agora clique onde o " + (COMP.leaderC ? "CÍRCULO" : "TEXTO") + " da leader deve ficar — Esc cancela" : (COMP.indObs ? "Indicar nº " + COMP.indNum + ": c" : "C") + "lique no ponto que a SETA vai apontar — perto de um vértice ela encaixa nele")
       : (COMP.p0 ? "Agora clique no segundo ponto — Esc cancela" : "Clique no primeiro ponto da cota — perto de um vértice ela encaixa nele"));
   }
   // 14/10/2026: criar cota/leader com a camada "Cotas" desligada fazia o objeto sumir assim que nascia
   function compCamadaCotas(){ if(OPC.cotas === false){ OPC.cotas = true; sincronizarBarras(); agendarPreview(60); } }
   function compCotaModo(on){
-    COMP.cota = !!on; COMP.p0 = null; if(on){ COMP.leader = false; compCamadaCotas(); }
+    COMP.cota = !!on; COMP.p0 = null; if(on){ COMP.leader = false; COMP.ind = null; compCamadaCotas(); }
     var esq = $("mdp_comp_esq"), bt = $("mdp_bt_cota"), bl = $("mdp_bt_leader");
     if(esq){ esq.classList.toggle("cota", COMP.cota); esq.classList.toggle("leader", !!COMP.leader); }
     if(bt) bt.classList.toggle("on", COMP.cota);
     if(bl) bl.classList.toggle("on", !!COMP.leader);
     compSvgLimpar(); compDica(); compCotasLista(); compLeadersLista(); compSelDesenhar();
   }
-  function compLeaderModo(on){
-    COMP.leader = !!on; COMP.p0 = null; if(on){ COMP.cota = false; compCamadaCotas(); }
-    var esq = $("mdp_comp_esq"), bt = $("mdp_bt_cota"), bl = $("mdp_bt_leader");
+  function compLeaderModo(on, circ){
+    COMP.leader = !!on; COMP.leaderC = !!on && !!circ; COMP.p0 = null; COMP.indObs = null; if(on){ COMP.cota = false; compCamadaCotas(); }
+    var esq = $("mdp_comp_esq"), bt = $("mdp_bt_cota"), bl = $("mdp_bt_leader"), blc = $("mdp_bt_leader_c");
     if(esq){ esq.classList.toggle("leader", COMP.leader); esq.classList.toggle("cota", !!COMP.cota); }
-    if(bl) bl.classList.toggle("on", COMP.leader);
+    if(bl) bl.classList.toggle("on", COMP.leader && !COMP.leaderC);
+    if(blc) blc.classList.toggle("on", COMP.leaderC);
     if(bt) bt.classList.toggle("on", !!COMP.cota);
     compSvgLimpar(); compDica(); compCotasLista(); compLeadersLista(); compSelDesenhar();
   }
@@ -38958,17 +39071,18 @@ function AV_gerarDescSituacao(){
     var box = $("mdp_comp_leaders"); if(!box) return;
     var L = leadersLer();
     if(!L.length){ box.innerHTML = '<div class="t">Nenhuma leader ainda</div><div style="color:#9cb7bd">Clique onde a seta deve apontar e depois onde o texto fica. Ela é guardada no cadastro e sai na prancha, no PDF e no JPG.</div>'; return; }
+    var NM = L.some(function(c){ return c.obs; }) ? obsNumeros() : {};
     box.innerHTML = '<div class="t">Leaders (' + L.length + ')</div>' + L.map(function(c, i){
-      return '<div class="mdp-cota-l"><b>' + (i + 1) + '</b><textarea rows="2" title="Texto da leader (Enter quebra a linha)" oninput="MDP_leaderTxt(' + i + ',this.value)">' + esc(c.txt || "") + '</textarea>' +
+      return '<div class="mdp-cota-l"><b>' + (i + 1) + '</b><textarea rows="2" title="' + (c.obs ? 'Nº da benfeitoria no Carimbo — não se edita' : 'Texto da leader (Enter quebra a linha)') + '"' + (c.obs ? ' readonly' : ' oninput="MDP_leaderTxt(' + i + ',this.value)"') + '>' + esc((c.obs && NM[c.obs]) || c.txt || "") + '</textarea>' +
         '<button type="button" title="Ir até a ponta da seta" onclick="MDP_leaderIr(' + i + ')">🎯</button>' +
-        '<button type="button" title="Trocar o lado do texto" onclick="MDP_leaderLado(' + i + ')">⇄</button>' +
+        (c.circ ? '' : '<button type="button" title="Trocar o lado do texto" onclick="MDP_leaderLado(' + i + ')">⇄</button>') +
         '<button type="button" title="Apagar esta leader" onclick="MDP_leaderRemover(' + i + ')">✕</button></div>';
     }).join("");
   }
   function leaderMexeu(){ compLeadersLista(); agendarPreview(120); }
-  window.MDP_leaderTxt = function(i, v){ var L = leadersLer(); if(!L[i]) return; L[i].txt = v; leadersGravar(L); agendarPreview(400); };
+  window.MDP_leaderTxt = function(i, v){ var L = leadersLer(); if(!L[i] || L[i].obs) return; L[i].txt = v; leadersGravar(L); agendarPreview(400); };
   window.MDP_leaderLado = function(i){
-    var L = leadersLer(); if(!L[i]) return;
+    var L = leadersLer(); if(!L[i] || L[i].circ) return;
     var A = COMP.T ? COMP.T.x(L[i].aE) : 0, B = COMP.T ? COMP.T.x(L[i].bE) : 1;
     var atual = (L[i].lado === 1 || L[i].lado === -1) ? L[i].lado : (A <= B ? 1 : -1);
     L[i].lado = -atual; leadersGravar(L); leaderMexeu();
@@ -39071,6 +39185,8 @@ function AV_gerarDescSituacao(){
     }
     if(h.tipo === "leader"){
       var c = leadersLer()[h.i] || {};
+      if(c.obs) return '<b>Benfeitoria nº ' + esc(obsNumeros()[c.obs] || c.txt || "") + '</b><span class="mdp-sel-dica">ligada ao Carimbo — o nº não se edita · arraste para mover</span>' +
+        '<button type="button" data-acao="del" class="perigo" title="Apagar esta indicação (a benfeitoria fica pendente)">✕ Excluir</button>';
       return '<b>Leader</b><textarea rows="2" aria-label="Texto da leader" title="Texto da leader (Enter quebra a linha)">' + esc(c.txt || "") + '</textarea>' +
         '<button type="button" data-acao="lado" title="Trocar o lado do texto">⇄ Lado</button>' +
         '<button type="button" data-acao="del" class="perigo" title="Apagar esta leader (Del)">✕ Excluir</button>';
@@ -39085,7 +39201,11 @@ function AV_gerarDescSituacao(){
     if(!bar){
       bar = document.createElement("div"); bar.id = "mdp_sel_bar"; bar.className = "mdp-sel-bar"; pal.appendChild(bar);
       bar.addEventListener("mousedown", function(ev){ ev.stopPropagation(); });          // clicar na barra não move o mapa
-      bar.addEventListener("keydown", function(ev){ ev.stopPropagation(); });            // Del dentro do texto não apaga a leader
+      bar.addEventListener("keydown", function(ev){
+        ev.stopPropagation();                                                              // Del dentro do texto não apaga a leader
+        if(ev.key === "Enter" && !ev.shiftKey && COMP.ind && COMP.ind.fase === "ajuste"){ ev.preventDefault(); indConfirmar(); }   // Enter confirma a indicação (Shift+Enter quebra a linha)
+        else if(ev.key === "Escape" && COMP.ind){ ev.preventDefault(); indEncerrar(); COMP.sel = null; compSelDesenhar(); }
+      });
       bar.addEventListener("input", function(ev){ var s = COMP.sel; if(s && s.tipo === "leader" && ev.target.tagName === "TEXTAREA") window.MDP_leaderTxt(s.i, ev.target.value); });
       bar.addEventListener("click", function(ev){ var b = ev.target.closest && ev.target.closest("[data-acao]"); if(b && !b.disabled) selAcao(b.getAttribute("data-acao")); });
     }
@@ -39125,6 +39245,7 @@ function AV_gerarDescSituacao(){
       var L = leadersLer(), c = L[h.i];
       if(!c || (a.parte === "ponta" && !a.cur)){ COMP.arr = null; compSelDesenhar(); return; }
       if(a.parte === "ponta"){ c.aE = a.cur.E; c.aN = a.cur.N; }
+      else if(c.off){ c.off = [r2(h.B[0] + a.dx - h.A[0]), r2(h.B[1] + a.dy - h.A[1])]; }
       else { c.bE = r2(T.E(h.B[0] + a.dx)); c.bN = r2(T.N(h.B[1] + a.dy)); }
       leadersGravar(L); leaderMexeu(); return;
     }
@@ -39171,7 +39292,9 @@ function AV_gerarDescSituacao(){
     if(!compAberto()) return;
     var foco = document.activeElement, digitando = !!foco && (/^(INPUT|TEXTAREA|SELECT)$/.test(foco.tagName) || foco.isContentEditable);
     if((ev.key === "Delete" || ev.key === "Backspace") && COMP.sel && !digitando && !COMP.cota && !COMP.leader){ ev.preventDefault(); selApagar(); return; }
+    if(ev.key === "Enter" && COMP.ind && COMP.ind.fase === "ajuste" && !digitando){ ev.preventDefault(); indConfirmar(); return; }
     if(ev.key !== "Escape") return;
+    if(COMP.ind){ indEncerrar(); COMP.sel = null; compSelDesenhar(); return; }   // encerra a sequência de indicações; o que já foi colocado fica
     var qc = $("tec_cam_ov"); if(qc && !qc.hidden) return;     // Quadro de camadas aberto por cima: o Esc fecha só ele
     var e = $("mdp_est_ov");
     if(e && e.style.display !== "none"){ e.style.display = "none"; return; }
@@ -39183,7 +39306,7 @@ function AV_gerarDescSituacao(){
   }
   function compFechar(){
     var ov = $("mdp_comp_ov"); if(!ov) return;
-    COMP.sel = null; COMP.arr = null;
+    COMP.sel = null; COMP.arr = null; COMP.ind = null; indMarcar();
     compCotaModo(false); compLeaderModo(false);
     var tab = $("mdp_bloco_tabela");                           // devolve a tabela ao hospedeiro oculto
     if(tab && COMP.tabPai){ COMP.tabPai.insertBefore(tab, COMP.tabProx || null); COMP.tabPai = null; COMP.tabProx = null; }
@@ -39350,12 +39473,15 @@ function AV_gerarDescSituacao(){
       carCel("reserva", "Área da reserva legal (ha)", "", "0,0000") + carCel("app", "Área de APP (ha)", "", "0,0000") + carCel("app_gap", "Fechar faixa estreita entre APPs (m)", "", "10") + '</div></section>';
     var obsLivres = (ex.obs || []).filter(Boolean), obsBnf = obsBenfeitorias(), nObs = 0;
     function nObsTxt(){ nObs++; return String(nObs).padStart(2, "0"); }
+    var nObs0 = obsLivres.length, indUsadas = {}, indTem = false; leadersLer().forEach(function(c){ if(c.obs){ indUsadas[c.obs] = 1; indTem = true; } });
+    var indPend = indPendentes();
     h += '<section class="car-bloco"><header><i>06</i> Observações <small>são as benfeitorias lançadas na Técnica (itens 12 e 13), numeradas e com a quantidade — sem valor</small></header>' +
+      (indPend.length ? '<div class="car-ind-aviso">⚠ ' + indPend.length + ' benfeitoria(s) sem indicação na planta (nº ' + indPend.map(function(r){ return String(nObs0 + r.bi + 1).padStart(2, "0"); }).join(", ") + ') <button type="button" onclick="MDP_obsIndicar(' + indPend[0].bi + ')">Indicar pendentes</button></div>' : '') +
       ((obsLivres.length || obsBnf.length) ? '<ol class="car-obs-lista">' +
         obsLivres.map(function(t){ return '<li><b>' + nObsTxt() + '</b><span>' + esc(t) + '</span><em>anotação antiga</em></li>'; }).join("") +
-        obsBnf.map(function(o){ return '<li><b>' + nObsTxt() + '</b><span>' + esc(o.desc) + (o.qtd ? ' <strong>— ' + esc(o.qtd) + (o.unid ? ' ' + esc(o.unid) : '') + '</strong>' : '') + '</span><em>' + (o.cat === "R" ? "reprodutiva" : "não reprodutiva") + '</em></li>'; }).join("") + '</ol>'
+        obsBnf.map(function(o, bi){ return '<li class="car-obs-arr" draggable="true" title="Arraste para mudar a ordem" ondragstart="MDP_obsDS(event,' + bi + ')" ondragover="MDP_obsDO(event)" ondragleave="MDP_obsDL(event)" ondrop="MDP_obsDD(event,' + bi + ')" ondragend="MDP_obsDE(event)"><b>' + nObsTxt() + '</b><span>' + esc(o.desc) + (o.qtd ? ' <strong>— ' + esc(o.qtd) + (o.unid ? ' ' + esc(o.unid) : '') + '</strong>' : '') + '</span><em>' + (o.cat === "R" ? "reprodutiva" : "não reprodutiva") + '</em><button type="button" class="car-ind' + ((indTem && !indUsadas[o.key]) ? ' pend' : '') + '" draggable="false" title="Marcar na planta: a leader nasce com o nº desta benfeitoria (o nº é ligado ao Carimbo e não se edita)" onclick="event.stopPropagation();MDP_obsIndicar(' + bi + ')">' + (indUsadas[o.key] ? '✓ Reindicar' : '◯ Indicar') + '</button></li>'; }).join("") + '</ol>'
        : '<p class="car-obs-vazio">Nenhuma benfeitoria lançada. Elas entram aqui sozinhas, numeradas, quando forem lançadas em <b>Técnica › Benfeitorias</b> (itens 12 e 13 da Avaliação).</p>') + '</section>';
-    box.innerHTML = h; carChip();
+    box.innerHTML = h; carChip(); indMarcar();
   }
   function carChip(){
     var ch = $("car_chip"), box = $("mdp_aba_car"); if(!ch || !box) return;
@@ -39394,6 +39520,7 @@ function AV_gerarDescSituacao(){
             '<button type="button" class="mdp-mini" id="mdp_bt_est" title="Quadro de camadas: estilo da planta (este cadastro) e dos mapas da DESP 2 (servidor)">🎨 Quadro de camadas</button>' +
             '<button type="button" class="mdp-mini" id="mdp_bt_cota" title="Clique em dois pontos do mapa para criar uma cota de distância">📐 Cota de distância</button>' +
             '<button type="button" class="mdp-mini" id="mdp_bt_leader" title="Seta com texto: clique no ponto que a seta aponta e depois onde o texto fica. Fica guardada e sai no PDF">➡️ Leader</button>' +
+            '<button type="button" class="mdp-mini" id="mdp_bt_leader_c" title="Seta com o texto dentro de um círculo (sem preenchimento): clique no ponto que a seta aponta e depois onde o círculo fica. Fica guardada e sai no PDF">◯ Leader</button>' +
             '<button type="button" class="mdp-mini" id="mdp_bt_jpg" title="Só o quadro do mapa, exatamente como está aqui">🖼️ Exportar JPG</button>' +
             '<button type="button" class="mdp-mini" id="mdp_bt_pdf" title="A prancha montada: mapa, tabela e carimbo">📄 PDF da prancha</button>' +
             '<button type="button" class="mdp-mini" id="mdp_bt_dxf" data-cad-dxf title="Desenho em coordenadas UTM, uma camada por elemento (abre em qualquer CAD; para DWG, salve pelo AutoCAD)">📐 DXF / CAD</button>' +
@@ -39437,7 +39564,8 @@ function AV_gerarDescSituacao(){
       ov.querySelector("#mdp_bt_jpg").addEventListener("click", function(){ window.MDP_jpgQuadro(); });
       ov.querySelector("#mdp_bt_est").addEventListener("click", function(){ window.MDP_abrirEstilos(); });
       ov.querySelector("#mdp_bt_cota").addEventListener("click", function(){ compCotaModo(!COMP.cota); });
-      ov.querySelector("#mdp_bt_leader").addEventListener("click", function(){ compLeaderModo(!COMP.leader); });
+      ov.querySelector("#mdp_bt_leader").addEventListener("click", function(){ COMP.ind = null; indMarcar(); compLeaderModo(!(COMP.leader && !COMP.leaderC)); });
+      ov.querySelector("#mdp_bt_leader_c").addEventListener("click", function(){ COMP.ind = null; indMarcar(); compLeaderModo(!COMP.leaderC, true); });
       ov.querySelector("#mdp_bt_vista").addEventListener("click", function(){ compVista(COMP.vista === "folha" ? "quadro" : "folha"); });
       document.addEventListener("keydown", compTecla);
 
@@ -39447,13 +39575,18 @@ function AV_gerarDescSituacao(){
       pal.addEventListener("click", function(ev){
         if(!(COMP.cota || COMP.leader) || ev.shiftKey || COMP.vista === "folha") return;
         var q = compPonto(ev); if(!q) return;
+        if(COMP.ind && COMP.ind.fase === "espera" && COMP.leader){                              // Indicar: 1º clique = ponta da seta, 2º = onde o círculo fica
+          if(!COMP.p0){ COMP.p0 = q; compSvg(q, null); compDica(); return; }
+          COMP.p0 && indColocar(COMP.p0, q); return;
+        }
         if(!COMP.p0){ COMP.p0 = q; compSvg(q, null); compDica(); return; }
         if(Math.hypot(q.E - COMP.p0.E, q.N - COMP.p0.N) < .05){ COMP.p0 = null; compSvgLimpar(); compDica(); return; }
         if(COMP.leader){
           // 14/10/2026: sem prompt() — a leader nasce com "Texto", já selecionada, com o campo de texto em foco na barrinha
           var q0 = COMP.p0; COMP.p0 = null; compSvgLimpar(); compDica();
           var LL = leadersLer();
-          LL.push({ aE:q0.E, aN:q0.N, bE:q.E, bN:q.N, txt:"Texto" });
+          var circ = !!COMP.leaderC;
+          LL.push(circ ? { aE:q0.E, aN:q0.N, bE:q.E, bN:q.N, txt:"1", circ:1 } : { aE:q0.E, aN:q0.N, bE:q.E, bN:q.N, txt:"Texto" });
           COMP.sel = { tipo:"leader", i:LL.length - 1 }; COMP.focoTxt = true;
           leadersGravar(LL); compLeaderModo(false); leaderMexeu(); return;
         }
@@ -40063,7 +40196,9 @@ function AV_gerarDescSituacao(){
       return inteira() ? [Math.round(q[0]*1000)/1000, Math.round(q[1]*1000)/1000] : q;
     }
     function L(v){ return noModelo() ? v*k : v; }
-    var JANELA = [[MAPA.x, MAPA.y], [MAPA.x + MAPA.w, MAPA.y], [MAPA.x + MAPA.w, MAPA.y + MAPA.h], [MAPA.x, MAPA.y + MAPA.h]];
+    // 03/11/2026: a janela do mapa é MAPA2 (nos formatos em que o mapa cobre a folha — A2, A1, A0, A2 estendido — ela é maior que MAPA);
+    // comparar com MAPA fazia o DXF desses formatos nunca entrar no MODELO: tudo saía em mm de papel, sem UTM
+    var JANELA = [[MAPA2.x, MAPA2.y], [MAPA2.x + MAPA2.w, MAPA2.y], [MAPA2.x + MAPA2.w, MAPA2.y + MAPA2.h], [MAPA2.x, MAPA2.y + MAPA2.h]];
     function recortes(){
       var r = pilha.filter(function(q){ return q.pol && !(q.modelo && papelForcado); });
       if(papelForcado) r.push({ pol:JANELA });            // na prancha, o recorte é a janela exata do mapa
@@ -40153,7 +40288,7 @@ function AV_gerarDescSituacao(){
         cam = ant;
       },
       clip: function(x, y, w, h){
-        if(!modelo && Math.abs(x - MAPA.x) < .01 && Math.abs(y - MAPA.y) < .01 && Math.abs(w - MAPA.w) < .01 && Math.abs(h - MAPA.h) < .01){
+        if(!modelo && Math.abs(x - MAPA2.x) < .01 && Math.abs(y - MAPA2.y) < .01 && Math.abs(w - MAPA2.w) < .01 && Math.abs(h - MAPA2.h) < .01){
           // entrou na janela do mapa: daqui até o clipOff, tudo vai para o modelo. A viewport recorta a vista; o modelo é recortado
           // na janela + 15 mm de papel de folga (sem isso as linhas do projeto entram inteiras, com dezenas de km)
           var mg = 15;
@@ -41897,7 +42032,7 @@ function AV_gerarDescSituacao(){
     var be = $("mdp_bt_est"); if(be) be.style.display = "none";
     // 3. doca de ferramentas sobre o mapa
     var doca = mesaEl("div", "mz-doca"); doca.setAttribute("role", "toolbar"); doca.setAttribute("aria-label", "Ferramentas de desenho");
-    ["mdp_bt_cota", "mdp_bt_leader"].forEach(function(id){ var e = $(id); if(e) doca.appendChild(e); });
+    ["mdp_bt_cota", "mdp_bt_leader", "mdp_bt_leader_c"].forEach(function(id){ var e = $(id); if(e) doca.appendChild(e); });
     doca.appendChild(mesaEl("span", "mz-doca-sep"));
     var pan = top.querySelector("[data-opc-pan]"); if(pan){ pan.style.margin = "0"; doca.appendChild(pan); }
     ["v2_bt_viz", "v2_bt_sug", "v2_bt_pal"].forEach(function(id){ var e = $(id); if(e) doca.appendChild(e); });
@@ -60940,6 +61075,17 @@ window.MG_motion={abertura:abertura,cadastro:cadastro,fichas:fichas};
 #mdp_aba_car .car-obs-lista li{ display:grid; grid-template-columns:30px 1fr auto; gap:10px; align-items:baseline; padding:7px 10px; border:1px solid #E1E6EC; border-radius:8px; background:#FAFBFC; font-size:13px; }
 #mdp_aba_car .car-obs-lista li b{ font:800 11px ui-monospace,Consolas,monospace; color:#c8791a; }
 #mdp_aba_car .car-obs-lista li strong{ white-space:nowrap; }
+#mdp_aba_car .car-obs-lista li.car-obs-arr{ cursor:grab; grid-template-columns:30px 1fr auto auto; }
+#mdp_aba_car .car-obs-lista .car-ind{ border:1px solid #10283a; background:#fff; border-radius:99px; padding:3px 10px; font:700 11px Bahnschrift,sans-serif; color:#10283a; cursor:pointer; white-space:nowrap; }
+#mdp_aba_car .car-obs-lista .car-ind.pend{ border-color:#c8791a; background:#fff4de; color:#8a4d05; }
+#mdp_aba_car .car-ind-aviso{ display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:8px 12px 0; padding:7px 10px; border:1px solid #c8791a; border-radius:8px; background:#fff4de; color:#6b3b00; font:700 12px Bahnschrift,sans-serif; }
+#mdp_aba_car .car-ind-aviso button{ margin-left:auto; border:1px solid #c8791a; background:#c8791a; color:#fff; border-radius:99px; padding:3px 11px; font:700 11px Bahnschrift,sans-serif; cursor:pointer; }
+#mdp_aba_car .car-obs-lista .car-ind:hover{ background:#10283a; color:#fff; }
+#mdp_aba_car .car-obs-lista li.car-obs-arr:hover{ border-color:#c8791a; }
+#mdp_aba_car .car-obs-lista li.arrastando{ opacity:.45; }
+#mdp_aba_car .car-obs-lista li.indicando{ border-color:#c8791a; background:#fff4de; box-shadow:0 0 0 2px #f2b24a; }
+#mdp_aba_car .car-obs-lista li.indicando .car-ind{ background:#c8791a; border-color:#c8791a; color:#fff; }
+#mdp_aba_car .car-obs-lista li.alvo{ border-color:#c8791a; box-shadow:0 -3px 0 #c8791a; }
 #mdp_aba_car .car-obs-lista li em{ font-style:normal; font-size:11px; color:#55616F; white-space:nowrap; }
 #mdp_aba_car .car-obs-vazio{ margin:4px 0 0; font-size:12.5px; color:#55616F; }
 </style>
@@ -66410,7 +66556,7 @@ body.ativ-cadastro:not(.modo-painel):has(.app-shell.recolhida) .cad-selo.tem{ di
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.11.03-2';
+window.APP_VERSAO = '2026.11.03-3';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.29-7';
 (function(){
