@@ -38167,14 +38167,17 @@ function AV_gerarDescSituacao(){
     [["13","NR"]].forEach(function(g){
       (window.BNF_lerLinhas(g[0]) || []).forEach(function(l){
         var d = (l.disc || "").trim(); if(!d) return;
-        out.push({ desc:d, qtd:(l.qtd || "").trim(), unid:(l.unid || "").trim(), cat:g[1] });
+        // 03/11/2026 (Fernando): texto padronizado no Carimbo — 1ª letra maiúscula, resto minúsculo (a Técnica mistura caixa alta e baixa);
+        // a chave de ligação das indicações continua vindo do texto original (descOrig)
+        var dm = d.replace(/\s+/g, " ").toLowerCase(), um = (l.unid || "").trim().toLowerCase();
+        out.push({ desc:dm.charAt(0).toUpperCase() + dm.slice(1), descOrig:d, qtd:(l.qtd || "").trim(), unid:um, cat:g[1] });
       });
     });
     // 03/11/2026 (Fernando): a ordem numérica é escolhida arrastando no Carimbo › 06 (extras().obs_ordem = chaves); o que não
     // está na lista (benfeitoria nova) vem depois, na ordem da Técnica. Chave repetida ganha #2, #3…
     var vistas = {};
     // chave = categoria + descrição (+ #n se repetida): mudar só a quantidade na Técnica não solta a indicação da planta
-    out.forEach(function(o){ var k = o.cat + "|" + o.desc; vistas[k] = (vistas[k] || 0) + 1; o.key = k + "#" + vistas[k]; });
+    out.forEach(function(o){ var k = o.cat + "|" + o.descOrig; vistas[k] = (vistas[k] || 0) + 1; o.key = k + "#" + vistas[k]; });
     var ord = extras().obs_ordem;
     if(Array.isArray(ord) && ord.length){
       var pos = function(o){ var p = ord.indexOf(o.key); return p < 0 ? 1e6 : p; };
@@ -66571,7 +66574,7 @@ body.ativ-cadastro:not(.modo-painel):has(.app-shell.recolhida) .cad-selo.tem{ di
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.11.03-5';
+window.APP_VERSAO = '2026.11.03-6';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.29-7';
 (function(){
