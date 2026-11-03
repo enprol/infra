@@ -34912,11 +34912,11 @@ function AV_gerarDescSituacao(){
     try{
       if(!G || !G.segs || geralAtivo()) return 1;
       var g1 = geomFmt(id, 1);
-      if(G.segs.length <= capacidadeTabela(g1.tabh - 12.8 - 47)) return 1;
+      if(G.segs.length <= capacidadeTabela(g1.tabh - 12.8 - RES_PE - 3.4)) return 1;
       var g2 = geomFmt(id, 2), bb = limitesPlanta(), fg = folgaConfMm();
       var cabe = function(e){ return (bb[1]-bb[0])*1.12/(e/1000) + fg <= g2.mw - 6 && (bb[3]-bb[2])*1.12/(e/1000) + fg <= g2.mh - 6; };
-      var esc = OPC.escala || escLer();
-      return (esc ? cabe(esc) : ESCALAS.some(cabe)) ? 2 : 1;
+      var esc = escUso(OPC.escala || escLer());
+      return (esc ? cabe(esc) : escalasOk().some(cabe)) ? 2 : 1;
     }catch(e){ return 1; }
   }
   function aplicarFormato(id){
@@ -34941,6 +34941,13 @@ function AV_gerarDescSituacao(){
     return FL;
   }
   var ESCALAS = [250,500,750,1000,1250,1500,2000,2500,3000,4000,5000,7500,10000];
+  /* 03/11/2026 (Fernando, regra do cliente): planta de situação no máximo em 1:2.000. Só a planta geral (todas as poligonais)
+     pode passar disso; nas demais a escala escolhida/gravada acima de 1:2.000 vale 1:2.000 e o desenho que não cabe
+     se divide em quadros (planoMapa). */
+  var ESC_MAX_AREA = 2000;
+  function escMax(){ return geralAtivo() ? Infinity : ESC_MAX_AREA; }
+  function escUso(e){ e = +e || 0; return (e && e > escMax()) ? escMax() : e; }
+  function escalasOk(){ var m = escMax(); return ESCALAS.filter(function(s){ return s <= m; }); }
   var COR = { linha:"#000000", faixa:"#0aa0d8", desap:"#e02020", eixo:"#ff9000", grade:"#9aa7b5", carimbo:"#000000" };
 
   /* ---- pintor: mesma API para canvas (mm→px) e jsPDF (mm) ---- */
@@ -35065,9 +35072,10 @@ function AV_gerarDescSituacao(){
     var mar = 1.12;                                          // folga
     var bb = limitesPlanta(), bx0 = bb[0], bx1 = bb[1], by0 = bb[2], by1 = bb[3];
     var lg = (bx1-bx0)*mar, al = (by1-by0)*mar, fg = folgaConfMm();
-    var esc = (op && op.escala) || escLer();
+    var esc = escUso((op && op.escala) || escLer());
     if(!esc){
-      esc = ESCALAS.find(function(s){ return lg/(s/1000) + fg <= MAPA.w - 6 && al/(s/1000) + fg <= MAPA.h - 6; }) || 10000;
+      var EO = escalasOk();
+      esc = EO.find(function(s){ return lg/(s/1000) + fg <= MAPA.w - 6 && al/(s/1000) + fg <= MAPA.h - 6; }) || EO[EO.length - 1];
     }
     var cx = (bx0+bx1)/2, cy = (by0+by1)/2;
     if(op && op.centro){ cx = op.centro[0]; cy = op.centro[1]; }   // quadro de uma planta dividida em pranchas
@@ -35086,14 +35094,14 @@ function AV_gerarDescSituacao(){
      Se o contorno não cabe na janela da planta na escala em uso — a escolhida na barra ou, em
      automático, a de 1:10.000 (a menor que o desenho aceita) —, a janela é fatiada em quadros
      lado a lado (6% de sobreposição), na ordem do KM. Cada quadro é uma prancha com o mapa e um
-     mapa-chave; as tabelas de coordenadas vão todas para as pranchas do fim. */
+     mapa-chave; a tabela de coordenadas começa embaixo do mapa-chave e o resto vai para pranchas do fim (03/11/2026). */
   function planoMapa(){
     if(!G) return null;
     var bb = limitesPlanta(), bx0 = bb[0], bx1 = bb[1], by0 = bb[2], by1 = bb[3];
-    var esc = OPC.escala || escLer();
+    var esc = escUso(OPC.escala || escLer());
     var fg = folgaConfMm();
     function cabe(e){ return (bx1-bx0)*1.12/(e/1000) + fg <= MAPA.w - 6 && (by1-by0)*1.12/(e/1000) + fg <= MAPA.h - 6; }
-    if(!esc) esc = ESCALAS.find(cabe) || ESCALAS[ESCALAS.length - 1];
+    if(!esc){ var EO = escalasOk(); esc = EO.find(cabe) || EO[EO.length - 1]; }
     if(cabe(esc)) return { esc:esc, tiles:null };
     var wm = MAPA.w*esc/1000, hm = MAPA.h*esc/1000, ov = .2;     // 20% de folga: o início do KML (e o rótulo do KM) não encosta na margem
     // direção de leitura: do KM inicial para o final; sem quilometragem, o eixo maior do contorno
@@ -37142,8 +37150,10 @@ function AV_gerarDescSituacao(){
      Distância e coordenadas foram estreitadas para sobrar largura à planta. */
   var COL_P = [0, 8, 16, 34, 49, 75, 100];
   var ALT_LIN_MIN = 2.9, ALT_LIN_MAX = 4.7, ALT_CAB = 4.2;
-  function capacidadeTabela(hDisp){ return Math.max(1, Math.floor((hDisp - ALT_CAB)/ALT_LIN_MIN)); }
-  function desenharGradeCoords(P, x, y, larg, de, ate, hDisp, nLin){   // nLin: altura de linha como se fossem nLin linhas (colunas lado a lado alinhadas)
+  // 03/11/2026: altMin (opcional) = ALT_LIN_APERTO quando apertar as linhas evita uma prancha só com poucas linhas de tabela
+  var ALT_LIN_APERTO = 2.4;   // piso do aperto (corpo do texto continua 3,8 pt)
+  function capacidadeTabela(hDisp, altMin){ return Math.max(1, Math.floor((hDisp - ALT_CAB)/(altMin || ALT_LIN_MIN))); }
+  function desenharGradeCoords(P, x, y, larg, de, ate, hDisp, nLin, altMin){   // nLin: altura de linha como se fossem nLin linhas (colunas lado a lado alinhadas)
     var fr = larg/100, CX = [], CF = [];
     for(var i = 0; i < 6; i++){ CX.push(x + COL_P[i]*fr); CF.push(x + COL_P[i+1]*fr); }
     var cab = ["Vért.","Vért.","AZIMUTE","DIST. (m)","N (m)","E (m)"], y0 = y;
@@ -37151,7 +37161,7 @@ function AV_gerarDescSituacao(){
     cab.forEach(function(t, i){ P.texto((CX[i]+CF[i])/2, y + 2.95, t, { tam:TAM.tabCab, bold:true, align:"center" }); });
     y += ALT_CAB;
     var n = Math.max(1, nLin || (ate - de));
-    var alt = Math.min(ALT_LIN_MAX, Math.max(ALT_LIN_MIN, (hDisp - ALT_CAB)/n));
+    var alt = Math.min(ALT_LIN_MAX, Math.max(altMin || ALT_LIN_MIN, (hDisp - ALT_CAB)/n));
     var tam = Math.min(TAM.tab, Math.max(3.8, alt*1.46));
     // 21/10/2026: com a tabela mais estreita, o corpo diminui até o maior azimute/dist./N/E caber na própria coluna
     var maiores = [null, null, "359°59'59\"", "9.999,99", "9.999.999,999", "999.999,999"];
@@ -37177,7 +37187,18 @@ function AV_gerarDescSituacao(){
 
   /* mapa-chave: o contorno inteiro com os quadros numerados; o desta prancha em vermelho */
   var CACHE_CHAVE = { chave:"", url:null, el:null };
-  function chaveDims(){ return { w:TAB.w - 4, hmax:TAB.h - 47 - 9 - 16.8 }; }   // 16,8 = onde o mapa-chave começa dentro do painel
+  /* 03/11/2026 (Fernando): o pé da coluna da direita não fica mais reservado (era o bloco CONFRONTAÇÕES, que saiu em 19/10):
+     a tabela vai até RES_PE do fim. Nas pranchas de quadro o mapa-chave fica com no máximo ~42% da coluna e a tabela de
+     coordenadas começa logo abaixo dele (o plano pode encolher o mapa-chave até CHAVE_MIN para não sobrar prancha rala). */
+  var RES_PE = 6, CHAVE_MIN = 35;
+  function chaveHmax(){ return Math.max(CHAVE_MIN, Math.min(TAB.h - 72.8, TAB.h*.42)); }
+  function chaveDims(pg){ return { w:TAB.w - 4, hmax:(pg && pg.chaveH) || chaveHmax() }; }   // 16,8 = onde o mapa-chave começa dentro do painel
+  // linhas de tabela que cabem embaixo do mapa-chave numa prancha de quadro (mesmas medidas do desenho)
+  function capSobChave(pg, hmax, altMin){
+    var g = geomChave(pg, TAB.w - 4, hmax), y = 12.8 + 4 + g.h + 1.5;
+    var hDisp = TAB.h - RES_PE - 3.4 - y;
+    return hDisp > ALT_CAB + 3*ALT_LIN_MIN ? capacidadeTabela(hDisp, altMin) : 0;
+  }
   // enquadramento do mapa-chave: o contorno inteiro + todos os quadros, ajustado à caixa
   function geomChave(pg, w, hmax){
     var tl = pg.tiles || [], wm = pg.wm, hm = pg.hm;
@@ -37191,7 +37212,7 @@ function AV_gerarDescSituacao(){
   // baixa o satélite do mapa-chave (uma vez por enquadramento); sem ele o mapa-chave sai só com o contorno
   async function garantirChave(pg, op, dpi){
     if(!pg || !pg.mapa || !op || !(op.satelite || op.ortofoto)) return;
-    var d = chaveDims(), g = geomChave(pg, d.w, d.hmax);
+    var d = chaveDims(pg), g = geomChave(pg, d.w, d.hmax);
     var chave = [pg.esc, pg.tiles.length, Math.round(pg.tiles[0].cx), Math.round(pg.tiles[0].cy), Math.round(g.k*1e4), Math.round(d.w), Math.round(g.h), dpi, G.v.length, (ST.geral ? "g" : "a" + ST.area)].join("|");
     if(CACHE_CHAVE.chave === chave && CACHE_CHAVE.url) return;
     CACHE_CHAVE = { chave:chave, url:null, el:null };
@@ -37225,6 +37246,41 @@ function AV_gerarDescSituacao(){
     }
     P.texto(x + w/2, y + h - 1.6, "MAPA-CHAVE DOS QUADROS · ESC. 1:" + br(pg.esc,0), { tam:4.4, align:"center", cor:"#4a5a6a", halo:sat });
     return y + h;
+  }
+
+  /* 03/11/2026 (Fernando): planta seccionada em quadros (limite de 1:2.000) — simbologia de arquitetura de secção de
+     desenho: linha de corte em traço-ponto cruzando a janela no meio da sobreposição com o quadro vizinho (vertical quando
+     os quadros seguem na horizontal; horizontal quando seguem na vertical) e, nas pontas, círculo com o nº da folha onde o
+     desenho continua e uma seta para o lado dela. Vale para o quadro anterior e o seguinte. */
+  function desenharLinhasCorte(P, T, pg){
+    CAMDXF(P, "ENP_LINHA_CORTE");
+    var tl = pg.tiles, a = tl[pg.k], R = 4.6, x0 = MAPA.x, x1 = MAPA.x + MAPA.w, y0 = MAPA.y, y1 = MAPA.y + MAPA.h;
+    var estilo = { cor:"#000000", peso:.45, tracejado:[7, 1.6, .9, 1.6] };
+    [pg.k - 1, pg.k + 1].forEach(function(j){
+      var b = tl[j]; if(!b) return;
+      var dx = b.cx - a.cx, dy = b.cy - a.cy, vert = Math.abs(dx) >= Math.abs(dy);
+      var folha = String(NUMF.off + j + 1).padStart(2, "0");
+      var pontas;
+      if(vert){
+        var x = T.x((a.cx + b.cx)/2); if(x < x0 + R || x > x1 - R) return;
+        P.linha(x, y0, x, y1, estilo);
+        pontas = [[x, y0 + R + 26], [x, y1 - R - 12]];   // em cima, abaixo da seta do norte; embaixo, acima da escala gráfica
+      } else {
+        var y = T.y((a.cy + b.cy)/2); if(y < y0 + R || y > y1 - R) return;
+        P.linha(x0, y, x1, y, estilo);
+        pontas = [[x0 + R + 3, y], [x1 - R - 3, y]];
+      }
+      var sx = vert ? (dx > 0 ? 1 : -1) : 0, sy = vert ? 0 : (dy > 0 ? -1 : 1);   // lado da continuação, em mm na folha (N para cima)
+      pontas.forEach(function(c){
+        // seta (triângulo cheio) encostada no círculo, apontando para a folha vizinha
+        var bx = c[0] + sx*R, by = c[1] + sy*R, tip = [bx + sx*3.2, by + sy*3.2], px = -sy, py = sx;
+        P.poli([[bx + px*2.1, by + py*2.1], tip, [bx - px*2.1, by - py*2.1]], { cor:"#000000", peso:.2, fill:"#000000" });
+        P.circ(c[0], c[1], R, { cor:"#000000", peso:.4, fill:"#ffffff" });
+        P.linha(c[0] - R*.78, c[1] - .3, c[0] + R*.78, c[1] - .3, { cor:"#000000", peso:.2 });
+        P.texto(c[0], c[1] - 1.1, "FOLHA", { tam:3.6, bold:true, align:"center" });
+        P.texto(c[0], c[1] + 2.9, folha, { tam:8, bold:true, align:"center" });
+      });
+    });
   }
 
   /* Datum e zona UTM juntos, na mesma linha e colados (15/10/2026: antes um ficava na esquerda e o outro na
@@ -37284,27 +37340,49 @@ function AV_gerarDescSituacao(){
   function planoFolhasBase(){
     var total = geralAtivo() ? 0 : G.segs.length;      // planta geral: sem tabela de vértices
     var pm = planoMapa(), base = OPC.formato;
-    if(pm && pm.tiles){
-      // área extensa: uma prancha por quadro do mapa (todas no formato-padrão: os quadros têm o tamanho dele) e, no fim, só as tabelas
-      var M = pm.tiles.length, fp = [], pos2 = 0, kk = 0;
-      for(var i = 0; i < M; i++) fp.push({ n:i + 1, total:0, mapa:true, k:i, kTotal:M, centro:[pm.tiles[i].cx, pm.tiles[i].cy], tiles:pm.tiles, esc:pm.esc, wm:pm.wm, hm:pm.hm, de:0, ate:0, fmt:base });
-      while(pos2 < total && kk < 400){
-        var nT = M + 1 + kk, fT = fmtFolha(nT), cT = capContinuacao(fT), ate2 = Math.min(total, pos2 + cT.cap);
-        fp.push({ n:nT, total:0, de:pos2, ate:ate2, cols:cT.nc, tabelaFim:true, kTotal:M, fmt:fT });
-        pos2 = ate2; kk++;
+    // pranchas só de tabela para as linhas [de, total): quantas forem precisas, com as linhas repartidas por igual
+    // (03/11/2026: a última não fica com meia dúzia de linhas enquanto as outras vão cheias)
+    function continuacoes(fs, de, n0, extra){
+      if(de >= total) return;
+      var nPg = 0, cap = [], pos = de;
+      while(pos < total && nPg < 400){ var c0 = capContinuacao(fmtFolha(n0 + nPg)); cap.push(c0); pos += c0.cap; nPg++; }
+      var resto = total - de;
+      for(var q = 0, p0 = de; q < nPg; q++){
+        var porPg = Math.min(cap[q].cap, Math.ceil(resto/(nPg - q))), a2 = Math.min(total, p0 + porPg);
+        fs.push(Object.assign({ n:n0 + q, total:0, de:p0, ate:a2, cols:cap[q].nc, fmt:fmtFolha(n0 + q) }, extra || {}));
+        resto -= (a2 - p0); p0 = a2;
       }
-      fp.forEach(function(p){ p.total = fp.length; });
+    }
+    if(pm && pm.tiles){
+      /* área extensa: uma prancha por quadro do mapa (todas no formato-padrão: os quadros têm o tamanho dele).
+         03/11/2026 (Fernando): a tabela de coordenadas começa na coluna da direita das pranchas de quadro, embaixo do
+         mapa-chave; só o que sobrar vai para pranchas de tabela no fim. Se a sobra for pouca para uma prancha inteira,
+         o mapa-chave encolhe (até CHAVE_MIN) e, se ainda faltar, as linhas apertam (ALT_LIN_APERTO) para caberem
+         nas pranchas de quadro. */
+      var M = pm.tiles.length, fp = [];
+      for(var i = 0; i < M; i++) fp.push({ n:i + 1, total:0, mapa:true, k:i, kTotal:M, centro:[pm.tiles[i].cx, pm.tiles[i].cy], tiles:pm.tiles, esc:pm.esc, wm:pm.wm, hm:pm.hm, de:0, ate:0, fmt:base });
+      var capQ = function(h, am){ return fp.reduce(function(s, p){ return s + capSobChave(p, h, am); }, 0); };
+      var hCh = chaveHmax(), aMin = null, sobra = total - capQ(hCh), capC = capContinuacao(fmtFolha(M + 1)).cap;
+      if(sobra > 0 && sobra <= Math.max(12, capC*.2)){
+        var achou = false;
+        for(var h2 = hCh - 5; h2 >= CHAVE_MIN && !achou; h2 -= 5){ if(total - capQ(h2) <= 0){ hCh = h2; achou = true; } }
+        for(var h3 = chaveHmax(); h3 >= CHAVE_MIN && !achou; h3 -= 5){ if(total - capQ(h3, ALT_LIN_APERTO) <= 0){ hCh = h3; aMin = ALT_LIN_APERTO; achou = true; } }
+      }
+      var pos2 = 0;
+      fp.forEach(function(p){ p.chaveH = hCh; if(aMin) p.altMin = aMin; var c2 = capSobChave(p, hCh, aMin); p.de = pos2; p.ate = Math.min(total, pos2 + c2); pos2 = p.ate; });
+      continuacoes(fp, pos2, M + 1, { tabelaFim:true, kTotal:M });
+      fp.forEach(function(p){ p.total = fp.length; p.tabTotal = total; });
       return fp;
     }
-    var hP1 = TAB.h - 12.8 - 47;
+    var hP1 = TAB.h - 12.8 - RES_PE - 3.4;
     var cap1 = capacidadeTabela(hP1)*TAB_COLS;           // 29/10/2026: até 2 colunas de tabela na prancha 1
     if(total <= cap1) return [{ n:1, total:1, de:0, ate:total, fmt:base }];
-    var pos = cap1, fs = [{ n:1, total:0, de:0, ate:cap1, fmt:base }], k = 0;
-    while(pos < total && k < 400){
-      var nC = 2 + k, fC = fmtFolha(nC), cC = capContinuacao(fC), ate = Math.min(total, pos + cC.cap);
-      fs.push({ n:nC, total:0, de:pos, ate:ate, cols:cC.nc, fmt:fC });
-      pos = ate; k++;
-    }
+    // 03/11/2026: sobra pequena (seria uma prancha só com poucas linhas): aperta as linhas da prancha 1 (sem a linha do
+    // "continua na folha", que deixa de existir) até a altura que faz caber tudo, com piso ALT_LIN_APERTO
+    var altNec = Math.floor((hP1 + 3.4 - ALT_CAB)/Math.ceil(total/TAB_COLS)*100)/100;
+    if(altNec >= ALT_LIN_APERTO && total - cap1 <= Math.max(12, capContinuacao(fmtFolha(2)).cap*.2)) return [{ n:1, total:1, de:0, ate:total, fmt:base, altMin:altNec }];
+    var fs = [{ n:1, total:0, de:0, ate:cap1, fmt:base }];
+    continuacoes(fs, cap1, 2);
     fs.forEach(function(p){ p.total = fs.length; });
     return fs;
   }
@@ -37915,6 +37993,7 @@ function AV_gerarDescSituacao(){
     if(COTA_FAIXA_ATIVA && op.fixo && op.fixoDados && !op.semCotaFaixa) desenharCotasFaixa(P, T, op.fixoDados);
     }
     if(op.cotas !== false){ desenharCotas(P, T); desenharLeaders(P, T); }   // cotas e leaders da Composição valem nos dois modos
+    if(pg && pg.mapa && pg.tiles && pg.tiles.length > 1) desenharLinhasCorte(P, T, pg);
     P.clipOff();
 
     // escala gráfica + norte
@@ -37958,22 +38037,28 @@ function AV_gerarDescSituacao(){
       // Colunas: distância e coordenadas ficaram mais estreitas para alargar a janela da planta.
       var larg = TAB.w - 4;
       if(pg.mapa){
-        // planta dividida: aqui vai o mapa-chave dos quadros; a tabela de coordenadas fica nas pranchas do fim
+        // planta dividida: aqui vai o mapa-chave dos quadros e, embaixo dele, o começo da tabela de coordenadas (03/11/2026)
         P.texto(TAB.x + TAB.w/2, y + 1.6, "QUADRO " + (pg.k + 1) + " DE " + pg.kTotal, { tam:6.4, bold:true, align:"center", cor:"#b3141b" });
         y += 4;
-        y = desenharMapaChave(P, TAB.x + 2, y, larg, chaveDims().hmax, pg) + 1.5;
-        P.texto(TAB.x + 2, y + 3.4, "tabelas nas folhas " + (NUMF.off + pg.kTotal + 1) + (pg.total > pg.kTotal + 1 ? ("–" + (NUMF.off + pg.total)) : "") + "/" + NUMF.total + " →", { tam:5, bold:true, cor:"#0a5c86" });
-        y += 3.4;
+        y = desenharMapaChave(P, TAB.x + 2, y, larg, chaveDims(pg).hmax, pg) + 1.5;
+        // 03/11/2026: a tabela começa aqui, embaixo do mapa-chave (o plano já reparte as linhas entre as pranchas)
+        if(pg.ate > pg.de){
+          y = desenharGradeCoords(P, TAB.x + 2, y, larg, pg.de, pg.ate, TAB.y + TAB.h - RES_PE - 3.4 - y, null, pg.altMin).y;
+          if(pg.ate < (pg.tabTotal || G.segs.length)){ P.texto(TAB.x + 2, y + 3.4, "continua na folha " + (NUMF.off + pg.n + 1) + "/" + NUMF.total + " →", { tam:5, bold:true, cor:"#0a5c86" }); y += 3.4; }
+        } else if(pg.total > pg.kTotal){
+          P.texto(TAB.x + 2, y + 3.4, "tabelas nas folhas " + (NUMF.off + pg.kTotal + 1) + (pg.total > pg.kTotal + 1 ? ("–" + (NUMF.off + pg.total)) : "") + "/" + NUMF.total + " →", { tam:5, bold:true, cor:"#0a5c86" });
+          y += 3.4;
+        }
       } else if(geral){
         y = desenharResumoAreas(P, TAB.x + 2, y, larg);
       } else {
         if(TAB_COLS > 1 && pg.ate - pg.de > 1){
           // duas tabelas lado a lado (a 2ª continua a 1ª), mesma altura de linha
-          var gapT = 4, cwT = (larg - gapT)/2, porT = Math.ceil((pg.ate - pg.de)/2), hT = TAB.y + TAB.h - 47 - y;
-          var yA = desenharGradeCoords(P, TAB.x + 2, y, cwT, pg.de, pg.de + porT, hT, porT).y;
-          var yB = desenharGradeCoords(P, TAB.x + 2 + cwT + gapT, y, cwT, pg.de + porT, pg.ate, hT, porT).y;
+          var gapT = 4, cwT = (larg - gapT)/2, porT = Math.ceil((pg.ate - pg.de)/2), hT = TAB.y + TAB.h - RES_PE - (pg.total > 1 ? 3.4 : 0) - y;
+          var yA = desenharGradeCoords(P, TAB.x + 2, y, cwT, pg.de, pg.de + porT, hT, porT, pg.altMin).y;
+          var yB = desenharGradeCoords(P, TAB.x + 2 + cwT + gapT, y, cwT, pg.de + porT, pg.ate, hT, porT, pg.altMin).y;
           y = Math.max(yA, yB);
-        } else y = desenharGradeCoords(P, TAB.x + 2, y, larg, pg.de, pg.ate, TAB.y + TAB.h - 47 - y).y;
+        } else y = desenharGradeCoords(P, TAB.x + 2, y, larg, pg.de, pg.ate, TAB.y + TAB.h - RES_PE - (pg.total > 1 ? 3.4 : 0) - y, null, pg.altMin).y;
         if(pg.total > 1){
           P.texto(TAB.x + 2, y + 3.4, "continua na folha " + (NUMF.off + pg.n + 1) + "/" + NUMF.total + " →", { tam:5, bold:true, cor:"#0a5c86" });
           y += 3.4;
@@ -38192,11 +38277,12 @@ function AV_gerarDescSituacao(){
       P.texto(xc + 4.1, oy, String(i+1).padStart(2,"0"), { tam:Math.min(5.1, oTam*.85), align:"center" });
       ls.forEach(function(t, k){ P.texto(xc + 7.8, oy + k*oLH, t, { tam:oTam }); });
     });
-    // 20/10/2026: área TOTAL de reserva legal e de APP DENTRO da área desapropriada (todos os perímetros), calculada; o campo
-    // digitado no Carimbo só vale quando não há dado de RL/APP carregado
-    var amb = areasAmbDesap(op);
-    var areasC = [["ÁREA DA RESERVA LEGAL:", (amb ? br(amb.rl, 4) : (ex.reserva || "0,0000")) + " ha"],
-     ["ÁREA DE APP:", (amb ? br(amb.app, 4) : (ex.app || "0,0000")) + " ha"]];
+    // 20/10/2026: área TOTAL de reserva legal e de APP DENTRO da área desapropriada (todos os perímetros), calculada.
+    // 03/11/2026 (Fernando): o valor digitado no Carimbo › 05 Ambiental vale no lugar do calculado (antes só valia sem
+    // dado de RL/APP carregado e a prancha saía 0,0000 quando as camadas não cruzavam a área desapropriada)
+    var amb = areasAmbDesap(op), manTxt = function(v){ v = String(v == null ? "" : v).trim().replace(/\s*ha\s*$/i, ""); return v; };
+    var areasC = [["ÁREA DA RESERVA LEGAL:", (manTxt(ex.reserva) || (amb ? br(amb.rl, 4) : "0,0000")) + " ha"],
+     ["ÁREA DE APP:", (manTxt(ex.app) || (amb ? br(amb.app, 4) : "0,0000")) + " ha"]];
     if(largo){
       P.linha(xAreas, y, xAreas, y + h, { peso:.25 });
       P.texto(xAreas + 1.8, y + 4.4, "ÁREAS:", { tam:6.9, bold:true });
@@ -38331,7 +38417,7 @@ function AV_gerarDescSituacao(){
         { f:.42, dupla:[ { l:"Propriedade:", v:c.denominacao || "" },
                          c.ocupante ? { lado:[ { l:"Proprietário(a):", v:c.proprietario, quebra:true }, { l:"Posseiro(a):", v:c.ocupante, quebra:true } ] }
                                     : { l:c.posseiro ? "Posseiro(a):" : "Expropriado(a):", v:c.posseiro || c.expropriado || "" } ] },
-        { f:.11, l:"Matrícula:", v:c.matricula || "" },
+        { f:.11, l:"Matrícula:", v:c.matricula || "", quebra:true, maxLin:3 },   // 03/11/2026: matrícula longa quebra em até 3 linhas (antes saía cortada)
         { f:.20, l:"Datum:", v:"SIRGAS 2000 UTM " + G.fuso + "S" },
         { f:.09, l:"Escala:", v:"1/" + br(T.esc,0) },
         { f:.09, l:"Data:", v:dataImp },
@@ -38350,7 +38436,7 @@ function AV_gerarDescSituacao(){
       var ls = String(cel.l).split("\n"), tl = ls.length > 1 ? 4.9 : TL, gl = tl*.3528*1.3;
       ls.forEach(function(t, k){ P.texto(cx + 1.8, cy + 2.8 + k*gl, cortar(P, t, cw - 3, { tam:tl }), { tam:tl, cor:"#4a5a6a" }); });
       var vy0 = cy + 2.8 + ls.length*gl;
-      if(cel.quebra && valorQuebrado(cel.v, cx + 2.4, cw - 4, cy + 2.8 + (ls.length - 1)*gl + .7, cy + ch - .5)) return;
+      if(cel.quebra && valorQuebrado(cel.v, cx + 2.4, cw - 4, cy + 2.8 + (ls.length - 1)*gl + .7, cy + ch - .5, cel.maxLin)) return;
       var vv = caber(P, cel.v, cw - 6.4, TV, true, 4.2);
       // valor logo abaixo do rótulo, não no pé da célula
       var vy = Math.min(cy + ch - 1.4, vy0 + TV*.3528*.95);
@@ -38359,12 +38445,12 @@ function AV_gerarDescSituacao(){
     // nome inteiro: numa linha se couber num corpo legível; senão em 2 linhas, no maior corpo em que as duas caibam
     // na largura e na altura entre o rótulo (yTopo = logo abaixo da linha dele) e o pé da célula. false = nem assim
     // (cai no caber() de uma linha).
-    function valorQuebrado(v, x0, maxW, yTopo, yPe){
-      v = String(v || ""); if(!v) return true;
+    function valorQuebrado(v, x0, maxW, yTopo, yPe, maxLin){
+      v = String(v || ""); if(!v) return true; maxLin = maxLin || 2;
       for(var t = TV; t >= 5.2; t -= .15) if(P.largura(v, { tam:t, bold:true }) <= maxW){ P.texto(x0, Math.min(yPe, yTopo + 1.2 + t*.3528*.75), v, { tam:t, bold:true }); return true; }
       for(var t2 = TV; t2 >= 3.4; t2 -= .15){
         var lns = quebrar(P, v, maxW, { tam:t2, bold:true }), lh = t2*.3528*1.08, b0 = yTopo + t2*.3528*.75;
-        if(lns.length > 2 || lns.some(function(s){ return P.largura(s, { tam:t2, bold:true }) > maxW; })) continue;
+        if(lns.length > maxLin || lns.some(function(s){ return P.largura(s, { tam:t2, bold:true }) > maxW; })) continue;
         if(b0 + (lns.length - 1)*lh > yPe) continue;
         lns.forEach(function(s, k){ P.texto(x0, b0 + k*lh, s, { tam:t2, bold:true }); });
         return true;
@@ -38484,7 +38570,11 @@ function AV_gerarDescSituacao(){
   }
   function sincronizarBarras(){
     Array.prototype.forEach.call(document.querySelectorAll("[data-opc]"), function(cb){ cb.checked = !!OPC[cb.getAttribute("data-opc")]; });
-    Array.prototype.forEach.call(document.querySelectorAll("[data-opc-esc]"), function(s){ s.value = String(OPC.escala || 0); });
+    var eMax = escMax();
+    Array.prototype.forEach.call(document.querySelectorAll("[data-opc-esc]"), function(s){
+      Array.prototype.forEach.call(s.options, function(o){ var v = +o.value; o.disabled = v > eMax; o.title = v > eMax ? "Acima de 1:" + br(eMax, 0) + " só na planta geral (regra do cliente)" : ""; });
+      s.value = String(escUso(OPC.escala) || 0);
+    });
     Array.prototype.forEach.call(document.querySelectorAll("[data-opc-solos]"), function(s){ s.value = OPC.solos || ""; });
     sincronizarFmt();
     Array.prototype.forEach.call(document.querySelectorAll("[data-opc-quadro]"), function(s){ s.value = quadroDxfAtivo() ? "dxf" : "auto"; var rm = s.querySelector('option[value="rm"]'); if(rm) rm.hidden = rm.disabled = !dxfTexto(); });
@@ -41339,7 +41429,7 @@ function AV_gerarDescSituacao(){
   function v2ZoomPasso(dir, mm, E, N){
     var T = COMP.T; if(!T || COMP.vista === "folha" || !G) return;
     var pm = planoMapa(); if(pm && pm.tiles){ v2Toast("área extensa em várias pranchas: use o seletor de escala"); return; }
-    var base = V2.zoomPend ? V2.zoomPend.esc : T.esc, i = v2EscIdx(base), j = Math.max(0, Math.min(ESCALAS.length - 1, i + dir));
+    var base = V2.zoomPend ? V2.zoomPend.esc : T.esc, i = v2EscIdx(base), j = Math.max(0, Math.min(escalasOk().length - 1, i + dir));
     if(ESCALAS[j] === base && !V2.zoomPend) return;
     var esc1 = ESCALAS[j]; if(esc1 === base) return;
     if(!V2.zoomPend) V2.zoomPend = { esc:esc1, E:E, N:N, mm:mm, esc0:T.esc, ancora:mm.slice() }; else V2.zoomPend.esc = esc1;
@@ -41517,7 +41607,7 @@ function AV_gerarDescSituacao(){
     add("Memorial descritivo — PDF", function(){ window.MDP_pdfMemorial(); });
     add("Memorial descritivo — Word", function(){ window.MDP_wordMemorial(); });
     add("Inverter sentido do perímetro", function(){ window.MDP_inverter(); });
-    ESCALAS.forEach(function(e){ add("Escala 1:" + e.toLocaleString("pt-BR"), function(){ var m = [MAPA.x + MAPA.w/2, MAPA.y + MAPA.h/2]; V2.zoomPend = null; OPC.escala = e; gravarEscala(e); sincronizarBarras(); CACHE_SAT.chave = ""; compPintar(); }); });
+    ESCALAS.forEach(function(e){ add("Escala 1:" + e.toLocaleString("pt-BR") + (e > ESC_MAX_AREA ? " (só planta geral)" : ""), function(){ var m = [MAPA.x + MAPA.w/2, MAPA.y + MAPA.h/2]; V2.zoomPend = null; e = escUso(e); OPC.escala = e; gravarEscala(e); sincronizarBarras(); CACHE_SAT.chave = ""; compPintar(); }); });
     Object.keys(FORMATOS).forEach(function(k){ add("Formato " + FORMATOS[k].nome + " (" + FORMATOS[k].W + "×" + FORMATOS[k].H + " mm)", function(){ OPC.formato = k; OPC.folha = 0; setExtra("formato", k); aplicarFormato(k); sincronizarBarras(); CACHE_SAT.chave = ""; compPintar(); }); });
     BARRA.forEach(function(b){ add("Camada: " + b[1] + " (liga/desliga)", function(){ OPC[b[0]] = !OPC[b[0]]; CACHE_SAT.chave = ""; sincronizarBarras(); v2ContaCamadas(); agendarPreview(40); }); });
     Object.keys(V2_RECEITAS).forEach(function(n){ add("Receita: " + n, function(){ v2RecAplicar(V2_RECEITAS[n]); }); });
@@ -60217,18 +60307,31 @@ window.MG_motion={abertura:abertura,cadastro:cadastro,fichas:fichas};
       var b = s.querySelector("button"); if(b) b.onclick = usar;
     } else s.innerHTML = temAuto ? '<span class="rel-km-selo auto" title="Calculada pelo ' + fonte + '">automático (' + fonte + ')</span>' : "";
   }
+  /* 03/11/2026: o automático NUNCA sobrescreve valor que já estava no cadastro (CTD 001: ocupada 106,0000 digitada × KML
+     251,7189, e a avaliação usa a ocupada como base). Só preenche campo vazio ou o que ele mesmo pôs antes (extras
+     area_ocup_auto / rem_auto); valor diferente fica com o selo "difere do KML" e o botão "↺ usar KML". */
+  function exVal(k){ try{ var o = JSON.parse(($("mdp_extras") || {}).value || "{}") || {}; return o[k] == null ? "" : String(o[k]); }catch(e){ return ""; } }
+  function podeAuto(el, novo, chave){ var at = String((el && el.value) || "").trim(); return !at || at === novo || (exVal(chave) && at === exVal(chave)); }
   function selarAuto(){
     var kt = window.MDP_areaTotalKml ? window.MDP_areaTotalKml() : "", rm = remMapa();
-    espelhos().forEach(function(m){ if(m.getAttribute("data-espelho") === CAMPOS.ocup) selar("tec_ocup_selo", m, !!kt, "KML", exFlag("area_ocup_manual") && String(m.value || "").trim(), function(){ setFlag("area_ocup_manual", false); areasAuto(); }); });
-    [["tec_rem_selo", CAMPOS.n], ["tec_remS_selo", CAMPOS.s]].forEach(function(p){ selar(p[0], $(p[1]), !!rm, "mapa", !!rm && exFlag("rem_manual"), function(){ setFlag("rem_manual", false); areasAuto(); }); });
+    espelhos().forEach(function(m){
+      if(m.getAttribute("data-espelho") !== CAMPOS.ocup) return;
+      var v = String(m.value || "").trim(), difere = !!kt && !!v && v !== kt;
+      selar("tec_ocup_selo", m, !!kt, difere && !exFlag("area_ocup_manual") ? "KML (" + kt + " ha)" : "KML", difere, function(){ setFlag("area_ocup_manual", false); areasAuto(true); });
+    });
+    var nE = $(CAMPOS.n), sE = $(CAMPOS.s), remDif = !!rm && ((rm.n && nE && nE.value && nE.value !== rm.n) || (rm.s && sE && sE.value && sE.value !== rm.s));
+    [["tec_rem_selo", nE], ["tec_remS_selo", sE]].forEach(function(p){ selar(p[0], p[1], !!rm, "mapa", !!remDif, function(){ setFlag("rem_manual", false); areasAuto(true); }); });
   }
-  function areasAuto(){
+  function areasAuto(forcar){
     if(window.__CAD_RESTAURANDO) return;
-    var kt = window.MDP_areaTotalKml ? window.MDP_areaTotalKml() : "", rm = remMapa();
+    var kt = window.MDP_areaTotalKml ? window.MDP_areaTotalKml() : "", rm = remMapa(), mudouOcup = false;
     (window.CAD_automatico || function(f){ f(); })(function(){
-      if(kt && !exFlag("area_ocup_manual")) setar($(CAMPOS.ocup), kt);
-      if(rm && !exFlag("rem_manual")){ if(rm.n) setar($(CAMPOS.n), rm.n); if(rm.s) setar($(CAMPOS.s), rm.s); calc = null; }
-      else if(kt) recalcular(CAMPOS.ocup);   // sem o mapa: a conta de sempre (ocupada − desapropriada − remanescente informado)
+      var oc = $(CAMPOS.ocup);
+      if(kt && !exFlag("area_ocup_manual") && (forcar === true || podeAuto(oc, kt, "area_ocup_auto"))){ mudouOcup = oc && oc.value !== kt; setar(oc, kt); if(exVal("area_ocup_auto") !== kt && window.MDP_setEx) window.MDP_setEx("area_ocup_auto", kt); }
+      var nE = $(CAMPOS.n), sE = $(CAMPOS.s), ra = (rm ? rm.n + "|" + rm.s : ""), ant = exVal("rem_auto").split("|");
+      var podeRem = rm && !exFlag("rem_manual") && (forcar === true || ((!rm.n || podeAuto(nE, rm.n, "") || nE.value === ant[0]) && (!rm.s || podeAuto(sE, rm.s, "") || sE.value === ant[1])));
+      if(podeRem){ if(rm.n) setar(nE, rm.n); if(rm.s) setar(sE, rm.s); calc = null; if(exVal("rem_auto") !== ra && window.MDP_setEx) window.MDP_setEx("rem_auto", ra); }
+      else if(mudouOcup) recalcular(CAMPOS.ocup);   // sem o mapa: a conta de sempre (ocupada − desapropriada − remanescente informado)
     });
     puxar(); marcar(); foto(); selarAuto();
   }
@@ -66306,7 +66409,7 @@ body.ativ-cadastro:not(.modo-painel):has(.app-shell.recolhida) .cad-selo.tem{ di
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.10.30-3';
+window.APP_VERSAO = '2026.11.03-1';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.29-7';
 (function(){
