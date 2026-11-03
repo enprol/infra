@@ -37263,12 +37263,12 @@ function AV_gerarDescSituacao(){
       var pontas;
       if(vert){
         var x = T.x((a.cx + b.cx)/2); if(x < x0 + R || x > x1 - R) return;
-        P.linha(x, y0, x, y1, estilo);
         pontas = [[x, y0 + R + 26], [x, y1 - R - 12]];   // em cima, abaixo da seta do norte; embaixo, acima da escala gráfica
+        P.linha(x, pontas[0][1] + R, x, pontas[1][1] - R, estilo);   // a linha termina ao encontrar o círculo da folha
       } else {
         var y = T.y((a.cy + b.cy)/2); if(y < y0 + R || y > y1 - R) return;
-        P.linha(x0, y, x1, y, estilo);
         pontas = [[x0 + R + 3, y], [x1 - R - 3, y]];
+        P.linha(pontas[0][0] + R, y, pontas[1][0] - R, y, estilo);   // idem na horizontal
       }
       var sx = vert ? (dx > 0 ? 1 : -1) : 0, sy = vert ? 0 : (dy > 0 ? -1 : 1);   // lado da continuação, em mm na folha (N para cima)
       pontas.forEach(function(c){
@@ -38398,12 +38398,13 @@ function AV_gerarDescSituacao(){
         { f:.16, l:"Área a Desapropriar:\n" + (geralC ? "Planta geral" : "Parcela/Lote:"), v:aDesap },
         { f:.19, l:"Área Remanescente da\nPropriedade Parcela/Lote:", v:ex.area_remanescente || ap6.rem },
         { f:.12, l:"Perímetro:", v:perimTxt } ] : [
-        { f:.17, l:"Área Total da Propriedade:", v:areaProp },
+        // 03/11/2026 (Fernando): ordem do modelo padrão — registrada, ocupada, remanescente da propriedade, a desapropriar, total a desapropriar, perímetro
+        { f:.18, l:"Área Total da Propriedade\n(registrada):", v:areaProp },
+        { f:.18, l:"Área Total da Propriedade\n(ocupada):", v:haTxt(gv("fb_area_ocupada")) },
+        { f:.20, l:"Área Remanescente da\nPropriedade:", v:ex.area_remanescente || remPropAuto(c) },
         { f:.13, l:"Área a Desapropriar:" + (geralC ? "\nPlanta geral" : ""), v:aDesap },
-        { f:.19, l:"Área remanescente\na Desapropriar:", v:ex.area_rem_desap || "0,0000 ha" },
-        { f:.16, l:"Área Total a Desapropriar:", v:totDesap },
-        { f:.13, l:"Perímetro:", v:perimTxt },
-        { f:.22, l:"Área Remanescente da\nPropriedade:", v:ex.area_remanescente || remPropAuto(c) } ];
+        { f:.17, l:"Área Total a Desapropriar:", v:totDesap },
+        { f:.14, l:"Perímetro:", v:perimTxt } ];
     var faixas = [
       { p:1.00, cel:[
         { f:.42, l:"Trecho:", v:ex.trecho || trechoAuto(c) },
@@ -66409,7 +66410,7 @@ body.ativ-cadastro:not(.modo-painel):has(.app-shell.recolhida) .cad-selo.tem{ di
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.11.03-1';
+window.APP_VERSAO = '2026.11.03-2';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.29-7';
 (function(){
