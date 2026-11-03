@@ -38162,7 +38162,9 @@ function AV_gerarDescSituacao(){
   function obsBenfeitorias(){
     if(typeof window.BNF_lerLinhas !== "function") return [];
     var out = [];
-    [["121","R"], ["122","R"], ["123","R"], ["124","R"], ["13","NR"]].forEach(function(g){
+    // 03/11/2026 (Fernando): só as NÃO reprodutivas (item 13) entram no quadro OBSERVAÇÃO, na numeração e nas indicações da planta;
+    // as reprodutivas (12.1–12.4) não aparecem na prancha
+    [["13","NR"]].forEach(function(g){
       (window.BNF_lerLinhas(g[0]) || []).forEach(function(l){
         var d = (l.disc || "").trim(); if(!d) return;
         out.push({ desc:d, qtd:(l.qtd || "").trim(), unid:(l.unid || "").trim(), cat:g[1] });
@@ -39475,12 +39477,12 @@ function AV_gerarDescSituacao(){
     function nObsTxt(){ nObs++; return String(nObs).padStart(2, "0"); }
     var nObs0 = obsLivres.length, indUsadas = {}, indTem = false; leadersLer().forEach(function(c){ if(c.obs){ indUsadas[c.obs] = 1; indTem = true; } });
     var indPend = indPendentes();
-    h += '<section class="car-bloco"><header><i>06</i> Observações <small>são as benfeitorias lançadas na Técnica (itens 12 e 13), numeradas e com a quantidade — sem valor</small></header>' +
+    h += '<section class="car-bloco"><header><i>06</i> Observações <small>são as benfeitorias NÃO reprodutivas lançadas na Técnica (item 13), numeradas e com a quantidade — sem valor</small></header>' +
       (indPend.length ? '<div class="car-ind-aviso">⚠ ' + indPend.length + ' benfeitoria(s) sem indicação na planta (nº ' + indPend.map(function(r){ return String(nObs0 + r.bi + 1).padStart(2, "0"); }).join(", ") + ') <button type="button" onclick="MDP_obsIndicar(' + indPend[0].bi + ')">Indicar pendentes</button></div>' : '') +
       ((obsLivres.length || obsBnf.length) ? '<ol class="car-obs-lista">' +
         obsLivres.map(function(t){ return '<li><b>' + nObsTxt() + '</b><span>' + esc(t) + '</span><em>anotação antiga</em></li>'; }).join("") +
         obsBnf.map(function(o, bi){ return '<li class="car-obs-arr" draggable="true" title="Arraste para mudar a ordem" ondragstart="MDP_obsDS(event,' + bi + ')" ondragover="MDP_obsDO(event)" ondragleave="MDP_obsDL(event)" ondrop="MDP_obsDD(event,' + bi + ')" ondragend="MDP_obsDE(event)"><b>' + nObsTxt() + '</b><span>' + esc(o.desc) + (o.qtd ? ' <strong>— ' + esc(o.qtd) + (o.unid ? ' ' + esc(o.unid) : '') + '</strong>' : '') + '</span><em>' + (o.cat === "R" ? "reprodutiva" : "não reprodutiva") + '</em><button type="button" class="car-ind' + ((indTem && !indUsadas[o.key]) ? ' pend' : '') + '" draggable="false" title="Marcar na planta: a leader nasce com o nº desta benfeitoria (o nº é ligado ao Carimbo e não se edita)" onclick="event.stopPropagation();MDP_obsIndicar(' + bi + ')">' + (indUsadas[o.key] ? '✓ Reindicar' : '◯ Indicar') + '</button></li>'; }).join("") + '</ol>'
-       : '<p class="car-obs-vazio">Nenhuma benfeitoria lançada. Elas entram aqui sozinhas, numeradas, quando forem lançadas em <b>Técnica › Benfeitorias</b> (itens 12 e 13 da Avaliação).</p>') + '</section>';
+       : '<p class="car-obs-vazio">Nenhuma benfeitoria não reprodutiva lançada. Elas entram aqui sozinhas, numeradas, quando forem lançadas em <b>Técnica › Benfeitorias</b> (item 13 da Avaliação).</p>') + '</section>';
     box.innerHTML = h; carChip(); indMarcar();
   }
   function carChip(){
@@ -40771,7 +40773,7 @@ function AV_gerarDescSituacao(){
     var bn = obsBenfeitorias(), nLivres = (extras().obs || []).filter(Boolean).length;
     oa.innerHTML = bn.length ? ('<ol class="mz-obs-auto">' + bn.map(function(x, k){
       return '<li><b>' + String(nLivres + k + 1).padStart(2, "0") + '</b><span>' + esc(x.desc) + (x.qtd ? ' <strong>— ' + esc(x.qtd) + (x.unid ? ' ' + esc(x.unid) : '') + '</strong>' : '') + '</span><em>' + (x.cat === "R" ? "reprodutiva" : "não reprodutiva") + '</em></li>';
-    }).join("") + '</ol>') : '<p class="mz-gav-s">Nenhuma benfeitoria lançada na Técnica (itens 12 e 13) — elas entram aqui sozinhas.</p>';
+    }).join("") + '</ol>') : '<p class="mz-gav-s">Nenhuma benfeitoria não reprodutiva lançada na Técnica (item 13) — elas entram aqui sozinhas.</p>';
   }
   function renderTudo(){
     renderResumo(); renderTabela(); renderMemorial(); renderDatalist(); renderCamadas(); carregarConfrontantes();
@@ -66569,7 +66571,7 @@ body.ativ-cadastro:not(.modo-painel):has(.app-shell.recolhida) .cad-selo.tem{ di
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.11.03-4';
+window.APP_VERSAO = '2026.11.03-5';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.29-7';
 (function(){
