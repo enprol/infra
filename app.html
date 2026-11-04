@@ -38915,10 +38915,11 @@ function AV_gerarDescSituacao(){
     aplicarFormato(OPC.formato);
     /* 04/11/2026 (Fernando, CTD 001 SPS-04): perímetro que na planta se divide em pranchas (teto de 1:2.000) saía cortado na
        Figura 3B — só o quadro da 1ª prancha. Aqui a escala é a menor que põe o perímetro INTEIRO no quadro; as pranchas não mudam. */
-    var esc0 = OPC.escala, PAN0 = { x:PAN.x, y:PAN.y };
+    var esc0 = OPC.escala, PAN0 = { x:PAN.x, y:PAN.y }, vt0 = OPC.vertices, rt0 = OPC.rotulos;
     FIG_SEM_LIMITE = true;
+    OPC.vertices = false; OPC.rotulos = false;   // 04/11/2026 (Fernando): Figura 3B sem os vértices nem seus rótulos
     try{ return await quadroFig(o); }
-    finally { FIG_SEM_LIMITE = false; OPC.escala = esc0; PAN.x = PAN0.x; PAN.y = PAN0.y; }
+    finally { FIG_SEM_LIMITE = false; OPC.escala = esc0; PAN.x = PAN0.x; PAN.y = PAN0.y; OPC.vertices = vt0; OPC.rotulos = rt0; }
   };
   // escala mínima para o perímetro inteiro caber no quadro (MAPA como está AGORA: preparar() pode trocar o formato da folha)
   function escFigInteira(){
@@ -66901,7 +66902,7 @@ body.ativ-cadastro:not(.modo-painel):has(.app-shell.recolhida) .cad-selo.tem{ di
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.11.04-1';
+window.APP_VERSAO = '2026.11.04-2';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.29-7';
 (function(){
