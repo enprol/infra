@@ -12028,7 +12028,7 @@ function navHtml(lista){
   }
   lista.forEach(function(tp){
     if(tp.kind === "marco"){
-      var p = procDe(tp.pid), m = p && marcoDe(p, tp.mid), cod = m && String(m.cod || "").trim(), cur = (/(d+)s*$/.exec(cod || "") || [])[1] || (cod || "?");
+      var p = procDe(tp.pid), m = p && marcoDe(p, tp.mid), cod = m && String(m.cod || "").trim(), cur = (/(\d+)\s*$/.exec(cod || "") || [])[1] || (cod || "?");
       chips.push('<a href="#" class="nv nv-chip' + (tp.oculto ? ' is-oculto' : '') + '" data-ir="' + tp.id + '" title="' + esc(cod || "marco sem código") + '">' + esc(cur) + '</a>');
       return;
     }
@@ -14486,13 +14486,13 @@ var ROT_CAMPO = { cod:"Código do vértice", lat:"Latitude", lon:"Longitude", al
   leg:"Legenda da tabela", fonte:"Fonte" };
 function rotuloDe(i){
   var lb = i.closest("label");
-  if(lb && !lb.classList.contains("vbtn") && !lb.classList.contains("dd-b")){ var lt = (lb.textContent || "").replace(/s+/g, " ").trim(); if(lt) return lt; }
+  if(lb && !lb.classList.contains("vbtn") && !lb.classList.contains("dd-b")){ var lt = (lb.textContent || "").replace(/\s+/g, " ").trim(); if(lt) return lt; }
   var vf = i.closest(".vfield"); if(vf){ var l = vf.querySelector("label"); if(l && l.textContent.trim()) return l.textContent.trim(); }
   var cel = i.closest(".mc-cel"); if(cel){ var l2 = cel.querySelector(".mc-l"); if(l2 && l2.textContent.trim()) return l2.textContent.replace(/:$/, "").trim(); }
   var f = i.getAttribute("data-f") || i.getAttribute("data-sgf") || "";
   var gr = !f && i.closest(".mc-crono, .mc-grade");
   if(gr){                                   // cronograma: linha (nome da etapa) + coluna (mês)
-    var tr0 = i.closest("tr"), td0 = i.closest("td,th"), ix = td0 ? [].indexOf.call(tr0.children, td0) : -1, cab = gr.rows && gr.rows[0] && gr.rows[0].cells[ix] ? gr.rows[0].cells[ix].textContent.replace(/s+/g, " ").trim() : "";
+    var tr0 = i.closest("tr"), td0 = i.closest("td,th"), ix = td0 ? [].indexOf.call(tr0.children, td0) : -1, cab = gr.rows && gr.rows[0] && gr.rows[0].cells[ix] ? gr.rows[0].cells[ix].textContent.replace(/\s+/g, " ").trim() : "";
     var nm = tr0.querySelector("textarea.mc-tal, .mc-tal"), rn = nm ? String(nm.value || nm.textContent || "").trim().slice(0, 40) : "";
     return "Cronograma" + (rn ? " — " + rn : "") + (cab ? " — " + cab : "");
   }
@@ -56034,7 +56034,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     if(itens.length>FIDS.length){ falhou.push('só '+FIDS.length+' das '+itens.length+' áreas'); itens=itens.slice(0,FIDS.length); }
     itens.forEach(function(it,i){
       aplicarFig(FIDS[i], it.url, 'planta-de-situacao'+(multi?('-area-'+(i+1)):'')+'.jpg');
-      var c=D2DOC.caps[FIDS[i]]; if(multi && it.rot){ var n=(/^Imagems+(d+)/.exec((c&&c.t)||'')||[])[1]||''; D2DOC.caps[FIDS[i]]={ t:(n?'Imagem '+n+' – ':'')+'Planta de situação da área a ser desapropriada ('+it.rot+')', f:(c&&c.f)||'' }; }
+      var c=D2DOC.caps[FIDS[i]]; if(multi && it.rot){ var n=(/^Imagem\s+(\d+)/.exec((c&&c.t)||'')||[])[1]||''; D2DOC.caps[FIDS[i]]={ t:(n?'Imagem '+n+' – ':'')+'Planta de situação da área a ser desapropriada ('+it.rot+')', f:(c&&c.f)||'' }; }
     });
     for(var j=itens.length;j<FIDS.length;j++){ if(figs[FIDS[j]]){ delete figs[FIDS[j]]; delete figNames[FIDS[j]]; delete D2DOC.caps[FIDS[j]]; } }
     try{ if(window.CAD_marcarSujo) window.CAD_marcarSujo(); }catch(e){}
@@ -64745,7 +64745,9 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     novaImg(id);
   };
   window.D2M2_irArt = function(){ var b = document.querySelector('.sb-link[data-alvo="panel-anx11"]'); if(b && window.trocarAba){ window.trocarAba(b); return; } var pn = $("panel-anx11"); if(pn) pn.scrollIntoView(); };
+  var PLVER = "2", VERMAP;   // 04/11/2026: versão só da planta de situação (Imagem 2) — ver plVelha()
   var MAPVER = "15";   // 30/10/2026: remanescente 006A–Z = KML total − desapropriada · sobe quando muda o desenho/enquadramento dos mapas: os já salvos no cadastro são refeitos uma vez
+  VERMAP = MAPVER + "|pl" + PLVER;
   /* 25/10/2026 (independência do modelo original): na 1ª abertura, o que estava editado à mão na DESP-2 para Apresentação,
      Metodologia e Conclusão vira texto próprio do Modelo 02 (o PDF continua igual); depois disso nada mais vem da DESP-2. */
   function desacoplar(){
@@ -64869,12 +64871,21 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     // 28/10/2026 (CTD 006D): área total com o mesmo polígono duas vezes — curvas de nível e hipsometria saíram vazias; refaz uma vez
     var dup = temArea && temMapa && !v("d2m2_aj_dup") && $("d2m2_aj_dup") && window.D2_aneisSobrepostos && window.D2_aneisSobrepostos(akml) > 0;
     if(dup){ setv("d2m2_aj_dup", "1"); sujo(); }
-    if(temArea && temMapa && !v("d2m2_aj_linha") && window.D2_fecharLinhasKML && window.D2_fecharLinhasKML(akml) !== akml){ setv("d2m2_aj_linha", "1"); setv("d2m2_v_mapver", MAPVER); sujo(); return D2M2_gerarTodos(true); }
-    if(temArea && temMapa && v("d2m2_v_mapver") !== MAPVER){ setv("d2m2_v_mapver", MAPVER); sujo(); return D2M2_gerarTodos(true); }
+    if(temArea && temMapa && !v("d2m2_aj_linha") && window.D2_fecharLinhasKML && window.D2_fecharLinhasKML(akml) !== akml){ setv("d2m2_aj_linha", "1"); setv("d2m2_v_mapver", VERMAP); sujo(); return D2M2_gerarTodos(true); }
+    if(temArea && temMapa && String(v("d2m2_v_mapver")).split("|")[0] !== MAPVER){ setv("d2m2_v_mapver", VERMAP); sujo(); return D2M2_gerarTodos(true); }
+    if(temArea && plVelha()) return refazPlanta();          // só a planta de situação (Imagem 2) mudou de versão
     if(dup) return refazRelevo();
-    if(temArea && MAPAS.some(function(m){ return precisa(m[0]) && !window.D2_m2Fig(m[0]); })){ setv("d2m2_v_mapver", MAPVER); return D2M2_gerarTodos(false); }
+    if(temArea && MAPAS.some(function(m){ return precisa(m[0]) && !window.D2_m2Fig(m[0]); })){ setv("d2m2_v_mapver", VERMAP); return D2M2_gerarTodos(false); }
     else if(temArea && window.D2_m2Fig("m2_1") && !v("d2m2_v_remN")){ return gerarMapa("m2_1"); }   // mapa salvo de uma versão antiga: refaz para calcular as áreas remanescentes dos textos
     else if(temArea && !v("d2m2_v_altmin")) return relevo();
+  }
+  /* 04/11/2026 (Fernando): a planta de situação (Imagem 2 – Área a ser desapropriada) passou a sair com o perímetro inteiro e
+     sem os vértices, mas as já salvas no cadastro não eram refeitas (o MAPVER não subiu) — continuavam com vértices. PLVER marca
+     a versão SÓ da planta, junto do MAPVER em d2m2_v_mapver ("15|pl2"): planta salva de versão anterior é refeita uma vez, sozinha. */
+  function plVelha(){ return !fora("m2_pl") && !!window.D2_m2Fig("m2_pl") && v("d2m2_v_mapver") !== VERMAP; }
+  async function refazPlanta(){
+    st("Refazendo a planta de situação (sem os vértices)…"); setv("d2m2_v_mapver", VERMAP); sujo();
+    await gerarMapa("m2_pl"); st(""); return D2M2_gerarTodos(false);
   }
   // só os mapas que usam o relevo ANADEM (curvas/hipsometria) e os valores de altitude e relevo do texto; depois, os que faltarem
   async function refazRelevo(){
@@ -64889,6 +64900,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     opts = opts || {};
     if(!window.D2_gerarPDF) return null;
     var temArea = false; try{ temArea = !!(window.IMV_get && window.IMV_get("area").kml); }catch(e){}
+    if(temArea && String(v("d2m2_v_mapver")).split("|")[0] === MAPVER && plVelha()){ setv("d2m2_v_mapver", VERMAP); sujo(); await gerarMapa("m2_pl"); }   // planta de versão anterior (com vértices)
     if(temArea && MAPAS.some(function(m){ return precisa(m[0]) && !window.D2_m2Fig(m[0]); })) await D2M2_gerarTodos(false);
     st("Montando o PDF…");
     try{ return await window.D2_gerarPDF(Object.assign({}, opts, { modelo2:true })); } finally { st(""); }
@@ -67091,7 +67103,7 @@ body.ativ-cadastro:not(.modo-painel):has(.app-shell.recolhida) .cad-selo.tem{ di
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.11.04-4';
+window.APP_VERSAO = '2026.11.04-5';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.29-7';
 (function(){
