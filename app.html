@@ -64162,6 +64162,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     var porId = {}; L.forEach(function(t){ porId[t.id] = t; });
     var out = [];
     ordem().forEach(function(it){
+      if(it.oc) return;                                                   // tópico oculto: não sai no PDF
       if(it.x){ out.push(X({ id:it.id, level:it.level, num:it.num, head:it.x.head || "", txt:it.x.txt || "" })); return; }
       (DOC2PDF[it.id] || []).forEach(function(pid, k){ var t = porId[pid]; if(!t) return; if(k === 0 && (t.level === 1 || t.level === 2)) t.num = it.num; out.push(t); });
     });
@@ -64173,9 +64174,14 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
   // os mapas sempre entram (o SIGEF é o primeiro), menos o 2º do SIGEF quando a última conta não achou sobreposição nem área vazia
   /* 25/10/2026: mapas automáticos editáveis e removíveis. #d2m2_mapas = { aj:{ id:{ enq, base, transp, locLado } }, fora:{ id:1 } }
      aj = ajuste feito em “✎ Editar mapa” (vale também ao regerar); fora = tirado do relatório (não sai no PDF nem é regerado). */
-  function mapasCfg(){ try{ var o = JSON.parse(v("d2m2_mapas") || "{}") || {}; o.aj = o.aj || {}; o.fora = o.fora || {}; return o; }catch(e){ return { aj:{}, fora:{} }; } }
-  function salvarMapasCfg(o){ setv("d2m2_mapas", (Object.keys(o.aj).length || Object.keys(o.fora).length) ? JSON.stringify(o) : ""); sujo(); }
-  function fora(id){ return !!mapasCfg().fora[id]; }
+  function mapasCfg(){ try{ var o = JSON.parse(v("d2m2_mapas") || "{}") || {}; o.aj = o.aj || {}; o.fora = o.fora || {}; o.oc = o.oc || {}; return o; }catch(e){ return { aj:{}, fora:{}, oc:{} }; } }
+  function salvarMapasCfg(o){ setv("d2m2_mapas", (Object.keys(o.aj).length || Object.keys(o.fora).length || Object.keys(o.oc || {}).length) ? JSON.stringify(o) : ""); sujo(); }
+  /* 04/11/2026 (Fernando): tópicos OCULTOS (ex.: "Parcelas SIGEF sobre o imóvel" quando não se aplica) — como o "Ocultar" da DESP-2:
+     saem do PDF, da numeração (seções e imagens) e os mapas deles não são gerados. Ficam em d2m2_mapas.oc = { idDoTópico:1 }. */
+  var IMGS_TOP = { m2_sigmap:["m2_sig","m2_sig2"], m2_pl:PLS, m2_padrao:["m2_1"], m2_carac:["m2_2","m2_3"], m2_car:["m2_4","m2_4b"], m2_hipso:["m2_5"] };
+  function oculto(id){ return !!mapasCfg().oc[id]; }
+  function imgOculta(id){ var oc = mapasCfg().oc; return Object.keys(IMGS_TOP).some(function(t){ return oc[t] && IMGS_TOP[t].indexOf(id) >= 0; }); }
+  function fora(id){ return !!mapasCfg().fora[id] || imgOculta(id); }
   function ajMapa(id){ return mapasCfg().aj[id] || null; }
   function noRel(id){ return !fora(id) && !!(window.D2_m2Fig && window.D2_m2Fig(id)); }
   function precisa(id){ if(fora(id)) return false; if(ePl(id) && id !== "m2_pl") return false; if(id === "m2_sig2"){ var s = valSobrep(); return !(s && s.n === 0 && s.vazio != null && !(s.vazio > 0)); } return true; }   // conta antiga sem as vazias (s.vazio ausente): refaz uma vez
@@ -64284,7 +64290,8 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     BASE_TOP.forEach(function(b){ out.push({ id:b[0], level:b[1] }); filhos(b[0]); });
     ex.forEach(function(x){ if(vistos[x.id]) return; vistos[x.id] = 1; out.push({ id:x.id, level:x.level, x:x }); filhos(x.id); });   // âncora sumiu: vai para o fim
     var n1 = 0, n2 = 0; NUMS = {};
-    out.forEach(function(it){ if(it.level === 1){ n1++; n2 = 0; it.num = n1 + "."; } else if(it.level === 2){ n2++; it.num = n1 + "." + n2; } else it.num = ""; NUMS[it.id] = it.num; if(it.x) IMG_TOP[it.id] = it.id; });
+    var oc = mapasCfg().oc;
+    out.forEach(function(it){ it.oc = !!oc[it.id]; if(it.oc) it.num = ""; else if(it.level === 1){ n1++; n2 = 0; it.num = n1 + "."; } else if(it.level === 2){ n2++; it.num = n1 + "." + n2; } else it.num = ""; NUMS[it.id] = it.num; if(it.x) IMG_TOP[it.id] = it.id; });
     return out;
   }
   // tópicos do PDF na ordem (para numerar as imagens). Os que vêm da DESP-2 (1, 2, 6, 7.1) ficam de fora: as imagens deles são da DESP-2.
@@ -64292,6 +64299,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
   function ordemImgs(){
     var o = [];
     ordem().forEach(function(it){
+      if(it.oc) return;                                                   // tópico oculto: as imagens dele não contam
       if(it.x){ o.push([it.id, null]); return; }
       (DOC2PDF[it.id] || []).forEach(function(pid){ if(pid in IMG_DE_PDF) o.push([pid, IMG_DE_PDF[pid]]); });
     });
@@ -64459,12 +64467,14 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
   }
   function secao(id, lv, num, tit, corpo, opc){
     opc = opc || {};
-    return '<section class="dd-top lv' + lv + (opc.auto ? " is-auto" : "") + (opc.manual ? " is-manual" : "") + (opc.extra ? " is-extra" : "") + '" id="dd_' + id + '" data-id="' + id + '">'
-      + '<div class="dd-head"><span class="dd-num">' + esc(num) + '</span>'
+    var oc = oculto(id);
+    return '<section class="dd-top lv' + lv + (opc.auto ? " is-auto" : "") + (opc.manual ? " is-manual" : "") + (opc.extra ? " is-extra" : "") + (oc ? " is-oculto" : "") + '" id="dd_' + id + '" data-id="' + id + '">'
+      + '<div class="dd-head"><span class="dd-num">' + esc(oc ? "—" : num) + '</span>'
       + (opc.extra ? '<span class="dd-tit" contenteditable="true" spellcheck="true" data-m2xt="' + esc(id) + '" title="Título — clique para editar">' + esc(tit) + '</span><span class="dd-tags"><span class="dd-tag t-extra">novo</span></span>'
         : opc.tituloEd ? '<span class="dd-tit" contenteditable="true" spellcheck="true" data-m2f="' + opc.tituloEd + '">' + esc(tit) + '</span>' : '<span class="dd-tit">' + esc(tit) + '</span>')
       + (opc.auto ? '<span class="dd-tags"><span class="dd-tag t-auto" style="display:inline-block" title="Gerado a partir dos dados do cadastro. Para mudar, use “✎ Editar o texto”.">automático</span></span>' : "") + (opc.manual ? '<span class="dd-tags"><span class="dd-tag t-manual">editado à mão</span></span>' : "")
-      + '<span class="dd-acts">' + (opc.acts || "") + (IMG_TOP[id] ? btn("addimg", "🖼 + Imagem", "Insere uma imagem com legenda e fonte no fim deste tópico") + btn("addmapa", "🗺 + Mapa", "Cria um mapa (camadas, escala e posição) no fim deste tópico") : "")
+      + '<span class="dd-tags"><span class="dd-tag t-oculto">fora do relatório</span></span>'
+      + '<span class="dd-acts">' + btn(oc ? "mostrar" : "ocultar", oc ? "👁 Incluir no relatório" : "Ocultar", oc ? "Volta a pôr este tópico no PDF" : "Tira este tópico do PDF (texto e imagens); a numeração se ajusta") + (opc.acts || "") + (IMG_TOP[id] ? btn("addimg", "🖼 + Imagem", "Insere uma imagem com legenda e fonte no fim deste tópico") + btn("addmapa", "🗺 + Mapa", "Cria um mapa (camadas, escala e posição) no fim deste tópico") : "")
         + btn("add", "+ Inserir abaixo", "Nova seção, subseção ou subtítulo logo abaixo deste tópico")
         + (opc.extra ? btn("xup", "↑", "Mover para cima") + btn("xdown", "↓", "Mover para baixo") + btn("xnivel", "Nível", "Alterna Seção / Subseção / Subtítulo") + btn("xdel", "🗑", "Excluir este tópico") : "") + '</span></div>'
       + '<div class="dd-menu" hidden><span>Inserir abaixo:</span>' + btn("addx", "Seção <small>(N.)</small>", "Seção numerada — entra depois do bloco inteiro deste tópico", ' data-lv="1"') + btn("addx", "Subseção <small>(N.n)</small>", "", ' data-lv="2"') + btn("addx", "Subtítulo", "Subtítulo sem número", ' data-lv="3"') + '</div>'
@@ -64518,9 +64528,15 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     return lista.map(function(it){ return it.x ? extraHtml(it) : (P[it.id] || ""); }).join("");
   }
   var SEC_NAV = [["m2_s1","1.","APRESENTAÇÃO",1],["m2_s2","2.","METODOLOGIA",1],["m2_caract","3.","CARACTERIZAÇÃO DO IMÓVEL E TRECHO FERROVIÁRIO",1],["m2_ctx","","Contexto histórico",3],["m2_sigmap","","Parcelas SIGEF (Imagem 1)",3],["m2_pl","","Área a ser desapropriada",3],["m2_padrao","","Áreas remanescentes",3],["m2_carac","","Caracterização do imóvel",3],["m2_car","","Cadastro Ambiental Rural (CAR)",3],["m2_hipso","","Hipsometria",3],["m2_fatos","4.","DOS FATOS EXPROPRIATÓRIOS",1],["m2_estudo","5.","ESTUDO DAS NECESSIDADES",1],["m2_s6","6.","CONCLUSÃO",1],["m2_s7","7.","ANEXOS",1],["m2_s71","7.1","ANEXO 1 - RELATÓRIO FOTOGRÁFICO",2],["m2_s72","7.2","ANEXO 2 - ART",2]];
+  // 04/11/2026: tópico com texto editado à mão (o mesmo "editado" do cartão) — bolinha laranja no sumário
+  var OVR_DE = { m2_s1:["m2_apres"], m2_s2:["m2_metod"], m2_s6:["m2_concl"], m2_carac:["m2_carac2"] };
+  function temAreaKml(){ try{ return !!(window.IMV_get && window.IMV_get("area").kml); }catch(e){ return false; } }
+  function editado(id){ return (OVR_DE[id] || [id]).some(function(k){ return !!ovr(k); }); }
   function navHtml(){
     var tit = {}; SEC_NAV.forEach(function(n){ tit[n[0]] = n[2]; });
-    return ordem().map(function(it){ return '<a href="#" class="nv lv' + it.level + '" data-ir="' + it.id + '"><span class="nv-n">' + esc(it.num || "·") + '</span><span class="nv-t">' + esc(it.x ? (it.x.head || "(sem título)") : tit[it.id]) + '</span>' + (it.x ? '<i class="m-extra" title="novo"></i>' : "") + '</a>'; }).join("");
+    return ordem().map(function(it){ var ed = !it.x && editado(it.id);
+      return '<a href="#" class="nv lv' + it.level + (it.oc ? " is-oculto" : "") + '" data-ir="' + it.id + '"' + (it.oc ? ' title="Fora do relatório"' : "") + '><span class="nv-n">' + esc(it.oc ? "–" : (it.num || "·")) + '</span><span class="nv-t">' + esc(it.x ? (it.x.head || "(sem título)") : tit[it.id]) + '</span>'
+        + (it.x ? '<i class="m-extra" title="novo"></i>' : (ed ? '<i class="m-manual" title="editado à mão"></i>' : "")) + '</a>'; }).join("");
   }
 
   /* ---------- painel ---------- */
@@ -65058,6 +65074,10 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     if(vx){ var tv = vx.getAttribute("data-m2vetx"), dv0 = vetDado(tv); dv0.arquivos.splice(+vx.getAttribute("data-i"), 1); setv(VET_TIPOS[tv].campo, dv0.arquivos.length ? JSON.stringify(dv0) : ""); sujo(); D2M2_render(); regerarVet(tv); return; }
     var x = t.closest("[data-m2carx]"); if(x){ var tp = x.getAttribute("data-m2carx"); setv(CAR_TIPOS[tp].campo, ""); sujo(); D2M2_render(); return; }
     var b = t.closest("[data-m2a]"); if(!b) return; var a = b.getAttribute("data-m2a");
+    if(a === "ocultar" || a === "mostrar"){ var so = b.closest(".dd-top"); if(!so) return; var co = mapasCfg(), io = so.getAttribute("data-id");
+      if(a === "ocultar") co.oc[io] = 1; else delete co.oc[io]; salvarMapasCfg(co); D2M2_render();
+      if(a === "mostrar" && temAreaKml()) D2M2_gerarTodos(false);         // mapas do tópico que voltou: gera os que faltam
+      var sv = document.getElementById("dd_" + io); if(sv) sv.scrollIntoView({ block:"nearest" }); return; }
     if(a === "gerar"){ gerarMapa(b.getAttribute("data-m2id")).then(function(){ previas(); }); }
     else if(a === "ampliar"){ lbAbrir(b.getAttribute("data-m2id")); }
     else if(a === "mapaaj"){ ajustarMapa(b.getAttribute("data-m2id")); }
@@ -67117,7 +67137,7 @@ body.ativ-cadastro:not(.modo-painel):has(.app-shell.recolhida) .cad-selo.tem{ di
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.11.04-6';
+window.APP_VERSAO = '2026.11.04-7';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.29-7';
 (function(){
