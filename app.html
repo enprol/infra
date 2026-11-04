@@ -10920,6 +10920,22 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
   #d2map_ov .d2u-del{ width:30px; height:30px; border:none; border-radius:8px; background:#f6f0f0; color:#a33; cursor:pointer; font-size:13px; }
   #d2map_ov .d2u-del:hover{ background:#fbe1e1; }
   #d2map_ov .d2u-del:focus-visible{ outline:none; box-shadow:0 0 0 3px rgba(192,57,43,.3); }
+  /* 04/11/2026: ordem de sobreposição das camadas adicionais e leaders */
+  #d2map_ov .d2u-ord{ display:inline-flex; gap:2px; }
+  #d2map_ov .d2u-ord button{ width:26px; height:30px; border:1px solid #d6dee7; border-radius:7px; background:#fff; color:#3b4a5a; cursor:pointer; font-size:10px; line-height:1; transition:background .15s, color .15s; }
+  #d2map_ov .d2u-ord button:hover{ background:#1F6FC0; border-color:#1F6FC0; color:#fff; }
+  #d2map_ov .d2u-ord button:focus-visible{ outline:none; box-shadow:0 0 0 3px rgba(31,111,192,.3); }
+  #d2map_ov .d2u-card:first-child .d2u-ord button[data-acao="up"], #d2map_ov .d2u-card:last-child .d2u-ord button[data-acao="down"]{ opacity:.35; pointer-events:none; }
+  #d2map_ov .d2u-ordem{ font-size:11.5px; color:#5b6b7b; margin:6px 0 2px; }
+  #d2map_ov .d2u-add.d2u-on{ background:#1F6FC0; color:#fff; }
+  #d2map_ov .d2u-passo{ border-color:#1F6FC0; background:#eef5fd; color:#16507f; }
+  #d2map_ov .d2l-card .d2u-hd{ align-items:flex-start; }
+  #d2map_ov .d2l-n{ flex:none; width:24px; height:24px; margin-top:4px; border-radius:50%; background:#0d1620; color:#fff; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; }
+  #d2map_ov .d2l-txt{ flex:1; min-width:0; resize:vertical; font-weight:600; }
+  #d2map_ov .d2m-vis .d2m-prev{ position:relative; }
+  #d2map_ov .d2ldr-ov{ position:absolute; pointer-events:none; transform-origin:50% 42.13%; overflow:visible; }
+  #d2map_ov .d2ldr-ov .d2ldr-h, #d2map_ov .d2ldr-ov .d2ldr-cx{ pointer-events:all; cursor:move; }
+  #d2map_ov .d2ldr-ov.d2ldr-modo{ pointer-events:all; cursor:crosshair; }
   #d2map_ov .d2u-tags{ display:flex; flex-wrap:wrap; gap:5px; margin:7px 0 4px; align-items:center; }
   #d2map_ov .d2u-t{ font:700 10.5px "Segoe UI", Arial, sans-serif; padding:2px 8px; border-radius:999px; }
   #d2map_ov .d2u-tp{ background:#e8f1fb; color:#1a5ea6; } #d2map_ov .d2u-tl{ background:#fdf1e2; color:#a4590b; } #d2map_ov .d2u-tt{ background:#eaf7ee; color:#18773a; }
@@ -55098,6 +55114,13 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       if(base.mode==='orto'){ var u=d2utm(lon,lat,zMapa); return [mapL+(u.E-base.e0)/(base.e1-base.e0)*mapW, mapT+(base.n1-u.N)/(base.n1-base.n0)*mapH]; }
       var px=d2lonpx(lon,base.sat.z)-base.sat.w0, py=d2latpx(lat,base.sat.z)-base.sat.n0; return [mapL+px/base.sat.cw*mapW, mapT+py/base.sat.ch*mapH];
     }
+    // 04/11/2026: inversa de PX (x,y do desenho → [lon,lat]) para os leaders do modal (clicar/arrastar na prévia)
+    function PXinv(x,y){
+      if(base.mode==='orto'){ var E=base.e0+(x-mapL)/mapW*(base.e1-base.e0), N=base.n1-(y-mapT)/mapH*(base.n1-base.n0); return d2utmInv(E,N,zMapa,bb.s<0); }
+      var Z=256*Math.pow(2,base.sat.z), gx=(x-mapL)/mapW*base.sat.cw+base.sat.w0, gy=(y-mapT)/mapH*base.sat.ch+base.sat.n0;
+      return [gx/Z*360-180, Math.atan(Math.sinh(Math.PI*(1-2*gy/Z)))*180/Math.PI];
+    }
+    if(o.ret){ o.ret.PX=PX; o.ret.inv=PXinv; o.ret.quadro=[mapL,mapT,mapR,mapB]; }
     // 25/10/2026: lado do quadro "LOCALIZAÇÃO — PE" automático (padrão): fica no canto inferior que cobre menos
     // da área total/desapropriada (amostra 14×11 pontos de cada canto). 'esq'/'dir' escolhidos no modal continuam valendo.
     if(o.locLado!=='esq' && o.locLado!=='dir'){
@@ -55229,6 +55252,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       }
     });
     s+=d2usrSVG(o.usr, PX, TH, [mapL,mapT,mapR,mapB]);   // camadas adicionais do modal (KML/GPKG/SHP do usuário)
+    s+=(o.semLeaders?D2LDR_MARCA:d2ldrSVG(o.leaders, PX));  // leaders do modal (04/11/2026); na prévia ficam numa camada por cima e entram só ao usar/baixar
     // rótulos avulsos de quem gerou o mapa (modelo 02: "REMAN. NORTE / ÁREA = x ha", "SEDE"): centrados no ponto, uma linha por item
     // 29/10/2026: com r.polys (o pedaço rotulado), o texto que não cabe dentro dele vai para fora, num lugar livre (sem cobrir
     // r.evitar), com linha de chamada até o pedaço — ex.: a remanescente norte de 0,15 ha do CTD 006Z sumia sob o rótulo
@@ -55781,10 +55805,10 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       if(!base){ st('Baixando satélite (Esri)…'); try{ var sat=await d2satelite(bb, T.solos); base={mode:'sat',sat:sat,url:sat.url}; if(T.solos && sat.solosUsados && sat.solosUsados.length){ sat.solosUsados.forEach(function(u){ legend.push({nome:'Solo: '+(u.rotulo.length>30?u.rotulo.slice(0,29)+'…':u.rotulo),tipo:'fill',cor:u.cor}); }); } }catch(e){ st('Falha ao baixar a base: '+(e&&e.message||e)); return; } }
       st('Compondo o mapa…');
       var culRot=(d2base(fid)==='f3c')?d2culturasAreas().filter(function(c){ return c.lon!=null; }):[];
-      var _volta2=d2estTrocar(fid), svg;                       // figura extra: estilo só dela (desenho)
-      try{ svg=d2mapSVG({ fonteRelevo:fonteRelevo, culRot:culRot, base:base, bb:bb, camadas:camadas, legend:legend, proc:T.proc, ferrovia:T.ferrovia, estacas:estacas, areaLabel:(rot?'':T.areaLabel), desapLabel:(rot?'':T.desapLabel), sigefCodes:sigefCodes, carCodes:carCodes, cruz:((rot||multi)?null:cruz), aneis:(multi?kmAneis:null), kmEnt:T.kmEnt, kmSai:T.kmSai, pinos:pinos, transp:T.transp, locLado:T.locLado, rotulos:rotulos, usr:cfg.usr||[] }); } finally { _volta2(); }
+      var _volta2=d2estTrocar(fid), svg, _ret={};                       // figura extra: estilo só dela (desenho)
+      try{ svg=d2mapSVG({ fonteRelevo:fonteRelevo, culRot:culRot, base:base, bb:bb, camadas:camadas, legend:legend, proc:T.proc, ferrovia:T.ferrovia, estacas:estacas, areaLabel:(rot?'':T.areaLabel), desapLabel:(rot?'':T.desapLabel), sigefCodes:sigefCodes, carCodes:carCodes, cruz:((rot||multi)?null:cruz), aneis:(multi?kmAneis:null), kmEnt:T.kmEnt, kmSai:T.kmSai, pinos:pinos, transp:T.transp, locLado:T.locLado, rotulos:rotulos, usr:cfg.usr||[], leaders:cfg.leaders||[], semLeaders:!!cfg.semLeaders, ret:_ret }); } finally { _volta2(); }
       var png; try{ png=await d2svg2png(svg,2); }catch(e){ st('Falha ao rasterizar: '+(e&&e.message||e)); return; }
-      return { png:png, falhou:falhou, metrosCerca:metrosCerca, geom:geom, rv:rv, bb:bb, bbBase:bbBase };
+      return { png:png, falhou:falhou, metrosCerca:metrosCerca, geom:geom, rv:rv, bb:bb, bbBase:bbBase, svg:(cfg.semLeaders?svg:null), PX:_ret.PX, inv:_ret.inv, quadro:_ret.quadro };
   }
 
   /* ===== Relatório modelo 02 (aba própria, js/181): mapas automáticos m2_1..m2_5 e m2_sig =====
@@ -56199,7 +56223,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
   function d2usrSVG(lista, PX, TH, quadro){
     var s='';
     function pts(r){ return r.map(function(p){ var q=PX(p[0],p[1]); return q[0].toFixed(1)+','+q[1].toFixed(1); }).join(' '); }
-    (lista||[]).forEach(function(L){
+    (lista||[]).slice().reverse().forEach(function(L){   // 04/11/2026: a 1ª da lista fica POR CIMA (desenhada por último)
       if(!L || L.on===false) return;
       var P=L.pol||{}, N=L.lin||{}, T=L.pt||{}, R=L.rot||{}, rot=[];
       // polígonos
@@ -56267,7 +56291,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       +'<label class="d2u-add" tabindex="0"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/></svg> Adicionar arquivo'
       +'<input type="file" id="d2usr_arq" multiple accept=".kml,.kmz,.gpkg,.zip,.shp,.shx,.dbf,.prj,.cpg" hidden></label></div>';
     if(!(lista||[]).length) return h+'<div class="d2u-vazio" id="d2usr_drop">Arraste aqui um .kml, .kmz, .gpkg, o .zip do shapefile — ou o .shp junto com .dbf e .prj.<br><small>Depois de adicionar, escolha cores, linhas, preenchimento e símbolos de cada camada.</small></div>';
-    h+='<div id="d2usr_drop" class="d2u-lista">';
+    h+='<div class="d2u-ordem">'+(lista.length>1?'Ordem de sobreposição: a primeira da lista fica por cima — use ▲ ▼.':'')+'</div><div id="d2usr_drop" class="d2u-lista">';
     lista.forEach(function(L){
       var np=(L.polys||[]).length, nl=(L.lines||[]).length, nt=(L.pts||[]).length, tags=[];
       if(np) tags.push('<span class="d2u-t d2u-tp">Polígono '+np+'</span>'); if(nl) tags.push('<span class="d2u-t d2u-tl">Linha '+nl+'</span>'); if(nt) tags.push('<span class="d2u-t d2u-tt">Ponto '+nt+'</span>');
@@ -56275,6 +56299,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       h+='<div class="d2u-card'+(L.on===false?' d2u-off':'')+'" data-u="'+L.id+'">'
         +'<div class="d2u-hd"><label class="d2u-vis" title="Mostrar no mapa"><input type="checkbox" data-p="on"'+(L.on!==false?' checked':'')+' aria-label="Mostrar a camada no mapa"></label>'
         +'<input class="d2u-nome" data-p="nome" value="'+d2esc(L.nome||'')+'" aria-label="Nome da camada (vai na legenda)" title="Nome na legenda">'
+        +'<span class="d2u-ord"><button type="button" data-acao="up" aria-label="Subir a camada (fica por cima)" title="Subir (fica por cima)">▲</button><button type="button" data-acao="down" aria-label="Descer a camada (fica por baixo)" title="Descer (fica por baixo)">▼</button></span>'
         +'<button type="button" class="d2u-del" data-acao="del" aria-label="Remover a camada '+d2esc(L.nome||'')+'" title="Remover">✕</button></div>'
         +'<div class="d2u-tags">'+tags.join('')+(L.arquivo?'<span class="d2u-arq" title="'+d2esc(L.arquivo)+'">'+d2esc(L.arquivo)+'</span>':'')+'</div>';
       if(np) h+='<details class="d2u-sec" open><summary>Polígono</summary><div class="d2u-g">'
@@ -56306,6 +56331,71 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       im.onerror=function(){ rej(new Error('imagem')); };
       im.src=png;
     });
+  }
+  /* ---- 04/11/2026 (Fernando): LEADERS — chamadas com texto indicativo no mapa do modal ----
+     Cada leader: { id, txt, a:[lon,lat] (ponto indicado), b:[lon,lat] (onde fica o texto), tam, cor (texto), lcor (linha),
+     fundo ('escuro'|'claro'|'nenhum'), ponta ('seta'|'ponto'|'nada') }. Em coordenadas geográficas: sobrevivem ao reenquadrar.
+     Na prévia do modal são desenhados numa camada por cima da imagem (dá para arrastar); a figura/JPG final os leva no desenho. */
+  var D2LDR_MARCA='<!--D2LDR-->';
+  var D2LDR_FUNDO=[['escuro','Caixa escura'],['claro','Caixa clara'],['nenhum','Sem caixa (texto com halo)']];
+  var D2LDR_PONTA=[['seta','Seta'],['ponto','Ponto'],['nada','Sem ponta']];
+  function d2ldrNovo(a, b){ return { id:'l'+Date.now().toString(36)+Math.random().toString(36).slice(2,5), txt:'Texto', a:a, b:b, tam:12, cor:'#ffffff', lcor:'#ffffff', fundo:'escuro', ponta:'seta' }; }
+  // caixa do texto de um leader no desenho: B é o ponto de engate; o texto fica do lado oposto ao ponto indicado
+  function d2ldrCaixa(L, A, B){
+    var lin=String(L.txt||'').split('\n'), t=Math.max(6,+L.tam||12), lh=t*1.22, pad=(L.fundo==='nenhum')?2:t*0.45;
+    var w=0; lin.forEach(function(x){ var n=0; for(var i=0;i<x.length;i++){ var c=x.charCodeAt(i); n+=(c===32?0.3:(/[A-ZÁÉÍÓÚÂÊÔÃÕÇMW]/.test(x[i])?0.68:0.56)); } w=Math.max(w,n*t); });
+    var W=w+pad*2, H=lin.length*lh+pad*2-(lh-t)*0.6, dir=(B[0]>=A[0])?1:-1;
+    var x0=dir>0?B[0]:B[0]-W, y0=B[1]-H/2;
+    return { x0:x0, y0:y0, W:W, H:H, lin:lin, t:t, lh:lh, pad:pad, dir:dir };
+  }
+  function d2ldrSVG(lista, PX, sel){
+    var s='';
+    (lista||[]).forEach(function(L){
+      if(!L || !L.a || !L.b) return;
+      var A=PX(L.a[0],L.a[1]), B=PX(L.b[0],L.b[1]), k=d2ldrCaixa(L,A,B), lc=L.lcor||'#ffffff', f=function(v){ return (+v).toFixed(1); };
+      var ang=Math.atan2(A[1]-B[1],A[0]-B[0]), fimX=A[0], fimY=A[1];
+      if(L.ponta==='seta'){ fimX=A[0]-Math.cos(ang)*7; fimY=A[1]-Math.sin(ang)*7; }
+      var dl='M'+f(B[0])+','+f(B[1])+' L'+f(fimX)+','+f(fimY);
+      s+='<g class="d2ldr" data-l="'+L.id+'">';
+      s+='<path d="'+dl+'" fill="none" stroke="#0d1620" stroke-opacity=".75" stroke-width="3.6" stroke-linecap="round"/>';
+      s+='<path d="'+dl+'" fill="none" stroke="'+lc+'" stroke-width="1.5" stroke-linecap="round"/>';
+      if(L.ponta==='seta'){ var p1=[A[0]-Math.cos(ang-0.42)*11,A[1]-Math.sin(ang-0.42)*11], p2=[A[0]-Math.cos(ang+0.42)*11,A[1]-Math.sin(ang+0.42)*11];
+        s+='<polygon points="'+f(A[0])+','+f(A[1])+' '+f(p1[0])+','+f(p1[1])+' '+f(p2[0])+','+f(p2[1])+'" fill="'+lc+'" stroke="#0d1620" stroke-opacity=".75" stroke-width="1" stroke-linejoin="round"/>'; }
+      else if(L.ponta==='ponto') s+='<circle cx="'+f(A[0])+'" cy="'+f(A[1])+'" r="3.4" fill="'+lc+'" stroke="#0d1620" stroke-opacity=".75" stroke-width="1.2"/>';
+      if(L.fundo!=='nenhum') s+='<rect x="'+f(k.x0)+'" y="'+f(k.y0)+'" width="'+f(k.W)+'" height="'+f(k.H)+'" rx="3" fill="'+(L.fundo==='claro'?'#ffffff':'#0d1620')+'" fill-opacity="'+(L.fundo==='claro'?'.92':'.82')+'" stroke="'+lc+'" stroke-width="1.1"/>';
+      var cor=L.cor||(L.fundo==='claro'?'#111111':'#ffffff'), tx=k.dir>0?k.x0+k.pad:k.x0+k.W-k.pad, anc=k.dir>0?'start':'end';
+      k.lin.forEach(function(x,i){ var y=k.y0+k.pad+k.t*0.82+i*k.lh;
+        s+='<text x="'+f(tx)+'" y="'+f(y)+'" text-anchor="'+anc+'" font-family="Arial,sans-serif" font-size="'+k.t+'" font-weight="700" fill="'+cor+'"'
+          +(L.fundo==='nenhum'?' stroke="#0d1620" stroke-width="2.8" stroke-linejoin="round" paint-order="stroke"':'')+'>'+d2esc(x)+'</text>'; });
+      if(sel){   // alças de edição (só na camada da prévia)
+        s+='<rect class="d2ldr-cx" data-h="b" x="'+f(k.x0)+'" y="'+f(k.y0)+'" width="'+f(k.W)+'" height="'+f(k.H)+'" fill="transparent"'+(sel===L.id?' stroke="#1f6fc0" stroke-width="1.4" stroke-dasharray="4 3"':'')+'/>';
+        s+='<circle class="d2ldr-h" data-h="a" cx="'+f(A[0])+'" cy="'+f(A[1])+'" r="7" fill="rgba(31,111,192,.18)" stroke="#1f6fc0" stroke-width="1.4"/>';
+        s+='<circle class="d2ldr-h" data-h="b" cx="'+f(B[0])+'" cy="'+f(B[1])+'" r="5.5" fill="#ffffff" stroke="#1f6fc0" stroke-width="1.6"/>';
+      }
+      s+='</g>';
+    });
+    return s;
+  }
+  // painel do modal: lista dos leaders
+  function d2ldrHtml(lista, modo){
+    function opc(arr, val){ return arr.map(function(o){ return '<option value="'+d2esc(o[0])+'"'+(String(o[0])===String(val)?' selected':'')+'>'+d2esc(o[1])+'</option>'; }).join(''); }
+    var h='<div class="d2u-cab"><label>Leaders <span>— chamadas com texto indicativo</span></label>'
+      +'<button type="button" class="d2u-add'+(modo?' d2u-on':'')+'" data-acao="ldr-novo" aria-pressed="'+(modo?'true':'false')+'"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M4 20L14 10M14 10h6M10 6l4 4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg> '+(modo?'Cancelar':'Novo leader')+'</button></div>';
+    if(modo) h+='<div class="d2u-vazio d2u-passo">'+(modo==='a'?'<b>1.</b> Clique no mapa, no ponto que o leader vai indicar.':'<b>2.</b> Agora clique onde vai ficar o texto.')+'</div>';
+    else if(!(lista||[]).length) h+='<div class="d2u-vazio">Clique em <b>Novo leader</b>, depois no ponto a indicar e onde fica o texto.<br><small>Depois de criado, arraste a ponta ou o texto direto na prévia.</small></div>';
+    (lista||[]).forEach(function(L, i){
+      h+='<div class="d2u-card d2l-card" data-l="'+L.id+'">'
+        +'<div class="d2u-hd"><span class="d2l-n">'+(i+1)+'</span><textarea class="d2m-in d2l-txt" data-q="txt" rows="'+Math.min(4,Math.max(1,String(L.txt||'').split('\n').length))+'" aria-label="Texto do leader '+(i+1)+'">'+d2esc(L.txt||'')+'</textarea>'
+        +'<button type="button" class="d2u-del" data-acao="ldr-del" aria-label="Remover o leader '+(i+1)+'" title="Remover">✕</button></div>'
+        +'<div class="d2u-g">'
+        +'<label class="d2u-c"><span>Tamanho</span><input type="number" class="d2m-in" data-q="tam" min="6" max="40" step="1" value="'+(+L.tam||12)+'"></label>'
+        +'<label class="d2u-c"><span>Cor do texto</span><input type="color" data-q="cor" value="'+d2esc(L.cor||'#ffffff')+'"></label>'
+        +'<label class="d2u-c"><span>Cor da linha</span><input type="color" data-q="lcor" value="'+d2esc(L.lcor||'#ffffff')+'"></label>'
+        +'<label class="d2u-c"><span>Fundo</span><select class="d2m-in" data-q="fundo">'+opc(D2LDR_FUNDO,L.fundo||'escuro')+'</select></label>'
+        +'<label class="d2u-c"><span>Ponta</span><select class="d2m-in" data-q="ponta">'+opc(D2LDR_PONTA,L.ponta||'seta')+'</select></label>'
+        +'</div></div>';
+    });
+    return h;
   }
   function d2camsMig(lista){   // listas salvas antes de 04/11/2026: 'faixa' trazia também o eixo e as estacas
     lista=(lista||[]).slice();
@@ -56356,6 +56446,8 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     var EXT=!!(opts && opts.gerar);
     D2MAP_TXT.usr=D2MAP_TXT.usr||{};
     var USR=EXT?[]:d2usrCopia(opts?REC.usr:(fxA?fxA.usr:D2MAP_TXT.usr[fid])), USR_MUDOU=false;   // camadas adicionais (KML/GPKG/SHP)
+    D2MAP_TXT.ldr=D2MAP_TXT.ldr||{};
+    var LDR=EXT?[]:d2usrCopia(opts?REC.ldr:(fxA?fxA.ldr:D2MAP_TXT.ldr[fid])), LMODO=null, LSEL=null, LA=null;   // leaders (04/11/2026)
     if(EXT){
       h+='<div class="d2m-note d2m-full">Mapa automático: as camadas, rótulos e textos são os do relatório. Aqui você ajusta a posição, a escala, a base e o lado do quadro de localização.</div>';
     } else if(rot){
@@ -56374,6 +56466,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       + fld('Mapa de localização (PE)', sel('d2map_loclado',[['auto','Automático (canto que não cobre o imóvel)'],['esq','Lado esquerdo'],['dir','Lado direito']],(opts&&REC.locLado)||D2MAP_TXT.locLado||'auto'))
       + ((rot||EXT) ? '' : d2camsHtml(fid, regra, opts?REC.cams:null))
       + (EXT ? '' : '<div class="d2m-f d2m-full d2u-box" id="d2usr_box">'+d2usrHtml(USR)+'</div>')
+      + ((EXT||rot) ? '' : '<div class="d2m-f d2m-full d2u-box" id="d2ldr_box">'+d2ldrHtml(LDR)+'</div>')
       + (fxA ? '<div class="d2m-f d2m-full"><label>Estilo só desta figura <span style="text-transform:none;letter-spacing:0;font-weight:500">— as outras continuam com o quadro de camadas do servidor</span></label><div id="d2fx_est">'+d2fxEstHtml(fxA)+'</div></div>' : '')
       +'</div></div>'
       +'<div class="d2m-dir">'
@@ -56401,6 +56494,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     function pintarVis(){
       var im=document.querySelector('#d2map_prev img');
       if(im){ im.style.transform='translate('+VIS.tx+'px,'+VIS.ty+'px) scale('+VIS.s+')'; }
+      ldrSync();
       var zv=document.getElementById('d2map_zv'); if(zv) zv.textContent=Math.round(ENQ.z*VIS.s*100)+'%';
       var es=document.getElementById('d2map_escala');
       if(es && GER && document.activeElement!==es){ var n=escalaN(GER.bb, VIS.s); es.options[0].textContent='≈ 1:'+Math.round(n).toLocaleString('pt-BR'); }
@@ -56408,6 +56502,56 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       if(b) b.classList.toggle('d2m-pulsa', !!(mexido()||(GER&&USR_MUDOU)));
       var d=document.getElementById('d2map_dica'); if(d) d.textContent=mexido()?'O mapa ainda não foi refeito com o novo quadro.':((GER&&USR_MUDOU)?'Camadas adicionais alteradas — clique para aplicar.':(GER?'Arraste para mover · roda do mouse = escala':''));
     }
+    /* ---- leaders na prévia: camada SVG por cima da imagem (mesmo viewBox 900×889, mesma transformação) ---- */
+    function ldrOv(){ return document.getElementById('d2ldr_ov'); }
+    function ldrSync(){ var im=document.querySelector('#d2map_prev img'), o=ldrOv(); if(!im||!o) return;
+      o.style.left=im.offsetLeft+'px'; o.style.top=im.offsetTop+'px'; o.style.width=im.offsetWidth+'px'; o.style.height=im.offsetHeight+'px'; o.style.transform=im.style.transform; }
+    function ldrPintar(){ var o=ldrOv(); if(!o || !GER || !GER.PX) return; o.innerHTML=d2ldrSVG(LDR, GER.PX, LSEL||'*'); o.classList.toggle('d2ldr-modo', !!LMODO); ldrSync(); }
+    function ldrPainel(){ var b=document.getElementById('d2ldr_box'); if(b) b.innerHTML=d2ldrHtml(LDR, LMODO); }
+    function ldrXY(ev){ var o=ldrOv(), r=o.getBoundingClientRect(); return [(ev.clientX-r.left)/r.width*900, (ev.clientY-r.top)/r.height*889]; }
+    function ldrGuardar(){ if(EXT||rot) return; if(fxA){ fxA.ldr=d2usrCopia(LDR); d2sujo(); } else if(opts){ REC.ldr=d2usrCopia(LDR); } else D2MAP_TXT.ldr[fid]=d2usrCopia(LDR); }
+    function ldrClique(ev){   // modo de criação: 1º clique = ponto indicado, 2º = posição do texto
+      var p=ldrXY(ev);
+      if(LMODO==='a'){ LA=GER.inv(p[0],p[1]); LMODO='b'; ldrPainel(); ldrPintar(); st('Agora clique onde vai ficar o texto.'); return; }
+      var L=d2ldrNovo(LA, GER.inv(p[0],p[1])); LDR.push(L); LMODO=null; LA=null; LSEL=L.id; ldrGuardar(); ldrPainel(); ldrPintar();
+      st('Leader criado. Escreva o texto à esquerda; arraste a ponta ou o texto na prévia para ajustar.');
+      var ta=document.querySelector('#d2ldr_box [data-l="'+L.id+'"] .d2l-txt'); if(ta){ ta.focus(); ta.select(); }
+    }
+    function ldrLigar(){
+      var box=document.getElementById('d2ldr_box'); if(!box) return;
+      box.addEventListener('click', function(ev){
+        var b=ev.target.closest&&ev.target.closest('[data-acao]'), card=ev.target.closest&&ev.target.closest('[data-l]');
+        if(b && b.getAttribute('data-acao')==='ldr-novo'){
+          if(LMODO){ LMODO=null; LA=null; st(''); }
+          else { if(!GER || !GER.inv){ st('Gere a prévia antes de criar leaders.'); return; } LMODO='a'; st('Clique no mapa, no ponto que o leader vai indicar (Esc cancela).'); }
+          ldrPainel(); ldrPintar(); return; }
+        if(b && b.getAttribute('data-acao')==='ldr-del' && card){ var id=card.getAttribute('data-l'); LDR=LDR.filter(function(x){ return x.id!==id; }); if(LSEL===id) LSEL=null; ldrGuardar(); ldrPainel(); ldrPintar(); return; }
+        if(card && LSEL!==card.getAttribute('data-l')){ LSEL=card.getAttribute('data-l'); ldrPintar(); }
+      });
+      function mudar(ev){ var t=ev.target, card=t.closest&&t.closest('[data-l]'), q=t.getAttribute&&t.getAttribute('data-q'); if(!card||!q) return;
+        var L=LDR.filter(function(x){ return x.id===card.getAttribute('data-l'); })[0]; if(!L) return;
+        var v=t.type==='number'?parseFloat(t.value):t.value; if(t.type==='number' && !isFinite(v)) return;
+        L[q]=v; if(q==='txt') t.rows=Math.min(4,Math.max(1,String(v).split('\n').length)); LSEL=L.id; ldrGuardar(); ldrPintar(); }
+      box.addEventListener('input', mudar); box.addEventListener('change', mudar);
+      document.getElementById('d2map_ov').addEventListener('keydown', function(ev){ if(ev.key==='Escape' && LMODO){ ev.stopPropagation(); LMODO=null; LA=null; ldrPainel(); ldrPintar(); st('Criação do leader cancelada.'); } }, true);
+      // arrastar a ponta (a) ou o texto (b) direto na prévia; no modo de criação, o clique marca os pontos (não arrasta o mapa)
+      var vis=document.getElementById('d2map_vis'), arr=null;
+      vis.addEventListener('pointerdown', function(ev){
+        if(!GER || ev.button!==0) return;
+        if(LMODO){ ev.stopPropagation(); ev.preventDefault(); ldrClique(ev); return; }
+        var h=ev.target.closest&&ev.target.closest('[data-h]'), g=h&&h.closest('[data-l]'); if(!h||!g) return;
+        ev.stopPropagation(); ev.preventDefault();
+        var L=LDR.filter(function(x){ return x.id===g.getAttribute('data-l'); })[0]; if(!L) return;
+        var k=h.getAttribute('data-h'), p=ldrXY(ev), q=GER.PX(L[k][0],L[k][1]); arr={ L:L, k:k, d:[q[0]-p[0], q[1]-p[1]] }; LSEL=L.id;
+        try{ vis.setPointerCapture(ev.pointerId); }catch(e){} ldrPintar();
+      }, true);
+      vis.addEventListener('pointermove', function(ev){ if(!arr) return; ev.stopPropagation(); var p=ldrXY(ev); arr.L[arr.k]=GER.inv(p[0]+arr.d[0], p[1]+arr.d[1]); ldrPintar(); }, true);
+      var fimA=function(ev){ if(!arr) return; ev.stopPropagation(); arr=null; ldrGuardar(); ldrPintar(); };
+      vis.addEventListener('pointerup', fimA, true); vis.addEventListener('pointercancel', fimA, true);
+      window.addEventListener('resize', ldrSync);
+    }
+    // figura final (usar / baixar JPG): a prévia sem leaders + os leaders atuais
+    async function pngFinal(png){ if(!LDR.length || !GER || !GER.svg) return png; return await d2svg2png(GER.svg.replace(D2LDR_MARCA, d2ldrSVG(LDR, GER.PX)), 2); }
     function enqVisual(){   // posição/escala vista na tela → enquadramento a pedir ao gerador
       if(!GER) return Object.assign({}, ENQ);
       var im=document.querySelector('#d2map_prev img'); if(!im) return Object.assign({}, ENQ);
@@ -56469,13 +56613,16 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
         marcar();
       }
       box.addEventListener('input', mudar); box.addEventListener('change', function(ev){ if(ev.target.id!=='d2usr_arq') mudar(ev); });
-      box.addEventListener('click', function(ev){ var b=ev.target.closest&&ev.target.closest('[data-acao="del"]'); if(!b) return;
+      box.addEventListener('click', function(ev){ var bo=ev.target.closest&&ev.target.closest('[data-acao="up"],[data-acao="down"]');
+        if(bo){ var idO=bo.closest('[data-u]').getAttribute('data-u'), iO=USR.findIndex(function(x){ return x.id===idO; }), jO=iO+(bo.getAttribute('data-acao')==='up'?-1:1);
+          if(iO>=0 && jO>=0 && jO<USR.length){ var tO=USR[iO]; USR[iO]=USR[jO]; USR[jO]=tO; redesenhar(); marcar(); var nb=box.querySelector('[data-u="'+idO+'"] [data-acao="'+bo.getAttribute('data-acao')+'"]'); if(nb) nb.focus(); } return; }
+        var b=ev.target.closest&&ev.target.closest('[data-acao="del"]'); if(!b) return;
         var id=b.closest('[data-u]').getAttribute('data-u'), L=USR.filter(function(x){ return x.id===id; })[0];
         if(L && !confirm('Remover a camada "'+(L.nome||'')+'" deste mapa?')) return;
         USR=USR.filter(function(x){ return x.id!==id; }); redesenhar(); marcar(); });
     }
     function receitaAtual(need){
-      return { usr:d2usrCopia(USR), cams:Object.keys(need), foco:v('d2map_foco')||'area', base:v('d2map_base')||'orto', transp:parseInt(v('d2map_transp'),10)||0, locLado:v('d2map_loclado')||'auto', enq:Object.assign({}, ENQ) };
+      return { usr:d2usrCopia(USR), ldr:d2usrCopia(LDR), cams:Object.keys(need), foco:v('d2map_foco')||'area', base:v('d2map_base')||'orto', transp:parseInt(v('d2map_transp'),10)||0, locLado:v('d2map_loclado')||'auto', enq:Object.assign({}, ENQ) };
     }
     document.getElementById('d2map_ger').onclick=async function(){
       var bt=this; if(bt.disabled) return;
@@ -56501,12 +56648,13 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       if(!EXT){ if(fxA){ fxA.usr=d2usrCopia(USR); d2sujo(); } else if(!opts) D2MAP_TXT.usr[fid]=d2usrCopia(USR); }
       var _r;
       if(EXT){ REC={ base:T.base, transp:T.transp, locLado:T.locLado, enq:Object.assign({}, ENQ) }; _r=await opts.gerar(Object.assign({}, REC), st); if(_r && !_r.png){ st('Não foi possível gerar: '+((_r.falhou||[]).join(', ')||'faltam dados')); return; } }
-      else _r=await d2mapGerar({ fid:fid, regra:regra, rot:rot, need:need, foco:focoSel, txt:T, st:st, enq:ENQ, usr:USR });
+      else _r=await d2mapGerar({ fid:fid, regra:regra, rot:rot, need:need, foco:focoSel, txt:T, st:st, enq:ENQ, usr:USR, semLeaders:!rot, leaders:LDR });
       if(!_r) return;
       var png=_r.png, falhou=_r.falhou||[], metrosCerca=_r.metrosCerca;
       if(opts) REC.png=png; else figsAuto[fid]=png;
-      GER={ enq:Object.assign({}, ENQ), bb:_r.bb, bbBase:_r.bbBase }; VIS={ s:1, tx:0, ty:0 };
-      var prev=document.getElementById('d2map_prev'); if(prev) prev.innerHTML='<img src="'+png+'" alt="Prévia do mapa gerado" draggable="false">';
+      GER={ enq:Object.assign({}, ENQ), bb:_r.bb, bbBase:_r.bbBase, svg:_r.svg||null, PX:_r.PX||null, inv:_r.inv||null }; VIS={ s:1, tx:0, ty:0 };
+      var prev=document.getElementById('d2map_prev'); if(prev){ prev.innerHTML='<img src="'+png+'" alt="Prévia do mapa gerado" draggable="false">'+((EXT||rot)?'':'<svg id="d2ldr_ov" class="d2ldr-ov" viewBox="0 0 900 889" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"></svg>'); var im0=prev.querySelector('img'); if(im0) im0.onload=ldrPintar; }
+      ldrPintar();
       var vz=document.getElementById('d2map_vazio'); if(vz) vz.remove();
       document.getElementById('d2map_usar').style.display=''; document.getElementById('d2map_jpg').style.display=''; USR_MUDOU=false;
       var extra=(metrosCerca!=null)?(' Cerca dentro da área desapropriada: '+d2fmtM(metrosCerca)+' m.'):'';
@@ -56516,18 +56664,23 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     };
     document.getElementById('d2map_usar').onclick=function(){
       if(mexido() && !confirm('O mapa ainda não foi refeito com o novo enquadramento. Usar a prévia como está?')) return;
-      if(opts){ if(!REC.png) return; var pn=REC.png; delete REC.png; opts.onUsar(pn, REC); var o0=document.getElementById('d2map_ov'); if(o0) o0.remove(); return; }
+      var bu=this; if(bu.disabled) return; bu.disabled=true; st('Preparando a figura…'); ldrGuardar();
+      (async function(){ try{
+      if(opts){ if(!REC.png) return; var pn=await pngFinal(REC.png); delete REC.png; REC.ldr=d2usrCopia(LDR); opts.onUsar(pn, REC); var o0=document.getElementById('d2map_ov'); if(o0) o0.remove(); return; }
       if(!figsAuto[fid]) return;
+      figsAuto[fid]=await pngFinal(figsAuto[fid]);
       if(figs[fid] && !figManualBackup[fid]){ figManualBackup[fid]=figs[fid]; }   // preserva a manual
       aplicarFig(fid, figsAuto[fid], 'mapa-automatico.png');
       var o=document.getElementById('d2map_ov'); if(o) o.remove();
+      }catch(e){ st('Não foi possível montar a figura: '+(e&&e.message||e)); } finally{ bu.disabled=false; } })();
     };
     document.getElementById('d2map_jpg').onclick=async function(){
       var png=opts?REC.png:figsAuto[fid]; if(!png){ st('Gere a prévia antes de baixar.'); return; }
       var nome=String(meta[0]||'Mapa').replace(/[\\/:*?"<>|]+/g,' ').replace(/\s+/g,' ').trim().slice(0,90)||'Mapa';
-      try{ await d2baixarJPG(png, nome+'.jpg'); st('JPG baixado: '+nome+'.jpg'+(mexido()?' (prévia sem o enquadramento novo)':'')); }catch(e){ st('Não foi possível gerar o JPG: '+(e&&e.message||e)); }
+      try{ await d2baixarJPG(await pngFinal(png), nome+'.jpg'); st('JPG baixado: '+nome+'.jpg'+(mexido()?' (prévia sem o enquadramento novo)':'')); }catch(e){ st('Não foi possível gerar o JPG: '+(e&&e.message||e)); }
     };
     d2usrLigar();
+    ldrLigar();
     pintarVis();
     if(opts && opts.gerarJa) document.getElementById('d2map_ger').click();   // editar um mapa já inserido: já mostra a prévia
   };
@@ -56546,7 +56699,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     var T=Object.assign({}, D2MAP_TXT, { proc:autoProc||D2MAP_TXT.proc||'', ferrovia:[_campo('d2_ferrovia'),_campo('d2_codFerrovia')].filter(Boolean).join('\n')||D2MAP_TXT.ferrovia||'',
       base:D2MAP_TXT.base||'orto', transp:(D2MAP_TXT.transp==null?25:D2MAP_TXT.transp), locLado:'auto', solos:'' });
     var need={}; d2camsMig(((D2MAP_TXT.cams||{})[fid])||regra.cams||[]).forEach(function(c){ need[c]=true; });
-    var r=await d2mapGerar({ fid:fid, regra:regra, rot:rot, need:need, foco:(D2MAP_TXT.foco||'area'), txt:T, st:st||function(){}, enq:((D2MAP_TXT.enq||{})[fid])||null, usr:((D2MAP_TXT.usr||{})[fid])||((d2fx(fid)||{}).usr)||[] });
+    var r=await d2mapGerar({ fid:fid, regra:regra, rot:rot, need:need, foco:(D2MAP_TXT.foco||'area'), txt:T, st:st||function(){}, enq:((D2MAP_TXT.enq||{})[fid])||null, usr:((D2MAP_TXT.usr||{})[fid])||((d2fx(fid)||{}).usr)||[], leaders:((D2MAP_TXT.ldr||{})[fid])||((d2fx(fid)||{}).ldr)||[] });
     if(!r || !r.png) return false;
     aplicarFig(fid, r.png, 'mapa-automatico.png');
     return true;
@@ -66938,7 +67091,7 @@ body.ativ-cadastro:not(.modo-painel):has(.app-shell.recolhida) .cad-selo.tem{ di
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.11.04-3';
+window.APP_VERSAO = '2026.11.04-4';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.29-7';
 (function(){
