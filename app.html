@@ -35004,7 +35004,13 @@ function AV_gerarDescSituacao(){
      se divide em quadros (planoMapa). */
   var ESC_MAX_AREA = 2000;
   var FIG_SEM_LIMITE = false;   // 04/11/2026: Figura 3B (MDP_imagemQuadro) — o perímetro inteiro num quadro só, sem o teto de 1:2.000
-  var FIG_SEM_DXF = false;      // 04/11/2026: planta do Modelo 02 (MDP_imagemQuadro com o.semDxf) — sem o DXF inserido no quadro
+  var FIG_SEM_DXF = false;
+  /* revisão 04/11/2026: MDP_imagemQuadro/MDP_imagensQuadro trocam o estado da aba (escala sem teto, sem vértices, sem DXF, área
+     da vez) por vários await. Prévia, quadro, JPG, PDF e DXF da planta esperam a figura terminar (senão sairiam com esse estado). */
+  var FIG_OCUP = 0, FIG_ESPERA = [];
+  function figInicio(){ FIG_OCUP++; }
+  function figFim(){ if(--FIG_OCUP <= 0){ FIG_OCUP = 0; var w = FIG_ESPERA; FIG_ESPERA = []; w.forEach(function(ok){ ok(); }); } }
+  function figLivre(){ return FIG_OCUP ? new Promise(function(ok){ FIG_ESPERA.push(ok); }) : Promise.resolve(); }      // 04/11/2026: planta do Modelo 02 (MDP_imagemQuadro com o.semDxf) — sem o DXF inserido no quadro
   function escMax(){ return (geralAtivo() || FIG_SEM_LIMITE) ? Infinity : ESC_MAX_AREA; }
   function escUso(e){ e = +e || 0; return (e && e > escMax()) ? escMax() : e; }
   function escalasOk(){ var m = escMax(); return ESCALAS.filter(function(s){ return s <= m; }); }
@@ -38903,6 +38909,7 @@ function AV_gerarDescSituacao(){
 
   // desenha a folha num canvas (tela); devolve quando terminar
   async function pintarNoCanvas(cv, larguraCss, aviso, dpiMapa, cancelado){
+    await figLivre();
     aplicarFormato(OPC.formato);
     var plano = planoFolhas();
     if(OPC.folha >= plano.length) OPC.folha = 0;
@@ -38933,10 +38940,10 @@ function AV_gerarDescSituacao(){
     /* 04/11/2026 (Fernando, CTD 001 SPS-04): perímetro que na planta se divide em pranchas (teto de 1:2.000) saía cortado na
        Figura 3B — só o quadro da 1ª prancha. Aqui a escala é a menor que põe o perímetro INTEIRO no quadro; as pranchas não mudam. */
     var esc0 = OPC.escala, PAN0 = { x:PAN.x, y:PAN.y }, vt0 = OPC.vertices, rt0 = OPC.rotulos;
-    FIG_SEM_LIMITE = true; FIG_SEM_DXF = !!o.semDxf;
+    figInicio(); FIG_SEM_LIMITE = true; FIG_SEM_DXF = !!o.semDxf;
     OPC.vertices = false; OPC.rotulos = false;   // 04/11/2026 (Fernando): Figura 3B sem os vértices nem seus rótulos
     try{ return await quadroFig(o); }
-    finally { FIG_SEM_LIMITE = false; FIG_SEM_DXF = false; OPC.escala = esc0; PAN.x = PAN0.x; PAN.y = PAN0.y; OPC.vertices = vt0; OPC.rotulos = rt0; }
+    finally { FIG_SEM_LIMITE = false; FIG_SEM_DXF = false; OPC.escala = esc0; PAN.x = PAN0.x; PAN.y = PAN0.y; OPC.vertices = vt0; OPC.rotulos = rt0; figFim(); }
   };
   // escala mínima para o perímetro inteiro caber no quadro (MAPA como está AGORA: preparar() pode trocar o formato da folha)
   function escFigInteira(){
@@ -38975,6 +38982,7 @@ function AV_gerarDescSituacao(){
     var est0 = { geral:ST.geral, area:ST.area, inicio:ST.inicio, inverter:ST.inverter, esc:OPC.escala, folha:OPC.folha };
     var ordem = ordemIdx();
     var out = [];
+    figInicio();   // o figFim() está no finally abaixo
     try{
       for(var k = 0; k < ordem.length; k++){
         var rot = "ÁREA " + numArea(ordem[k]);   // a mesma numeração desenhada na planta (e no memorial)
@@ -38988,7 +38996,8 @@ function AV_gerarDescSituacao(){
     } finally {
       ST.geral = est0.geral; ST.area = est0.area; ST.inicio = est0.inicio; ST.inverter = est0.inverter;
       G = null; PAN.x = 0; PAN.y = 0; CACHE_SAT.chave = ""; OPC.folha = est0.folha;
-      analisar(); OPC.escala = escLer(); sincronizarBarras(); renderTudo(); agendarPreview(60);
+      try{ analisar(); OPC.escala = escLer(); } finally { figFim(); }
+      sincronizarBarras(); renderTudo(); agendarPreview(60);
     }
     return out;
   };
@@ -39021,6 +39030,7 @@ function AV_gerarDescSituacao(){
 
   // pinta SÓ o quadro do mapa: desenha a folha deslocada, o resto cai fora do canvas
   async function pintarQuadroNoCanvas(cv, larguraCss, dpiMapa, aviso, cancelado, sobre){
+    await figLivre();
     aplicarFormato(OPC.formato);
     var pgQ = pgDoQuadro(), T = enquadrarPg(pgQ);
     var dpr = Math.min(2, window.devicePixelRatio || 1), s = (larguraCss/MAPA.w)*dpr;
@@ -39724,6 +39734,7 @@ function AV_gerarDescSituacao(){
 
   /* ---- JPG do quadro do mapa, do jeito que a visualização está agora ---- */
   window.MDP_jpgQuadro = async function(){
+    await figLivre();
     var a = analisar(); if(a.erro){ alert(a.erro); return; }
     var load = $("mdp_comp_load");
     var aviso = function(t){ if(load){ load.textContent = t; load.style.display = "block"; } };
@@ -39884,6 +39895,7 @@ function AV_gerarDescSituacao(){
   // opts.sobre = {satelite:false, ortofoto:false} gera a versão sem imagem; opts.sufixo vai no nome do arquivo
   window.MDP_dxf = { parse:function(t){ return dxfParse(t); }, geo:function(){ return dxfGeo(); } };   // testes/diagnóstico
   window.MDP_pdfPlanta = async function(opts){
+    await figLivre();
     opts = opts || {};
     var a = analisar(); if(a.erro){ alert(a.erro); return; }
     if(!window.jspdf){ alert("Biblioteca de PDF ainda carregando."); return; }
@@ -40402,6 +40414,7 @@ function AV_gerarDescSituacao(){
   }
 
   window.MDP_exportarDxf = async function(opts){
+    await figLivre();
     opts = opts || {};
     var a = analisar(); if(a.erro){ alert(a.erro); return; }
     var load = $("mdp_comp_load"), aviso = function(t){ if(load){ load.textContent = t; load.style.display = "block"; } };
@@ -55593,7 +55606,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
   function d2camsHtml(fid, regra, marcadas){
     var padrao=d2camsMig(marcadas||(D2MAP_TXT.cams&&D2MAP_TXT.cams[fid])||((regra.cams||[]).concat(['benf']))), h='<div class="d2m-f d2m-full"><label>Camadas do mapa — marque uma ou mais'+(marcadas?'':' (as da figura já vêm marcadas)')+'</label><div class="d2m-cams">';
     D2MAP_CAMS.forEach(function(c){ var tem=true; if(c[2]){ try{ tem=!!d2mapFonteKML(c[0]); }catch(e){ tem=false; } }
-      h+='<label style="display:flex;gap:7px;align-items:center;font-size:12.5px;font-weight:600;'+(tem?'':'opacity:.45;')+'"><input type="checkbox" id="d2map_cam_'+c[0]+'"'+(padrao.indexOf(c[0])>=0&&tem?' checked':'')+(tem?'':' disabled')+'> '+d2esc(c[1])+(tem?'':' <i style="font-weight:400">(sem KML)</i>')+'</label>'; });
+      h+='<label style="display:flex;gap:7px;align-items:center;font-size:12.5px;font-weight:600;'+(tem?'':'opacity:.45;')+'"><input type="checkbox" id="d2map_cam_'+c[0]+'"'+(padrao.indexOf(c[0])>=0&&tem?' checked':'')+(tem?'':(' disabled'+(padrao.indexOf(c[0])>=0?' data-pre="1"':'')))+'> '+d2esc(c[1])+(tem?'':' <i style="font-weight:400">(sem KML)</i>')+'</label>'; });
     return h+'</div></div>';
   }
   /* quadro "Estilo só desta figura" (figuras extras): uma linha por camada marcada; o que for mexido
@@ -56339,7 +56352,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
      Cada leader: { id, txt, a:[lon,lat] (ponto indicado), b:[lon,lat] (onde fica o texto), tam, cor (texto), lcor (linha),
      fundo ('escuro'|'claro'|'nenhum'), ponta ('seta'|'ponto'|'nada') }. Em coordenadas geográficas: sobrevivem ao reenquadrar.
      Na prévia do modal são desenhados numa camada por cima da imagem (dá para arrastar); a figura/JPG final os leva no desenho. */
-  var D2LDR_MARCA='<!--D2LDR-->';
+  var D2LDR_MARCA='<!--D2LDR-->', D2LDR_SYNC=null, D2LDR_SYNC_LIGADO=false;
   var D2LDR_FUNDO=[['escuro','Caixa escura'],['claro','Caixa clara'],['nenhum','Sem caixa (texto com halo)']];
   var D2LDR_PONTA=[['seta','Seta'],['ponto','Ponto'],['nada','Sem ponta']];
   function d2ldrNovo(a, b){ return { id:'l'+Date.now().toString(36)+Math.random().toString(36).slice(2,5), txt:'Texto', a:a, b:b, tam:12, cor:'#ffffff', lcor:'#ffffff', fundo:'escuro', ponta:'seta' }; }
@@ -56406,7 +56419,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     return lista;
   }
   function d2camsMarcadas(){
-    var l=D2MAP_CAMS.filter(function(c){ var cb=document.getElementById('d2map_cam_'+c[0]); return cb && cb.checked && !cb.disabled; }).map(function(c){ return c[0]; });
+    var l=D2MAP_CAMS.filter(function(c){ var cb=document.getElementById('d2map_cam_'+c[0]); return cb && ((cb.checked && !cb.disabled) || (cb.disabled && cb.getAttribute('data-pre')==='1')); }).map(function(c){ return c[0]; });   // revisão 04/11: camada sem KML agora continua escolhida (não some do mapa salvo)
     if(l.indexOf('faixa')>=0 && l.indexOf('eixo')<0) l.push('semeixo');
     return l;
   }
@@ -56551,7 +56564,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       vis.addEventListener('pointermove', function(ev){ if(!arr) return; ev.stopPropagation(); var p=ldrXY(ev); arr.L[arr.k]=GER.inv(p[0]+arr.d[0], p[1]+arr.d[1]); ldrPintar(); }, true);
       var fimA=function(ev){ if(!arr) return; ev.stopPropagation(); arr=null; ldrGuardar(); ldrPintar(); };
       vis.addEventListener('pointerup', fimA, true); vis.addEventListener('pointercancel', fimA, true);
-      window.addEventListener('resize', ldrSync);
+      D2LDR_SYNC=ldrSync; if(!D2LDR_SYNC_LIGADO){ D2LDR_SYNC_LIGADO=true; window.addEventListener('resize', function(){ if(D2LDR_SYNC && document.getElementById('d2ldr_ov')) D2LDR_SYNC(); else D2LDR_SYNC=null; }); }   // revisão 04/11: um só ouvinte (antes, um por abertura do modal, preso ao estado dele)
     }
     // figura final (usar / baixar JPG): a prévia sem leaders + os leaders atuais
     async function pngFinal(png){ if(!LDR.length || !GER || !GER.svg) return png; return await d2svg2png(GER.svg.replace(D2LDR_MARCA, d2ldrSVG(LDR, GER.PX)), 2); }
@@ -64181,8 +64194,21 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
   /* 04/11/2026 (Fernando): tópicos OCULTOS (ex.: "Parcelas SIGEF sobre o imóvel" quando não se aplica) — como o "Ocultar" da DESP-2:
      saem do PDF, da numeração (seções e imagens) e os mapas deles não são gerados. Ficam em d2m2_mapas.oc = { idDoTópico:1 }. */
   var IMGS_TOP = { m2_sigmap:["m2_sig","m2_sig2"], m2_pl:PLS, m2_padrao:["m2_1"], m2_carac:["m2_2","m2_3"], m2_car:["m2_4","m2_4b"], m2_hipso:["m2_5"] };
-  function oculto(id){ return !!mapasCfg().oc[id]; }
-  function imgOculta(id){ var oc = mapasCfg().oc; return Object.keys(IMGS_TOP).some(function(t){ return oc[t] && IMGS_TOP[t].indexOf(id) >= 0; }); }
+  function oculto(id){ return !!mapasCfg().oc[id]; }   // oculto À MÃO (o botão)
+  /* efetivo: o oculto à mão e tudo o que está abaixo dele na hierarquia (seção oculta leva as subseções e subtítulos),
+     na ordem do documento. Cache pela configuração e pelos tópicos novos (fora() é chamado muitas vezes). */
+  var _ocEf = { k:null, m:{} };
+  function ocEf(){
+    var k = v("d2m2_mapas") + "#" + v("d2m2_extras"); if(_ocEf.k === k) return _ocEf.m;
+    var oc = mapasCfg().oc, m = {}, lvOc = null;
+    ordemBase().forEach(function(it){
+      if(lvOc != null && it.level > lvOc){ m[it.id] = 2; return; }   // 2 = herdado da seção acima
+      lvOc = null; if(oc[it.id]){ m[it.id] = 1; lvOc = it.level; }
+    });
+    _ocEf = { k:k, m:m }; return m;
+  }
+  function ocultoEf(id){ return !!ocEf()[id]; }
+  function imgOculta(id){ var oc = ocEf(); return Object.keys(IMGS_TOP).some(function(t){ return oc[t] && IMGS_TOP[t].indexOf(id) >= 0; }); }
   function fora(id){ return !!mapasCfg().fora[id] || imgOculta(id); }
   function ajMapa(id){ return mapasCfg().aj[id] || null; }
   function noRel(id){ return !fora(id) && !!(window.D2_m2Fig && window.D2_m2Fig(id)); }
@@ -64286,14 +64312,17 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
   function extras(){ var r = v("d2m2_extras"); if(r !== _ex.raw){ _ex.raw = r; try{ _ex.a = JSON.parse(r || "[]"); if(!Array.isArray(_ex.a)) _ex.a = []; }catch(e){ _ex.a = []; } } return _ex.a; }
   function salvarExtras(){ var r = _ex.a.length ? JSON.stringify(_ex.a) : ""; setv("d2m2_extras", r); _ex.raw = v("d2m2_extras"); sujo(); }
   function extraPor(id){ return extras().filter(function(x){ return x.id === id; })[0] || null; }
-  function ordem(){
+  function ordemBase(){   // tópicos na ordem do documento, sem numeração
     var ex = extras(), out = [], vistos = {};
     function filhos(id){ ex.forEach(function(x){ if(x.after !== id || vistos[x.id]) return; vistos[x.id] = 1; out.push({ id:x.id, level:x.level, x:x }); filhos(x.id); }); }
     BASE_TOP.forEach(function(b){ out.push({ id:b[0], level:b[1] }); filhos(b[0]); });
     ex.forEach(function(x){ if(vistos[x.id]) return; vistos[x.id] = 1; out.push({ id:x.id, level:x.level, x:x }); filhos(x.id); });   // âncora sumiu: vai para o fim
-    var n1 = 0, n2 = 0; NUMS = {};
-    var oc = mapasCfg().oc;
-    out.forEach(function(it){ it.oc = !!oc[it.id]; if(it.oc) it.num = ""; else if(it.level === 1){ n1++; n2 = 0; it.num = n1 + "."; } else if(it.level === 2){ n2++; it.num = n1 + "." + n2; } else it.num = ""; NUMS[it.id] = it.num; if(it.x) IMG_TOP[it.id] = it.id; });
+    return out;
+  }
+  function ordem(){
+    var out = ordemBase(), n1 = 0, n2 = 0; NUMS = {};
+    var oc = ocEf();
+    out.forEach(function(it){ it.oc = !!oc[it.id]; it.ocHerdado = oc[it.id] === 2; if(it.oc) it.num = ""; else if(it.level === 1){ n1++; n2 = 0; it.num = n1 + "."; } else if(it.level === 2){ n2++; it.num = n1 + "." + n2; } else it.num = ""; NUMS[it.id] = it.num; if(it.x) IMG_TOP[it.id] = it.id; });
     return out;
   }
   // tópicos do PDF na ordem (para numerar as imagens). Os que vêm da DESP-2 (1, 2, 6, 7.1) ficam de fora: as imagens deles são da DESP-2.
@@ -64443,6 +64472,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
   var FONTES = { m2_pl:"Autor, 2026", m2_pl2:"Autor, 2026", m2_pl3:"Autor, 2026", m2_pl4:"Autor, 2026", m2_pl5:"Autor, 2026", m2_pl6:"Autor, 2026", m2_sig:"INCRA/SIGEF, 2026", m2_sig2:"INCRA/SIGEF, 2026", m2_1:"Autor, 2026", m2_2:"SICAR / ANADEM (ANA/Copernicus), 2026", m2_3:"Autor, 2026", m2_4b:"SICAR, 2026", m2_4:"SICAR, 2026", m2_5:"ANADEM (ANA/Copernicus), 2026" };
   function fig(id){
     var m = metaMapa(id), lg = legenda(id), img = window.D2_m2Fig ? window.D2_m2Fig(id) : null;
+    if(!mapasCfg().fora[id] && imgOculta(id)) return '<figure class="dd-fig falta" data-m2map="' + id + '"><div class="dd-fig-vazio">“' + esc(semNum(lg[0])) + '” não sai no relatório: o tópico está oculto. Use “👁 Incluir no relatório” no tópico para voltar.</div></figure>';   // revisão 04/11: o “Voltar ao relatório” daqui não desfaz o ocultar do tópico
     if(fora(id)) return '<figure class="dd-fig falta" data-m2map="' + id + '"><div class="dd-fig-vazio">“' + esc(semNum(lg[0])) + '” foi tirado do relatório — não sai no PDF. Se o texto do tópico cita esta imagem, edite-o.</div><div class="dd-fig-acts">' + btn("mapavolta", "↺ Voltar ao relatório", "Inclui o mapa de novo (é regerado se preciso)", ' data-m2id="' + id + '"') + '</div></figure>';
     var aj = ajMapa(id);
     return '<figure class="dd-fig' + (img ? "" : " falta") + '" data-m2map="' + id + '">'
@@ -64472,14 +64502,14 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
   }
   function secao(id, lv, num, tit, corpo, opc){
     opc = opc || {};
-    var oc = oculto(id);
+    var oc = ocultoEf(id), herd = oc && !oculto(id);   // herd: fora porque a seção acima está oculta
     return '<section class="dd-top lv' + lv + (opc.auto ? " is-auto" : "") + (opc.manual ? " is-manual" : "") + (opc.extra ? " is-extra" : "") + (oc ? " is-oculto" : "") + '" id="dd_' + id + '" data-id="' + id + '">'
       + '<div class="dd-head"><span class="dd-num">' + esc(oc ? "—" : num) + '</span>'
       + (opc.extra ? '<span class="dd-tit" contenteditable="true" spellcheck="true" data-m2xt="' + esc(id) + '" title="Título — clique para editar">' + esc(tit) + '</span><span class="dd-tags"><span class="dd-tag t-extra">novo</span></span>'
         : opc.tituloEd ? '<span class="dd-tit" contenteditable="true" spellcheck="true" data-m2f="' + opc.tituloEd + '">' + esc(tit) + '</span>' : '<span class="dd-tit">' + esc(tit) + '</span>')
       + (opc.auto ? '<span class="dd-tags"><span class="dd-tag t-auto" style="display:inline-block" title="Gerado a partir dos dados do cadastro. Para mudar, use “✎ Editar o texto”.">automático</span></span>' : "") + (opc.manual ? '<span class="dd-tags"><span class="dd-tag t-manual">editado à mão</span></span>' : "")
-      + '<span class="dd-tags"><span class="dd-tag t-oculto">fora do relatório</span></span>'
-      + '<span class="dd-acts">' + btn(oc ? "mostrar" : "ocultar", oc ? "👁 Incluir no relatório" : "Ocultar", oc ? "Volta a pôr este tópico no PDF" : "Tira este tópico do PDF (texto e imagens); a numeração se ajusta") + (opc.acts || "") + (IMG_TOP[id] ? btn("addimg", "🖼 + Imagem", "Insere uma imagem com legenda e fonte no fim deste tópico") + btn("addmapa", "🗺 + Mapa", "Cria um mapa (camadas, escala e posição) no fim deste tópico") : "")
+      + '<span class="dd-tags"><span class="dd-tag t-oculto"' + (herd ? ' title="A seção acima está oculta"' : "") + '>' + (herd ? "fora do relatório (seção acima oculta)" : "fora do relatório") + '</span></span>'
+      + '<span class="dd-acts">' + (herd ? "" : btn(oc ? "mostrar" : "ocultar", oc ? "👁 Incluir no relatório" : "Ocultar", oc ? "Volta a pôr este tópico no PDF" : "Tira este tópico do PDF (texto e imagens), com as subseções; a numeração se ajusta")) + (opc.acts || "") + (IMG_TOP[id] ? btn("addimg", "🖼 + Imagem", "Insere uma imagem com legenda e fonte no fim deste tópico") + btn("addmapa", "🗺 + Mapa", "Cria um mapa (camadas, escala e posição) no fim deste tópico") : "")
         + btn("add", "+ Inserir abaixo", "Nova seção, subseção ou subtítulo logo abaixo deste tópico")
         + (opc.extra ? btn("xup", "↑", "Mover para cima") + btn("xdown", "↓", "Mover para baixo") + btn("xnivel", "Nível", "Alterna Seção / Subseção / Subtítulo") + btn("xdel", "🗑", "Excluir este tópico") : "") + '</span></div>'
       + '<div class="dd-menu" hidden><span>Inserir abaixo:</span>' + btn("addx", "Seção <small>(N.)</small>", "Seção numerada — entra depois do bloco inteiro deste tópico", ' data-lv="1"') + btn("addx", "Subseção <small>(N.n)</small>", "", ' data-lv="2"') + btn("addx", "Subtítulo", "Subtítulo sem número", ' data-lv="3"') + '</div>'
@@ -64637,8 +64667,8 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
   // shapefile solto (.shp + .prj/.dbf/.cpg selecionados juntos): um .zip em memória não é preciso — lê direto dos arquivos
   async function lerShpSolto(arqs){
     var feicoes = [], porNome = {}; arqs.forEach(function(a){ porNome[a.name.toLowerCase()] = a; });
-    for(var s = 0; s < arqs.length; s++){ if(!/.shp$/i.test(arqs[s].name)) continue;
-      var base = arqs[s].name.replace(/.shp$/i, "").toLowerCase(), prj = porNome[base + ".prj"], dbf = porNome[base + ".dbf"], cpgA = porNome[base + ".cpg"];
+    for(var s = 0; s < arqs.length; s++){ if(!/\.shp$/i.test(arqs[s].name)) continue;
+      var base = arqs[s].name.replace(/\.shp$/i, "").toLowerCase(), prj = porNome[base + ".prj"], dbf = porNome[base + ".dbf"], cpgA = porNome[base + ".cpg"];
       var geo = lerShpTudo(await arqs[s].arrayBuffer()), conv = conversor(prj ? await prj.text() : ""), cpg = cpgA ? await cpgA.text() : "", at = dbf ? lerDbf(await dbf.arrayBuffer(), cpg) : [];
       if(!prj) feicoes.semPrj = true;
       geo.forEach(function(g, i){ var a0 = at[i] || {}; feicoes.push({ nome:a0.nome || a0.name || a0.descricao || "", at:a0, pts:conv ? g.pts.map(conv) : g.pts, aneis:conv ? g.aneis.map(function(r){ return r.map(conv); }) : g.aneis, linhas:conv ? g.linhas.map(function(r){ return r.map(conv); }) : g.linhas }); });
@@ -64649,12 +64679,12 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
      (o .shp solto junta os seus .prj/.dbf). */
   window.D2M2_lerVetor = async function(lista){
     var arqs = Array.prototype.slice.call(lista || []), out = [], r7 = function(p){ return [+(+p[0]).toFixed(7), +(+p[1]).toFixed(7)]; };
-    var soltos = arqs.filter(function(a){ return /.(shp|shx|dbf|prj|cpg|qmd|sbn|sbx)$/i.test(a.name); }), outros = arqs.filter(function(a){ return soltos.indexOf(a) < 0; });
+    var soltos = arqs.filter(function(a){ return /\.(shp|shx|dbf|prj|cpg|qmd|sbn|sbx)$/i.test(a.name); }), outros = arqs.filter(function(a){ return soltos.indexOf(a) < 0; });
     var grupos = outros.map(function(a){ return { nome:a.name, ler:function(){ return lerFeicoesArq(a); } }; });
-    soltos.filter(function(a){ return /.shp$/i.test(a.name); }).forEach(function(a){ grupos.push({ nome:a.name, ler:function(){ return lerShpSolto(soltos.filter(function(b){ return b.name.replace(/.[^.]+$/, "").toLowerCase() === a.name.replace(/.[^.]+$/, "").toLowerCase(); })); } }); });
-    if(soltos.length && !soltos.some(function(a){ return /.shp$/i.test(a.name); })) throw new Error("selecione também o .shp (junto com .dbf/.prj)");
+    soltos.filter(function(a){ return /\.shp$/i.test(a.name); }).forEach(function(a){ grupos.push({ nome:a.name, ler:function(){ return lerShpSolto(soltos.filter(function(b){ return b.name.replace(/\.[^.]+$/, "").toLowerCase() === a.name.replace(/\.[^.]+$/, "").toLowerCase(); })); } }); });
+    if(soltos.length && !soltos.some(function(a){ return /\.shp$/i.test(a.name); })) throw new Error("selecione também o .shp (junto com .dbf/.prj)");
     for(var g = 0; g < grupos.length; g++){
-      var fe = await grupos[g].ler(), c = { nome:grupos[g].nome.replace(/.[^.]+$/, ""), arquivo:grupos[g].nome, polys:[], lines:[], pts:[], nomesPts:[], nomesPolys:[], nomesLines:[], semPrj:!!fe.semPrj };
+      var fe = await grupos[g].ler(), c = { nome:grupos[g].nome.replace(/\.[^.]+$/, ""), arquivo:grupos[g].nome, polys:[], lines:[], pts:[], nomesPts:[], nomesPolys:[], nomesLines:[], semPrj:!!fe.semPrj };
       fe.forEach(function(f){ (f.aneis || []).forEach(function(r){ c.polys.push(r.map(r7)); c.nomesPolys.push(f.nome || ""); }); (f.linhas || []).forEach(function(r){ c.lines.push(r.map(r7)); c.nomesLines.push(f.nome || ""); }); (f.pts || []).forEach(function(p){ c.pts.push(r7(p)); c.nomesPts.push(f.nome || ""); }); });
       if(!(c.polys.length || c.lines.length || c.pts.length)) throw new Error(grupos[g].nome + ": nenhuma feição (ponto, linha ou polígono) lida");
       var fora = c.polys.concat(c.lines).some(function(r){ return r.some(function(p){ return Math.abs(p[0]) > 180 || Math.abs(p[1]) > 90; }); }) || c.pts.some(function(p){ return Math.abs(p[0]) > 180 || Math.abs(p[1]) > 90; });
@@ -64664,7 +64694,6 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     return out;
   };
   async function importarVet(tipo, arq){
-    var feicoes = [];
     var feicoes = await lerFeicoesArq(arq);
     var pts = [], polys = [], lines = [], nomes = [], r7 = function(p){ return [+(+p[0]).toFixed(7), +(+p[1]).toFixed(7)]; };
     feicoes.forEach(function(f){
@@ -64919,8 +64948,10 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
      a versão SÓ da planta, junto do MAPVER em d2m2_v_mapver ("15|pl2"): planta salva de versão anterior é refeita uma vez, sozinha. */
   function plVelha(){ return !fora("m2_pl") && !!window.D2_m2Fig("m2_pl") && v("d2m2_v_mapver") !== VERMAP; }
   async function refazPlanta(){
-    st("Refazendo a planta de situação (sem os vértices)…"); setv("d2m2_v_mapver", VERMAP); sujo();
-    await gerarMapa("m2_pl"); st(""); return D2M2_gerarTodos(false);
+    st("Refazendo a planta de situação…");
+    var r = await gerarMapa("m2_pl"); st("");
+    if(r && r.ok){ setv("d2m2_v_mapver", VERMAP); sujo(); }   // revisão 04/11: falhou = tenta de novo na próxima abertura
+    return D2M2_gerarTodos(false);
   }
   // só os mapas que usam o relevo ANADEM (curvas/hipsometria) e os valores de altitude e relevo do texto; depois, os que faltarem
   async function refazRelevo(){
@@ -64935,7 +64966,7 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
     opts = opts || {};
     if(!window.D2_gerarPDF) return null;
     var temArea = false; try{ temArea = !!(window.IMV_get && window.IMV_get("area").kml); }catch(e){}
-    if(temArea && String(v("d2m2_v_mapver")).split("|")[0] === MAPVER && plVelha()){ setv("d2m2_v_mapver", VERMAP); sujo(); await gerarMapa("m2_pl"); }   // planta de versão anterior (com vértices)
+    if(temArea && String(v("d2m2_v_mapver")).split("|")[0] === MAPVER && plVelha()){ var rp = await gerarMapa("m2_pl"); if(rp && rp.ok){ setv("d2m2_v_mapver", VERMAP); sujo(); } }   // planta de versão anterior (com vértices)
     if(temArea && MAPAS.some(function(m){ return precisa(m[0]) && !window.D2_m2Fig(m[0]); })) await D2M2_gerarTodos(false);
     st("Montando o PDF…");
     try{ return await window.D2_gerarPDF(Object.assign({}, opts, { modelo2:true })); } finally { st(""); }
@@ -67142,7 +67173,7 @@ body.ativ-cadastro:not(.modo-painel):has(.app-shell.recolhida) .cad-selo.tem{ di
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.11.04-8';
+window.APP_VERSAO = '2026.11.04-9';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.29-7';
 (function(){
