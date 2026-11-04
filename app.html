@@ -50169,7 +50169,10 @@ window.DRL_gerarPDF=async function(opts){
   var URL_CAMPO = "https://enprol.github.io/infra/campo.html";
 
   window.CAMPO_getFicha = function(){ return CAMPO; };
-  window.CAMPO_setFicha = function(o){ CAMPO = (o && o.geral) ? garantirEstrutura(o) : null; CAMPO_render(); };
+  window.CAMPO_setFicha = function(o){
+    MIGROU_BENF = 0; CAMPO = (o && o.geral) ? garantirEstrutura(o) : null; CAMPO_render();
+    if(MIGROU_BENF) setTimeout(marcarSujo, 0);                              // fotos das abas antigas foram para Benfeitorias: falta salvar
+  };
 
   function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){ return ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]; }); }
   function val(v){
@@ -50398,8 +50401,20 @@ window.DRL_gerarPDF=async function(opts){
     });
     GAL_FIXAS.forEach(function(g){ if(!Array.isArray(f[g[0]])) f[g[0]] = []; });
     if(!Array.isArray(f[GAL_MORTO])) f[GAL_MORTO] = [];
+    /* 04/11/2026 (Fernando, SPS-07): as abas desativadas "Benfeitorias (imóvel como um todo)" e "Benfeitorias na faixa de
+       domínio" passam para "Benfeitorias" (nesta ordem, depois das que já estão lá; a mesma imagem não se repete). O próximo
+       Salvar grava e o servidor leva os arquivos para a pasta "4. Benfeitorias". */
+    var velhas = (f.fotosBenfTotal || []).concat(f.fotosBenfFaixa || []);
+    if(velhas.length){
+      if(!Array.isArray(f.fotosBenf)) f.fotosBenf = [];
+      var ja = {}; f.fotosBenf.forEach(function(p){ if(p && p.src) ja[chaveFoto(p.src)] = 1; });
+      velhas.forEach(function(p){ if(!p) return; var k = p.src ? chaveFoto(p.src) : null; if(k && ja[k]) return; if(k) ja[k] = 1; f.fotosBenf.push(p); });
+      f.fotosBenfTotal = []; f.fotosBenfFaixa = [];
+      MIGROU_BENF = velhas.length;
+    }
     return f;
   }
+  var MIGROU_BENF = 0;
   /* 20/10/2026: ARQUIVO MORTO — fotos do campo guardadas, fora dos relatórios e dos mapas. Ficam em f.fotosArquivoMorto,
      que NÃO é uma galeria (galerias() não a devolve): todasFotos, os PDFs, os mapas e o envio à Ficha não a enxergam. */
   var GAL_MORTO = "fotosArquivoMorto";
@@ -50868,7 +50883,7 @@ window.DRL_gerarPDF=async function(opts){
                     + (_("fb_proc_ctd").value) + ".\n\nImportar mesmo assim?")) return;
       }
       if(!CAMPO){
-        CAMPO = o; CAMPO_render(); marcarSujo();
+        CAMPO = garantirEstrutura(o); CAMPO_render(); marcarSujo();
         alert("Ficha de campo importada: " + ((o.geral && o.geral.processo) || "sem nº") + "\n" + resumoImport(o) + ".");
         return;
       }
@@ -52352,7 +52367,21 @@ window.DRL_gerarPDF=async function(opts){
     });
     return out;
   }
-  function desapAssin(){ var k = desapKml(); return k.length + ":" + k.slice(0, 60) + k.slice(-60); }
+  function desapAssin(){ var k = desapKml() + "#" + totalKml(); return k.length + ":" + k.slice(0, 60) + k.slice(-60); }
+  /* 04/11/2026 (Fernando): polígono da ÁREA TOTAL do imóvel (DESP 1 › KML da área total, imv_kml_area_dados) no mapa das fotos,
+     linha fina vermelha. Só os <Polygon>; sem polígono, as <LineString> fechadas (alguns KML trazem só o contorno). */
+  function totalKml(){ var e = _("imv_kml_area_dados"); return e ? String(e.value || "") : ""; }
+  function totalPolys(){
+    var kml = totalKml(), out = [];
+    if(!kml) return out;
+    function coords(t){ return t.trim().split(/\s+/).map(function(x){ var q = x.split(","); return [+q[0], +q[1]]; }).filter(function(q){ return isFinite(q[0]) && isFinite(q[1]); }); }
+    kml.replace(/<Polygon[\s\S]*?<\/Polygon>/g, function(pg){
+      var m = /<outerBoundaryIs>[\s\S]*?<coordinates>([\s\S]*?)<\/coordinates>/.exec(pg) || /<coordinates>([\s\S]*?)<\/coordinates>/.exec(pg);
+      if(m){ var r = coords(m[1]); if(r.length >= 3) out.push(r); } return pg;
+    });
+    if(!out.length) kml.replace(/<LineString[\s\S]*?<coordinates>([\s\S]*?)<\/coordinates>/g, function(_m, c){ var r = coords(c); if(r.length >= 3) out.push(r); return _m; });
+    return out;
+  }
 
   /* autoDesap — move para "Área desapropriada" as fotos cuja coordenada cai dentro do KML da área desapropriada */
   function pontoDentro(lon, lat, ring){
@@ -52574,12 +52603,18 @@ window.DRL_gerarPDF=async function(opts){
         g.fillStyle = "rgba(255,230,0,.22)"; g.fill(); g.lineWidth = 5; g.lineJoin = "round"; g.strokeStyle = "#ffe600"; g.stroke();
       });
     }
+    var tpoly = totalPolys();                                                  // 04/11/2026: área total do imóvel, linha fina vermelha
+    tpoly.forEach(function(rg){
+      g.beginPath(); rg.forEach(function(q, i){ var a = xy(q[0], q[1]); if(i) g.lineTo(a[0], a[1]); else g.moveTo(a[0], a[1]); }); g.closePath();
+      g.lineJoin = "round"; g.lineWidth = 2.5; g.strokeStyle = "#ff1a1a"; g.stroke();
+    });
     // ---- legenda única (canto superior esquerdo): área do projeto, tópicos das fotos e aviso de fotos fora do quadro ----
     var tit = {}; galerias(f).forEach(function(gl){ tit[gl.id] = topicoPDF(gl.t); });
     var vistoG = {}, tops = [];
     grupos.forEach(function(gr){ if(!vistoG[gr.gid]){ vistoG[gr.gid] = 1; tops.push({ cor:corGaleria(gr.gid), t:tit[gr.gid] || String(gr.gid) }); } });
     var linhasLeg = [];
     if(dpoly.length) linhasLeg.push({ tipo:"area", t:"Área abrangida pelo projeto" });
+    if(tpoly.length) linhasLeg.push({ tipo:"total", t:"Área total do imóvel" });
     if(tops.length > 1 || (tops.length === 1 && dpoly.length)) tops.forEach(function(t){ linhasLeg.push({ tipo:"topico", t:t.t, cor:t.cor }); });
     if(fora.length){
       fora.sort(function(a, b){ return a - b; });
@@ -52697,6 +52732,7 @@ window.DRL_gerarPDF=async function(opts){
       linhasLeg.forEach(function(l, k){
         var cy = legR.y + PAD/2 + k*LH + LH/2;
         if(l.tipo === "area"){ g.fillStyle = "rgba(255,230,0,.35)"; g.fillRect(legR.x + PAD, cy - 11, 34, 22); g.lineWidth = 4; g.strokeStyle = "#ffe600"; g.strokeRect(legR.x + PAD, cy - 11, 34, 22); }
+        else if(l.tipo === "total"){ g.lineWidth = 2.5; g.strokeStyle = "#ff1a1a"; g.strokeRect(legR.x + PAD + 2, cy - 10, 30, 20); }
         else if(l.tipo === "topico"){ g.beginPath(); g.arc(legR.x + PAD + 17, cy, 11, 0, 7); g.fillStyle = l.cor; g.fill(); g.lineWidth = 3; g.strokeStyle = "#fff"; g.stroke(); }
         g.fillStyle = "#fff"; g.textAlign = "left"; g.textBaseline = "middle"; g.font = (l.tipo === "fora" ? "600 17px" : "700 19px") + " Arial";
         g.fillText(l.t, legR.x + PAD + (l.tipo === "fora" ? 0 : 46), cy);
@@ -66902,7 +66938,7 @@ body.ativ-cadastro:not(.modo-painel):has(.app-shell.recolhida) .cad-selo.tem{ di
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.11.04-2';
+window.APP_VERSAO = '2026.11.04-3';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.29-7';
 (function(){
