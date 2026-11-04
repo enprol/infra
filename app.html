@@ -56050,7 +56050,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     var T={ proc:autoProc||D2MAP_TXT.proc||'', ferrovia:[_campo('d2_ferrovia'),_campo('d2_codFerrovia')].filter(Boolean).join('\n')||D2MAP_TXT.ferrovia||'',
       areaLabel:'', desapLabel:'', kmEnt:'000 + 000,00', kmSai:'000 + 000,00', base:((document.getElementById('d2m2_base')||{}).value==='sat'?'sat':'orto'), transp:25, locLado:'auto', solos:'' };
     if(aj.base==='sat'||aj.base==='orto') T.base=aj.base; if(aj.transp!=null && isFinite(aj.transp)) T.transp=+aj.transp; if(aj.locLado) T.locLado=aj.locLado;
-    var need={}; sp.need.forEach(function(c){ need[c]=true; });
+    var need={}; (Array.isArray(aj.cams) ? d2camsMig(aj.cams) : sp.need).forEach(function(c){ need[c]=true; });   // 04/11/2026: ✎ Editar mapa pode trocar as camadas (aj.cams)
     var valores={}, voltaP=null;
     var volta=m2est(Object.assign({ hidro:{ nome:'Curso hídrico identificado' } }, sp.car ? { car:{ nome:'Imóvel no CAR (SICAR)', op:.16, cor:'#ffd24a', peso:2.4, dash:'' }, appcar:{ nome:'APP (CAR)', cor:'#0b5a1c', op:.45 }, rl:{ nome:'Reserva Legal (CAR)' } } : {}));
     try{
@@ -56080,7 +56080,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
         var volta2=m2est({ sobrep:{ nome:'Sobreposição SIGEF × área desapropriada'+(sobPre.length>1?' — total '+fmt4(totS)+' ha':' — '+fmt4(totS)+' ha') },
           vazio:{ nome:'Área vazia (sem SIGEF) — '+fmt4(totV)+' ha' } });   // curto: a legenda corta nomes longos
       }
-      var r=await d2mapGerar({ fid:id, regra:{}, rot:false, need:need, foco:'area', txt:T, st:st, enq:aj.enq||null, focoExtra:(!sp.focoArea && carPre && carPre.imovel) || null, focoSo:sobPre ? sobPre.concat(vazPre).map(function(x){ return x.outer; }) : null, extra:async function(c){
+      var r=await d2mapGerar({ fid:id, regra:{}, rot:false, need:need, foco:'area', txt:T, st:st, enq:aj.enq||null, usr:aj.usr||[], leaders:aj.ldr||[], semLeaders:!!aj.previa, focoExtra:(!sp.focoArea && carPre && carPre.imovel) || null, focoSo:sobPre ? sobPre.concat(vazPre).map(function(x){ return x.outer; }) : null, extra:async function(c){
         var area=c.geom.area?c.geom.area.polys:d2mapKML(d2mapFonteKML('area')).polys;
         if(sobPre){
           c.geom.sigef={ polys:sigPre.polys, lines:[], pts:[] };
@@ -56142,7 +56142,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
         if(c.rv && c.rv.hipsometria){ valores.altMin=c.rv.hipsometria.min; valores.altMax=c.rv.hipsometria.max; }
       } });
       if(!r) return { ok:false, falhou:['faltam dados para o mapa (veja a mensagem)'] };
-      if(aj.previa) return { ok:true, previa:true, png:r.png, bb:r.bb, bbBase:r.bbBase, falhou:r.falhou, valores:valores };
+      if(aj.previa) return { ok:true, previa:true, png:r.png, bb:r.bb, bbBase:r.bbBase, falhou:r.falhou, valores:valores, svg:r.svg, PX:r.PX, inv:r.inv };
       aplicarFig(id, r.png, id+'.png');
       var res={ ok:true, falhou:r.falhou, valores:valores };
       try{ if(window.D2M2_guardarValores) window.D2M2_guardarValores(id, res); if(window.CAD_marcarSujo) window.CAD_marcarSujo(); }catch(e){}
@@ -56150,6 +56150,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     } finally { if(volta2) volta2(); if(voltaP) voltaP(); volta(); }
   };
   window.D2_m2Fig=function(id){ return figs[id]||null; };
+  window.D2_m2Need=function(id){ var sp=M2_SPEC[id]; return sp ? sp.need.slice() : null; };   // camadas-padrão de um mapa automático (✎ Editar mapa)
   window.D2_m2Usar=function(id, png){ aplicarFig(id, png, id+'.png'); try{ if(window.CAD_marcarSujo) window.CAD_marcarSujo(); }catch(e){} };
   window.D2_m2Limpar=function(id){ delete figs[id]; delete figNames[id]; try{ if(window.CAD_marcarSujo) window.CAD_marcarSujo(); }catch(e){} };
   window.D2_campo=function(k){ return C(k); };
@@ -56445,11 +56446,11 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       + fld('Dados da ferrovia','<textarea id="d2map_ferr" rows="2" class="d2m-in">'+d2esc(D2MAP_TXT.ferrovia)+'</textarea>',' d2m-full');
     var EXT=!!(opts && opts.gerar);
     D2MAP_TXT.usr=D2MAP_TXT.usr||{};
-    var USR=EXT?[]:d2usrCopia(opts?REC.usr:(fxA?fxA.usr:D2MAP_TXT.usr[fid])), USR_MUDOU=false;   // camadas adicionais (KML/GPKG/SHP)
+    var USR=d2usrCopia(opts?REC.usr:(fxA?fxA.usr:D2MAP_TXT.usr[fid])), USR_MUDOU=false;   // camadas adicionais (KML/GPKG/SHP)
     D2MAP_TXT.ldr=D2MAP_TXT.ldr||{};
-    var LDR=EXT?[]:d2usrCopia(opts?REC.ldr:(fxA?fxA.ldr:D2MAP_TXT.ldr[fid])), LMODO=null, LSEL=null, LA=null;   // leaders (04/11/2026)
+    var LDR=d2usrCopia(opts?REC.ldr:(fxA?fxA.ldr:D2MAP_TXT.ldr[fid])), LMODO=null, LSEL=null, LA=null;   // leaders (04/11/2026)
     if(EXT){
-      h+='<div class="d2m-note d2m-full">Mapa automático: as camadas, rótulos e textos são os do relatório. Aqui você ajusta a posição, a escala, a base e o lado do quadro de localização.</div>';
+      h+='<div class="d2m-note d2m-full">Mapa automático: os rótulos e textos são os do relatório. Aqui você ajusta posição, escala e base, marca ou desmarca camadas, adiciona camadas (KML/GPKG/SHP) e leaders — tudo fica guardado neste mapa e vale nas próximas gerações.</div>';
     } else if(rot){
       var _a=d2rtaPonto('A'), _b=d2rtaPonto('B');
       h+='<div class="d2m-note d2m-full">'+((_a&&_b) ? ('Pontos do roteiro (definidos na Técnica): <b>A</b> '+_a.lat.toFixed(6)+', '+_a.lon.toFixed(6)+' &nbsp;→&nbsp; <b>B</b> '+_b.lat.toFixed(6)+', '+_b.lon.toFixed(6)) : '⚠️ Informe os <b>Pontos A e B</b> no tópico "Roteiro de acesso" (Técnica) antes de gerar.')+'</div>';
@@ -56464,9 +56465,9 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       + fld('Transparência da imagem', sel('d2map_transp',[[0,'0% (opaca)'],[25,'25%'],[50,'50%'],[75,'75%'],[100,'100% (sem imagem)']],(opts&&REC.transp!=null)?REC.transp:(D2MAP_TXT.transp==null?25:D2MAP_TXT.transp)))
       + (window.SOLOS ? fld('Classificação dos solos (EMBRAPA)', sel('d2map_solos',[['','Não mostrar'],['ordem','Ordem'],['subordem','Subordem'],['legenda','Legenda']],D2MAP_TXT.solos||'')) : '')
       + fld('Mapa de localização (PE)', sel('d2map_loclado',[['auto','Automático (canto que não cobre o imóvel)'],['esq','Lado esquerdo'],['dir','Lado direito']],(opts&&REC.locLado)||D2MAP_TXT.locLado||'auto'))
-      + ((rot||EXT) ? '' : d2camsHtml(fid, regra, opts?REC.cams:null))
-      + (EXT ? '' : '<div class="d2m-f d2m-full d2u-box" id="d2usr_box">'+d2usrHtml(USR)+'</div>')
-      + ((EXT||rot) ? '' : '<div class="d2m-f d2m-full d2u-box" id="d2ldr_box">'+d2ldrHtml(LDR)+'</div>')
+      + (rot ? '' : d2camsHtml(fid, regra, opts?REC.cams:null))
+      + '<div class="d2m-f d2m-full d2u-box" id="d2usr_box">'+d2usrHtml(USR)+'</div>'
+      + (rot ? '' : '<div class="d2m-f d2m-full d2u-box" id="d2ldr_box">'+d2ldrHtml(LDR)+'</div>')
       + (fxA ? '<div class="d2m-f d2m-full"><label>Estilo só desta figura <span style="text-transform:none;letter-spacing:0;font-weight:500">— as outras continuam com o quadro de camadas do servidor</span></label><div id="d2fx_est">'+d2fxEstHtml(fxA)+'</div></div>' : '')
       +'</div></div>'
       +'<div class="d2m-dir">'
@@ -56509,7 +56510,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     function ldrPintar(){ var o=ldrOv(); if(!o || !GER || !GER.PX) return; o.innerHTML=d2ldrSVG(LDR, GER.PX, LSEL||'*'); o.classList.toggle('d2ldr-modo', !!LMODO); ldrSync(); }
     function ldrPainel(){ var b=document.getElementById('d2ldr_box'); if(b) b.innerHTML=d2ldrHtml(LDR, LMODO); }
     function ldrXY(ev){ var o=ldrOv(), r=o.getBoundingClientRect(); return [(ev.clientX-r.left)/r.width*900, (ev.clientY-r.top)/r.height*889]; }
-    function ldrGuardar(){ if(EXT||rot) return; if(fxA){ fxA.ldr=d2usrCopia(LDR); d2sujo(); } else if(opts){ REC.ldr=d2usrCopia(LDR); } else D2MAP_TXT.ldr[fid]=d2usrCopia(LDR); }
+    function ldrGuardar(){ if(rot) return; if(fxA){ fxA.ldr=d2usrCopia(LDR); d2sujo(); } else if(opts){ REC.ldr=d2usrCopia(LDR); } else D2MAP_TXT.ldr[fid]=d2usrCopia(LDR); }
     function ldrClique(ev){   // modo de criação: 1º clique = ponto indicado, 2º = posição do texto
       var p=ldrXY(ev);
       if(LMODO==='a'){ LA=GER.inv(p[0],p[1]); LMODO='b'; ldrPainel(); ldrPintar(); st('Agora clique onde vai ficar o texto.'); return; }
@@ -56645,15 +56646,15 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
         if(opts){ REC=receitaAtual(need); }
         else if(fxA){ fxA.cams=Object.keys(need); d2sujo(); } else { D2MAP_TXT.cams=D2MAP_TXT.cams||{}; D2MAP_TXT.cams[fid]=Object.keys(need); } }
       if(!opts) D2MAP_TXT.enq[fid]=Object.assign({}, ENQ);
-      if(!EXT){ if(fxA){ fxA.usr=d2usrCopia(USR); d2sujo(); } else if(!opts) D2MAP_TXT.usr[fid]=d2usrCopia(USR); }
+      if(fxA){ fxA.usr=d2usrCopia(USR); d2sujo(); } else if(!opts) D2MAP_TXT.usr[fid]=d2usrCopia(USR);
       var _r;
-      if(EXT){ REC={ base:T.base, transp:T.transp, locLado:T.locLado, enq:Object.assign({}, ENQ) }; _r=await opts.gerar(Object.assign({}, REC), st); if(_r && !_r.png){ st('Não foi possível gerar: '+((_r.falhou||[]).join(', ')||'faltam dados')); return; } }
+      if(EXT){ REC={ base:T.base, transp:T.transp, locLado:T.locLado, enq:Object.assign({}, ENQ), cams:Object.keys(need), usr:d2usrCopia(USR), ldr:d2usrCopia(LDR) }; _r=await opts.gerar(Object.assign({}, REC), st); if(_r && !_r.png){ st('Não foi possível gerar: '+((_r.falhou||[]).join(', ')||'faltam dados')); return; } }
       else _r=await d2mapGerar({ fid:fid, regra:regra, rot:rot, need:need, foco:focoSel, txt:T, st:st, enq:ENQ, usr:USR, semLeaders:!rot, leaders:LDR });
       if(!_r) return;
       var png=_r.png, falhou=_r.falhou||[], metrosCerca=_r.metrosCerca;
       if(opts) REC.png=png; else figsAuto[fid]=png;
       GER={ enq:Object.assign({}, ENQ), bb:_r.bb, bbBase:_r.bbBase, svg:_r.svg||null, PX:_r.PX||null, inv:_r.inv||null }; VIS={ s:1, tx:0, ty:0 };
-      var prev=document.getElementById('d2map_prev'); if(prev){ prev.innerHTML='<img src="'+png+'" alt="Prévia do mapa gerado" draggable="false">'+((EXT||rot)?'':'<svg id="d2ldr_ov" class="d2ldr-ov" viewBox="0 0 900 889" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"></svg>'); var im0=prev.querySelector('img'); if(im0) im0.onload=ldrPintar; }
+      var prev=document.getElementById('d2map_prev'); if(prev){ prev.innerHTML='<img src="'+png+'" alt="Prévia do mapa gerado" draggable="false">'+(rot?'':'<svg id="d2ldr_ov" class="d2ldr-ov" viewBox="0 0 900 889" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"></svg>'); var im0=prev.querySelector('img'); if(im0) im0.onload=ldrPintar; }
       ldrPintar();
       var vz=document.getElementById('d2map_vazio'); if(vz) vz.remove();
       document.getElementById('d2map_usar').style.display=''; document.getElementById('d2map_jpg').style.display=''; USR_MUDOU=false;
@@ -64762,12 +64763,25 @@ section.tab-panel.rel-pad .dd-sw button b{ font-size:12.5px !important; }
      as camadas continuam as do mapa (D2_m2GerarMapa). O ajuste fica em #d2m2_mapas e vale nas próximas gerações. */
   function ajustarMapa(id){
     if(!window.D2MAP_abrir){ alert("Gerador de mapas indisponível."); return; }
+    /* 04/11/2026 (Fernando): o modo edição faz tudo o que a criação de um mapa novo faz — marcar/desmarcar camadas (partindo
+       das camadas do mapa), camadas adicionais (KML/GPKG/SHP) e leaders. Fica no ajuste do mapa (aj.cams/usr/ldr) e vale ao regerar;
+       aj.cams só é guardado quando difere das camadas-padrão do mapa (assim, se o padrão mudar, o mapa não mexido acompanha). */
+    var aj0 = ajMapa(id), padrao = (window.D2_m2Need && window.D2_m2Need(id)) || [];
+    var rec0 = Object.assign({ base:(v("d2m2_base") === "sat" ? "sat" : "orto"), transp:25, locLado:"auto", enq:{ z:1, dx:0, dy:0 } }, aj0 || {});
+    rec0.cams = (aj0 && Array.isArray(aj0.cams)) ? aj0.cams.slice() : padrao.slice();
+    function mesmas(a, b){ var n = function(l){ return (l || []).filter(function(k){ return k !== "eixo" && k !== "semeixo"; }).slice().sort().join(","); };
+      return n(a) === n(b) && (a.indexOf("semeixo") >= 0) === (b.indexOf("semeixo") >= 0); }
     window.D2MAP_abrir(id, {
       titulo: semNum(legenda(id)[0]),
-      receita: ajMapa(id) || { base:(v("d2m2_base") === "sat" ? "sat" : "orto"), transp:25, locLado:"auto", enq:{ z:1, dx:0, dy:0 } },
+      receita: rec0,
       gerarJa:true, usarRot:"Usar no relatório",
       gerar: async function(rec, stf){ var r = await window.D2_m2GerarMapa(id, stf, Object.assign({}, rec, { previa:true })); return r && r.png ? r : { falhou:(r && r.falhou) || [] }; },
-      onUsar: function(png, rec){ var c = mapasCfg(); c.aj[id] = { enq:rec.enq, base:rec.base, transp:rec.transp, locLado:rec.locLado }; salvarMapasCfg(c); window.D2_m2Usar(id, png); D2M2_render(); }
+      onUsar: function(png, rec){
+        var c = mapasCfg(), a = { enq:rec.enq, base:rec.base, transp:rec.transp, locLado:rec.locLado };
+        if(rec.cams && !mesmas(rec.cams, padrao)) a.cams = rec.cams.slice();
+        if(rec.usr && rec.usr.length) a.usr = rec.usr;
+        if(rec.ldr && rec.ldr.length) a.ldr = rec.ldr;
+        c.aj[id] = a; salvarMapasCfg(c); window.D2_m2Usar(id, png); D2M2_render(); }
     });
   }
   // 26/10/2026: o que esta função faz sozinha (textos, análise, mapas refeitos) é "automático" para o Salvar
@@ -67103,7 +67117,7 @@ body.ativ-cadastro:not(.modo-painel):has(.app-shell.recolhida) .cad-selo.tem{ di
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.11.04-5';
+window.APP_VERSAO = '2026.11.04-6';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.10.29-7';
 (function(){
