@@ -66644,8 +66644,7 @@ section.tab-panel.rel-pad{ background:#e9eef3 repeating-linear-gradient(135deg, 
    em qualquer aba da DESP 1, 2 e 3.
    - cartão no topo do menu lateral (#sbSub): CTD, lote (SPS), proprietário,
      imóvel e município;
-   - selo compacto no cabeçalho (CTD + SPS) só quando o menu está recolhido
-     ou no celular (o menu vira gaveta);
+   - selo compacto no cabeçalho (CTD + SPS) só no celular (o menu vira gaveta);
    - clique em qualquer um = detalhes (processo, posseiro, resp. técnico).
    Cor do lote: SPS-04 azul-aço, SPS-07 verde-água, outros cinza.
    ===================================================================== */
@@ -66692,12 +66691,12 @@ section.tab-panel.rel-pad{ background:#e9eef3 repeating-linear-gradient(135deg, 
 .cad-selo-novo{ font-size:10.5px; font-weight:700; color:#E9B35F; }
 
 /* ---------- selo compacto no cabeçalho ---------- */
+/* 13/11/2026: no computador não aparece mais (com o menu recolhido ele só repetia o CTD entre "Trocar atividade" e "Painel Geral"); fica só no celular */
 .cad-selo{ display:none; flex:0 0 auto; align-items:center; gap:8px; height:36px; box-sizing:border-box; padding:0 10px 0 0; margin-left:2px;
   background:var(--gl-sel, #E7EDF4); border:1px solid #CBD6E3; border-radius:var(--gl-r-s, 8px); overflow:hidden;
   color:var(--gl-ink, #0F2236); font-family:var(--gl-font, "Segoe UI", sans-serif); cursor:pointer; white-space:nowrap;
   transition:border-color var(--gl-t, 180ms) var(--gl-ease, ease), box-shadow var(--gl-t, 180ms) var(--gl-ease, ease); }
 .cad-selo::before{ content:""; align-self:stretch; width:5px; flex:0 0 5px; background:var(--selo-cor-esc); }
-body.ativ-cadastro:not(.modo-painel):has(.app-shell.recolhida) .cad-selo.tem{ display:inline-flex; }
 .cad-selo:hover{ border-color:#9FB2C8; box-shadow:0 2px 8px -2px rgba(15,34,54,.14); }
 .cad-selo:focus-visible{ outline:2px solid var(--gl-navy, #1B3A5C); outline-offset:2px; }
 .cad-selo-ctd{ font-size:13.5px; font-weight:700; letter-spacing:.2px; }
@@ -69396,68 +69395,43 @@ body.ativ-cadastro:not(.modo-painel):has(.app-shell.recolhida) .cad-selo.tem{ di
   };
 })();
 </script><style>/* =====================================================================
-   Faixa de contexto do cadastro (12/11/2026, js/193): linha fixa acima do
-   conteúdo, só dentro do cadastro. Cadastro · onde se está · pendências por
-   etapa · salvo ou não. As pendências repetem no menu lateral e nos títulos
-   das seções por atributo data-ctx-n (o texto dos botões não muda).
-   Cores: marinho #0F2236 / #1B3A5C; pendência âmbar; completo verde.
+   Pendências do cadastro (12/11/2026, js/193). Desde 13/11/2026 ficam no cartão
+   do cadastro, no pé do menu lateral, e não mais numa faixa acima do conteúdo
+   (a faixa repetia CTD, proprietário, aba e Salvar). Etapas · salvo ou não.
+   As pendências repetem no menu lateral e nos títulos das seções por atributo
+   data-ctx-n (o texto dos botões não muda).
+   O bloco fica na caixa escura do menu (fundo #0F2236), entre o cartão e o mapa.
    ===================================================================== */
-.ctx-faixa{ --ctx-cor:#55616F; position:sticky; z-index:60; display:flex; align-items:center; gap:14px; min-height:44px; box-sizing:border-box;
-  padding:5px 20px; background:rgba(255,255,255,.94); backdrop-filter:blur(8px); border-bottom:1px solid #D5DEE8;
-  font-family:var(--gl-font, "Segoe UI", sans-serif); color:#0F2236; }
-.ctx-faixa[hidden]{ display:none; }
-.ctx-faixa[data-sps="04"]{ --ctx-cor:#1B3A5C; }
-.ctx-faixa[data-sps="07"]{ --ctx-cor:#22695F; }
+.ctx-pend{ box-sizing:border-box; padding:8px 12px 9px 16px; background-color:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.13); border-top:0;
+  font-family:var(--gl-font, "Segoe UI", sans-serif); color:#DCE6F0; }
+.ctx-pend[hidden]{ display:none; }
+.ctx-pend-top{ display:flex; align-items:center; justify-content:space-between; gap:8px; min-height:22px; }
+.ctx-pend-tit{ font-size:10.5px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:#8496AB; }
+.ctx-pend .org-leg-btn{ width:22px; height:22px; background:transparent; border-color:rgba(255,255,255,.28); color:#C5D2E0; font-size:12px; }
+.ctx-pend .org-leg-btn:hover, .ctx-pend .org-leg-btn[aria-expanded="true"]{ background:rgba(255,255,255,.14); border-color:rgba(255,255,255,.5); color:#fff; }
+.ctx-pend .org-leg-btn:focus-visible, .ctx-pend .ctx-et:focus-visible{ outline:2px solid #fff; outline-offset:2px; }
+.ctx-pend .ctx-et:focus-visible{ outline-offset:-2px; }
+.ctx-pop-item:focus-visible{ outline:2px solid #1F6FC0; outline-offset:2px; }
 
-/* barras que já grudavam logo abaixo do cabeçalho (sumário e barra dos relatórios, barra do checklist) descem a altura da faixa */
-@media(min-width:901px){
-  body.ctx-on main .tab-panel .dd-navwrap{ top:120px !important; }
-  body.ctx-on main .tab-panel .dd-bar{ top:116px !important; }
-  body.ctx-on main .tab-panel .ckd-barra{ top:108px !important; }
-}
+/* pendências por etapa: quatro botões iguais na largura do cartão */
+.ctx-etapas{ display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:5px; margin-top:6px; }
+.ctx-et{ display:flex; align-items:center; justify-content:space-between; gap:6px; min-width:0; height:28px; padding:0 8px; margin:0; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.2); border-radius:6px;
+  color:#DCE6F0; font:600 11.5px var(--gl-font, "Segoe UI", sans-serif); cursor:pointer; white-space:nowrap; transition:border-color .15s, background-color .15s; }
+.ctx-et span{ min-width:0; overflow:hidden; text-overflow:ellipsis; }
+.ctx-et:hover, .ctx-et[aria-expanded="true"]{ border-color:rgba(255,255,255,.5); background:rgba(255,255,255,.14); }
+.ctx-et b{ flex:0 0 auto; font-size:12px; font-weight:700; font-variant-numeric:tabular-nums; }
+.ctx-et.falta b{ color:#fff; }
+.ctx-et.ok{ color:#A9B7C6; font-weight:500; }
+.ctx-et.ok b{ color:#8496AB; font-weight:600; }
 
-/* cadastro */
-.ctx-id{ display:flex; align-items:center; gap:8px; flex:0 1 auto; min-width:0; height:32px; padding:0 10px 0 0; margin:0; background:none; border:0; border-radius:8px;
-  color:inherit; font:inherit; cursor:pointer; text-align:left; }
-.ctx-id::before{ content:""; align-self:stretch; flex:0 0 4px; margin:4px 2px 4px 0; border-radius:2px; background:var(--ctx-cor); }
-.ctx-id:hover{ background:#EEF2F7; }
-.ctx-id:focus-visible, .ctx-et:focus-visible, .ctx-salvar:focus-visible, .ctx-pop-item:focus-visible{ outline:2px solid #1F6FC0; outline-offset:2px; }
-.ctx-ctd{ flex:0 0 auto; font-size:15px; font-weight:700; letter-spacing:.2px; white-space:nowrap; }
-.ctx-sps{ flex:0 0 auto; padding:2px 7px; border-radius:999px; background:var(--ctx-cor); color:#fff; font-size:10.5px; font-weight:700; letter-spacing:.4px; white-space:nowrap; }
-.ctx-prop{ min-width:0; max-width:300px; font-size:13px; font-weight:600; color:#33414F; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.ctx-prop.vazio{ font-weight:400; font-style:italic; color:#6B7887; }
-
-/* onde se está */
-.ctx-trilha{ display:flex; align-items:center; gap:6px; flex:1 1 90px; min-width:0; padding-left:14px; border-left:1px solid #D5DEE8; font-size:12.5px; color:#55616F; white-space:nowrap; overflow:hidden; }
-.ctx-trilha span{ flex:0 0 auto; }
-.ctx-trilha i{ flex:0 0 auto; font-style:normal; color:#9AA7B5; }
-.ctx-trilha b{ min-width:0; font-weight:600; color:#0F2236; overflow:hidden; text-overflow:ellipsis; }
-
-/* pendências por etapa */
-.ctx-etapas{ display:flex; align-items:center; gap:6px; flex:0 0 auto; }
-.ctx-et{ display:inline-flex; align-items:center; gap:6px; height:28px; padding:0 4px 0 10px; margin:0; background:#fff; border:1px solid #CBD6E3; border-radius:999px;
-  color:#33414F; font:600 12px var(--gl-font, "Segoe UI", sans-serif); cursor:pointer; white-space:nowrap; transition:border-color .15s, background-color .15s; }
-.ctx-et:hover, .ctx-et[aria-expanded="true"]{ border-color:#8496AB; background:#F4F7FA; }
-.ctx-et b{ display:inline-flex; align-items:center; justify-content:center; min-width:20px; height:20px; padding:0 6px; box-sizing:border-box; border-radius:999px; font-size:11.5px; font-weight:700; font-variant-numeric:tabular-nums; }
-.ctx-et.falta b{ background:#FCEFD6; color:#7A4A00; }
-.ctx-et.ok b{ background:#DFF3E8; color:#17663F; }
-
-/* salvo ou não */
-.ctx-salvo{ display:flex; align-items:center; gap:7px; flex:0 0 auto; padding-left:14px; border-left:1px solid #D5DEE8; font-size:12.5px; font-weight:600; color:#55616F; white-space:nowrap; }
-.ctx-salvo i{ width:8px; height:8px; border-radius:50%; background:#2E9B63; }
-.ctx-salvo.novo i{ background:#9AA7B5; }
-.ctx-salvo.sujo{ color:#7A4A00; }
-.ctx-salvo.sujo i{ background:#E0921B; box-shadow:0 0 0 3px rgba(224,146,27,.22); }
-.ctx-salvar{ display:none; height:28px; padding:0 12px; margin:0 0 0 4px; background:#1B3A5C; border:0; border-radius:8px; color:#fff; font:600 12.5px var(--gl-font, "Segoe UI", sans-serif); cursor:pointer; }
-.ctx-salvar:hover{ background:#0F2236; }
-.ctx-salvo.sujo .ctx-salvar{ display:inline-block; }
-
-/* pela largura da própria faixa: sem espaço para o caminho todo fica só o documento; mais estreita ainda, o caminho sai e o proprietário ganha o lugar */
-.ctx-faixa{ container-type:inline-size; container-name:ctxfaixa; }
-@container ctxfaixa (max-width:1450px){ .ctx-trilha span, .ctx-trilha i{ display:none; } }
-@container ctxfaixa (max-width:1180px){ .ctx-trilha{ display:none; } .ctx-id{ flex:1 1 auto; } .ctx-prop{ max-width:none; } }
-@media(max-width:900px){ .ctx-faixa{ flex-wrap:wrap; gap:6px 10px; } .ctx-trilha{ display:none; } .ctx-et span{ display:none; } .ctx-et{ padding-left:4px; } }
-@media print{ .ctx-faixa, .ctx-pop{ display:none !important; } }
+/* salvo ou não (o botão Salvar fica só no cabeçalho; ele acende quando há alteração, ver abaixo) */
+.ctx-salvo{ display:flex; align-items:center; gap:7px; margin-top:7px; font-size:11.5px; font-weight:600; color:#A9B7C6; }
+.ctx-salvo i{ flex:0 0 7px; width:7px; height:7px; border-radius:1px; background:#8496AB; }
+.ctx-salvo.novo i{ background:transparent; box-shadow:inset 0 0 0 1px #8496AB; }
+.ctx-salvo.sujo{ color:#fff; }
+.ctx-salvo.sujo i{ background:#fff; }
+.ctx-salvo span{ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+@media print{ .ctx-pend, .ctx-pop{ display:none !important; } }
 
 /* lista do que falta */
 .ctx-pop{ position:fixed; z-index:1600; display:flex; flex-direction:column; width:360px; max-width:calc(100vw - 24px); box-sizing:border-box; padding:12px 6px 8px 14px;
@@ -69489,11 +69463,12 @@ body.ctx-on .app-sidebar .sb-grp-btn.ctx-tem::after{ content:""; display:inline-
 /* ---------- título das seções da Ficha de Vistoria ---------- */
 body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ content:attr(data-ctx-n); display:inline-block; margin-left:10px; padding:2px 8px; border-radius:999px;
   background:#FCEFD6; color:#7A4A00; font:700 11px/1.3 var(--gl-font, "Segoe UI", sans-serif); letter-spacing:0; text-transform:none; vertical-align:1px; }
-</style><script>/* Faixa de contexto do cadastro (12/11/2026): dentro do cadastro, uma linha fixa acima do conteúdo diz
-   - em que cadastro se está (CTD, lote, proprietário) e em que aba (DESP › setor › documento);
+</style><script>/* Pendências do cadastro (12/11/2026; 13/11/2026 saiu da faixa do topo para o pé do menu lateral).
+   A faixa fixa acima do conteúdo repetia o que já existe (CTD e proprietário no cartão do menu, aba no título da página,
+   Salvar no cabeçalho). Ficou só o que era próprio dela, agora no cartão do cadastro, no pé do menu lateral:
    - o que falta em cada etapa (Campo, Social, Técnica, Jurídica): os mesmos números do Painel Geral
      (completude calculada pelo servidor ao salvar), com a lista e o atalho "ir ao campo";
-   - se há alteração ainda não salva e quando foi a última gravação.
+   - se há alteração ainda não salva e quando foi a última gravação (o Salvar fica só no cabeçalho).
    As mesmas pendências aparecem no menu lateral (setor, documento) e no título das seções da Ficha de Vistoria.
    Só lê: não grava nada no cadastro. Os números do menu e das seções são atributos (data-ctx-n) desenhados pelo
    CSS, para não mudar o texto dos botões, que outros módulos leem. */
@@ -69509,12 +69484,9 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ content:attr(data-ctx-n)
 
   /* ---------- quem é o cadastro ---------- */
   function dados(){
-    var a = window.__CAD_ATUAL, partes = a && a.ctd ? String(a.ctd).split(" - ") : [], ctd = partes[0] || "", novo = false;
-    if(!ctd){ var c = campo("cadastro"); if(!c) return null; ctd = /^CTD/i.test(c) ? c : "CTD " + c; novo = true; }
-    var m = /SPS[ \-]?0*(\d{1,2})/i.exec(partes[1] || campo("trecho") || "");
-    var prop = campo("proprietario"), doPainel = false;
-    if(!prop && compItem && compItem.proprietario){ prop = String(compItem.proprietario); doPainel = true; }
-    return { ctd:ctd, novo:novo, sps:m ? ("0" + m[1]).slice(-2) : "", prop:prop, doPainel:doPainel };
+    var a = window.__CAD_ATUAL, partes = a && a.ctd ? String(a.ctd).split(" - ") : [], ctd = partes[0] || "";
+    if(!ctd){ var c = campo("cadastro"); if(!c) return null; ctd = /^CTD/i.test(c) ? c : "CTD " + c; }
+    return { ctd:ctd };
   }
 
   /* ---------- pendências (completude do servidor, conferida com a tela) ---------- */
@@ -69566,38 +69538,20 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ content:attr(data-ctx-n)
     return { cls:"ok", txt:q ? "Salvo " + q : "Salvo" };
   }
 
-  /* ---------- onde se está ---------- */
-  function texto(b){ return b ? String(b.textContent || "").replace(/\s+/g, " ").trim() : ""; }
-  function trilha(){
-    var link = document.querySelector(".app-sidebar .sb-link.ativa"), grp = link && link.closest(".sb-sub-grupo");
-    var gb = grp ? document.querySelector('.app-sidebar .sb-grp-btn[data-grupo="' + grp.dataset.grupo + '"]') : document.querySelector(".app-sidebar .sb-grp-btn.ativa");
-    var st = link && link.dataset.setor && grp ? grp.querySelector('.sb-setor[data-setor="' + link.dataset.setor + '"]') : null;
-    return [texto(gb), texto(st), texto(link)].filter(function(t, i, l){ return t && t !== l[i - 1]; });
-  }
-
-  /* ---------- montagem ---------- */
+  /* ---------- montagem: bloco logo abaixo do cartão do cadastro, no pé do menu lateral (a caixa nasce no js/185) ---------- */
   function montar(){
     if(faixa && faixa.isConnected) return true;
-    var main = document.querySelector(".app-main > main"); if(!main) return false;
-    faixa = el("div", "ctx-faixa"); faixa.id = "ctxFaixa"; faixa.hidden = true;
-    var id = el("button", "ctx-id"); id.type = "button"; id.title = "Ver os detalhes do cadastro";
-    id.appendChild(el("b", "ctx-ctd")); id.appendChild(el("span", "ctx-sps")); id.appendChild(el("span", "ctx-prop"));
-    id.addEventListener("click", function(ev){ var c = $("cadSeloCard") || $("cadSelo"); if(c){ ev.stopPropagation(); fecharPop(); c.click(); } });
-    var nav = el("nav", "ctx-trilha"); nav.setAttribute("aria-label", "Onde você está");
+    var card = $("cadCardCaixa") && $("cadCardCaixa").querySelector(".cad-card"); if(!card) return false;
+    faixa = el("div", "ctx-pend"); faixa.id = "ctxPend"; faixa.hidden = true;
+    var topo = el("div", "ctx-pend-top"); topo.appendChild(el("span", "ctx-pend-tit", "Pendências"));   // o "?" da legenda entra aqui (js/194)
     var et = el("div", "ctx-etapas"); et.setAttribute("role", "group"); et.setAttribute("aria-label", "Pendências por etapa");
     var sv = el("div", "ctx-salvo"); sv.setAttribute("role", "status"); sv.appendChild(el("i")); sv.appendChild(el("span"));
-    var bs = el("button", "ctx-salvar", "Salvar"); bs.type = "button"; bs.addEventListener("click", function(){ if(window.CAD_salvarNuvem) window.CAD_salvarNuvem(); });
-    sv.appendChild(bs);
-    faixa.appendChild(id); faixa.appendChild(nav); faixa.appendChild(et); faixa.appendChild(sv);
-    main.parentNode.insertBefore(faixa, main);
+    faixa.appendChild(topo); faixa.appendChild(et); faixa.appendChild(sv);
+    card.parentNode.insertBefore(faixa, card.nextSibling);
     et.addEventListener("click", function(ev){
       var b = ev.target.closest("button[data-etapa]"); if(!b) return; ev.stopPropagation();
       (pop && !pop.hidden && popEtapa === b.getAttribute("data-etapa")) ? fecharPop() : abrirPop(b);
     });
-    var cab = document.querySelector(".app-header");
-    var topo = function(){ faixa.style.top = (cab ? cab.offsetHeight : 0) + "px"; };
-    topo(); window.addEventListener("resize", topo);
-    if(cab && window.ResizeObserver) new ResizeObserver(topo).observe(cab);
     return true;
   }
   function por(chave, valor, fn){ if(cache[chave] === valor) return; cache[chave] = valor; fn(); }
@@ -69607,19 +69561,6 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ content:attr(data-ctx-n)
     var d = noCadastro() ? dados() : null;
     faixa.hidden = !d; document.body.classList.toggle("ctx-on", !!d);
     if(!d){ document.body.classList.remove("ctx-sujo"); fecharPop(); marcas(false); return; }
-    faixa.setAttribute("data-sps", d.sps);
-    por("id", JSON.stringify(d), function(){
-      faixa.querySelector(".ctx-ctd").textContent = d.ctd;
-      var s = faixa.querySelector(".ctx-sps"); s.textContent = d.sps ? "SPS-" + d.sps : ""; s.style.display = d.sps ? "" : "none";
-      var p = faixa.querySelector(".ctx-prop"); p.textContent = d.prop || "proprietário não preenchido"; p.classList.toggle("vazio", !d.prop);
-      p.title = d.doPainel ? "Nome que consta no Painel Geral; o campo do proprietário na Ficha de Vistoria está vazio." : "";
-    });
-    var t = trilha();
-    por("trilha", t.join("›"), function(){
-      var nav = faixa.querySelector(".ctx-trilha"); nav.textContent = "";
-      t.forEach(function(x, i){ if(i) nav.appendChild(el("i", null, "›")); nav.appendChild(el(i === t.length - 1 ? "b" : "span", null, x)); });
-      nav.title = t.join(" › ");
-    });
     var n = {}; ETAPAS.forEach(function(e){ n[e[0]] = comp ? faltando(e[0]).length : -1; });
     por("etapas", JSON.stringify(n), function(){
       var box = faixa.querySelector(".ctx-etapas"); box.textContent = "";
@@ -69689,10 +69630,13 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ content:attr(data-ctx-n)
     if(!pop){ pop = el("div", "ctx-pop"); pop.setAttribute("role", "dialog"); pop.setAttribute("aria-label", "Pendências da etapa"); pop.hidden = true;
       pop.addEventListener("click", function(ev){ ev.stopPropagation(); }); document.body.appendChild(pop); }
     fecharPop(); popEtapa = b.getAttribute("data-etapa"); montarPop(); pop.hidden = false; b.setAttribute("aria-expanded", "true");
-    var r = b.getBoundingClientRect(), w = pop.offsetWidth;
-    pop.style.left = Math.round(Math.max(12, Math.min(r.left, window.innerWidth - w - 12))) + "px";
-    pop.style.top = Math.round(r.bottom + 6) + "px";
-    pop.style.maxHeight = Math.max(160, window.innerHeight - r.bottom - 24) + "px";
+    // os botões ficam no pé do menu lateral: a lista abre ao lado, encostada acima do botão
+    var r = b.getBoundingClientRect(), cx = $("cadCardCaixa"), w = pop.offsetWidth;
+    if(cx) r = { right:cx.getBoundingClientRect().right, bottom:r.bottom };   // encostada na borda do menu, não sobre ele
+    pop.style.maxHeight = Math.max(160, window.innerHeight - 24) + "px";
+    var h = pop.offsetHeight;
+    pop.style.left = Math.round(Math.max(12, Math.min(r.right + 8, window.innerWidth - w - 12))) + "px";
+    pop.style.top = Math.round(Math.max(12, Math.min(r.bottom - h, window.innerHeight - h - 12))) + "px";
   }
   function fecharPop(){
     if(pop) pop.hidden = true; popEtapa = "";
@@ -69879,7 +69823,7 @@ main .tab-panel .hint-auto[data-org="destino"]::before, .org-marca.destino::befo
     pop.style.top = Math.round(r.bottom + 6) + "px";
   }
   function botao(){
-    var f = document.getElementById("ctxFaixa"); if(!f || (btn && btn.parentNode === f)) return;
+    var p = document.getElementById("ctxPend"), f = p && p.querySelector(".ctx-pend-top"); if(!f || (btn && btn.parentNode === f)) return;   // linha "Pendências" do cartão no menu lateral (js/193)
     if(!btn){
       btn = el("button", "org-leg-btn", "?"); btn.type = "button"; btn.title = "Legenda: de onde vem cada dado";
       btn.setAttribute("aria-label", "Legenda: de onde vem cada dado"); btn.setAttribute("aria-haspopup", "dialog"); btn.setAttribute("aria-expanded", "false");
@@ -70159,21 +70103,8 @@ html.rtamap-aberto, html.rtamap-aberto body{ overflow:hidden; }
   --ind-tinta:#0F2236; --ind-marinho:#1B3A5C; --ind-cinza:#55616F; --ind-apagado:#8496AB; --ind-fio:#CBD6E3; --ind-fundo:#F4F7FA;
 }
 
-/* ---------- faixa de contexto: pendências por etapa ---------- */
-.ctx-sps{ border-radius:4px; }
-.ctx-et{ gap:8px; padding:0 10px; border-radius:6px; border-color:var(--ind-fio); color:var(--ind-tinta); }
-.ctx-et b{ min-width:0; height:16px; padding:0 0 0 8px; border-radius:0; border-left:1px solid var(--ind-fio); background:none !important; font-size:12px; }
-.ctx-et.falta b{ color:var(--ind-tinta); }
-.ctx-et.ok{ color:var(--ind-cinza); font-weight:500; }
-.ctx-et.ok b{ color:var(--ind-apagado); font-weight:600; }
-@media(max-width:900px){ .ctx-et{ padding-left:10px; } .ctx-et b{ padding-left:0; border-left:0; } }
-
-/* ---------- faixa de contexto: salvo ou não ---------- */
-.ctx-salvo i{ width:7px; height:7px; border-radius:1px; background:var(--ind-apagado); }
-.ctx-salvo.novo i{ background:transparent; box-shadow:inset 0 0 0 1px var(--ind-apagado); }
-.ctx-salvo.sujo{ color:var(--ind-tinta); }
-.ctx-salvo.sujo i{ background:var(--ind-marinho); box-shadow:none; }
-.ctx-salvar{ border-radius:6px; }
+/* ---------- pendências no cartão do menu lateral (fundo escuro): salvo ou não ---------- */
+/* os botões das etapas e o "salvo" já nascem sóbrios em css/193 (sem âmbar nem verde) */
 body.ctx-sujo.ativ-cadastro:not(.modo-painel) .app-header #btnSalvarCad{ box-shadow:none; }
 .ctx-pop, .org-leg{ border-radius:8px; }
 .org-leg-btn{ border-radius:6px; }
@@ -72148,7 +72079,7 @@ main .tab-panel .is-manual .dd-tag.t-manual{ box-shadow:inset 0 0 0 1px var(--in
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.11.13-1';
+window.APP_VERSAO = '2026.11.13-2';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.11.12-5';
 (function(){
