@@ -69818,9 +69818,11 @@ main .tab-panel .hint-auto[data-org="destino"]::before, .org-marca.destino::befo
       document.body.appendChild(pop);
     }
     pop.hidden = false; btn.setAttribute("aria-expanded", "true");
-    var r = btn.getBoundingClientRect(), w = pop.offsetWidth;
-    pop.style.left = Math.round(Math.max(12, Math.min(r.right - w, window.innerWidth - w - 12))) + "px";
-    pop.style.top = Math.round(r.bottom + 6) + "px";
+    // o "?" fica no pé do menu lateral: a legenda abre ao lado do menu, com o fundo alinhado ao botão e sem sair da janela
+    var r = btn.getBoundingClientRect(), cx = document.getElementById("cadCardCaixa"), w = pop.offsetWidth, h = pop.offsetHeight;
+    var x = cx ? cx.getBoundingClientRect().right + 8 : r.right - w;
+    pop.style.left = Math.round(Math.max(12, Math.min(x, window.innerWidth - w - 12))) + "px";
+    pop.style.top = Math.round(Math.max(12, Math.min(r.bottom - h, window.innerHeight - h - 12))) + "px";
   }
   function botao(){
     var p = document.getElementById("ctxPend"), f = p && p.querySelector(".ctx-pend-top"); if(!f || (btn && btn.parentNode === f)) return;   // linha "Pendências" do cartão no menu lateral (js/193)
@@ -72079,7 +72081,7 @@ main .tab-panel .is-manual .dd-tag.t-manual{ box-shadow:inset 0 0 0 1px var(--in
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.11.13-2';
+window.APP_VERSAO = '2026.11.13-3';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.11.12-5';
 (function(){
