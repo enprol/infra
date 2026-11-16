@@ -3327,9 +3327,9 @@ async function _pesqBaixarImagens(data, nome, aoProgredir){
     var n = todos[i];
     if (typeof n.ref === 'string' && n.ref.length >= 8 && !n.dataUrl) nos.push(n);
   }
-  var faltando = 0;
-  for (var j = 0; j < nos.length; j++){
-    var no = nos[j];
+  // 16/11/2026: 6 fotos por vez (antes, uma de cada vez: um RGV com ~700 fotos levava minutos)
+  var faltando = 0, feitos = 0, prox = 0;
+  async function uma(no){
     try {
       var r = await fetch(PESQ_SRV + '/api/pesquisas/' + encodeURIComponent(nome) + '/img/' + encodeURIComponent(no.ref));
       if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -3347,8 +3347,13 @@ async function _pesqBaixarImagens(data, nome, aoProgredir){
       no.imagemFaltando = true;
       faltando++;
     }
-    if (aoProgredir) aoProgredir(j + 1, nos.length);
+    feitos++;
+    if (aoProgredir) aoProgredir(feitos, nos.length);
   }
+  async function trabalhador(){ while (prox < nos.length){ await uma(nos[prox++]); } }
+  var fila = [];
+  for (var t = 0; t < Math.min(6, nos.length); t++) fila.push(trabalhador());
+  await Promise.all(fila);
   return {total: nos.length, faltando: faltando};
 }
 
@@ -3458,9 +3463,62 @@ async function _pesqAcaoServidor(acao, it, fechar){
     abrirPesquisaDoServidor();
   } catch(err){ alert('Nao foi possivel (' + acao + '): ' + err.message); }
 }
+/* 16/11/2026: tela de carregamento ao abrir uma pesquisa do servidor (antes so mudava
+   a linha de baixo do item da lista, e nada enquanto o JSON vinha). */
+var _pesqAbrindo = false, _pesqSalvando = false;
+function _pesqMB(n){ return (n / 1048576).toLocaleString('pt-BR', {minimumFractionDigits:1, maximumFractionDigits:1}) + ' MB'; }
+function _pesqPintar(){ return new Promise(function(ok){ requestAnimationFrame(function(){ setTimeout(ok, 0); }); }); }
+function _pesqTelaCarregando(titulo, texto){
+  if (!document.getElementById('pesq-car-css')){
+    var st = document.createElement('style'); st.id = 'pesq-car-css';
+    st.textContent = '@keyframes pesqGira{to{transform:rotate(360deg)}}';
+    document.head.appendChild(st);
+  }
+  var ov = document.createElement('div');
+  ov.setAttribute('role', 'alertdialog'); ov.setAttribute('aria-busy', 'true'); ov.setAttribute('aria-live', 'polite');
+  ov.style.cssText = 'position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;background:rgba(15,23,42,.6);cursor:progress;';
+  ov.innerHTML = '<div style="background:#fff;border-radius:12px;width:min(420px,calc(100% - 40px));padding:22px 24px;box-shadow:0 20px 60px rgba(0,0,0,.35);font-family:inherit;text-align:center;">'
+    + '<div style="width:38px;height:38px;margin:0 auto 14px;border:4px solid #e2e8f0;border-top-color:#0f2a44;border-radius:50%;animation:pesqGira .8s linear infinite;"></div>'
+    + '<div class="pc-tit" style="font-weight:700;color:#0f2a44;font-size:15px;margin-bottom:6px;"></div>'
+    + '<div class="pc-txt" style="font-size:13px;color:#475569;min-height:18px;"></div>'
+    + '<div class="pc-bar" style="height:6px;background:#e2e8f0;border-radius:3px;margin-top:12px;overflow:hidden;visibility:hidden;"><div style="height:100%;width:0;background:#0f2a44;transition:width .15s;"></div></div>'
+    + '</div>';
+  ov.querySelector('.pc-tit').textContent = titulo || 'Carregando...';
+  document.body.appendChild(ov);
+  var txt = ov.querySelector('.pc-txt'), bar = ov.querySelector('.pc-bar'), fill = bar.firstChild;
+  function msg(t, frac){
+    txt.textContent = t || '';
+    if (typeof frac === 'number' && isFinite(frac)){ bar.style.visibility = 'visible'; fill.style.width = Math.max(0, Math.min(100, frac * 100)).toFixed(1) + '%'; }
+    else bar.style.visibility = 'hidden';
+  }
+  msg(texto, null);
+  return { msg: msg, fechar: function(){ if (ov.parentNode) ov.remove(); } };
+}
+/* le a resposta mostrando quanto ja chegou (a pesquisa pesada passa de 100 MB) */
+async function _pesqLerComProgresso(resp, aoProgredir){
+  var tot = parseInt(resp.headers.get('Content-Length') || '0', 10) || 0;
+  if (!resp.body || !resp.body.getReader || typeof TextDecoder !== 'function'){
+    var tx = await resp.text();
+    return {texto: tx, bytes: (typeof Blob === 'function') ? new Blob([tx]).size : tx.length};
+  }
+  var leitor = resp.body.getReader(), dec = new TextDecoder('utf-8'), partes = [], rec = 0, ult = 0;
+  for (;;){
+    var r = await leitor.read();
+    if (r.done) break;
+    rec += r.value.length;
+    partes.push(dec.decode(r.value, {stream:true}));
+    var agora = Date.now();
+    if (aoProgredir && agora - ult > 120){ ult = agora; aoProgredir(rec, tot); }
+  }
+  partes.push(dec.decode());
+  if (aoProgredir) aoProgredir(rec, tot);
+  return {texto: partes.join(''), bytes: rec};
+}
 async function abrirPesquisaDoServidor(){
 
   var lista;
+
+  var carL = _pesqTelaCarregando('Abrir pesquisa', 'Buscando a lista de pesquisas no servidor...');
 
   try {
 
@@ -3470,7 +3528,11 @@ async function abrirPesquisaDoServidor(){
 
     lista = await r.json();
 
+    carL.fechar();
+
   } catch(e){
+
+    carL.fechar();
 
     if (confirm('Nao consegui listar as pesquisas do servidor (' + e.message + ').\n\nAbrir um arquivo do computador?')) $('#input-abrir-json').click();
 
@@ -3528,27 +3590,47 @@ async function abrirPesquisaDoServidor(){
 
     b.addEventListener('click', async function(){
 
+      if (_pesqAbrindo || _pesqSalvando) return;   // 16/11/2026: um clique a mais nao dispara outra abertura
+
+      _pesqAbrindo = true;
+
+      var car = _pesqTelaCarregando('Abrindo "' + (it.titulo || it.nome) + '"', 'Baixando a pesquisa do servidor...');
+
       try {
 
         var rr = await fetch(PESQ_SRV + '/api/pesquisas/' + encodeURIComponent(it.nome), {cache:'no-store'});
 
         if (!rr.ok) throw new Error('HTTP ' + rr.status);
 
-        var data = await rr.json();
+        var bruto = await _pesqLerComProgresso(rr, function(rec, tot){
 
-        var sub = b.querySelector('div:last-child');
-
-        var rotSub = sub ? sub.textContent : '';
-
-        var res = await _pesqBaixarImagens(data, it.nome, function(feitos, total){
-
-          if (sub) sub.textContent = 'baixando fotos ' + feitos + '/' + total + '...';
+          car.msg('Baixando a pesquisa do servidor... ' + _pesqMB(rec) + (tot ? ' de ' + _pesqMB(tot) : ''), tot ? rec / tot : null);
 
         });
 
-        if (sub) sub.textContent = rotSub;
+        car.msg('Lendo a pesquisa (' + _pesqMB(bruto.bytes) + ')...', null);
+
+        await _pesqPintar();
+
+        var data = JSON.parse(bruto.texto);
+
+        var res = await _pesqBaixarImagens(data, it.nome, function(feitos, total){
+
+          car.msg('Baixando fotos ' + feitos + ' de ' + total + '...', feitos / total);
+
+        });
+
+        car.msg('Montando a tela...', null);
+
+        await _pesqPintar();
 
         aplicarProjetoCarregado(data);
+
+        currentServerName = it.nome;
+
+        fechar();
+
+        car.fechar();
 
         if (res && res.faltando){
 
@@ -3556,11 +3638,17 @@ async function abrirPesquisaDoServidor(){
 
         }
 
-        currentServerName = it.nome;
+        // pesquisa gravada com as fotos dentro do JSON (formato antigo/pesado): avisa que um Salvar resolve
 
-        fechar();
+        if (bruto.bytes > 5 * 1024 * 1024){
 
-      } catch(err){ alert('Nao foi possivel abrir "' + it.nome + '": ' + err.message); }
+          alert('Esta pesquisa esta gravada no formato pesado (' + _pesqMB(bruto.bytes) + ', com as fotos dentro do arquivo) e por isso demora para abrir.\n\nClique em Salvar uma vez: as fotos passam para a pasta de imagens e ela fica leve (alguns KB) nas proximas aberturas.');
+
+        }
+
+      } catch(err){ car.fechar(); alert('Nao foi possivel abrir "' + it.nome + '": ' + err.message); }
+
+      finally { _pesqAbrindo = false; }
 
     });
 
@@ -5770,6 +5858,10 @@ $('#btn-salvar').addEventListener('click', function(){ salvarProjeto(); });
 
 function salvarProjeto(){
 
+  // 16/11/2026: Ctrl+S nao respeita o botao desabilitado - nada de 2o salvamento em paralelo,
+  // nem salvar a pesquisa anterior enquanto outra esta abrindo
+  if (_pesqSalvando || _pesqAbrindo) return;
+
   project.meta.ultimaEdicao = new Date().toISOString();
 
   // Com servidor: nao serializa o projeto inteiro aqui. As imagens vao uma a
@@ -5878,9 +5970,18 @@ async function salvarPesquisaNoServidor(){
 
   var rotulo = btn ? btn.textContent : '';
 
-  function aviso(txt){ if (btn) btn.textContent = txt; }
+  // 16/11/2026: alem do texto do botao, a mesma tela de carregamento da abertura (num RGV o envio das fotos demora)
+  var _carSalvar = null;
+  function aviso(txt){
+    if (btn) btn.textContent = txt;
+    if (!_carSalvar) _carSalvar = _pesqTelaCarregando('Salvando "' + nome + '" no servidor', txt);
+    var m = /(\d+)\/(\d+)/.exec(txt);
+    _carSalvar.msg(txt, m ? (+m[1] / +m[2]) : null);
+  }
 
   var json = null;
+
+  _pesqSalvando = true;
 
   try {
 
@@ -5966,6 +6067,8 @@ async function salvarPesquisaNoServidor(){
 
   } finally {
 
+    _pesqSalvando = false;
+    if (_carSalvar){ _carSalvar.fechar(); _carSalvar = null; }
     if (btn){ btn.disabled = false; btn.textContent = rotulo; }
 
   }
