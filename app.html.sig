@@ -1,9 +1,9 @@
 {
   "alg": "ed25519",
   "kid": "51d6b4d4c1dcab60",
-  "sha256": "338bebf72663e4325f15cdffac1e39e3dcfc8dbdb26d69030d934aa8a2829ba2",
-  "tamanho": 6045120,
-  "assinatura": "9G75SSOFWiLwYNw07DPIQWZ/G7Ob8koS/BAzikkGQg2rxx9ssziUpBWG4AF0GSmaS5W1v/7xONnDXoTn43kzDg==",
-  "assinado_em": "2026-11-18T12:41:35.016Z",
+  "sha256": "6602ed863b76e25efaf4744d8b9eec189c678850c0aca484967cbc9cbb4b241c",
+  "tamanho": 6040986,
+  "assinatura": "FU33kMtlwPFFlOQCZa1GMpLuK6pG83De7y51nuZpKUOTK5X1wVbKiaa89yPBX2GNYBuxImp6jUvHocNn2ch8Ag==",
+  "assinado_em": "2026-11-18T13:01:25.032Z",
   "arquivo": "app.html"
 }
