@@ -44510,6 +44510,7 @@ function AV_gerarDescSituacao(){
     }
     return _PRES.sessao;
   }
+  window.CAD_sessaoTela = function(){ return _sessaoTela(); };            // trava por setor (js/201)
   function _urlPresenca(a){ return "/api/presenca/" + encodeURIComponent(a.secao) + "/" + encodeURIComponent(a.ctd); }
   function _abaAtual(){
     var b = document.querySelector(".sb-link.ativa") || document.querySelector(".tab.ativa");
@@ -44701,19 +44702,44 @@ function AV_gerarDescSituacao(){
       // corpo, então o servidor reconhece a repetição e não grava duas vezes (servidor-cadastros/lib/envios.js)
       var _corpo = function(extra){
         return Object.assign({ versao: VERSAO, processo_sei: processoSei || null, renomear_de: renomearDe || undefined,
-          base_atualizado_em: baseVersao, sem_base: aberto ? undefined : true,
+          base_atualizado_em: baseVersao, sem_base: aberto ? undefined : true, sessao_tela: _sessaoTela(),   // trava por setor (js/201)
           id_envio: "e" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 12) }, envio, extra || {});
       };
-      var resp;
+      var resp, _recarregarDepois = false;
       try{
-        try{ resp = await _apiComRetry("PUT", urlPut, _corpo(), _aoRetentar); }
-        catch(eD){
-          // servidor ainda sem delta (400) ou cadastro que sumiu do disco (precisa_pacote): manda inteiro
-          var semDelta = eD && envio.delta && (eD.status === 400 || (eD.status === 409 && eD.payload && eD.payload.precisa_pacote));
-          if (!semDelta) throw eD;
-          envio = await _envioCompleto();
+        try{
+          try{ resp = await _apiComRetry("PUT", urlPut, _corpo(), _aoRetentar); }
+          catch(eD){
+            // servidor ainda sem delta (400) ou cadastro que sumiu do disco (precisa_pacote): manda inteiro
+            var semDelta = eD && envio.delta && (eD.status === 400 || (eD.status === 409 && eD.payload && eD.payload.precisa_pacote));
+            if (!semDelta) throw eD;
+            envio = await _envioCompleto();
+            _tela(2, "Gravando em " + secao + "…");
+            resp = await _apiComRetry("PUT", urlPut, _corpo(), _aoRetentar);
+          }
+        }
+        catch(e423){
+          // 18/11/2026 (V4): setor em edição por outra tela (trava por setor, js/201). Oferece salvar só o resto.
+          if (!e423 || e423.status !== 423 || !e423.payload || !e423.payload.trava_setor) throw e423;
+          _telaOff();
+          var bl = (e423.payload.setores || []).map(function(x){ return x.unidade; });
+          var nomesBl = (e423.payload.setores || []).map(function(x){ return x.nome + (x.por ? " (" + x.por + ")" : ""); }).join(", ");
+          if (!cls || !window.SETORES){ alert(e423.message + "\n\nNada foi salvo. Seus dados continuam na tela; use “Salvar em arquivo” para guardar uma cópia."); return; }
+          var manter = function(c){ var u = window.SETORES.dono(c); if (bl.indexOf(u) < 0) return true;
+            var id = c.replace(/^campos\//, ""), ors = window.SETORES.ESPELHOS[id] || [];
+            return ors.some(function(o){ return cls.mudancas.indexOf("campos/" + o) >= 0 && bl.indexOf(window.SETORES.donoCampo(o)) < 0; }); };
+          var mud2 = cls.mudancas.filter(manter);
+          if (!mud2.length){ alert("Não salvo: todas as suas alterações estão em " + nomesBl + ", que está em edição por outra tela.\n\nSeus dados continuam na tela; use “Salvar em arquivo” se quiser guardar uma cópia."); return; }
+          if (!confirm("ATENÇÃO — " + nomesBl + " está em edição por outra pessoa.\n\n" +
+                       "OK = salvar só as suas alterações dos outros setores. As que você fez em " + nomesBl + " serão DESCARTADAS e a tela será recarregada.\n" +
+                       "Cancelar = não salvar (use “Salvar em arquivo” para guardar uma cópia).")) return;
+          var d2 = {}, rm2 = [];
+          mud2.concat(cls.derivadas).forEach(function(c){ if (c in envio.delta) d2[c] = envio.delta[c]; });
+          (envio.remover || []).forEach(function(c){ if (mud2.indexOf(c) >= 0 || cls.derivadas.indexOf(c) >= 0) rm2.push(c); });
+          envio = { delta: d2, remover: rm2.length ? rm2 : undefined, mudancas: mud2, derivadas: cls.derivadas };
           _tela(2, "Gravando em " + secao + "…");
           resp = await _apiComRetry("PUT", urlPut, _corpo(), _aoRetentar);
+          _recarregarDepois = true;
         }
       }catch(e409){
         if (!e409 || e409.status !== 409) throw e409;
@@ -44761,6 +44787,15 @@ function AV_gerarDescSituacao(){
       window.__CAD_ATUAL = { secao: secao, ctd: ctdFinal, ctdCalc: ctdCalc, pacote: pacote, atualizado_em: (resp && resp.atualizado_em) || null,
         retrato: retratoNovo, retratoDisco: retratoNovo };
       _iniciarPresenca();
+      if (window.TS_aposSalvar) window.TS_aposSalvar();
+      if (_recarregarDepois){
+        // salvou sem o setor em edição por outra pessoa: recarrega para a tela não mostrar o que não foi gravado
+        _telaOff();
+        if (_silencioso) return true;
+        alert('Cadastro "' + ctdFinal + '" salvo, sem as alterações do setor em edição por outra pessoa.\n\nA tela vai ser recarregada agora.');
+        window.CAD_abrirNuvem(ctdFinal, secao);                // retrato já = tela: recarregar não pergunta
+        return true;
+      }
       if (resp && resp.mesclado){
         // a tela ainda não tem o que a outra pessoa gravou: recarrega o cadastro (o que estava na tela já está salvo)
         _telaOff();
@@ -71242,6 +71277,347 @@ body.fbx-com-modal { overflow:hidden; }
   function iniciar(){ ligar(); render(); origemCapa(); }
   if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", iniciar); else iniciar();
 })();
+</script><style>/* Trava por setor (js/201): faixa no topo da aba em modo visualização, campos travados e aviso de cadastro salvo em outra tela */
+:root { --ts-fundo: #fff4e0; --ts-borda: #e0a84c; --ts-texto: #5b3d07; --ts-campo: #eef1f5; --ts-campo-texto: #6b7684; }
+.ts-faixa { position: sticky; top: 0; z-index: 30; margin: 0 0 12px; padding: 9px 14px; border: 1px solid var(--ts-borda); border-radius: 8px;
+  background: var(--ts-fundo); color: var(--ts-texto); font-size: 13px; line-height: 1.45; }
+.ts-faixa .ts-assumir { margin-left: 8px; padding: 3px 10px; border: 1px solid var(--ts-borda); border-radius: 6px; background: #fff; color: var(--ts-texto); cursor: pointer; font-weight: 600; }
+.ts-ro { background: var(--ts-campo) !important; color: var(--ts-campo-texto) !important; cursor: not-allowed !important; }
+.ts-salvo { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 9500; max-width: min(560px, calc(100vw - 32px));
+  padding: 10px 14px; border-radius: 9px; background: #1f3550; color: #fff; font-size: 13px; box-shadow: 0 6px 18px rgba(0,0,0,.25); }
+.ts-salvo button { margin-left: 8px; padding: 3px 10px; border: 0; border-radius: 6px; background: #fff; color: #1f3550; font-weight: 600; cursor: pointer; }
+</style><script>/* ===== Mapa campo → setor do cadastro (V2 da trava por setor, 18/11/2026) =====
+   Fonte ÚNICA de "quem é dono de cada parte do cadastro", para a trava por setor (docs/decisoes/2026-11-18-concorrencia-no-cadastro.md §6–7):
+   o app (V4) usa para travar a tela e deixar cinza o que é puxado de outro setor; o servidor (V3) usa para recusar gravação
+   em setor travado por outra tela. Funciona no navegador (window.SETORES) e no Node (require).
+   Levantado na tela real (3001, 18/11): 695 campos gravados, por aba onde estão; espelhos detectados mudando cada campo.
+   Ainda NÃO está no app (manifest) nem no servidor: só o mapa e o teste de cobertura (app-html/test/setores.test.js).
+
+   Caminhos = os do pacote (lib/mesclar.js): "campos/<id>", "radios/<name>", "imagens/<chave>", "d2figs/<chave>" e "<chave>". */
+(function(raiz, fabrica){
+  var m = fabrica();
+  if (typeof module === "object" && module.exports) module.exports = m;
+  else raiz.SETORES = m;
+})(typeof self !== "undefined" ? self : this, function(){
+  "use strict";
+
+  var UNIDADES = {
+    "d1-campo":    "DESP 1 › Campo",
+    "d1-social":   "DESP 1 › Assistência Social",
+    "d1-tecnica":  "DESP 1 › Técnica",
+    "d1-juridico": "DESP 1 › Jurídico",
+    "desp2":       "DESP 2",
+    "desp3":       "DESP 3",
+    "livre":       "sem trava (abas obsoletas e utilitários)"
+  };
+
+  // aba (painel) → unidade
+  var PAINEIS = {
+    "panel-desp1-campo": "d1-campo",
+    "panel-desp1-vist": "d1-social", "panel-desp1-drl": "d1-social", "panel-desp1-rel": "d1-social",
+    "panel-desp1-tecnica": "d1-tecnica", "panel-desp1-planta": "d1-tecnica",
+    "panel-desp1-parecer": "d1-juridico", "panel-desp1-checklist": "d1-juridico",
+    "panel-desp2-modelo02": "desp2", "panel-desp2-relatorio": "desp2",
+    "panel-avaliacao-ftn": "desp3", "panel-ccu": "desp3", "panel-anexo": "desp3", "panel-foto": "desp3", "panel-drl": "desp3",
+    "panel-docs": "desp3", "panel-anx7": "desp3", "panel-anx8": "desp3", "panel-relest": "desp3", "panel-anx10": "desp3", "panel-anx11": "desp3",
+    "panel-vistoria": "livre", "panel-avaliacao": "livre"
+  };
+
+  // campos: dono pelo prefixo (até o 1º "_"), com as exceções abaixo
+  var PREFIXOS = {
+    campo: "d1-campo", camposoc: "d1-social",
+    fb: "d1-social", rel: "d1-social", drl: "d1-social",
+    imv: "d1-tecnica", mdp: "d1-tecnica", tec: "d1-tecnica",
+    car: "d1-tecnica",                                          // carimbo da planta (Planta e Memorial; criados com os dados)
+    par: "d1-juridico", ckd: "d1-juridico",
+    d2: "desp2", d2m2: "desp2",
+    av: "desp3",
+    fv: "livre", rs: "livre",                                   // Ficha de Vistoria / Relatório antigos (grupo Obsoleto)
+    benf2: "livre", calc: "livre", cmp: "livre", mcc: "livre", mcm: "livre", mcmdoc: "livre", rta: "livre"   // utilitários
+  };
+  // capa-N / titulo-N / cfgTitulo* = títulos e capas dos anexos da DESP 3; cfgTituloUtil = utilitário
+  // m2_sel_padrao = padrão escolhido no Modelo 02; leaflet-base-layers_N = camada de fundo do mapa (preferência de tela)
+  var PADROES = [[/^cfgTituloUtil$/, "livre"], [/^(capa|titulo)-\d+$/, "desp3"], [/^cfgTitulo/, "desp3"],
+                 [/^m\d+_sel_padrao$/, "desp2"], [/^leaflet-/, "livre"]];
+
+  // campos que moram numa aba diferente da do prefixo (levantados na tela)
+  var EXCECOES = {
+    // Técnica: áreas e georreferenciamento/SIGEF/CAR (GEO é o MESMO campo mostrado também na Ficha), KML do imóvel,
+    // Roteiro de acesso (Pontos A/B e texto) e remanescentes N/S
+    fb_area_total: "d1-tecnica", fb_area_total_obs: "d1-tecnica", fb_area_ocupada: "d1-tecnica", fb_area_ocupada_obs: "d1-tecnica",
+    fb_area_desap: "d1-tecnica", fb_georref: "d1-tecnica", fb_sigef: "d1-tecnica", fb_car: "d1-tecnica",
+    rel_kml_dados: "d1-tecnica", rel_kml_nome: "d1-tecnica",
+    d2_kf_remN: "d1-tecnica", d2_kf_remS: "d1-tecnica", d2_rta_ptA: "d1-tecnica", d2_rta_ptB: "d1-tecnica", d2_tx_roteiro_de_acesso: "d1-tecnica",
+    // DÚVIDA 2: sede/SIGEF/hidrografia e camadas do CAR — editados na Técnica, guardados em campos ocultos do Modelo 02
+    d2m2_vet_sede: "d1-tecnica", d2m2_vet_sigef: "d1-tecnica", d2m2_vet_hidro: "d1-tecnica",
+    d2m2_car_imovel: "d1-tecnica", d2m2_car_app: "d1-tecnica", d2m2_car_rl: "d1-tecnica"
+  };
+  // av_* da aba Avaliação ANTIGA (Obsoleto): cópias, sem trava (os av_sg_* e demais av_* atuais são da DESP 3)
+  ["adqde","apelido","areaabr","areatotal","ass_cargo","ass_crea","ass_nome","car","cartorio","cartreg","categ","cep","comarca",
+   "conj_apelido","conjuge","cpf","data_ass","dataaq","datanasc","dataocup","dem_acao","dem_cartorio","dem_data","demarcado","denom",
+   "descricao","docaq","docid","docid2","endcorresp","estcivil","fd_area","filiacao","folhas_reg","geo","geo_cod","imun","incra","l1","l2",
+   "lim_inf","lim_sup","lit_acao","lit_cartorio","lit_data","litigio","livro","livro2","local","localidade","localnasc","mesbase",
+   "metodo_comp","metodo_custo","metodo_evol","metodo_normas","metodo_trat","municipio","n1","n2","nacion","nacion2","ncar","nome","nreg",
+   "o1","o2","objetivo","outrasareas","proc_tel","procurador","prof2","profissao","razao","regime","rem_area","s1","s2","telefone","uf",
+   "vias","zona"].forEach(function(s){ EXCECOES["av_" + s] = "livre"; });
+
+  // blocos inteiros do pacote
+  var BLOCOS = {
+    campoFicha: "d1-campo",
+    fotos: "d1-social", fbObsImgs: "d1-social", familia: "d1-social", relAreas: "d1-social", relTabelas: "d1-social", assinaturas: "d1-social",
+    avBenf: "d1-tecnica",                                         // DÚVIDA 1: benfeitorias (itens 12/13) — editadas na Técnica e na DESP 3
+    estacas: "livre",                                             // DÚVIDA 3: estacas da Ficha antiga (#fv_estacas, aba Obsoleto)
+    na: "desp3", ccuGlebas: "desp3", avBenfTotais: "desp3", avAmostra: "desp3",
+    d2ressalvas: "desp2", d2fotos: "desp2", d2atividades: "desp2", d2impacto: "desp2", d2fund: "desp2", d2doc: "desp2", d2resp: "desp2",
+    parChecklist: "d1-juridico", parPendencias: "d1-juridico", parPendExtras: "d1-juridico", parPendExcluidas: "d1-juridico"
+  };
+  // itens dos blocos mesclados por chave: imagens/<croqui|ccu|mapa> (DESP 3) e d2figs/<figura> (DESP 2)
+  var SUBBLOCOS = { imagens: "desp3", d2figs: "desp2" };
+
+  /* Campos PUXADOS de outro setor (espelhos detectados: mudar a origem muda o destino na hora).
+     destino → origens. Na trava (V4) o destino fica cinza enquanto um setor de origem está em edição, e a gravação do
+     setor de origem pode levar o destino junto (é consequência da edição dela, não edição no setor do destino). */
+  var ESPELHOS = {
+    par_processo: ["fb_proc_ctd", "fb_proc_lote", "fb_proc_sei"],
+    par_relatorio: ["fb_proc_ctd", "fb_proc_lote", "fb_proc_sei", "fb_nome", "fb_prop_id", "fb_prop_mun", "fb_prop_uf", "fb_matricula", "fb_area_total", "fb_area_desap"],
+    par_titularidade: ["fb_proc_ctd", "fb_proc_lote", "fb_proc_sei", "fb_matricula"],
+    par_sei: ["fb_proc_sei"], par_prop: ["fb_nome"], par_conclusao: ["fb_nome", "fb_prop_id"], par_contato: ["fb_telefone"],
+    par_imovel: ["fb_prop_id"], par_municipio: ["fb_prop_mun"], par_matricula: ["fb_matricula"], par_ccir: ["fb_ccir"],
+    par_area_total: ["fb_area_total"], par_area_desap: ["fb_area_desap"],
+    av_sg_vist_data: ["fb_data"], av_sg_vist_obs: ["fb_15_obs"]
+  };
+
+  function _prefixo(id){ var i = id.indexOf("_"); return i < 0 ? id : id.slice(0, i); }
+  /** Unidade dona de um campo (id do elemento) ou null se não houver regra. */
+  function donoCampo(id){
+    id = String(id || "");
+    if (Object.prototype.hasOwnProperty.call(EXCECOES, id)) return EXCECOES[id];
+    for (var i = 0; i < PADROES.length; i++) if (PADROES[i][0].test(id)) return PADROES[i][1];
+    var p = _prefixo(id);
+    return Object.prototype.hasOwnProperty.call(PREFIXOS, p) ? PREFIXOS[p] : null;
+  }
+  /** Unidade dona de um caminho do pacote ou null. */
+  function dono(caminho){
+    var c = String(caminho || ""), i = c.indexOf("/"), k = i < 0 ? c : c.slice(0, i), resto = i < 0 ? "" : c.slice(i + 1);
+    if (k === "campos" || k === "radios") return resto ? donoCampo(resto) : null;
+    if (Object.prototype.hasOwnProperty.call(SUBBLOCOS, k)) return SUBBLOCOS[k];
+    return Object.prototype.hasOwnProperty.call(BLOCOS, k) ? BLOCOS[k] : null;
+  }
+  /** Unidades de onde o campo é puxado (vazio se não é espelho). */
+  function origens(id){
+    var l = ESPELHOS[String(id || "")] || [], out = [];
+    l.forEach(function(o){ var u = donoCampo(o); if (u && out.indexOf(u) < 0) out.push(u); });
+    return out;
+  }
+
+  return { UNIDADES: UNIDADES, PAINEIS: PAINEIS, PREFIXOS: PREFIXOS, EXCECOES: EXCECOES, BLOCOS: BLOCOS, SUBBLOCOS: SUBBLOCOS,
+    ESPELHOS: ESPELHOS, donoCampo: donoCampo, dono: dono, origens: origens };
+});
+</script><script>/* ===== Trava por setor na tela (V4, 18/11/2026 — docs/decisoes/2026-11-18-concorrencia-no-cadastro.md §6–7, 11) =====
+   Duas pessoas no mesmo cadastro, cada uma num setor: quem começa a EDITAR um setor (DESP 1 › Campo / Assistência Social /
+   Técnica / Jurídico, DESP 2, DESP 3 — mapa em js/200) fica dono dele; nas outras telas o setor fica em modo visualização
+   (faixa no topo da aba, campos cinza) e o servidor recusa gravação nele (423, servidor-cadastros/lib/trava-setor.js).
+   Campos PUXADOS de um setor que outra pessoa está editando (ex.: área da Técnica no Parecer) ficam cinza também.
+   - Pega: na 1ª alteração do usuário num campo do setor (ou quando a lista de alterações pendentes mostra o setor).
+   - Renova a cada minuto enquanto houver uso nos últimos 10 min ou alteração não salva naquele setor.
+   - Solta: setor sem alteração pendente, fora da aba atual e parado há 2 min; ao fechar a página; ou parado 10 min sem pendência.
+   - Gerencial pode "Assumir" pela faixa. Quem perdeu o setor é avisado; o Salvar oferece salvar só o restante (js/117).
+   - Tudo isto só liga se o servidor disser { ativo:true } em GET /api/trava-setor (chave CONFIG/trava-setor.json no Z:);
+     servidor antigo ou chave desligada = nada acontece. */
+(function(){
+  "use strict";
+  var S = window.SETORES; if (!S) return;
+  var API = (typeof window.CAD_SERVIDOR_URL === "string" ? window.CAD_SERVIDOR_URL : "").replace(/\/+$/, "");
+  var BATIDA = 60000, PARADO_SOLTA = 2 * 60000, PARADO_MAX = 10 * 60000;
+  var E = { ativo: false, chave: "", travas: {}, minhas: {}, uso: {}, avisado: {}, t: null, meta: null, gerencial: false };
+
+  function cad(){ var a = window.__CAD_ATUAL; return (a && a.ctd && a.retrato) ? a : null; }
+  function url(a){ return API + "/api/trava-setor/" + encodeURIComponent(a.secao) + "/" + encodeURIComponent(a.ctd); }
+  function sessao(){ return window.CAD_sessaoTela ? window.CAD_sessaoTela() : ""; }
+  async function api(m, u, corpo){
+    var o = { method: m, headers: {} };
+    if (corpo !== undefined){ o.headers["Content-Type"] = "application/json"; o.body = JSON.stringify(corpo); }
+    var r = await fetch(u, o), t = await r.text(), js = null; try{ js = t ? JSON.parse(t) : null; }catch(e){}
+    return { status: r.status, js: js };
+  }
+  function aviso(msg){ try{ if (window.toast) return window.toast(msg); }catch(e){} try{ console.info(msg); }catch(e){} }
+  function hora(iso){ try{ return new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }); }catch(e){ return ""; } }
+  function nome(u){ return S.UNIDADES[u] || u; }
+
+  // unidade de um elemento: pelo id do campo (mapa) ou pela aba em que está
+  function painelTopo(el){ var p = el, top = null; while (p){ if (p.id && p.id.indexOf("panel-") === 0) top = p.id; p = p.parentElement; } return top; }
+  function unidadeDe(el){
+    if (!el || !el.closest) return null;
+    var u = el.id ? S.donoCampo(el.id) : null;
+    if (!u){ var p = painelTopo(el); u = p ? S.PAINEIS[p] : null; }
+    return (u && u !== "livre") ? u : null;
+  }
+  function unidadeAbaAtual(){
+    var p = document.querySelector('[id^="panel-"].ativa'); return p ? (S.PAINEIS[p.id] || null) : null;
+  }
+  // setores com alteração ainda não salva nesta tela
+  function pendentes(){
+    var m = window.CAD_mudancasDesdeAbertura ? window.CAD_mudancasDesdeAbertura() : null, out = {};
+    ((m && m.mudancas) || []).forEach(function(c){ var u = S.dono(c); if (u && u !== "livre") out[u] = 1; });
+    return out;
+  }
+  function deOutro(u){ var t = E.travas[u]; return !!(t && t.sessao !== sessao()); }
+
+  /* ---------- pegar / renovar / soltar ---------- */
+  async function pegar(u, assumir){
+    var a = cad(); if (!a || !E.ativo) return false;
+    var r = await api("PUT", url(a), { sessao: sessao(), unidade: u, assumir: !!assumir });
+    if (r.status === 200){ E.minhas[u] = true; E.uso[u] = Date.now(); delete E.travas[u]; if (assumir) aviso("Você assumiu " + nome(u) + "."); return true; }
+    if (r.status === 409 && r.js && r.js.por){
+      E.travas[u] = { sessao: "?", usuario: r.js.por.usuario, desde: r.js.por.desde };
+      delete E.minhas[u];
+      aviso(nome(u) + " está sendo editado por " + (r.js.por.usuario || "outra pessoa") + ". O que você mudar neste setor não será salvo.");
+      aplicar();
+    }
+    return false;
+  }
+  async function soltar(u){
+    var a = cad(); if (!a) return;
+    delete E.minhas[u];
+    try{ await api("DELETE", url(a) + "?sessao=" + encodeURIComponent(sessao()) + "&unidade=" + encodeURIComponent(u)); }catch(e){}
+  }
+
+  /* ---------- edição detectada ---------- */
+  var deb = null;
+  function aoEditar(ev){
+    if (!E.ativo || !ev.isTrusted || !cad()) return;
+    var u = unidadeDe(ev.target); if (!u) return;
+    if (deOutro(u)){
+      if (!E.avisado[u]){ E.avisado[u] = 1; aviso(nome(u) + " está em edição por " + (E.travas[u].usuario || "outra pessoa") + ": esta alteração não será salva."); }
+      return;
+    }
+    E.uso[u] = Date.now();
+    if (!E.minhas[u]) pegar(u);
+    clearTimeout(deb); deb = setTimeout(conferirPendentes, 1200);
+  }
+  function aoClicar(ev){
+    if (!E.ativo || !ev.isTrusted || !cad()) return;
+    var b = ev.target && ev.target.closest && ev.target.closest('[id^="panel-"] button, [id^="panel-"] [contenteditable]');
+    if (!b) return;
+    var u = unidadeDe(b); if (u && E.minhas[u]) E.uso[u] = Date.now();
+    clearTimeout(deb); deb = setTimeout(conferirPendentes, 1500);     // botões que acrescentam/removem itens de listas
+  }
+  async function conferirPendentes(){
+    if (!E.ativo || !cad()) return;
+    var p = pendentes();
+    for (var u in p){ if (!E.minhas[u] && !deOutro(u)) await pegar(u); else if (E.minhas[u]) E.uso[u] = Date.now(); }
+  }
+
+  /* ---------- modo visualização ---------- */
+  function marcarCampo(el, on, motivo){
+    if (on){
+      if (!el.hasAttribute("data-ts")){
+        el.setAttribute("data-ts", el.tagName === "SELECT" || el.type === "checkbox" || el.type === "radio" ? (el.disabled ? "d1" : "d0") : (el.readOnly ? "r1" : "r0"));
+        if (el.tagName === "SELECT" || el.type === "checkbox" || el.type === "radio") el.disabled = true; else el.readOnly = true;
+      }
+      el.classList.add("ts-ro"); el.title = motivo;
+    } else if (el.hasAttribute("data-ts")){
+      var v = el.getAttribute("data-ts");
+      if (v[0] === "d") el.disabled = v === "d1"; else el.readOnly = v === "r1";
+      el.removeAttribute("data-ts"); el.classList.remove("ts-ro"); el.title = "";
+    }
+  }
+  function marcarEditavel(el, on){
+    if (on){ if (!el.hasAttribute("data-ts-ce")){ el.setAttribute("data-ts-ce", el.getAttribute("contenteditable")); el.setAttribute("contenteditable", "false"); el.classList.add("ts-ro"); } }
+    else if (el.hasAttribute("data-ts-ce")){ el.setAttribute("contenteditable", el.getAttribute("data-ts-ce") || "true"); el.removeAttribute("data-ts-ce"); el.classList.remove("ts-ro"); }
+  }
+  function faixa(painel, u){
+    var f = painel.querySelector(":scope > .ts-faixa");
+    if (!u){ if (f) f.remove(); return; }
+    var t = E.travas[u];
+    if (!f){ f = document.createElement("div"); f.className = "ts-faixa"; f.setAttribute("role", "status"); painel.insertBefore(f, painel.firstChild); }
+    f.innerHTML = "🔒 <b>" + nome(u) + "</b> está sendo editado por <b>" + (t.usuario || "outra pessoa") + "</b>" + (t.desde ? " (desde " + hora(t.desde) + ")" : "") +
+      ". Esta aba está em <b>modo visualização</b>: o que for alterado aqui não será salvo." +
+      (E.gerencial ? ' <button type="button" class="ts-assumir">Assumir</button>' : "");
+    var b = f.querySelector(".ts-assumir");
+    if (b) b.onclick = function(){ if (confirm("Assumir " + nome(u) + "? " + (t.usuario || "A outra pessoa") + " deixa de poder salvar este setor (as alterações dela que não foram salvas se perdem).")) pegar(u, true); };
+  }
+  function aplicar(){
+    var bloq = {}; for (var u in E.travas) if (deOutro(u)) bloq[u] = 1;
+    // abas inteiras
+    Object.keys(S.PAINEIS).forEach(function(pid){
+      var p = document.getElementById(pid); if (!p) return;
+      var u = S.PAINEIS[pid];
+      faixa(p, bloq[u] ? u : null);
+      p.classList.toggle("ts-bloq", !!bloq[u]);
+      p.querySelectorAll("[contenteditable]").forEach(function(el){ marcarEditavel(el, !!bloq[u]); });
+    });
+    // campos: do setor travado (onde estiverem) e espelhos de setor travado
+    document.querySelectorAll('[id^="panel-"] input[id], [id^="panel-"] select[id], [id^="panel-"] textarea[id]').forEach(function(el){
+      if (el.type === "file") return;
+      var u = S.donoCampo(el.id), motivo = "";
+      if (u && bloq[u]) motivo = nome(u) + " em edição por " + (E.travas[u].usuario || "outra pessoa");
+      else { var os = S.origens(el.id).filter(function(o){ return bloq[o]; }); if (os.length) motivo = "Puxado de " + os.map(nome).join(" e ") + ", em edição por outra pessoa; atualiza quando ela salvar"; }
+      marcarCampo(el, !!motivo, motivo);
+    });
+  }
+
+  /* ---------- batimento ---------- */
+  async function batida(){
+    var a = cad();
+    if (!a){ E.ativo = false; return; }
+    var chave = a.secao + "/" + a.ctd;
+    if (chave !== E.chave){ E.chave = chave; E.travas = {}; E.minhas = {}; E.uso = {}; E.avisado = {}; E.meta = null; }
+    var g; try{ g = await api("GET", url(a)); }catch(e){ return; }
+    if (!g || g.status !== 200 || !g.js || !g.js.ativo){ if (E.ativo){ E.ativo = false; E.travas = {}; aplicar(); } return; }
+    E.ativo = true;
+    try{ var s = await api("GET", API + "/api/sessao"); E.gerencial = !!(s.js && (s.js.usuario ? s.js.usuario.papel === "gerencial" : s.js.gerencial !== false)); }catch(e){}
+    var minha = sessao(), travas = g.js.travas || {};
+    // perdi algum setor (venceu ou um gerencial assumiu)?
+    Object.keys(E.minhas).forEach(function(u){
+      var t = travas[u];
+      if (t && t.sessao !== minha){ delete E.minhas[u]; aviso((t.usuario || "Outra pessoa") + " assumiu " + nome(u) + ". O que você mudou nele não será salvo."); }
+    });
+    E.travas = {};
+    Object.keys(travas).forEach(function(u){
+      if (travas[u].sessao !== minha) E.travas[u] = travas[u];
+      else if (!E.minhas[u]){ E.minhas[u] = true; E.uso[u] = E.uso[u] || 0; }   // trava desta tela de antes de recarregar: adota (renova ou solta abaixo)
+    });
+    var pend = pendentes(), agora = Date.now(), aba = unidadeAbaAtual();
+    for (var u in E.minhas){
+      var parado = agora - (E.uso[u] || 0);
+      if (!pend[u] && ((u !== aba && parado > PARADO_SOLTA) || parado > PARADO_MAX)){ await soltar(u); continue; }
+      await pegar(u);                                                           // renova
+    }
+    for (var p in pend) if (!E.minhas[p] && !E.travas[p]) await pegar(p);   // pendente sem trava (ex.: trava venceu): pega de novo
+    aplicar();
+    await conferirSalvoPorOutro(a);
+  }
+  // alguém salvou o cadastro depois que esta tela abriu/salvou: faixa para recarregar
+  async function conferirSalvoPorOutro(a){
+    try{
+      var m = await api("GET", API + "/api/cadastros/" + encodeURIComponent(a.secao) + "/" + encodeURIComponent(a.ctd) + "?meta=1");
+      var em = m.js && m.js.atualizado_em; if (!em) return;
+      if (!E.meta){ E.meta = em; return; }
+      var f = document.getElementById("ts_salvo");
+      if (em === E.meta){ if (f) f.remove(); return; }
+      if (!f){ f = document.createElement("div"); f.id = "ts_salvo"; f.className = "ts-salvo"; f.setAttribute("role", "status"); document.body.appendChild(f); }
+      var pend = Object.keys(pendentes()).length;
+      f.innerHTML = "Este cadastro foi salvo em outra tela às " + hora(em) + ". " +
+        (pend ? "Salve o seu setor e depois recarregue para ver tudo atualizado. " : "") + '<button type="button">Recarregar</button>';
+      f.querySelector("button").onclick = function(){ window.CAD_abrirNuvem(a.ctd, a.secao); };
+    }catch(e){}
+  }
+  window.TS_aposSalvar = function(){ E.meta = null; var f = document.getElementById("ts_salvo"); if (f) f.remove(); setTimeout(batida, 500); };
+  window.TS_estado = function(){ return { ativo: E.ativo, minhas: Object.keys(E.minhas), deOutros: E.travas }; };
+  window.TS_unidadesBloqueadas = function(){ var o = []; for (var u in E.travas) if (deOutro(u)) o.push(u); return o; };
+
+  document.addEventListener("input", aoEditar, true);
+  document.addEventListener("change", aoEditar, true);
+  document.addEventListener("click", aoClicar, true);
+  window.addEventListener("pagehide", function(){
+    var a = cad(); if (!a || !Object.keys(E.minhas).length) return;
+    try{ fetch(url(a) + "?sessao=" + encodeURIComponent(sessao()), { method: "DELETE", keepalive: true }); }catch(e){}
+  });
+  // começa quando o cadastro termina de abrir (retrato pronto) e segue a cada minuto
+  function iniciar(){ clearInterval(E.t); E.t = setInterval(batida, BATIDA); var n = 0, i = setInterval(function(){ if (cad() || ++n > 120){ clearInterval(i); batida(); } }, 1000); }
+  if (document.readyState === "complete") iniciar(); else window.addEventListener("load", iniciar);
+})();
 </script><style>
 /* ===== DESP 3 › Avaliação FTN › Aspectos Gerais do laudo (SGPD) — 18/10/2026 =====
    Mesmo visual das seções da aba (vsec/vcard/vfield); só o que falta: caixas de seleção e textarea bloqueada. */
@@ -72680,9 +73056,9 @@ body.fbx-com-modal { overflow:hidden; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.11.18-6';
+window.APP_VERSAO = '2026.11.18-7';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
-window.SERVIDOR_RECOMENDADO = '2026.11.18-6';
+window.SERVIDOR_RECOMENDADO = '2026.11.18-7';
 (function(){
   var SEM_VERSAO = '0000.00.00-0';
   var LEGADO_LAYOUT = '2026.10.07-0';   // servidor que já tem layout_antigo no health, mas ainda sem número de versão
