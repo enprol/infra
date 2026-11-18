@@ -43479,9 +43479,12 @@ function AV_gerarDescSituacao(){
     $("ses_m_sair").onclick = function(){ $("ses_menu_lista").hidden = true; sair(false); };
   }
   async function sair(silencioso){
+    // 18/11/2026 (caso 027A): Sair recarrega a página e descarta o que não foi salvo — pergunta antes
+    if(!silencioso && window.CAD_temPendencias && window.CAD_temPendencias() &&
+       !confirm("Há alterações neste cadastro que ainda NÃO foram salvas.\n\nOK = sair e descartar as alterações.\nCancelar = continuar aqui (salve antes de sair).")) return;
     try{ await api("POST", "/api/logout"); }catch(e){}
     EST.usuario = null; EST.gerencialAte = 0; flag(false);
-    if(!silencioso){ location.reload(); return; }          // recarregar descarta da memória o que a pessoa podia ver
+    if(!silencioso){ window.__SEM_AVISO_SAIDA = true; location.reload(); return; }   // recarregar descarta da memória o que a pessoa podia ver
     desenharMenu();
   }
   function aviso(msg){ try{ if(window.toast) return window.toast(msg); }catch(e){} try{ console.info(msg); }catch(e){} }
@@ -44485,6 +44488,15 @@ function AV_gerarDescSituacao(){
     var a = window.__CAD_ATUAL;
     return (a && a.retrato) ? _classificar(a, _retratoTela()) : null;
   };
+  /* 18/11/2026 (caso 027A): sair ou recarregar a página com alterações não salvas descartava tudo sem perguntar.
+     CAD_temPendencias() = a tela tem alteração do usuário ainda não salva (cadastro aberto do servidor). */
+  window.CAD_temPendencias = function(){
+    try{ var m = window.CAD_mudancasDesdeAbertura(); return !!(m && m.mudancas && m.mudancas.length); }catch(e){ return false; }
+  };
+  window.addEventListener("beforeunload", function(ev){
+    if (window.__SEM_AVISO_SAIDA || !window.CAD_temPendencias()) return;
+    ev.preventDefault(); ev.returnValue = "";                     // o navegador mostra o aviso padrão "sair sem salvar?"
+  });
 
   /* Presença (26/10/2026): a tela com um cadastro aberto avisa o servidor a cada minuto (e ao trocar de aba) e
      mostra quem mais está com ele aberto, e em qual aba. Servidor antigo (sem /api/presenca): nada aparece. */
@@ -44685,9 +44697,12 @@ function AV_gerarDescSituacao(){
       var baseVersao = (aberto && aberto.atualizado_em) ? aberto.atualizado_em : undefined;
       var urlPut = "/api/cadastros/" + encodeURIComponent(secao) + "/" + encodeURIComponent(ctd);
       var _aoRetentar = function(n, t){ _tela(2, "Servidor não respondeu — tentando de novo (" + n + "/" + t + ")…"); if (btn) btn.textContent = "💾 Servidor não respondeu — tentando de novo (" + n + "/" + t + ")…"; };
+      // 18/11/2026: cada envio leva um código único; as repetições automáticas (_apiComRetry) reenviam o MESMO
+      // corpo, então o servidor reconhece a repetição e não grava duas vezes (servidor-cadastros/lib/envios.js)
       var _corpo = function(extra){
         return Object.assign({ versao: VERSAO, processo_sei: processoSei || null, renomear_de: renomearDe || undefined,
-          base_atualizado_em: baseVersao, sem_base: aberto ? undefined : true }, envio, extra || {});
+          base_atualizado_em: baseVersao, sem_base: aberto ? undefined : true,
+          id_envio: "e" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 12) }, envio, extra || {});
       };
       var resp;
       try{
@@ -44759,6 +44774,11 @@ function AV_gerarDescSituacao(){
       }
       var extra = (pacote._orfaos && Object.keys(pacote._orfaos).length)
         ? ("\n(" + Object.keys(pacote._orfaos).length + " campo(s) de layout antigo preservados no arquivo.)") : "";
+      // 18/11/2026: gravação inteira com partes vazias na tela — o servidor manteve as do disco (não apaga ficha/fotos)
+      if (resp && resp.blocos_mantidos && resp.blocos_mantidos.length){
+        extra += "\n\nATENÇÃO: estas partes estavam vazias na tela e foram MANTIDAS como estavam no servidor: " +
+          resp.blocos_mantidos.map(function(k){ return _rotuloCaminho(k); }).join(", ") + ". Reabra o cadastro para vê-las.";
+      }
       if (renomearDe && resp && resp.renomeado){
         extra += '\n\nO cadastro foi RENOMEADO de "' + renomearDe + '" para "' + ctdFinal + '" (é o mesmo cadastro, não foi criado outro).';
       } else if (renomearDe && resp && resp.motivo_renome === "destino_existe"){
@@ -72660,9 +72680,9 @@ body.fbx-com-modal { overflow:hidden; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.11.18-5';
+window.APP_VERSAO = '2026.11.18-6';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
-window.SERVIDOR_RECOMENDADO = '2026.11.18-3';
+window.SERVIDOR_RECOMENDADO = '2026.11.18-6';
 (function(){
   var SEM_VERSAO = '0000.00.00-0';
   var LEGADO_LAYOUT = '2026.10.07-0';   // servidor que já tem layout_antigo no health, mas ainda sem número de versão
