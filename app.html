@@ -9316,7 +9316,8 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
           <textarea id="drl_sigef_links" rows="4" placeholder="Um link (ou só o código da parcela) por linha. Pode pôr o nome antes, ex.:&#10;Parcela Lote 02 A – https://sigef.incra.gov.br/geo/parcela/detalhe/…&#10;Parcela Lote 02 B – https://sigef.incra.gov.br/geo/parcela/detalhe/…"></textarea>
           <p class="hint-inline" style="margin:6px 0 0;">Cada linha vira um item, logo depois do item 2. Em branco, vale o link montado do código da parcela da Ficha (SIGEF), se houver.</p>
         </div>
-        <div class="drl-card">
+        <!-- 18/11/2026: oculto; o PDF sai sempre com o município/UF do imóvel e a data da geração (DRL_localDataAtual, js/130) -->
+        <div class="drl-card" style="display:none" aria-hidden="true">
           <label for="drl_local_data">Local e data</label>
           <input type="text" id="drl_local_data" placeholder="Automático: município e a data do dia (ex.: SERTÂNIA – PE, 25 de outubro de 2026)">
         </div>
@@ -23402,8 +23403,17 @@ function AV_gerarDescSituacao(){
   // usado pra montar a lista de opções dela: se o próprio filtro da coluna
   // contasse, desmarcar um valor o faria desaparecer da lista e não daria pra
   // marcar de volta. É a mesma regra do Excel.
+  // 18/11/2026 (Fernando): o andamento por etapa (pendências) só vale para cadastros sinalizados: com Medição escolhida
+  // (diferente de "-") e ao menos um produto DESP marcado. As visões "Falta …" e o card do topo usam só esses.
+  var _pgMonOnly = false;
+  function PG_monitorado(it){
+    var d = it && it.desps;
+    return !!(it && it.medicao && it.medicao !== PG_MEDICAO_VAZIO && d && (d.d1 || d.d2 || d.d3));
+  }
+  window.PG_monitorado = PG_monitorado;
   function _pgItensFiltrados(exceto){
     return _pgItens.filter(function(it){
+      if(_pgMonOnly && !PG_monitorado(it)) return false;
       return _PG_CAMPOS.every(function(campo){
         if (campo === exceto) return true;
         var sel = _pgSel[campo];
@@ -23463,6 +23473,7 @@ function AV_gerarDescSituacao(){
 
   window.PG_toggleValor = function(campo, valor, marcado){
     var opcoes = _pgValoresUnicos(campo).map(String);
+    _pgMonOnly = false;
     var atual = _pgSel[campo];
     if(atual === null) atual = new Set(opcoes);
     if(marcado) atual.add(valor); else atual.delete(valor);
@@ -23474,6 +23485,7 @@ function AV_gerarDescSituacao(){
   };
 
   window.PG_toggleTodos = function(campo, marcado){
+    _pgMonOnly = false;
     _pgSel[campo] = marcado ? null : new Set();
     PG_popularListaFiltro(campo);
     PG_renderizar();
@@ -23939,7 +23951,7 @@ function AV_gerarDescSituacao(){
   function PGX_listaVisoes(){
     var v = [{ id:'todos', t:'Todos', sel:{} }];
     [['campo','Campo'], ['social','Social'], ['tecnica','Técnica'], ['juridica','Jurídica']].forEach(function(p){
-      var s = {}; s[p[0]] = _PGX_PEND; v.push({ id:'falta_' + p[0], t:'Falta ' + p[1], sel:s });
+      var s = {}; s[p[0]] = _PGX_PEND; v.push({ id:'falta_' + p[0], t:'Falta ' + p[1], sel:s, mon:true });
     });
     v.push({ id:'completos', t:'Completos', sel:{ campo:['concluido'], social:['concluido'], tecnica:['concluido'], juridica:['concluido'] } });
     var lotes = {};
@@ -23954,6 +23966,7 @@ function AV_gerarDescSituacao(){
     });
   }
   function _pgxVisaoAtiva(vis){
+    if(!!vis.mon !== _pgMonOnly) return false;
     return _PG_CAMPOS.every(function(c){
       var cur = _pgSel[c], spec = vis.sel[c];
       if(!spec) return cur === null;
@@ -23964,6 +23977,7 @@ function AV_gerarDescSituacao(){
   window.PGX_aplicarVisao = function(id){
     var vis = PGX_listaVisoes().filter(function(v){ return v.id === id; })[0];
     if(!vis) return;
+    _pgMonOnly = !!vis.mon;
     _PG_CAMPOS.forEach(function(c){ _pgSel[c] = vis.sel[c] ? new Set(vis.sel[c]) : null; });
     _PG_CAMPOS.forEach(function(c){ var pop = document.getElementById('pgPop' + _PG_SUFIXOS[c]); if(pop) pop.hidden = true; });
     PG_renderizar();
@@ -23984,7 +23998,7 @@ function AV_gerarDescSituacao(){
   window.PGX_toggleFiltros = function(){ _pgxFiltAberto = !_pgxFiltAberto; _pgxSalvar('pgx_filtros', _pgxFiltAberto); PGX_aplicarEstados(); };
   window.PGX_toggleValores = function(){ _pgxSemValores = !_pgxSemValores; _pgxSalvar('pgx_sem_valores', _pgxSemValores); PGX_aplicarEstados(); };
   window.PGX_toggleDens    = function(){ _pgxConforto = !_pgxConforto; _pgxSalvar('pgx_conforto', _pgxConforto); PGX_aplicarEstados(); };
-  window.PGX_limpar = function(){ _PG_CAMPOS.forEach(function(c){ _pgSel[c] = null; }); PG_renderizar(); };
+  window.PGX_limpar = function(){ _pgMonOnly = false; _PG_CAMPOS.forEach(function(c){ _pgSel[c] = null; }); PG_renderizar(); };
   // exportar a visão atual (CSV com ; e BOM — abre direto no Excel)
   window.PGX_exportar = function(){
     var itens = _pgItensFiltrados(null).sort(window.PGX_cmp);
@@ -24016,12 +24030,12 @@ function AV_gerarDescSituacao(){
     var visoes = PGX_listaVisoes(), algumaAtiva = false, host = document.getElementById('pgxVisoes');
     if(host){
       host.innerHTML = visoes.map(function(v){
-        var n = _pgItens.filter(function(it){ return _pgxCasa(it, v.sel); }).length;
+        var n = _pgItens.filter(function(it){ return (!v.mon || PG_monitorado(it)) && _pgxCasa(it, v.sel); }).length;
         var on = _pgxVisaoAtiva(v); if(on) algumaAtiva = true;
         return '<button type="button" class="pgx-chip' + (on ? ' on' : '') + '" onclick="PGX_aplicarVisao(\'' + v.id + '\')">' + esc(v.t) + '<b>' + n + '</b></button>';
       }).join('');
       var nFilt = _PG_CAMPOS.filter(function(c){ return !!_pgSel[c]; }).length;
-      if(nFilt && !algumaAtiva) host.insertAdjacentHTML('beforeend', '<button type="button" class="pgx-chip limpar" onclick="PGX_limpar()">✕ Limpar filtros (' + nFilt + ')</button>');
+      if((nFilt || _pgMonOnly) && !algumaAtiva) host.insertAdjacentHTML('beforeend', '<button type="button" class="pgx-chip limpar" onclick="PGX_limpar()">✕ Limpar filtros (' + nFilt + ')</button>');
     }
     var nf = _PG_CAMPOS.filter(function(c){ return !!_pgSel[c]; }).length, bd = document.getElementById('pgxFiltN');
     if(bd){ bd.textContent = nf; bd.hidden = !nf; }
@@ -46232,23 +46246,26 @@ function AV_gerarDescSituacao(){
       val=(val==null?"":String(val));
       const navyCor=o.navy||o.navy2, LABC=o.navy?NAVY:(o.navy2?[70,88,110]:BLK);
       F(o.navy?"bold":"normal"); pdf.setFontSize(FS); C(LABC);
-      const labLines=pdf.splitTextToSize(label, Math.max(RX-x,20));
-      const lastLabW=pdf.getTextWidth(labLines[labLines.length-1]);
       const gap0=(o.gap0!==undefined)?o.gap0:3;
+      // 18/11/2026 (Fernando): o.quebra = rótulo longo quebra antes da coluna do valor (valTab), para o valor seguir alinhado
+      const labW=(o.quebra && o.valTab!==undefined) ? Math.max(mL+o.valTab-gap0-x, 20) : Math.max(RX-x,20);
+      const labLines=pdf.splitTextToSize(label, labW);
+      const lastLabW=pdf.getTextWidth(labLines[labLines.length-1]);
       let vx=(o.valTab!==undefined)?Math.max(mL+o.valTab, x+lastLabW+gap0):(x+lastLabW+gap0);
       let availV=RX-vx, sameLine=true;
       if(!val){ availV=20; }
       else if(availV<35){ sameLine=false; vx=x+2; availV=RX-vx; }
       const vLines=val?pdf.splitTextToSize(val, Math.max(availV,20)):[];
       const nLab=labLines.length, nVal=vLines.length;
-      const alt=sameLine ? Math.max(nLab,(nLab-1)+Math.max(1,nVal)) : (nLab+nVal);
+      const vIni=(sameLine && o.quebra) ? 0 : (nLab-1);    // rótulo quebrado (o.quebra): o valor começa na 1ª linha do rótulo
+      const alt=sameLine ? Math.max(nLab,vIni+Math.max(1,nVal)) : (nLab+nVal);
       garantir(alt*LH+1);
       const y0=y;
       C(LABC); F(o.navy?"bold":"normal");
       for(let i=0;i<nLab;i++) pdf.text(labLines[i], x, y0+i*LH);
       if(val){
         F("normal"); C(BLK);
-        const vy0=sameLine ? (y0+(nLab-1)*LH) : (y0+nLab*LH);
+        const vy0=sameLine ? (y0+vIni*LH) : (y0+nLab*LH);
         for(let i=0;i<nVal;i++) _lineJust(vLines[i], vx, vy0+i*LH, availV, i===nVal-1);
       }
       C(BLK); F("normal");
@@ -46273,7 +46290,10 @@ function AV_gerarDescSituacao(){
       F("normal"); C(labCor);
       pdf.text(l1,xL,y0); if(v1){ C(BLK); for(let i=0;i<t1.length;i++) pdf.text(t1[i],vx1,y0+i*LH); }
       C(labCor); pdf.text(l2,xR,y0); if(v2){ C(BLK); for(let i=0;i<t2.length;i++) pdf.text(t2[i],xR+w2,y0+i*LH); }
-      y=y0+alt*LH+0.4;
+      // 18/11/2026 (Fernando): o par também fecha com a linha, como o rv() (Município/UF da Ficha ficava sem linha)
+      pdf.setDrawColor(195,211,230); pdf.setLineWidth(0.15); const _yr=y0+(alt-1)*LH+1.7; pdf.line(xL, _yr, RX, _yr);
+      C(BLK); F("normal");
+      y=y0+alt*LH+0.5;
     }
     // Normaliza texto digitado em CAIXA ALTA para "Frase normal, com maiúscula só
     // no início de cada frase/parágrafo" — não mexe em números, preserva a marcação
@@ -46397,46 +46417,46 @@ function AV_gerarDescSituacao(){
     // 1.3 Proprietário(a)
     (function(){ garantir(LH+1); F("bold"); pdf.setFontSize(FS); C(NAVY); const l="1.3 Proprietário(a) (SIM/NÃO):"; pdf.text(l, mL, y); let x=mL+pdf.getTextWidth(l)+3; C(BLK); F("bold"); const s=(/sim/i.test(gv("fb_11_dom"))||gv("fb_nome"))?"SIM":""; pdf.text(s, x, y); x+=pdf.getTextWidth(s||"")+6; F("italic"); C(BLK); pdf.text("(Se sim, preencher item 1.3.1; se não, item 1.3.2)", x, y); y+=LH; })();
     var _isPJ = document.getElementById("fb_pf_pj_pj") && document.getElementById("fb_pf_pj_pj").checked;
-    rv(_isPJ ? "1.3.1 Razão Social:" : "1.3.1 Nome:", gv("fb_nome"), {navy2:true, valTab:49});
-    if(!_isPJ) rv("RG:", gv("fb_rg"), {navy2:true, valTab:49});
-    rv(_isPJ ? "CNPJ:" : (document.getElementById("fb_cpf_tipo")&&document.getElementById("fb_cpf_tipo").value==="cnpj"?"CNPJ:":"CPF:"), gv("fb_cpf"), {navy2:true, valTab:49});
-    rv("Telefone:", gv("fb_telefone"), {navy2:true, valTab:49});
-    if(!_isPJ){ rv("Estado Civil:", gv("fb_estcivil"), {navy2:true, valTab:49});
-    rv("Cônjuge:", gv("fb_conjuge"), {navy2:true, valTab:49}); }
-    rv("Endereço:", gv("fb_endereco"), {navy2:true, valTab:49, gapTop:3.5});
+    rv(_isPJ ? "1.3.1 Razão Social:" : "1.3.1 Nome:", gv("fb_nome"), {navy2:true, regra:true, valTab:49});
+    if(!_isPJ) rv("RG:", gv("fb_rg"), {navy2:true, regra:true, valTab:49});
+    rv(_isPJ ? "CNPJ:" : (document.getElementById("fb_cpf_tipo")&&document.getElementById("fb_cpf_tipo").value==="cnpj"?"CNPJ:":"CPF:"), gv("fb_cpf"), {navy2:true, regra:true, valTab:49});
+    rv("Telefone:", gv("fb_telefone"), {navy2:true, regra:true, valTab:49});
+    if(!_isPJ){ rv("Estado Civil:", gv("fb_estcivil"), {navy2:true, regra:true, valTab:49});
+    rv("Cônjuge:", gv("fb_conjuge"), {navy2:true, regra:true, valTab:49}); }
+    rv("Endereço:", gv("fb_endereco"), {navy2:true, regra:true, valTab:49, gapTop:3.5});
     rv2("Município:", gv("fb_municipio"), "UF:", gv("fb_uf"), {navy:true, valTab:49});
-    rv("1.3.2 Informante (nome):", gv("fb_inf_nome"), {navy2:true, valTab:49, gapTop:3.5});
-    rv("Grau de parentesco:", gv("fb_411_par"), {navy2:true, valTab:49});
-    rv("Dados comprobatório:", gv("fb_inf_dados"), {navy2:true, valTab:49});
+    rv("1.3.2 Informante (nome):", gv("fb_inf_nome"), {navy2:true, regra:true, valTab:49, gapTop:3.5});
+    rv("Grau de parentesco:", gv("fb_411_par"), {navy2:true, regra:true, valTab:49});
+    rv("Dados comprobatório:", gv("fb_inf_dados"), {navy2:true, regra:true, valTab:49});
     if(gv("fb_ocup_e_prop")==="2 - Não"){
       y+=3.5;
-      rv("RG:", gv("fb_ocup_rg"), {navy2:true, valTab:49});
-      rv((document.getElementById("fb_ocup_cpf_tipo")&&document.getElementById("fb_ocup_cpf_tipo").value==="cnpj"?"CNPJ:":"CPF:"), gv("fb_ocup_cpf"), {navy2:true, valTab:49});
-      rv("Estado Civil:", gv("fb_ocup_estcivil"), {navy2:true, valTab:49});
-      rv("Cônjuge:", gv("fb_ocup_conjuge"), {navy2:true, valTab:49});
-      rv("Endereço:", gv("fb_ocup_endereco"), {navy2:true, valTab:49});
+      rv("RG:", gv("fb_ocup_rg"), {navy2:true, regra:true, valTab:49});
+      rv((document.getElementById("fb_ocup_cpf_tipo")&&document.getElementById("fb_ocup_cpf_tipo").value==="cnpj"?"CNPJ:":"CPF:"), gv("fb_ocup_cpf"), {navy2:true, regra:true, valTab:49});
+      rv("Estado Civil:", gv("fb_ocup_estcivil"), {navy2:true, regra:true, valTab:49});
+      rv("Cônjuge:", gv("fb_ocup_conjuge"), {navy2:true, regra:true, valTab:49});
+      rv("Endereço:", gv("fb_ocup_endereco"), {navy2:true, regra:true, valTab:49});
       rv2("Município:", gv("fb_ocup_municipio"), "UF:", gv("fb_ocup_uf"), {navy:true, valTab:49});
-      rv("Telefone:", gv("fb_ocup_telefone"), {navy2:true, valTab:49});
+      rv("Telefone:", gv("fb_ocup_telefone"), {navy2:true, regra:true, valTab:49});
     }
     y+=0;
     // 1.4 Propriedade
     h2("1.4 Propriedade");
-    rv("Identificação:", gv("fb_prop_id"), {navy2:true, valTab:49});
-    rv("Endereço:", gv("fb_prop_end"), {navy2:true, valTab:49});
-    rv("CEP:", gv("fb_prop_cep"), {navy2:true, valTab:49});
+    rv("Identificação:", gv("fb_prop_id"), {navy2:true, regra:true, valTab:49});
+    rv("Endereço:", gv("fb_prop_end"), {navy2:true, regra:true, valTab:49});
+    rv("CEP:", gv("fb_prop_cep"), {navy2:true, regra:true, valTab:49});
     rv2("Município:", gv("fb_prop_mun"), "UF:", gv("fb_prop_uf"), {navy:true, valTab:49});
-    rv("Área Total (ha):", gv("fb_area_total"), {navy2:true, valTab:49});
-    rv("Observação (origem da área total):", gv("fb_area_total_obs"), {navy2:true, valTab:49, regra:true});
-    rv("Área total ocupada (ha):", gv("fb_area_ocupada"), {navy2:true, valTab:49});
-    rv("Observação (origem da área ocupada):", gv("fb_area_ocupada_obs"), {navy2:true, valTab:49, regra:true});
-    rv("Área abrangida pelo projeto (ha):", gv("fb_area_desap"), {navy2:true, valTab:49});
-    rv("Matrícula:", gv("fb_matricula"), {navy2:true, valTab:49});
-    rv("Cartório:", (window.FB_cartorioDoc ? window.FB_cartorioDoc() : gv("fb_cartorio")), {navy2:true, valTab:49});
-    rv("CIB/ITR:", gv("fb_cib"), {navy2:true, valTab:49});
-    rv("CCIR:", gv("fb_ccir"), {navy2:true, valTab:49});
-    rv("Possui georreferenciamento?:", gv("fb_georref"), {navy2:true, valTab:49});
-    rv("SIGEF:", gv("fb_sigef"), {navy2:true, valTab:49});
-    rv("CAR:", gv("fb_car"), {navy2:true, valTab:49});
+    rv("Área Total (ha):", gv("fb_area_total"), {navy2:true, regra:true, valTab:49});
+    rv("Observação (origem da área total):", gv("fb_area_total_obs"), {navy2:true, valTab:49, regra:true, quebra:true});
+    rv("Área total ocupada (ha):", gv("fb_area_ocupada"), {navy2:true, regra:true, valTab:49});
+    rv("Observação (origem da área ocupada):", gv("fb_area_ocupada_obs"), {navy2:true, valTab:49, regra:true, quebra:true});
+    rv("Área abrangida pelo projeto (ha):", gv("fb_area_desap"), {navy2:true, regra:true, valTab:49, quebra:true});
+    rv("Matrícula:", gv("fb_matricula"), {navy2:true, regra:true, valTab:49});
+    rv("Cartório:", (window.FB_cartorioDoc ? window.FB_cartorioDoc() : gv("fb_cartorio")), {navy2:true, regra:true, valTab:49});
+    rv("CIB/ITR:", gv("fb_cib"), {navy2:true, regra:true, valTab:49});
+    rv("CCIR:", gv("fb_ccir"), {navy2:true, regra:true, valTab:49});
+    rv("Possui georreferenciamento?:", gv("fb_georref"), {navy2:true, regra:true, valTab:49, quebra:true});
+    rv("SIGEF:", gv("fb_sigef"), {navy2:true, regra:true, valTab:49});
+    rv("CAR:", gv("fb_car"), {navy2:true, regra:true, valTab:49});
     y+=0;
     // 1.5 Observações
     h2("1.5 Observações:");
@@ -46486,11 +46506,11 @@ function AV_gerarDescSituacao(){
     rv("2.4.4 Hidrografia / Vazão (m³ ou L/s):", "", {navy2:true, gapTop:3.5}); para(gv("fb_243_hidro"));
     rv("2.4.5 Informações complementares:", "", {navy2:true, gapTop:3.5}); para(gv("fb_244_comp"));
     h2("2.5 Imóvel urbano:");
-    rv("2.5.1 Infraestrutura:", [_iu.urbano?_iu.infra:"", gv("fb_251_infra")].filter(Boolean).join(". "), {navy2:true, valTab:64});
-    rv("2.5.2 Serviços públicos (raio de 1 km):", _iu.urbano?_iu.serv:"", {navy2:true, valTab:64});
-    rv("2.5.3 Topográfica:", gv("fb_252_topo"), {navy2:true, valTab:64});
-    rv("2.5.4 Distância do centro:", gv("fb_253_dist"), {navy2:true, valTab:64});
-    rv("2.5.5 Informações complementares:", gv("fb_254_comp"), {navy2:true, valTab:64});
+    rv("2.5.1 Infraestrutura:", [_iu.urbano?_iu.infra:"", gv("fb_251_infra")].filter(Boolean).join(". "), {navy2:true, regra:true, valTab:64});
+    rv("2.5.2 Serviços públicos (raio de 1 km):", _iu.urbano?_iu.serv:"", {navy2:true, regra:true, valTab:64});
+    rv("2.5.3 Topográfica:", gv("fb_252_topo"), {navy2:true, regra:true, valTab:64});
+    rv("2.5.4 Distância do centro:", gv("fb_253_dist"), {navy2:true, regra:true, valTab:64});
+    rv("2.5.5 Informações complementares:", gv("fb_254_comp"), {navy2:true, regra:true, valTab:64});
 
     // ===================== 3 - DESCRIÇÃO DAS BENFEITORIAS =====================
     // (sem novoTopico() aqui, mesmo motivo do tópico 2: se o conteúdo do tópico
@@ -51165,7 +51185,25 @@ function DRL_localDataPadrao(d){
   var lugar = (d && d.municipio) ? (d.municipio + (d.uf ? (' – '+d.uf) : '')) : '________';
   return lugar + ', ' + new Date().toLocaleDateString('pt-BR', { day:'numeric', month:'long', year:'numeric' });
 }
-function DRL_localDataAtual(d){ var t=DRL_gv('drl_local_data').trim(); return (!t || /_{3,}/.test(t)) ? DRL_localDataPadrao(d) : t; }
+// 18/11/2026 (Fernando): sempre o município/UF do imóvel e a data em que o PDF é gerado; o campo "Local e data" ficou
+// oculto e um texto antigo salvo nele não vale mais.
+function DRL_localDataAtual(d){ return DRL_localDataPadrao(d); }
+// 18/11/2026 (Fernando): baixar a DRL leva junto a planta (sem satélite, a do carimbo) e o memorial descritivo, da Mesa
+// de Desenho. Um seletor de pasta para os três; sem ele, cada um é salvo à parte. Devolve {blob, nome} da DRL, para o
+// PRODUTO no servidor (js/140) guardar a DRL como antes.
+async function DRL_salvarComAnexos(blob, nome){
+  var arqs=[{blob:blob, nome:nome}], faltou=[];
+  async function anexo(fn, rot){
+    try{ var r=(typeof window[fn]==='function') ? await window[fn]({retornar:true}) : null; if(r&&r.blob) arqs.push({blob:r.blob, nome:r.nome}); else faltou.push(rot); }
+    catch(e){ console.warn('DRL: '+rot+' não gerado:', e); faltou.push(rot); }
+  }
+  await anexo('MDP_pdfPlantaSem', 'Planta');
+  await anexo('MDP_pdfMemorial', 'Memorial descritivo');
+  var ok = (arqs.length>1 && window.FS_salvarVarios) ? await window.FS_salvarVarios(arqs) : null;
+  if(ok===null){ for(var i=0;i<arqs.length;i++) await window.FS_salvar(arqs[i].blob, arqs[i].nome); }
+  if(faltou.length && ok!==false) alert('A DRL foi salva, mas não consegui gerar: '+faltou.join(' e ')+'.\n\nConfira o KML da área em Técnica e gere pela aba Planta e Memorial.');
+  return {blob:blob, nome:nome};
+}
 window.DRL_gerarTexto=async function(){
   var e=document.getElementById('drl_texto'); if(!e) return;
   if(DRL_modelo()==='nota') await DRL_carregarKm();
@@ -51312,8 +51350,7 @@ window.DRL_gerarPDF=async function(opts){
     rodape();
     var blobN=pdf.output('blob'), _nomeN="DRL_"+(window.__CTDsuf?window.__CTDsuf():"CTD 000")+".pdf";
     if(opts&&opts.retornar) return {blob:blobN, nome:_nomeN};
-    await window.FS_salvar(blobN, _nomeN);
-    return;
+    return await DRL_salvarComAnexos(blobN, _nomeN);
   }
 
   // ---- PÁGINA 1: título + texto + assinatura + De acordo + data ----
@@ -51349,8 +51386,7 @@ window.DRL_gerarPDF=async function(opts){
     var blobS=pdf.output('blob');
     var _nomeS="DRL_"+(window.__CTDsuf?window.__CTDsuf():"CTD 000")+".pdf";
     if(opts&&opts.retornar) return {blob:blobS, nome:_nomeS};
-    await window.FS_salvar(blobS, _nomeS);
-    return;
+    return await DRL_salvarComAnexos(blobS, _nomeS);
   }
 
   // campos para assinatura a próprio punho
@@ -51400,7 +51436,7 @@ window.DRL_gerarPDF=async function(opts){
   var blob=pdf.output('blob');
   var _nomeD="DRL_"+(window.__CTDsuf?window.__CTDsuf():"CTD 000")+".pdf";
   if(opts&&opts.retornar) return {blob:blob, nome:_nomeD};
-  await window.FS_salvar(blob, _nomeD);
+  return await DRL_salvarComAnexos(blob, _nomeD);
 };
 
 /* =========================================================================
@@ -60351,7 +60387,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     var pg = $('painelGeral'), bar = pg && pg.querySelector('.pgx-barra'); if(!bar || $('pgvHero')) return;
     var h = document.createElement('section'); h.className = 'pgv-hero'; h.id = 'pgvHero'; h.setAttribute('aria-label', 'Resumo da situação dos cadastros');
     h.innerHTML = '<div class="pgv-card" style="--i:0"><span class="rot">Cadastros</span><b class="big" id="pgvN">0</b><div class="pgv-split" id="pgvSps"></div></div>' +
-      '<div class="pgv-card" style="--i:1;--glow:rgba(229,72,77,.14)"><span class="rot">Andamento por etapa · clique para ver o que falta</span><div class="pgv-et" id="pgvEt"></div></div>' +
+      '<div class="pgv-card" style="--i:1;--glow:rgba(229,72,77,.14)"><span class="rot">Andamento por etapa · só com Medição e DESP marcados · clique para ver o que falta</span><div class="pgv-et" id="pgvEt"></div></div>' +
       '<div class="pgv-card pgv-val" style="--i:2;--glow:rgba(233,161,0,.18)"><span class="rot">Desapropriação</span><b class="big" id="pgvValor">R$ 0</b><div class="lin"><span>Área <b id="pgvHa">0</b> ha</span><span>Terra nua <b id="pgvTn">—</b></span><span>Benfeitorias <b id="pgvBf">—</b></span></div></div>';
     var rec = false; try{ rec = localStorage.getItem('pgvRecolhido') === '1'; }catch(e){}
     var tog = document.createElement('button'); tog.type = 'button'; tog.className = 'pgv-tog'; tog.id = 'pgvTog';
@@ -60368,8 +60404,10 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     contar($('pgvN'), n, function(v){ return Math.round(v); });
     var s4 = l.filter(function(it){ return /^0?4$/.test(String(it.lote||'').replace(/\D/g,'')); }).length, s7 = l.filter(function(it){ return /^0?7$/.test(String(it.lote||'').replace(/\D/g,'')); }).length;
     $('pgvSps').innerHTML = (s4 ? '<i class="a" style="flex:' + s4 + '">SPS-04 · ' + s4 + '</i>' : '') + (s7 ? '<i class="b" style="flex:' + s7 + '">SPS-07 · ' + s7 + '</i>' : '') + (n - s4 - s7 > 0 ? '<i style="flex:' + (n - s4 - s7) + ';background:#9db0bd">outros · ' + (n - s4 - s7) + '</i>' : '');
-    $('pgvEt').innerHTML = ST.map(function(s){ var ok = l.filter(function(it){ return okE(it, s[0]); }).length, p = n ? Math.round(ok/n*100) : 0;
-      return '<button type="button" onclick="PGX_aplicarVisao(\'' + s[2] + '\')" title="' + ok + ' de ' + n + ' completos — clique para ver os que faltam"><span>' + s[1] + '</span><span class="pgv-trilho"><i data-p="' + p + '"></i></span><span>' + p + '%</span></button>'; }).join('');
+    // 18/11/2026: andamento por etapa só dos cadastros sinalizados (Medição escolhida + algum DESP marcado)
+    var lm = l.filter(function(it){ return window.PG_monitorado ? window.PG_monitorado(it) : true; }), nm = lm.length;
+    $('pgvEt').innerHTML = ST.map(function(s){ var ok = lm.filter(function(it){ return okE(it, s[0]); }).length, p = nm ? Math.round(ok/nm*100) : 0;
+      return '<button type="button" onclick="PGX_aplicarVisao(\'' + s[2] + '\')" title="' + ok + ' de ' + nm + ' cadastros com Medição e DESP marcados estão completos — clique para ver os que faltam"><span>' + s[1] + '</span><span class="pgv-trilho"><i data-p="' + p + '"></i></span><span>' + p + '%</span></button>'; }).join('');
     requestAnimationFrame(function(){ Array.prototype.forEach.call(document.querySelectorAll('#pgvEt .pgv-trilho i'), function(i){ i.style.width = i.dataset.p + '%'; i.style.setProperty('--bg', (100/Math.max(1,+i.dataset.p/100)) + '%'); }); });
 
 
@@ -72663,7 +72701,7 @@ body.fbx-com-modal { overflow:hidden; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.11.17-5';
+window.APP_VERSAO = '2026.11.18-1';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.11.17-1';
 (function(){
