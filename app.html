@@ -2785,9 +2785,11 @@ window.REL_baixarConjunto = async function(){
   // O navegador só abre a janela de salvar logo após um clique: a 2ª janela "Salvar como" era
   // recusada e o Word caía em Downloads. Aqui escolhe-se a PASTA uma vez e grava tudo nela.
   // arqs = [{blob, nome}]. Devolve true (salvou), false (cancelou) ou null (navegador sem suporte).
+  // 18/11/2026: arqs também pode ser uma FUNÇÃO (async) que devolve a lista: a janela da pasta abre ANTES (ainda no clique do
+  // usuário) e os arquivos demorados são gerados depois. Se o navegador não tem a janela, devolve null sem chamar a função.
   window.FS_salvarVarios = async function(arqs){
-    arqs=(arqs||[]).filter(function(x){ return x && x.blob && x.nome; });
-    if(!arqs.length) return true;
+    var gerar=(typeof arqs==='function')?arqs:null;
+    if(!gerar){ arqs=(arqs||[]).filter(function(x){ return x && x.blob && x.nome; }); if(!arqs.length) return true; }
     if(!window.showDirectoryPicker) return null;
     var dir;
     try{
@@ -2796,6 +2798,7 @@ window.REL_baixarConjunto = async function(){
       dir=await window.showDirectoryPicker(popt);
     }catch(e){ if(e&&e.name==='AbortError') return false; return null; }
     window.__FS_dirUltimo=dir;
+    if(gerar){ arqs=((await gerar())||[]).filter(function(x){ return x && x.blob && x.nome; }); if(!arqs.length) return true; }
     var existentes=[];
     for(var i=0;i<arqs.length;i++){ try{ await dir.getFileHandle(arqs[i].nome); existentes.push(arqs[i].nome); }catch(e){} }
     if(existentes.length && !confirm('Já existe(m) nesta pasta:\n\n'+existentes.join('\n')+'\n\nSubstituir?')) return false;
@@ -23407,8 +23410,11 @@ function AV_gerarDescSituacao(){
   // (diferente de "-") e ao menos um produto DESP marcado. As visões "Falta …" e o card do topo usam só esses.
   var _pgMonOnly = false;
   function PG_monitorado(it){
-    var d = it && it.desps;
-    return !!(it && it.medicao && it.medicao !== PG_MEDICAO_VAZIO && d && (d.d1 || d.d2 || d.d3));
+    if(!it) return false;
+    if(typeof it.monitorado === 'boolean') return it.monitorado;     // não gerencial: o servidor manda só o sim/não
+    if(it.medicao === undefined && it.desps === undefined) return true;   // servidor anterior a 18/11 não gerencial: sem o dado, vale o comportamento antigo (todos)
+    var d = it.desps;
+    return !!(it.medicao && it.medicao !== PG_MEDICAO_VAZIO && d && (d.d1 || d.d2 || d.d3));
   }
   window.PG_monitorado = PG_monitorado;
   function _pgItensFiltrados(exceto){
@@ -46449,12 +46455,12 @@ function AV_gerarDescSituacao(){
     rv("Observação (origem da área total):", gv("fb_area_total_obs"), {navy2:true, valTab:49, regra:true, quebra:true});
     rv("Área total ocupada (ha):", gv("fb_area_ocupada"), {navy2:true, regra:true, valTab:49});
     rv("Observação (origem da área ocupada):", gv("fb_area_ocupada_obs"), {navy2:true, valTab:49, regra:true, quebra:true});
-    rv("Área abrangida pelo projeto (ha):", gv("fb_area_desap"), {navy2:true, regra:true, valTab:49, quebra:true});
+    rv("Área abrangida pelo projeto (ha):", gv("fb_area_desap"), {navy2:true, regra:true, valTab:49});
     rv("Matrícula:", gv("fb_matricula"), {navy2:true, regra:true, valTab:49});
     rv("Cartório:", (window.FB_cartorioDoc ? window.FB_cartorioDoc() : gv("fb_cartorio")), {navy2:true, regra:true, valTab:49});
     rv("CIB/ITR:", gv("fb_cib"), {navy2:true, regra:true, valTab:49});
     rv("CCIR:", gv("fb_ccir"), {navy2:true, regra:true, valTab:49});
-    rv("Possui georreferenciamento?:", gv("fb_georref"), {navy2:true, regra:true, valTab:49, quebra:true});
+    rv("Possui georreferenciamento?:", gv("fb_georref"), {navy2:true, regra:true, valTab:49});
     rv("SIGEF:", gv("fb_sigef"), {navy2:true, regra:true, valTab:49});
     rv("CAR:", gv("fb_car"), {navy2:true, regra:true, valTab:49});
     y+=0;
@@ -51192,16 +51198,30 @@ function DRL_localDataAtual(d){ return DRL_localDataPadrao(d); }
 // de Desenho. Um seletor de pasta para os três; sem ele, cada um é salvo à parte. Devolve {blob, nome} da DRL, para o
 // PRODUTO no servidor (js/140) guardar a DRL como antes.
 async function DRL_salvarComAnexos(blob, nome){
-  var arqs=[{blob:blob, nome:nome}], faltou=[];
-  async function anexo(fn, rot){
-    try{ var r=(typeof window[fn]==='function') ? await window[fn]({retornar:true}) : null; if(r&&r.blob) arqs.push({blob:r.blob, nome:r.nome}); else faltou.push(rot); }
-    catch(e){ console.warn('DRL: '+rot+' não gerado:', e); faltou.push(rot); }
+  var arqs=null, faltou=[], avisos=[];
+  // planta e memorial avisam por alert() quando falta KML etc.: junta tudo num aviso só no fim
+  async function gerar(){
+    arqs=[{blob:blob, nome:nome}];
+    var al=window['alert']; window['alert']=function(m){ m=String(m||'').trim(); if(m && avisos.indexOf(m)<0) avisos.push(m); };
+    try{
+      for(var k=0;k<2;k++){
+        var fn=k?'MDP_pdfMemorial':'MDP_pdfPlantaSem', rot=k?'Memorial descritivo':'Planta';
+        try{ var r=(typeof window[fn]==='function') ? await window[fn]({retornar:true}) : null; if(r&&r.blob) arqs.push({blob:r.blob, nome:r.nome}); else faltou.push(rot); }
+        catch(e){ console.warn('DRL: '+rot+' não gerado:', e); faltou.push(rot); }
+      }
+    } finally { window['alert']=al; }
+    return arqs;
   }
-  await anexo('MDP_pdfPlantaSem', 'Planta');
-  await anexo('MDP_pdfMemorial', 'Memorial descritivo');
-  var ok = (arqs.length>1 && window.FS_salvarVarios) ? await window.FS_salvarVarios(arqs) : null;
-  if(ok===null){ for(var i=0;i<arqs.length;i++) await window.FS_salvar(arqs[i].blob, arqs[i].nome); }
-  if(faltou.length && ok!==false) alert('A DRL foi salva, mas não consegui gerar: '+faltou.join(' e ')+'.\n\nConfira o KML da área em Técnica e gere pela aba Planta e Memorial.');
+  // a janela da pasta abre primeiro (ainda no clique); só então a planta e o memorial são gerados e gravados junto
+  var ok = window.FS_salvarVarios ? await window.FS_salvarVarios(gerar) : null;
+  if(ok===null){                                    // navegador sem a janela da pasta: um arquivo por vez
+    if(!arqs) await gerar();
+    for(var i=0;i<arqs.length;i++){ if(await window.FS_salvar(arqs[i].blob, arqs[i].nome)===false) break; }
+  }
+  if(faltou.length && ok!==false){
+    var NL=String.fromCharCode(10);
+    alert('A DRL foi salva, mas não consegui gerar: '+faltou.join(' e ')+'.'+NL+NL+(avisos.length ? avisos.join(NL) : 'Confira o KML da área em Técnica e gere pela aba Planta e Memorial.'));
+  }
   return {blob:blob, nome:nome};
 }
 window.DRL_gerarTexto=async function(){
@@ -63849,7 +63869,7 @@ section.tab-panel.rel-pad{ background:#e9eef3 repeating-linear-gradient(135deg, 
         cliqueOrig = HTMLAnchorElement.prototype.click, dispOrig = HTMLAnchorElement.prototype.dispatchEvent, salvarVariosOrig = window.FS_salvarVarios;
     function guarda(blob, nome){ if(blob) capt.push({ blob:blob, nome:nome || "documento.pdf" }); }
     window.FS_salvar = function(blob, nome){ guarda(blob, nome); return Promise.resolve(true); };
-    window.FS_salvarVarios = function(arqs){ (arqs || []).forEach(function(x){ guarda(x && x.blob, x && x.nome); }); return Promise.resolve(true); };
+    window.FS_salvarVarios = async function(arqs){ if(typeof arqs === "function") arqs = await arqs(); (arqs || []).forEach(function(x){ guarda(x && x.blob, x && x.nome); }); return true; };
     if(saveOrig) jsp.API.save = function(nome){ guarda(this.output("blob"), nome); return this; };
     function linkDeDownload(a){
       if(!a.hasAttribute("download") || !/^(blob|data):/.test(a.href || "")) return false;
@@ -70990,7 +71010,6 @@ body.fbx-com-modal { overflow:hidden; }
   var CAMPOS = {
     fb_ass_local:   ctxImovel,
     rel_local_data: function(){ return { mun:gv("rel_municipio") || gv("fb_prop_mun"), uf:gv("fb_prop_uf") || gv("fb_uf") }; },
-    drl_local_data: ctxImovel,
     par_local_data: function(){ return { mun:"Brasília", uf:"DF" }; }
   };
   window.LOCALDATA_doCampo = function(id){ var f = CAMPOS[id]; return window.LOCALDATA_padrao(gv(id), f ? f() : null); };
@@ -71046,7 +71065,7 @@ body.fbx-com-modal { overflow:hidden; }
   function ligarCampos(){
     Object.keys(CAMPOS).forEach(function(id){
       var e = $(id); if(!e || e.__ldPadrao) return; e.__ldPadrao = true;
-      e.placeholder = id === "par_local_data" ? "Ex.: Brasília/DF, 16 de julho de 2026" : (id === "drl_local_data" ? "Automático: Município/UF e a data do dia (ex.: Sertânia/PE, 16 de julho de 2026)" : "Ex.: Sertânia/PE, 16 de julho de 2026");
+      e.placeholder = id === "par_local_data" ? "Ex.: Brasília/DF, 16 de julho de 2026" : "Ex.: Sertânia/PE, 16 de julho de 2026";
       e.addEventListener("change", function(){ if(!window.__CAD_RESTAURANDO) ajustar(id); });
       e.addEventListener("input", function(){ dica(id); });
       dica(id);
@@ -72701,9 +72720,9 @@ body.fbx-com-modal { overflow:hidden; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.11.18-1';
+window.APP_VERSAO = '2026.11.18-2';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
-window.SERVIDOR_RECOMENDADO = '2026.11.17-1';
+window.SERVIDOR_RECOMENDADO = '2026.11.18-2';
 (function(){
   var SEM_VERSAO = '0000.00.00-0';
   var LEGADO_LAYOUT = '2026.10.07-0';   // servidor que já tem layout_antigo no health, mas ainda sem número de versão
