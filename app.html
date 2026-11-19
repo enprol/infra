@@ -9318,15 +9318,27 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 
 <section class="tab-panel" id="panel-desp1-tecnica">
 <div class="wrap">
-<h1>Técnica</h1>
+<div class="tec-topo"><h1>Técnica</h1><button type="button" class="vbtn vbtn-ghost vbtn-sm mav-abrir" onclick="MAV_abrir()" title="Mapas livres, fora dos relatórios: gerar, guardar no cadastro e baixar em JPG"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2z"/><path d="M9 4v14M15 6v14"/></svg>Mapas avulsos…<span class="mav-n" id="mav_n" hidden></span></button></div>
 <p class="sub">Áreas de locação e área abrangida pelo projeto (preenchimento único, usado nos demais documentos) e as Benfeitorias da Avaliação (DESP 3) — o que for preenchido aqui ou lá aparece nos dois lugares.</p>
 <div class="vcard"><div class="vsub">Áreas de Locação</div><div class="rel-areas" id="rel_areas"></div><p class="hint-inline rel-km-aviso" id="rel_km_aviso" role="status" aria-live="polite"></p><div class="vactions" style="margin-top:6px;"><button class="vbtn vbtn-ghost" type="button" onclick="REL_addArea()">+ Adicionar área</button></div>
   <div class="tec-areas-ha vrow"><div class="vfield"><label>Área total registrada (ha)</label><input type="text" id="fb_area_total" aria-label="Área total registrada (ha)" class="num4" inputmode="decimal" placeholder="0,0000"></div><div class="vfield"><label>Área total ocupada (ha)</label><input type="text" id="fb_area_ocupada" aria-label="Área total ocupada (ha)" class="num4" inputmode="decimal" placeholder="0,0000"></div><div class="vfield"><label>Área abrangida pelo projeto (ha)</label><input type="text" id="fb_area_desap" class="num4" inputmode="decimal" placeholder="0,0000"></div><div class="vfield"><label>Remanescente norte (ha)</label><input type="text" id="d2_kf_remN" class="num4" inputmode="decimal" placeholder="0,0000"></div><div class="vfield"><label>Remanescente sul / sede (ha)</label><input type="text" id="d2_kf_remS" class="num4" inputmode="decimal" placeholder="0,0000"></div></div>
   <div class="tec-areas-obs vrow"><div class="vfield grow"><label for="fb_area_total_obs">Observação — origem da área total registrada</label><input type="text" id="fb_area_total_obs" placeholder="Ex.: matrícula nº …, CCIR, SIGEF, escritura"></div><div class="vfield grow"><label for="fb_area_ocupada_obs">Observação — origem da área total ocupada</label><input type="text" id="fb_area_ocupada_obs" placeholder="Ex.: KML da área total, levantamento de campo, CAR"></div></div>
   <p class="hint-inline tec-areas-dica" id="tec_areas_dica">Área total registrada e Área total ocupada são preenchidas só aqui (a Assistência Social e o Anexo B apenas leem). Automáticos: área total ocupada = KML da área total do imóvel; área abrangida pelo projeto = KML da desapropriada; remanescentes norte e sul = mapa das áreas remanescentes da DESP 2 (ocupada − desapropriada). Sem o mapa: preenchido um remanescente, o outro é calculado.</p>
   <div class="vsub tec-geo-sub">Georreferenciamento (Anexo B — Ficha de Vistoria)</div><div id="geo_row_slot"></div>
+  <!-- 19/11/2026 (Fernando): Roteiro de acesso desceu de seção para subtópico, logo depois do Georreferenciamento;
+       campos (Pontos A/B e botões) à esquerda, texto do roteiro à direita (css/202). O bloco é o mesmo da DESP 2 (DOM-portal, js/105). -->
+  <div class="vsub tec-geo-sub tec-rot-sub">Roteiro de acesso</div>
+  <p class="hint-inline" style="margin-top:0;">Pontos A e B e o texto do roteiro: saem no Memorial Descritivo (com o QR do percurso) e no anexo Roteiro de Acesso do memorial FTN. O mapa do roteiro é gerado sozinho com os Pontos A e B.</p>
+  <!-- 25/10/2026: as plantas da DESP-2 original saíram daqui (mapas automáticos); a figura do roteiro também não aparece mais nesta aba -->
+  <style>#panel-desp1-tecnica #d2_row_roteiro_de_acesso .d2-figgrid{display:none;}</style>
+  <div class="d2plantas-lista tec-rot-lista">
+    <div id="d2_row_roteiro_de_acesso_slot"></div>
+  </div>
 </div>
-<div class="vcard" id="tec_kmls_card"><div class="vsub tec-kml-cab">Arquivos KML do imóvel<button type="button" class="tec-cam-btn" onclick="IMVB_camAbrir()" title="Quadro de camadas: estilo dos mapas automáticos da DESP 2 e da planta de situação"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3 3 8l9 5 9-5-9-5z"/><path d="m3 13 9 5 9-5"/></svg>Quadro de camadas…</button></div>
+<!-- 19/11/2026 (Fernando): "Arquivos KML do imóvel" e "Vetores próprios e camadas do CAR" num tópico só, retrátil.
+     Os ids tec_kmls_card / tec_vet_card / tec_vet_slot continuam (js/139, js/181, css/196). -->
+<h2 class="vsec acc fechado tec-arq-cab" id="tec_arq_cab" onclick="FV_toggleSec(this)"><span>Arquivos KML e camadas do imóvel</span><span class="tec-arq-res" id="tec_arq_res" aria-live="polite"></span><span class="acc-chevron">▾</span></h2>
+<div class="vcard oculto" id="tec_kmls_card"><div class="tec-kml-cab tec-arq-barra"><span class="tec-arq-barra-t">Arquivos KML do imóvel</span><button type="button" class="tec-cam-btn" onclick="IMVB_camAbrir()" title="Quadro de camadas: estilo dos mapas automáticos da DESP 2 e da planta de situação"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3 3 8l9 5 9-5-9-5z"/><path d="m3 13 9 5 9-5"/></svg>Quadro de camadas…</button></div>
   <p class="hint-inline" style="margin-top:0;">Todos os KMLs do cadastro. O da <b>área abrangida pelo projeto</b> alimenta a planta, o memorial descritivo e o Mapa Geral; os demais (opcionais) entram nos <b>mapas automáticos do DESP-2</b> conforme a regra de cada figura.</p>
   <!-- Mesa, etapa 5 (14/10/2026): porta única de arquivos — solta tudo de uma vez, o sistema sugere o destino de cada um -->
   <div class="mz-porta" data-mzporta tabindex="0" role="button" aria-label="Enviar arquivos do imóvel: KML, GeoPackage ou DXF — vários de uma vez">
@@ -9419,12 +9431,24 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
       <input type="hidden" id="imv_kml_hidro_nome">
     </div>
   </div>
-</div>
 <!-- 12/11/2026 (Fernando): tópicos da DESP 2 trazidos para a Técnica — os mesmos blocos do Modelo 02 (DOM-portal, js/105) -->
-<div class="vcard" id="tec_vet_card">
-  <div class="vsub">Vetores próprios e camadas do CAR <span class="hint-auto"> mapas da DESP 2</span></div>
+<div class="tec-vet-bloco" id="tec_vet_card">
+  <div class="vsub tec-geo-sub">Vetores próprios e camadas do CAR <span class="hint-auto"> mapas da DESP 2</span></div>
   <p class="hint-inline" style="margin-top:0;">Os mesmos campos da DESP 2 (Relatório de Análise de Impacto), agora aqui junto dos KMLs. Os mapas da DESP 2 que já existirem são refeitos sozinhos.</p>
   <div id="tec_vet_slot"></div>
+</div>
+</div>
+<!-- 19/11/2026 (Fernando): mapas avulsos num MODAL (botão "Mapas avulsos…" ao lado do título da aba) — o mesmo gerador de mapas
+     da DESP 2, sem ligação com relatório; só guardam e baixam JPG (js/202 + css/202; pacote.tecMapas, imagens viram arquivo no servidor) -->
+<div class="tec-cam-ov mav-ov" id="mav_ov" hidden>
+<div class="tec-cam-box mav-box" role="dialog" aria-modal="true" aria-labelledby="mav_tit">
+<header><h3 id="mav_tit">Mapas avulsos</h3><button type="button" class="tec-cam-x" onclick="MAV_fechar()" aria-label="Fechar">×</button></header>
+<div class="mav-corpo">
+  <p class="hint-inline" style="margin-top:0;">Mapas livres, com as camadas, a escala e a base que você escolher (o mesmo gerador dos mapas da DESP 2). Não entram em nenhum relatório: ficam guardados no cadastro para editar de novo e baixar em JPG.</p>
+  <div class="mav-lista" id="mav_lista"></div>
+</div>
+<footer><button type="button" class="vbtn vbtn-sm mav-novo" onclick="MAV_novo()">＋ Novo mapa</button><button type="button" class="vbtn vbtn-ghost" onclick="MAV_fechar()">Fechar</button></footer>
+</div>
 </div>
 <div class="tec-cam-ov" id="tec_cam_ov" hidden>
 <div class="tec-cam-box" role="dialog" aria-modal="true" aria-labelledby="tec_cam_tit">
@@ -9459,13 +9483,6 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 <p class="hint-inline" style="margin-top:0;">As tabelas abaixo são as mesmas da aba Avaliação (DESP 3 → Avaliação): editar aqui ou lá preenche o mesmo lugar.</p>
 <div id="bnf_item12_slot"></div>
 <div id="bnf_item13_slot"></div>
-<div class="vsec" style="margin-top:22px;">Roteiro de acesso</div>
-<p class="hint-inline" style="margin-top:0;">Pontos A e B e o texto do roteiro: saem no Memorial Descritivo (com o QR do percurso) e no anexo Roteiro de Acesso do memorial FTN. Os mapas são gerados sozinhos (o do roteiro usa os Pontos A e B).</p>
-<!-- 25/10/2026: as plantas da DESP-2 original saíram daqui (mapas automáticos); a figura do roteiro também não aparece mais nesta aba -->
-<style>#panel-desp1-tecnica #d2_row_roteiro_de_acesso .d2-figgrid{display:none;}</style>
-<div class="d2plantas-lista">
-  <div id="d2_row_roteiro_de_acesso_slot"></div>
-</div>
 </div>
 </section>
 
@@ -22697,6 +22714,7 @@ function AV_gerarDescSituacao(){
     [w12, w13].forEach(function(w){
       if(!w) return;
       var h2 = w.querySelector(".vsec.acc"), card = w.querySelector(".vcard");
+      bnfTituloSemNum(h2, true);   // 19/11/2026: na Técnica sem "12 —"/"13 —"; na Avaliação o número volta (quadros 12 e 13 do laudo)
       if(h2 && !h2.classList.contains("fechado")) h2.classList.add("fechado");
       if(card && !card.classList.contains("oculto")) card.classList.add("oculto");
     });
@@ -22705,7 +22723,15 @@ function AV_gerarDescSituacao(){
     var marca = document.getElementById("bnf_home_marca");
     var w12 = document.getElementById("bnf_item12_wrap"), w13 = document.getElementById("bnf_item13_wrap");
     if(marca && w12 && w13 && w12.parentNode !== marca.parentNode) marca.after(w12, w13);
+    [w12, w13].forEach(function(w){ if(w) bnfTituloSemNum(w.querySelector(".vsec.acc"), false); });
   };
+  // título do item 12/13: tira o número na Técnica e devolve o texto original na Avaliação (guardado em data-tit-orig)
+  function bnfTituloSemNum(h2, tirar){
+    var s = h2 && h2.querySelector("span"); if(!s) return;
+    if(!s.hasAttribute("data-tit-orig")) s.setAttribute("data-tit-orig", s.textContent);
+    var orig = s.getAttribute("data-tit-orig");
+    s.textContent = tirar ? orig.replace(/^\s*\d+\s*[—–-]\s*/, "") : orig;
+  }
   // 16/09/2026: Ressalvas (3.2) e Relatório Fotográfico (6.1) pararam de ser
   // replicados na aba Técnica (pedido do usuário — Técnica só insere mapas,
   // não relatório fotográfico) — voltaram a morar só na DESP 2, como antes do
@@ -43897,6 +43923,7 @@ function AV_gerarDescSituacao(){
       imagens: (window.__AV_IMAGENS__ || {}),
       fotos: (window.FB_getFotos?window.FB_getFotos():[]),
       fbObsImgs: (window.FB_getObsImgs?window.FB_getObsImgs():[]),   // 17/11/2026: imagens do 1.5 Observações (js/199)
+      tecMapas: (window.MAV_get?window.MAV_get():[]),   // 19/11/2026: mapas avulsos da Técnica (js/202)
       d2figs: (window.D2_getFigs?window.D2_getFigs():{}),
       familia: (window.FB_getFamilia?window.FB_getFamilia():[]),
       d2ressalvas: (window.D2_getRessalvas?window.D2_getRessalvas():[]),
@@ -44075,6 +44102,7 @@ function AV_gerarDescSituacao(){
     etapa("imagens", function(){ restaurarImagens(pacote.imagens); });
     etapa("fotografias", function(){ if(pacote.fotos && window.FB_setFotos) window.FB_setFotos(pacote.fotos); });
     etapa("imagens das Observações (Ficha)", function(){ if(window.FB_setObsImgs) window.FB_setObsImgs(pacote.fbObsImgs || []); });
+    etapa("mapas avulsos (Técnica)", function(){ if(window.MAV_set) window.MAV_set(pacote.tecMapas || []); });
     etapa("figuras (DESP 2)", function(){ if(pacote.d2figs && window.D2_setFigs) window.D2_setFigs(pacote.d2figs); });
     etapa("benfeitorias reprodutivas/não reprodutivas (itens 12/13)", function(){ if(pacote.avBenf && window.BNF_setLinhas) window.BNF_setLinhas(pacote.avBenf); });
     etapa("amostra de mercado (Terra Nua)", function(){ if(pacote.avAmostra && window.AV_preencherAmostra) window.AV_preencherAmostra(pacote.avAmostra); });
@@ -44568,7 +44596,7 @@ function AV_gerarDescSituacao(){
   });
   var _NOME_CHAVE = { radios: "opções marcadas", imagens: "imagens da Avaliação", d2figs: "figuras do DESP 2", d2fotos: "fotos do DESP 2",
     d2ressalvas: "ressalvas do DESP 2", d2atividades: "atividades do DESP 2", d2impacto: "impacto (DESP 2)", d2fund: "situação fundiária (DESP 2)",
-    d2doc: "documentação (DESP 2)", d2resp: "responsável (DESP 2)", fotos: "fotos da Ficha", fbObsImgs: "imagens das Observações (Ficha)", familia: "família", estacas: "estacas",
+    d2doc: "documentação (DESP 2)", d2resp: "responsável (DESP 2)", fotos: "fotos da Ficha", fbObsImgs: "imagens das Observações (Ficha)", tecMapas: "mapas avulsos (Técnica)", familia: "família", estacas: "estacas",
     na: "nota agronômica", ccuGlebas: "glebas (CCU)", relAreas: "áreas do Relatório", relTabelas: "tabelas do Relatório", assinaturas: "assinaturas",
     parChecklist: "checklist do Parecer", parPendencias: "pendências do Parecer", parPendExtras: "pendências extras do Parecer",
     parPendExcluidas: "pendências excluídas do Parecer", campoFicha: "Ficha de Campo", avBenf: "benfeitorias (Avaliação)",
@@ -57761,7 +57789,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     opts=opts||null;
     var REC=opts?Object.assign({ cams:['area','desap','faixa'], foco:'area' }, opts.receita||{}):null;
     var regra=opts?{ cams:REC.cams.slice() }:d2regra(fid), fxA=opts?null:d2fx(fid);
-    var meta=opts?[opts.titulo||'Mapa do relatório','']:figMeta(fid);
+    var meta=opts?[opts.titulo||(opts.campoTitulo?'Mapa avulso (não entra em relatório)':'Mapa do relatório'),'']:figMeta(fid);
     if(!regra) return;
     if(!opts && d2base(fid)==='f3c' && figOculta(fid)){ alert('A propriedade está marcada como "não possui atividade agrícola" (Técnica › Arquivos KML do imóvel › Áreas de culturas). Desmarque para gerar o mapa de culturas.'); return; }
     var rot=!!regra.roteiro;   // Figura 1: roteiro de acesso (Pontos A/B + percurso)
@@ -57780,8 +57808,10 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     if(!ov){ ov=document.createElement('div'); ov.id='d2map_ov'; document.body.appendChild(ov); }
     var ESCALAS=[1000,2000,2500,5000,7500,10000,15000,20000,25000,50000,100000];
     var h='<div class="d2m-card d2m-2col" role="dialog" aria-modal="true" aria-label="'+(opts?'Inserir mapa':'Gerar mapa automático')+'">'
-      +'<div class="d2m-top"><div><h3>'+(opts?(opts.gerar?'Editar mapa':'Inserir mapa'):'Gerar mapa automático')+'</h3><p>'+d2esc(meta[0])+'</p></div><button type="button" class="d2m-x" aria-label="Fechar" onclick="document.getElementById(\'d2map_ov\').remove()">✕</button></div>'
+      +'<div class="d2m-top"><div><h3>'+(opts?(opts.gerar?'Editar mapa':(opts.campoTitulo?'Mapa avulso':'Inserir mapa')):'Gerar mapa automático')+'</h3><p>'+d2esc(meta[0])+'</p></div><button type="button" class="d2m-x" aria-label="Fechar" onclick="document.getElementById(\'d2map_ov\').remove()">✕</button></div>'
       +'<div class="d2m-body"><div class="d2m-esq"><div class="d2m-grid">'
+      // 19/11/2026: mapas avulsos da Técnica (js/202) — título livre do mapa (vai na receita como REC.titulo e no nome do JPG)
+      + ((opts && opts.campoTitulo) ? fld('Título do mapa','<input id="d2map_titav" class="d2m-in" maxlength="120" value="'+d2esc(opts.titulo||'')+'">',' d2m-full') : '')
       + (fxA ? fld('Título da figura extra (no relatório)','<input id="d2fx_tit" class="d2m-in" value="'+d2esc(fxA.titulo||'')+'">',' d2m-full')
              + fld('Fonte','<input id="d2fx_fonte" class="d2m-in" value="'+d2esc(fxA.fonte||'')+'">',' d2m-full') : '')
       + fld('Processo administrativo','<textarea id="d2map_proc" rows="2" class="d2m-in">'+d2esc(D2MAP_TXT.proc)+'</textarea>',' d2m-full')
@@ -58009,7 +58039,9 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       if(mexido() && !confirm('O mapa ainda não foi refeito com o novo enquadramento. Usar a prévia como está?')) return;
       var bu=this; if(bu.disabled) return; bu.disabled=true; st('Preparando a figura…'); ldrGuardar();
       (async function(){ try{
-      if(opts){ if(!REC.png) return; var pn=await pngFinal(REC.png); delete REC.png; REC.ldr=d2usrCopia(LDR); opts.onUsar(pn, REC); var o0=document.getElementById('d2map_ov'); if(o0) o0.remove(); return; }
+      if(opts){ if(!REC.png) return; var pn=await pngFinal(REC.png); delete REC.png; REC.ldr=d2usrCopia(LDR);
+        if(opts.campoTitulo){ var _ti=document.getElementById('d2map_titav'); REC.titulo=_ti?String(_ti.value||'').trim():''; }
+        opts.onUsar(pn, REC); var o0=document.getElementById('d2map_ov'); if(o0) o0.remove(); return; }
       if(!figsAuto[fid]) return;
       figsAuto[fid]=await pngFinal(figsAuto[fid]);
       if(figs[fid] && !figManualBackup[fid]){ figManualBackup[fid]=figs[fid]; }   // preserva a manual
@@ -58019,7 +58051,8 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     };
     document.getElementById('d2map_jpg').onclick=async function(){
       var png=opts?REC.png:figsAuto[fid]; if(!png){ st('Gere a prévia antes de baixar.'); return; }
-      var nome=String(meta[0]||'Mapa').replace(/[\\/:*?"<>|]+/g,' ').replace(/\s+/g,' ').trim().slice(0,90)||'Mapa';
+      var _tav=document.getElementById('d2map_titav');
+      var nome=String((_tav&&_tav.value.trim())||meta[0]||'Mapa').replace(/[\\/:*?"<>|]+/g,' ').replace(/\s+/g,' ').trim().slice(0,90)||'Mapa';
       try{ await d2baixarJPG(await pngFinal(png), nome+'.jpg'); st('JPG baixado: '+nome+'.jpg'+(mexido()?' (prévia sem o enquadramento novo)':'')); }catch(e){ st('Não foi possível gerar o JPG: '+(e&&e.message||e)); }
     };
     d2usrLigar();
@@ -60289,7 +60322,10 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     var b = ev.target.closest && ev.target.closest("#tec_trilha button"); if(!b) return;
     var box = $("tec_trilha");
     if(b.getAttribute("data-a") === "vazio"){ proximoVazio(); return; }
-    var x = box._P && box._P[+b.getAttribute("data-i")]; if(x && x.alvo){ x.alvo.scrollIntoView({ behavior:"smooth", block:"start" }); x.alvo.classList.remove("tec-flash"); void x.alvo.offsetWidth; x.alvo.classList.add("tec-flash"); }
+    var x = box._P && box._P[+b.getAttribute("data-i")];
+    if(x && x.alvo && x.alvo.classList.contains("oculto")){   // 19/11/2026: o tópico de KMLs é retrátil — abre antes de rolar até ele
+      var hc = x.alvo.previousElementSibling; if(hc && hc.classList.contains("acc") && window.FV_toggleSec) window.FV_toggleSec(hc); }
+    if(x && x.alvo){ x.alvo.scrollIntoView({ behavior:"smooth", block:"start" }); x.alvo.classList.remove("tec-flash"); void x.alvo.offsetWidth; x.alvo.classList.add("tec-flash"); }
   });
   var ultimo = -1;
   function proximoVazio(){
@@ -71365,7 +71401,7 @@ body.fbx-com-modal { overflow:hidden; }
   var BLOCOS = {
     campoFicha: "d1-campo",
     fotos: "d1-social", fbObsImgs: "d1-social", familia: "d1-social", relAreas: "d1-social", relTabelas: "d1-social", assinaturas: "d1-social",
-    avBenf: "d1-tecnica",                                         // DÚVIDA 1: benfeitorias (itens 12/13) — editadas na Técnica e na DESP 3
+    avBenf: "d1-tecnica", tecMapas: "d1-tecnica",                 // tecMapas: mapas avulsos da Técnica (19/11/2026, js/202) · DÚVIDA 1: benfeitorias (itens 12/13) — editadas na Técnica e na DESP 3
     estacas: "livre",                                             // DÚVIDA 3: estacas da Ficha antiga (#fv_estacas, aba Obsoleto)
     na: "desp3", ccuGlebas: "desp3", avBenfTotais: "desp3", avAmostra: "desp3",
     d2ressalvas: "desp2", d2fotos: "desp2", d2atividades: "desp2", d2impacto: "desp2", d2fund: "desp2", d2doc: "desp2", d2resp: "desp2",
@@ -71617,6 +71653,182 @@ body.fbx-com-modal { overflow:hidden; }
   // começa quando o cadastro termina de abrir (retrato pronto) e segue a cada minuto
   function iniciar(){ clearInterval(E.t); E.t = setInterval(batida, BATIDA); var n = 0, i = setInterval(function(){ if (cad() || ++n > 120){ clearInterval(i); batida(); } }, 1000); }
   if (document.readyState === "complete") iniciar(); else window.addEventListener("load", iniciar);
+})();
+</script><style>/* ===== DESP 1 › Técnica (19/11/2026): tópico retrátil de arquivos, roteiro em duas colunas, mapas avulsos ===== */
+
+/* tópico "Arquivos KML e camadas do imóvel" */
+#panel-desp1-tecnica .tec-arq-cab{ margin-top:22px; display:flex; align-items:center; gap:12px; }
+#panel-desp1-tecnica .tec-arq-cab > span:first-child{ flex:0 1 auto; }
+#panel-desp1-tecnica .tec-arq-res{ flex:1 1 auto; font:500 12px/1.3 "Segoe UI", sans-serif; color:inherit; opacity:.85; text-transform:none; letter-spacing:0; }
+#panel-desp1-tecnica .tec-arq-barra{ justify-content:space-between; margin-bottom:6px; }
+#panel-desp1-tecnica .tec-arq-barra-t{ font:700 12.5px/1.3 "Segoe UI", sans-serif; color:#1B4F86; text-transform:uppercase; letter-spacing:.04em; }
+#panel-desp1-tecnica .tec-vet-bloco{ margin-top:18px; }
+
+/* Roteiro de acesso: Pontos A/B e botões à esquerda, texto do roteiro à direita */
+#panel-desp1-tecnica .tec-rot-lista .d2t-row > .d2t-head{ display:none; }   /* o título já é o subtópico acima */
+#panel-desp1-tecnica .tec-rot-lista .d2t-row{ grid-template-columns:minmax(0,1fr) minmax(0,1.25fr); }
+#panel-desp1-tecnica .tec-rot-lista .d2t-row > .d2-rta{ grid-column:1; grid-row:1 / span 30; grid-template-columns:minmax(0,1fr); }
+/* uma coluna só à esquerda: Ponto A, Ponto B e os dois botões um abaixo do outro (css/196 punha os botões lado a lado) */
+#panel-desp1-tecnica .tec-rot-lista .d2t-row > .d2-rta > *{ grid-column:1 / -1; }
+#panel-desp1-tecnica .tec-rot-lista .d2t-row > .d2-rta .d2-rta-mapa,
+#panel-desp1-tecnica .tec-rot-lista .d2t-row > .d2-rta .d2-rta-btn{ grid-column:1 / -1; justify-self:start; }
+@media (max-width:900px){
+  #panel-desp1-tecnica .tec-rot-lista .d2t-row{ grid-template-columns:minmax(0,1fr); }
+  #panel-desp1-tecnica .tec-rot-lista .d2t-row > .d2-rta{ grid-column:1; grid-row:auto; }
+}
+
+/* Mapas avulsos: botão ao lado do título da aba + modal (a janela vai para o <body> ao abrir — seletores sem o painel) */
+#panel-desp1-tecnica .tec-topo{ display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+#panel-desp1-tecnica .tec-topo h1{ margin-right:auto; }
+#panel-desp1-tecnica .mav-abrir{ display:inline-flex; align-items:center; gap:6px; }
+#panel-desp1-tecnica .mav-abrir svg{ width:16px; height:16px; fill:none; stroke:currentColor; stroke-width:2; stroke-linejoin:round; }
+#panel-desp1-tecnica .mav-n{ min-width:18px; padding:0 5px; border-radius:9px; background:#1F6FC0; color:#fff; font-size:11px; line-height:18px; text-align:center; }
+.tec-cam-ov.mav-ov{ z-index:99990; }   /* abaixo do modal do gerador de mapas (#d2map_ov, 99999), que abre por cima desta lista */
+.mav-box{ width:min(900px,96vw); }
+.mav-box .mav-corpo{ padding:14px 18px; overflow:auto; flex:1; }
+.mav-box footer{ justify-content:space-between; }
+.mav-box .mav-lista{ display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:12px; }
+.mav-box .mav-vazio{ margin:4px 0 0; font-size:12.5px; color:#7a8794; }
+.mav-box .mav-it{ margin:0; display:flex; flex-direction:column; gap:6px; padding:10px; border:1px solid #E1E8F0; border-radius:12px; background:#F9FBFD; min-width:0; }
+.mav-box .mav-mini{ display:block; padding:0; border:1px solid #dde4ec; border-radius:8px; background:#fff; cursor:pointer; overflow:hidden; aspect-ratio:900 / 889; }
+.mav-box .mav-mini img{ display:block; width:100%; height:100%; object-fit:contain; }
+.mav-box .mav-mini span{ display:flex; height:100%; align-items:center; justify-content:center; font-size:12px; color:#7a8794; }
+.mav-box .mav-mini:focus-visible{ outline:3px solid rgba(31,111,192,.4); outline-offset:2px; }
+.mav-box .mav-it figcaption{ display:flex; flex-direction:column; gap:2px; font-size:12.5px; color:#22313f; min-width:0; }
+.mav-box .mav-it figcaption b{ overflow-wrap:anywhere; }
+.mav-box .mav-it figcaption small{ color:#7a8794; }
+.mav-box .mav-acoes{ display:flex; gap:6px; flex-wrap:wrap; }
+.mav-box .mav-rem{ color:#a33; }
+</style><script>/* =====================================================================
+   MAPAS AVULSOS (DESP 1 › Técnica) — 19/11/2026
+   Mapas livres, sem ligação com relatório, num modal aberto pelo botão "Mapas avulsos…" ao lado do título da aba:
+   o MESMO modal de mapas da DESP 2 (D2MAP_abrir, js/131, modo "opts":
+   camadas, camadas adicionais, leaders, escala, base, transparência e Baixar JPG), com título próprio.
+   Ficam em pacote.tecMapas = [{ id, titulo, src (JPEG), rec (receita do modal), data }] — o servidor troca o
+   src por arquivo em DESP 1/IMAGENS/Mapas avulsos (img://). Nada daqui sai em PDF, SGPD ou outra aba.
+   Também mostra no cabeçalho do tópico retrátil "Arquivos KML e camadas do imóvel" quantos arquivos há.
+   ===================================================================== */
+(function(){
+  "use strict";
+  function $(id){ return document.getElementById(id); }
+  function esc(s){ return String(s == null ? "" : s).replace(/[&<>"]/g, function(c){ return ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]; }); }
+  function sujo(){ try{ if(window.CAD_marcarSujo) window.CAD_marcarSujo(); }catch(e){} }
+  var mapas = [];
+
+  function novoId(){ return "mav_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+  function nomeArq(t){ return (String(t || "Mapa").replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 90) || "Mapa") + ".jpg"; }
+  function dataBr(iso){ var d = new Date(iso); return isNaN(d) ? "" : d.toLocaleDateString("pt-BR"); }
+  function copia(o){ try{ return JSON.parse(JSON.stringify(o || {})); }catch(e){ return {}; } }
+
+  // PNG da prévia → JPEG no tamanho cheio (fundo branco), para guardar leve e baixar igual ao botão do modal
+  function paraJpeg(png){
+    return new Promise(function(ok){
+      var im = new Image();
+      im.onload = function(){
+        try{
+          var c = document.createElement("canvas"); c.width = im.naturalWidth; c.height = im.naturalHeight;
+          var x = c.getContext("2d"); x.fillStyle = "#ffffff"; x.fillRect(0, 0, c.width, c.height); x.drawImage(im, 0, 0);
+          ok(c.toDataURL("image/jpeg", 0.92));
+        }catch(e){ ok(png); }
+      };
+      im.onerror = function(){ ok(png); };
+      im.src = png;
+    });
+  }
+  function baixar(src, nome){
+    fetch(src).then(function(r){ return r.blob(); }).then(function(b){
+      var a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = nome;
+      document.body.appendChild(a); a.click();
+      setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+    }).catch(function(){ alert("Não foi possível baixar o JPG deste mapa."); });
+  }
+
+  function render(){
+    var n = $("mav_n"); if(n){ n.hidden = !mapas.length; n.textContent = mapas.length ? String(mapas.length) : ""; }
+    var box = $("mav_lista"); if(!box) return;
+    if(!mapas.length){ box.innerHTML = '<p class="mav-vazio">Nenhum mapa avulso neste cadastro.</p>'; return; }
+    box.innerHTML = mapas.map(function(m){
+      var t = m.titulo || "Mapa sem título";
+      return '<figure class="mav-it" data-mav="' + esc(m.id) + '">'
+        + '<button type="button" class="mav-mini" data-a="editar" title="Editar este mapa">' + (m.src ? '<img src="' + esc(m.src) + '" alt="' + esc(t) + '" loading="lazy">' : '<span>sem imagem</span>') + '</button>'
+        + '<figcaption><b>' + esc(t) + '</b>' + (m.data ? '<small>' + esc(dataBr(m.data)) + '</small>' : '') + '</figcaption>'
+        + '<div class="mav-acoes">'
+        +   '<button type="button" class="vbtn vbtn-ghost vbtn-sm" data-a="editar">✎ Editar</button>'
+        +   '<button type="button" class="vbtn vbtn-ghost vbtn-sm" data-a="jpg"' + (m.src ? '' : ' disabled') + '>⬇ JPG</button>'
+        +   '<button type="button" class="vbtn vbtn-ghost vbtn-sm mav-rem" data-a="remover" aria-label="Remover o mapa ' + esc(t) + '">Remover</button>'
+        + '</div></figure>';
+    }).join("");
+  }
+
+  function abrir(m){
+    if(!window.D2MAP_abrir){ alert("Gerador de mapas indisponível."); return; }
+    var base = (($("d2m2_base") || {}).value === "sat") ? "sat" : "orto";
+    window.D2MAP_abrir("mav_" + (m ? m.id : "novo"), {
+      titulo: m ? (m.titulo || "") : "",
+      campoTitulo: true,
+      receita: m && m.rec ? copia(m.rec) : { cams:["area", "desap", "faixa"], foco:"area", base:base },
+      gerarJa: !!(m && m.rec),
+      usarRot: m ? "Atualizar no cadastro" : "Guardar no cadastro",
+      onUsar: function(png, rec){
+        var r = copia(rec), tit = String(r.titulo || "").trim(); delete r.titulo; delete r.png;
+        paraJpeg(png).then(function(jpg){
+          if(m){ m.src = jpg; m.rec = r; m.titulo = tit; m.data = new Date().toISOString(); }
+          else mapas.push({ id:novoId(), titulo:tit || ("Mapa " + (mapas.length + 1)), src:jpg, rec:r, data:new Date().toISOString() });
+          sujo(); render();
+        });
+      }
+    });
+  }
+  window.MAV_novo = function(){ abrir(null); };
+  /* a lista fica num modal (19/11/2026, Fernando: "não precisa ser um tópico") — o gerador abre por cima dela */
+  var focoAntes = null;
+  window.MAV_abrir = function(){
+    var ov = $("mav_ov"); if(!ov) return;
+    if(ov.parentNode !== document.body) document.body.appendChild(ov);   // fora do painel: nada corta a janela
+    focoAntes = document.activeElement; render(); ov.hidden = false;
+    var b = ov.querySelector(".mav-novo"); if(b) setTimeout(function(){ try{ b.focus(); }catch(e){} }, 30);
+  };
+  window.MAV_fechar = function(){
+    var ov = $("mav_ov"); if(!ov || ov.hidden) return; ov.hidden = true;
+    try{ if(focoAntes && focoAntes.focus) focoAntes.focus(); }catch(e){}
+  };
+  document.addEventListener("keydown", function(ev){
+    var ov = $("mav_ov");
+    if(ev.key === "Escape" && ov && !ov.hidden && !$("d2map_ov")){ ev.preventDefault(); window.MAV_fechar(); }
+  });
+  document.addEventListener("mousedown", function(ev){ var ov = $("mav_ov"); if(ov && !ov.hidden && ev.target === ov) window.MAV_fechar(); });
+  window.MAV_get = function(){ return mapas; };
+  window.MAV_set = function(arr){ mapas = Array.isArray(arr) ? arr.filter(function(x){ return x && x.id; }) : []; render(); };
+
+  document.addEventListener("click", function(ev){
+    var b = ev.target.closest && ev.target.closest("#mav_lista [data-a]"); if(!b) return;
+    var it = b.closest("[data-mav]"), id = it && it.getAttribute("data-mav");
+    var m = mapas.filter(function(x){ return x.id === id; })[0]; if(!m) return;
+    var a = b.getAttribute("data-a");
+    if(a === "editar") abrir(m);
+    else if(a === "jpg"){ if(m.src) baixar(m.src, nomeArq(m.titulo)); }
+    else if(a === "remover"){
+      if(!confirm('Remover o mapa "' + (m.titulo || "sem título") + '" deste cadastro?\n(Some da lista quando o cadastro for salvo.)')) return;
+      mapas = mapas.filter(function(x){ return x !== m; }); sujo(); render();
+    }
+  });
+
+  /* resumo no cabeçalho do tópico retrátil "Arquivos KML e camadas do imóvel" (o tópico começa recolhido) */
+  function resumoArq(){
+    var r = $("tec_arq_res"), card = $("tec_kmls_card"); if(!r || !card) return;
+    var n = 0;
+    Array.prototype.forEach.call(card.querySelectorAll('textarea[id$="_dados"]'), function(t){ if(!t.closest("[hidden]") && String(t.value || "").trim()) n++; });   // [hidden] = cópias antigas das benfeitorias
+    var lb = $("imv_benf_lista"); try{ var l = JSON.parse((lb && lb.value) || "[]"); if(Array.isArray(l) && l.length) n += l.length; }catch(e){}
+    var proj = !!String((($("rel_kml_dados") || {}).value) || "").trim();
+    var txt = n ? (n + (n === 1 ? " arquivo" : " arquivos") + " · área abrangida " + (proj ? "✓" : "—")) : "nenhum arquivo";
+    if(r.textContent !== txt) r.textContent = txt;
+  }
+  function ligar(){
+    render(); resumoArq();
+    document.addEventListener("change", function(ev){ if(ev.target.closest && ev.target.closest("#tec_kmls_card")) setTimeout(resumoArq, 400); }, true);
+    setInterval(function(){ var p = $("panel-desp1-tecnica"); if(p && p.classList.contains("ativa")) resumoArq(); }, 3000);
+  }
+  if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", ligar); else ligar();
 })();
 </script><style>
 /* ===== DESP 3 › Avaliação FTN › Aspectos Gerais do laudo (SGPD) — 18/10/2026 =====
@@ -73056,9 +73268,9 @@ body.fbx-com-modal { overflow:hidden; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.11.18-7';
+window.APP_VERSAO = '2026.11.19-1';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
-window.SERVIDOR_RECOMENDADO = '2026.11.18-7';
+window.SERVIDOR_RECOMENDADO = '2026.11.19-1';
 (function(){
   var SEM_VERSAO = '0000.00.00-0';
   var LEGADO_LAYOUT = '2026.10.07-0';   // servidor que já tem layout_antigo no health, mas ainda sem número de versão
