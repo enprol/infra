@@ -9101,10 +9101,10 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
       <div class="vfield grow"><label>O ocupante é o(a) proprietário(a)?</label><select id="fb_ocup_e_prop"><option value="">Selecione</option><option>1 - Sim</option><option>2 - Não</option></select></div>
       <div class="vfield"><label>Tipo</label><span class="fb-checks" style="display:flex;gap:12px;margin-top:2px"><label style="font-weight:400;cursor:pointer"><input type="radio" name="fb_pf_pj" id="fb_pf_pj_pf" value="PF" checked> PF</label><label style="font-weight:400;cursor:pointer"><input type="radio" name="fb_pf_pj" id="fb_pf_pj_pj" value="PJ"> PJ</label></span></div>
       <!-- 18/10/2026: Subtipo do SGPD (só para o SGPD; não sai no Anexo B nem no Word) -->
-      <div class="vfield" data-sem-doc><label for="fb_subtipo">Subtipo <span class="hint-auto"> SGPD</span></label><select id="fb_subtipo"><option selected>Normal</option><option>Posseiro</option><option>Espólio</option></select></div>
+      <div class="vfield" data-sem-doc><label for="fb_subtipo">Subtipo <span class="hint-auto"> SGPD</span></label><select id="fb_subtipo"><option value="" selected>Selecione</option><option>Normal</option><option>Posseiro</option><option>Espólio</option></select></div>
     </div>
     <div id="fb_esp_wrap" data-sem-doc style="display:none;">
-      <p class="hint-auto" style="margin:0 0 8px;">Espólio: dados do(a) falecido(a). Nome, RG, CPF e estado civil abaixo passam a ser os do(a) inventariante.</p>
+      <p class="hint-auto" style="margin:0 0 8px;">Espólio: dados do(a) falecido(a). Nome / Razão Social, RG e CPF abaixo acompanham estes campos (travados enquanto o Subtipo for Espólio).</p>
       <div class="vrow">
         <div class="vfield grow"><label for="fb_esp_de">Espólio de</label><input type="text" id="fb_esp_de" placeholder="Nome do(a) falecido(a)"></div>
         <div class="vfield"><label for="fb_esp_rg">RG</label><input type="text" id="fb_esp_rg" placeholder="RG"></div>
@@ -9114,6 +9114,9 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
         <div class="vfield"><label for="fb_esp_inv">Situação do inventário</label><select id="fb_esp_inv"><option selected>Em Andamento</option><option>Finalizado</option><option>Sem Inventário</option></select></div>
       </div>
     </div>
+    <!-- 23/11/2026: dados do 1.3 abaixo do Subtipo só abrem depois de escolhê-lo (js/190, item 6) -->
+    <p class="hint-auto" id="fb_13_aviso" data-sem-doc style="display:none;margin:0 0 8px;">Escolha o Subtipo para preencher os dados do(a) proprietário(a).</p>
+    <div id="fb_13_dados">
     <div class="vrow">
       <div class="vfield grow"><label>Nome / Razão Social</label><input type="text" id="fb_nome" placeholder="Nome / Razão Social"></div>
       <div class="vfield fb-campo-pf"><label>RG</label><input type="text" id="fb_rg" placeholder="RG"></div>
@@ -9137,6 +9140,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
       <div class="vfield"><label>UF</label><select id="fb_uf"><option value="">UF</option><option>AC</option><option>AL</option><option>AP</option><option>AM</option><option>BA</option><option>CE</option><option>DF</option><option>ES</option><option>GO</option><option>MA</option><option>MT</option><option>MS</option><option>MG</option><option>PA</option><option>PB</option><option>PR</option><option>PE</option><option>PI</option><option>RJ</option><option>RN</option><option>RS</option><option>RO</option><option>RR</option><option>SC</option><option>SP</option><option>SE</option><option>TO</option><option>Não informado</option></select></div>
       <div class="vfield"><label>Telefone</label><input type="text" id="fb_telefone" class="mask-tel" inputmode="numeric" maxlength="15" placeholder="(00) 00000-0000"></div>
     </div>
+    </div><!-- /fb_13_dados -->
 
     <!-- 11/11/2026: 1.3.2 Informante inteiro só aparece com "O ocupante é o(a) proprietário(a)?" = 2 - Não (js/190); com dados e outra resposta, continua à vista com aviso -->
     <div id="fb_inf_bloco" style="display:none;">
@@ -68791,7 +68795,9 @@ section.tab-panel.rel-pad{ background:#e9eef3 repeating-linear-gradient(135deg, 
       simples(E, "RG (falecido)", "fb_esp_rg", "Ficha 1.3 › Espólio › RG", false);
       simples(E, "Situação do inventário", "fb_esp_inv", "Ficha 1.3 › Situação do inventário", false);
     }
-    simples(E, pj ? "Razão Social *" : (espolio ? "Nome do Inventariante" : "Nome *"), "fb_nome", "Ficha 1.3 › Nome / Razão Social", !espolio);
+    // 23/11/2026: com Espólio, Nome/RG/CPF da Ficha são cópia dos do(a) falecido(a) (js/190); a Ficha não guarda o inventariante
+    if(espolio) item(E, "Nome do Inventariante", "", "não está na Ficha", "vazio", "Com Espólio, Nome / RG / CPF do 1.3 são os do(a) falecido(a): o inventariante, se houver, é lançado direto no SGPD.");
+    else simples(E, pj ? "Razão Social *" : "Nome *", "fb_nome", "Ficha 1.3 › Nome / Razão Social", true);
     if(!pj){
       var ec = limpo(g("fb_estcivil")), ecS = estadoCivilSgpd(ec);
       item(E, "Estado Civil", ecS, "Ficha 1.3 › Estado Civil", ecS ? "ok" : "atencao",
@@ -69065,7 +69071,9 @@ section.tab-panel.rel-pad{ background:#e9eef3 repeating-linear-gradient(135deg, 
    2. 1.4 "Mesmo endereço do(a) proprietário(a)?" (fb_prop_mesmo_end): copia endereço, CEP, tipo de endereço, bairro,
       município e UF do 1.3 e trava esses campos do 1.4 enquanto marcado (acompanham o 1.3).
    3. 1.3.2 Informante inteiro (fb_inf_bloco) só aparece com "O ocupante é o(a) proprietário(a)?" = "2 - Não".
-      Com outra resposta e dados já preenchidos, continua à vista com aviso (dado nunca fica escondido).
+      Com outra resposta e dados já preenchidos, continua à vista com aviso (dado nunca fica escondido); com "1 - Sim",
+      nada dele conta como pendência (data-sem-pend).
+   6. 1.3: dados abaixo do Subtipo travados até escolhê-lo; Espólio copia Espólio de/RG/CPF para Nome/RG/CPF.
    4. Tipologia e Zoneamento no 1.4 = av_sg_tipologia / av_sg_zoneamento da DESP 3 (caixas sem id: não gravam à parte).
    5. 2.4.1/2.5.1 Infraestrutura e 2.4.2/2.5.2 Serviços em 1 km = caixas av_sg_infra_N / av_sg_serv_N da DESP 3
       (gêmeas da aba Campo, ver js/180). Caixas sem id; a marcação vale para 2.4 e 2.5 (um imóvel só).
@@ -69112,10 +69120,48 @@ section.tab-panel.rel-pad{ background:#e9eef3 repeating-linear-gradient(135deg, 
     var nao = gv("fb_ocup_e_prop") === "2 - Não", tem = false;
     b.querySelectorAll("input[id], select[id], textarea[id]").forEach(function(e){
       if(e.classList.contains("doc-tipo-sel")) return;                       // CPF/CNPJ: tem valor padrão
+      if(e.id === "fb_ocup_uf") return;                                      // preenchida sozinha pela UF do código (item 1)
       if(String(e.value || "").trim()) tem = true;
     });
     b.style.display = (nao || tem) ? "" : "none";
     var av = G("fb_inf_aviso"); if(av) av.style.display = (!nao && tem) ? "" : "none";
+    // 23/11/2026: ocupante = proprietário ("1 - Sim") → nada do 1.3.2 conta como pendência (js/203)
+    if(gv("fb_ocup_e_prop") === "1 - Sim") b.setAttribute("data-sem-pend", ""); else b.removeAttribute("data-sem-pend");
+  }
+
+  /* ---------- 6. 1.3: dados abaixo do Subtipo só depois de escolhê-lo; Espólio preenche Nome/RG/CPF (23/11/2026) ----------
+     Subtipo vazio e nada preenchido (cadastro novo) → bloco fb_13_dados cinza e `inert`. Cadastro antigo sem Subtipo mas com
+     dados: fica aberto (o Subtipo vazio pisca como pendência). Espólio (só PF): Espólio de / RG / CPF → Nome / RG / CPF,
+     que ficam travados enquanto o Subtipo for Espólio. Ao virar Espólio, só copia o que já está preenchido no Espólio. */
+  var ESP = [["fb_esp_de","fb_nome"],["fb_esp_rg","fb_rg"],["fb_esp_cpf","fb_cpf"]];
+  var DICA_ESP = "Igual ao Espólio de / RG / CPF acima (Subtipo = Espólio). Troque o Subtipo para editar.";
+  function travar(e, on){
+    if(!("t190" in e.dataset)) e.dataset.t190 = e.title || "";
+    e.readOnly = on; e.classList.toggle("bloqueado", on);
+    e.title = on ? DICA_ESP : e.dataset.t190;
+  }
+  function proprietario13(origem){
+    var box = G("fb_13_dados"); if(!box || !G("fb_subtipo")) return;
+    var sub = gv("fb_subtipo"), tem = false;
+    if(!sub) box.querySelectorAll("input[id], select[id], textarea[id]").forEach(function(e){
+      if(e.classList.contains("doc-tipo-sel") || e.id === "fb_uf") return;  // CPF/CNPJ e UF (vem da UF do código) não contam
+      if(String(e.value || "").trim()) tem = true;
+    });
+    var off = !sub && !tem;
+    box.classList.toggle("fb-zona-off", off);
+    if(off){ box.setAttribute("inert", ""); box.setAttribute("aria-disabled", "true"); } else { box.removeAttribute("inert"); box.removeAttribute("aria-disabled"); }
+    var av = G("fb_13_aviso"); if(av) av.style.display = off ? "" : "none";
+
+    var pj = G("fb_pf_pj_pj"), esp = sub === "Espólio" && !(pj && pj.checked), mudou = false;
+    ESP.forEach(function(p){
+      var d = G(p[1]); if(!d) return;
+      if(esp && origem && !window.__CAD_RESTAURANDO){
+        var v = gv(p[0]);
+        if((origem === p[0] || (origem === "fb_subtipo" && v)) && por(d, v)) mudou = true;
+      }
+      travar(d, esp);
+    });
+    if(mudou) sujo();
   }
 
   /* ---------- 4. Tipologia e Zoneamento (espelho da DESP 3) ---------- */
@@ -69195,6 +69241,8 @@ section.tab-panel.rel-pad{ background:#e9eef3 repeating-linear-gradient(135deg, 
     if(id === "fb_prop_mesmo_end") mesmoEnd(true);
     else if(FONTES_END.indexOf(id) >= 0 && G("fb_prop_mesmo_end") && G("fb_prop_mesmo_end").checked) mesmoEnd(true);
     if(id === "fb_ocup_e_prop" || (el.closest && el.closest("#fb_inf_bloco"))) informante();
+    if(id === "fb_subtipo" || id === "fb_pf_pj_pf" || id === "fb_pf_pj_pj" || /^fb_esp_(de|rg|cpf)$/.test(id)) proprietario13(id === "fb_pf_pj_pf" || id === "fb_pf_pj_pj" ? "" : id);
+    else if(!gv("fb_subtipo") && el.closest && el.closest("#fb_13_dados")) proprietario13("");
     if(id === "av_sg_tipologia" || id === "av_sg_zoneamento") espelhosSel();
     if(id === "av_sg_zoneamento" || (el.classList && el.classList.contains("fb-espelho-sel") && el.getAttribute("data-espelho") === "av_sg_zoneamento")) blocoZona();
     if(el.classList && el.classList.contains("fb-espelho-sel") && ev.type === "change"){
@@ -69206,7 +69254,7 @@ section.tab-panel.rel-pad{ background:#e9eef3 repeating-linear-gradient(135deg, 
   document.addEventListener("change", aoMudar);
   document.addEventListener("input", aoMudar);
 
-  function tudo(){ try{ montarChecks(); espelhosSel(); espelhosChk(); informante(); mesmoEnd(false); blocoZona(); if(window.FB_renderFotos) window.FB_renderFotos(); }catch(e){ console.warn("FB190:", e); } }   // FB_renderFotos: fonte "Fotografias do Campo" do 5.3 (js/119)
+  function tudo(){ try{ montarChecks(); espelhosSel(); espelhosChk(); informante(); mesmoEnd(false); blocoZona(); proprietario13(""); if(window.FB_renderFotos) window.FB_renderFotos(); }catch(e){ console.warn("FB190:", e); } }   // FB_renderFotos: fonte "Fotografias do Campo" do 5.3 (js/119)
   // ficha de campo trocada (abrir cadastro, importar): as marcas da DESP 3 podem ter vindo de lá
   var setFicha0 = window.CAMPO_setFicha;
   if(setFicha0) window.CAMPO_setFicha = function(){
@@ -72133,6 +72181,7 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ background:var(--pend-cl
 
   function conta(e){
     if(e.hasAttribute("data-sem-pend") || e.closest("[data-sem-pend]")) return false;
+    if(e.closest("[inert]")) return false;         // bloco travado (Subtipo não escolhido, zona que não se aplica)
     if(e.classList.contains("bloqueado") || e.disabled || e.readOnly) return false;
     if(e.tagName === "INPUT" && FORA_TIPO.test(e.type || "")) return false;
     if(/busca/i.test(e.id || "") || e.getAttribute("role") === "searchbox") return false;
@@ -73608,7 +73657,7 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ background:var(--pend-cl
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.11.23-9';
+window.APP_VERSAO = '2026.11.23-10';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.11.19-1';
 (function(){
