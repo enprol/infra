@@ -65333,8 +65333,33 @@ section.tab-panel.rel-pad{ background:#e9eef3 repeating-linear-gradient(135deg, 
   }
   document.addEventListener("change", function(ev){ if(ev.target && /^av_sg_met_\d$/.test(ev.target.id || "")) metodologias(); });
 
+  /* ---------- limites de caracteres do SGPD (23/11/2026): maxlength + contador "n/limite" ----------
+     Texto que já passa do limite (texto padrão, descrição gerada, Ficha de Vistoria) não é cortado: o contador fica vermelho
+     e o SGPD é quem recusaria — aqui o usuário enxerga e enxuga. Digitar além do limite é bloqueado. */
+  var LIMITES = { av_sg_objetivo:450, av_sg_pressupostos:500, av_sg_descricao:500, av_sg_vist_obs:500, av_sg_tn_info1:500, av_sg_tn_info3:500 };
+  function contar(id){
+    var ta = G(id), lim = LIMITES[id]; if(!ta) return;
+    var c = G(id + "_cont");
+    if(!c){
+      c = document.createElement("div"); c.id = id + "_cont"; c.className = "av-sg-cont"; c.setAttribute("aria-live", "polite");
+      ta.parentNode.insertBefore(c, ta.nextSibling);
+      ta.setAttribute("maxlength", lim);
+      ta.addEventListener("input", function(){ contar(id); });
+    }
+    var n = (ta.value || "").length, acima = n > lim;
+    c.textContent = n + " / " + lim + " caracteres" + (acima ? " — acima do limite do SGPD, reduza o texto" : "");
+    c.classList.toggle("acima", acima);
+  }
+  function contarTodos(){ Object.keys(LIMITES).forEach(contar); }
+  var ultimoCont = "";
+  setInterval(function(){   // valores gravados por código (abrir cadastro, gerar descrição) não disparam "input"
+    var p = G("panel-avaliacao-ftn"); if(!p || !p.classList.contains("ativa")) return;
+    var s = Object.keys(LIMITES).map(function(k){ var e = G(k); return e ? e.value.length : 0; }).join(",");
+    if(s !== ultimoCont){ ultimoCont = s; contarTodos(); }
+  }, 700);
+
   /* ---------- ao abrir a aba ---------- */
-  function aoAbrir(){ try{ posicaoOutra(); metodologias(); infraDoCampo(); vistoria(); window.AVSG_gerarDescricao(false); if(!gv("av_sg_lado")) window.AVSG_calcularLado(true); }catch(e){ console.warn("AVSG:", e); } }
+  function aoAbrir(){ try{ contarTodos(); posicaoOutra(); metodologias(); infraDoCampo(); vistoria(); window.AVSG_gerarDescricao(false); if(!gv("av_sg_lado")) window.AVSG_calcularLado(true); }catch(e){ console.warn("AVSG:", e); } }
   function ligar(){
     subtipo(); posicaoOutra(); metodologias();
     var p = G("panel-avaliacao-ftn"); if(!p) return;
@@ -71905,6 +71930,8 @@ body.fbx-com-modal { overflow:hidden; }
   background:#eef1f4 !important; color:#5a6b7c !important; cursor:not-allowed; border-color:#d3dbe4 !important;
 }
 #panel-avaliacao-ftn .av-sg-acoes{display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin-top:6px;}
+#panel-avaliacao-ftn .av-sg-cont{margin-top:3px; font-size:11.5px; color:var(--label); text-align:right;}
+#panel-avaliacao-ftn .av-sg-cont.acima{color:#c0392b; font-weight:600;}
 #panel-avaliacao-ftn .av-sg-st{font-size:12px; color:var(--label);}
 #panel-avaliacao-ftn .av-sg-st.erro{color:#c0392b;}
 #panel-avaliacao-ftn .av-sg-met{align-items:flex-end;}
@@ -73327,7 +73354,7 @@ body.fbx-com-modal { overflow:hidden; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.11.23-1';
+window.APP_VERSAO = '2026.11.23-2';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.11.19-1';
 (function(){
