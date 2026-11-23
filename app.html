@@ -13435,7 +13435,7 @@ function construir(J, imgI, imgE, pagAnt, dry, AR, ANX){
     var primeiraPagina = false;
     if(!tp.semTitulo && k !== "base" && k !== "marco" && k !== "loc"){
       if(tp.lv === 1){
-        if(!tp.pagina && (yc - topY) > 0.25 * (botY - topY)){ rod(); nova(); }
+        if(!tp.pagina && DOCPDF.quebraCapitulo(yc, topY, botY)){ rod(); nova(); }
         titulo(tp.numStr, tp.head);
       } else if(tp.lv === 2) subt(tp.numStr, tp.head, 12);
       else if(tp.numStr) subt(tp.numStr, tp.head, 14);
@@ -19736,7 +19736,7 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
     subtopico: { tam:11.5, lh:5.6, depois:1.5, recuoNumero:12 },   // o Parecer ainda usa 11,3 (divergência registrada)
     subsubtopico: { tam:10.5, lh:5, cor:[20,41,74], depois:1.2 },
     corpo: { tam:11, lh:5.8 },
-    espaco: { antes:6.5, colado:1, manterJunto:12 },
+    espaco: { antes:6.5, colado:1, manterJunto:12, capitulo:0.25 },   // capitulo: ver quebraCapitulo()
     tabela: { cabAlt:7, cabFundo:[218,232,246], cabTexto:[20,41,74], cabTy:4.6, reguaCor:[31,111,192], reguaLarg:0.6,
               zebra:[250,252,254], linhaCor:[237,241,245], linhaLarg:0.2 },
     seta: { w:2.4, h:2.6 },
@@ -19951,9 +19951,14 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
     return y;
   }
 
+  /* 23/11/2026: capítulo que "abre página própria" (QUEBRA_ANTES da DESP-2, 2. e 4. do Parecer, tópicos do
+     Socioeconômico) só quebra se a página atual já tem mais de T.espaco.capitulo (25%) da área útil ocupada.
+     Se só tem um restinho do tópico anterior, o capítulo segue nela — sem folha quase vazia. Regra única. */
+  function quebraCapitulo(y, topY, botY){ return (y-topY) > T.espaco.capitulo*(botY-topY); }
+
   window.DOCPDF = { T:T, U:U, fonteCorpo:fonteCorpo, logos:logos, moldura:moldura, cabecalho:cabecalho, rodape:rodape,
     capa:capa, topico:topico, tabelaCab:tabelaCab, tabelaZebra:tabelaZebra, tabelaLinha:tabelaLinha,
-    seta:seta, sumarioLinha:sumarioLinha, indice:indice, assinatura:assinatura };
+    seta:seta, sumarioLinha:sumarioLinha, indice:indice, assinatura:assinatura, quebraCapitulo:quebraCapitulo };
 })();
 </script>
 <script>
@@ -47920,15 +47925,15 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     // uma página praticamente vazia). Nesse caso o tópico permanece na página atual.
     window.__REL_TB={};
     function topico(t){
-      const usable=botY-topY, used=yc-topY;
-      const brk = (used > 0.25*usable);
+      const brk = DOCPDF.quebraCapitulo(yc, topY, botY);   // mesma regra dos 25%, agora no motor
       const m=String(t).match(/^(\d+)\./); if(m) window.__REL_TB[m[1]]=brk;
       if(brk){ rod(); nova(); }
       titulo(t);
     }
     // título nível 1: preto, negrito, com régua abaixo (padrão do modelo Word)
     const _IDX=[], DT=DOCPDF.T, CX=mL+cw/2;   // índice (títulos com a página) · centro da área de texto (manual §2.1)
-    function titulo(t){ ensure(16);
+    const JUNTO=DOCPDF.T.espaco.manterJunto;   // 23/11/2026: título nunca sozinho no pé da página (manual §2.6)
+    function titulo(t){ ensure(12+JUNTO);
       yc=DOCPDF.topico(pdf, { fonte:FONT, x:mL, xFim:W-mR, y:yc, texto:t, separarNumero:true }); _IDX.push({ t:t, n:1, pg:PG });
     }
     // subtítulo nível 2: preto, negrito, sem faixa
@@ -47936,7 +47941,8 @@ window.UFOTO_rodapeHTML=rodapeHTML;
       const m=String(t).match(/^(\d+\.\d+)\.?\s*(.*)$/);
       const num=m?(m[1]+"."):""; const tit=(m?m[2]:String(t)).toUpperCase();
       const x0=mL+(num?S.recuoNumero:0); const ls=pdf.splitTextToSize(tit, W-mR-x0);
-      ensure(ls.length*S.lh+4); yc+=1;
+      ensure(ls.length*S.lh+4+JUNTO); yc+=1;
+      pdf.setFont(FONT,"bold"); pdf.setFontSize(S.tam); pdf.setTextColor(0,0,0);   // página nova: o cabeçalho trocou a fonte
       if(num) pdf.text(num, mL, yc);
       ls.forEach(l=>{ pdf.text(l, x0, yc); yc+=S.lh; }); yc+=S.depois; _IDX.push({ t:t, n:2, pg:PG });
     }
@@ -48206,7 +48212,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
       });
     }
     function subt3(t){   // nível 3 do manual: negrito azul-escuro, sem número
-      const S=DT.subsubtopico; ensure(9); pdf.setFont(FONT,"bold"); pdf.setFontSize(S.tam); pdf.setTextColor(S.cor[0],S.cor[1],S.cor[2]);
+      const S=DT.subsubtopico; ensure(S.lh+S.depois+JUNTO); pdf.setFont(FONT,"bold"); pdf.setFontSize(S.tam); pdf.setTextColor(S.cor[0],S.cor[1],S.cor[2]);
       pdf.splitTextToSize(t, cw).forEach(l=>{ ensure(S.lh); pdf.text(l, mL, yc); yc+=S.lh; });
       yc+=S.depois; pdf.setTextColor(0,0,0);
     }
@@ -48222,7 +48228,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
       if(tp.extra){ tituloTp(tp); paragrafo(tp.txt); imagens(id); continue; }
       if(id==="fotos"){                             // 6. Relatório fotográfico: página própria
         if(!fotos.length && !imgsDe(id).length) continue;
-        rod(); nova(); titulo(tp.num+" "+String(tp.head||"").toUpperCase());
+        if(DOCPDF.quebraCapitulo(yc, topY, botY)){ rod(); nova(); } titulo(tp.num+" "+String(tp.head||"").toUpperCase());
         if(fotos.length){
           { const _pp=window.PROC_partes(g("rel_processo"),g("rel_sei")); campo("Nº do cadastro", _pp.cad); campo("Processo administrativo (SEI nº)", _pp.sei); }
           campo("Nome do Expropriado", g("rel_expropriado")); yc+=2;
@@ -49147,7 +49153,10 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     // força início de página nova (usado antes de capítulos que devem sempre
     // abrir em página própria); evita página em branco caso já estejamos no
     // topo de uma página recém-criada.
-    function novaPaginaForcada(){ if(yc>topY){ rod(); nova(); } }
+    // 23/11/2026: regra única do motor — com só um restinho do tópico anterior na página, o capítulo segue nela
+    function novaPaginaForcada(){ if(DOCPDF.quebraCapitulo(yc, topY, botY)){ rod(); nova(); } }
+    // manual §2.6: título só começa na página se couber junto com mais 12 mm de texto
+    var JUNTO=DOCPDF.T.espaco.manterJunto;
 
     function campo(label,val){
       if(!val) return;
@@ -49161,11 +49170,13 @@ window.UFOTO_rodapeHTML=rodapeHTML;
       yc+=6;
     }
     function tituloRom(t){
-      ensure(16); yc=DOCPDF.topico(pdf, { fonte:FONT, x:mL, xFim:W-mR, y:yc, texto:t, separarNumero:true });
+      ensure(12+JUNTO); yc=DOCPDF.topico(pdf, { fonte:FONT, x:mL, xFim:W-mR, y:yc, texto:t, separarNumero:true });
     }
     function subt(t){
-      var S=DT.subtopico; ensure(10); pdf.setFont(FONT,"bold"); pdf.setFontSize(S.tam); pdf.setTextColor(0,0,0);
+      var S=DT.subtopico; pdf.setFont(FONT,"bold"); pdf.setFontSize(S.tam); pdf.setTextColor(0,0,0);
       var ls=pdf.splitTextToSize(t, cw);
+      ensure(ls.length*S.lh+S.depois+JUNTO);   // nunca sozinho no pé da página
+      pdf.setFont(FONT,"bold"); pdf.setFontSize(S.tam); pdf.setTextColor(0,0,0);
       ls.forEach(function(l){ ensure(S.lh); pdf.text(l, mL, yc); yc+=S.lh; });
       yc+=S.depois;
     }
@@ -49242,8 +49253,10 @@ window.UFOTO_rodapeHTML=rodapeHTML;
 
     function desenharChecklist(rotulo, arr, n){
       if(!arr||!arr.length) return;
-      ensure(12); pdf.setFont(FONT,"bold"); pdf.setFontSize(9.8); pdf.setTextColor(0,0,0);
+      pdf.setFont(FONT,"bold"); pdf.setFontSize(9.8); pdf.setTextColor(0,0,0);
       var capLs=pdf.splitTextToSize(rotulo, cw);
+      ensure(capLs.length*4.8+1.4+16);   // rótulo + cabeçalho + 1ª linha juntos (rótulo nunca sozinho no pé)
+      pdf.setFont(FONT,"bold"); pdf.setFontSize(9.8); pdf.setTextColor(0,0,0);
       capLs.forEach(function(l){ ensure(4.8); pdf.text(l, mL, yc); yc+=4.8; }); yc+=1.4;
       var wNum=10, wResp=15, nResp=3, wObs=38;                 // 15/10/2026: coluna Nº (1.1, 1.2…) — o fiscal cita o item por ela
       var wCrit=cw-wNum-wResp*nResp-wObs;
@@ -49345,7 +49358,7 @@ window.UFOTO_rodapeHTML=rodapeHTML;
       });
     }
     function subt3(t){   // nível 3 do manual: negrito azul-escuro, sem número
-      var S=DT.subsubtopico; ensure(9); pdf.setFont(FONT,"bold"); pdf.setFontSize(S.tam); pdf.setTextColor(S.cor[0],S.cor[1],S.cor[2]);
+      var S=DT.subsubtopico; ensure(S.lh+S.depois+JUNTO); pdf.setFont(FONT,"bold"); pdf.setFontSize(S.tam); pdf.setTextColor(S.cor[0],S.cor[1],S.cor[2]);
       pdf.splitTextToSize(t, cw).forEach(function(l){ ensure(S.lh); pdf.text(l, mL, yc); yc+=S.lh; });
       yc+=S.depois; pdf.setTextColor(0,0,0);
     }
@@ -58689,7 +58702,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       return h;
     }
     _LISTA_TOPICOS.forEach(function(tp){
-      if(QUEBRA_ANTES.has(tp.id) && yc>topY+0.01){ rod(); nova(); }
+      if(QUEBRA_ANTES.has(tp.id) && DOCPDF.quebraCapitulo(yc, topY, botY)){ rod(); nova(); }   // 23/11/2026: restinho na página não gera folha quase vazia
       // item com mapa: título + texto + mapa (no mínimo FIG_MINH) ficam juntos — se não
       // couberem no resto da página, o item inteiro começa na próxima (mapa colado ao texto)
       if(D2_figsDoTopico(tp).some(function(f){ return figs[f]; }) && yc>topY+0.5){
@@ -73524,7 +73537,7 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ background:var(--pend-cl
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.11.23-6';
+window.APP_VERSAO = '2026.11.23-7';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.11.19-1';
 (function(){
