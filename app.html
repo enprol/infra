@@ -13670,16 +13670,34 @@ function srvFetch(rota, opt, ms){
 }
 function enc(s){ return encodeURIComponent(s); }
 function srvStatus(txt, cls){ var el = $("mcm_srv"); if(el){ el.textContent = txt; el.className = "mcm-srv " + (cls || ""); } }
+/* 23/11/2026: antes, qualquer resposta que não fosse a lista (401 sessão expirada, 403, 5xx) aparecia como
+   "sem servidor"; agora só a falta de conexão diz isso — o resto diz o motivo (_srv.motivo). */
+function srvMotivo(st){
+  if(st === 401) return "sessão encerrada — entre de novo com seu usuário e senha";
+  if(st === 403) return "o servidor recusou o acesso (403) — confira o login / troca de senha";
+  return "o servidor respondeu com erro (" + st + ")";
+}
 function srvOk(forcar){
   if(!forcar && _srv && Date.now() - _srv.t < 30000) return Promise.resolve(_srv.ok);
-  return srvFetch("/api/marcos", {}, 4000).then(function(r){ return r.ok ? r.json() : null; }).then(function(j){ return Array.isArray(j); }, function(){ return false; })
-    .then(function(ok){
-      _srv = { ok:ok, t:Date.now() };
+  var motivo = "";
+  return srvFetch("/api/marcos", {}, 8000)
+    .then(function(r){ if(!r.ok){ motivo = srvMotivo(r.status); return null; } return r.json().catch(function(){ motivo = "resposta inválida do servidor"; return null; }); },
+          function(){ motivo = "sem servidor — salvando em arquivo/pasta local"; return null; })
+    .then(function(j){
+      var ok = Array.isArray(j);
+      if(!ok && !motivo) motivo = "resposta inválida do servidor";
+      _srv = { ok:ok, t:Date.now(), motivo:motivo };
       var b1 = $("mcm_btn_srv"), b2 = $("mcm_btn_abrir_srv");
-      if(b1) b1.disabled = !ok; if(b2) b2.disabled = !ok;
-      if(!ok) srvStatus("sem servidor — salvando em arquivo/pasta local", "off"); else if(!$("mcm_srv").dataset.salvo) srvStatus("servidor conectado", "ok");
+      // sem conexão: desabilita; sessão/erro: deixa clicar (clicar de novo testa e mostra o motivo)
+      var semRede = !ok && /^sem servidor/.test(motivo);
+      if(b1) b1.disabled = semRede; if(b2) b2.disabled = semRede;
+      if(!ok) srvStatus(motivo, "off"); else if(!$("mcm_srv").dataset.salvo) srvStatus("servidor conectado", "ok");
       return ok;
     });
+}
+function srvAvisoFalha(extra){
+  var m = (_srv && _srv.motivo) || "sem servidor";
+  alert(/^sem servidor/.test(m) ? "Não há conexão com o servidor de cadastros." + (extra || "") : "Não consegui usar o servidor: " + m + ".");
 }
 function limparNome(s){ return String(s || "").replace(/[\\/:*?"<>|\u0000-\u001f]/g, "-").replace(/\s+/g, " ").replace(/^[.\s]+|[.\s]+$/g, "").slice(0, 110); }
 function sugestaoNome(){
@@ -13780,7 +13798,7 @@ async function salvarServidor(){
 window.MCM_salvarServidor = async function(){
   var b = $("mcm_btn_srv"); if(b) b.disabled = true;
   try{
-    if(!(await srvOk(true))){ alert("Não há conexão com o servidor de cadastros. Use “Salvar só o projeto” para guardar em arquivo."); return; }
+    if(!(await srvOk(true))){ srvAvisoFalha(" Use “Salvar só o projeto” para guardar em arquivo."); return; }
     var n = await salvarServidor();
     if(n) alert("Documento salvo no servidor:\nIMPLANTAÇÃO DE MARCOS\\" + n + "\\ (JSON + IMAGENS)");
   }catch(e){ srvStatus("falha ao salvar: " + (e && e.message || e), "erro"); alert("Não consegui salvar no servidor: " + (e && e.message || e)); }
@@ -13830,7 +13848,7 @@ async function abrirDoServidor(nome){
   srvStatus("aberto do servidor: " + nome, "ok");
 }
 window.MCM_abrirServidor = async function(){
-  if(!(await srvOk(true))){ alert("Não há conexão com o servidor de cadastros."); return; }
+  if(!(await srvOk(true))){ srvAvisoFalha(); return; }
   var r = await srvFetch("/api/marcos"), lista = r.ok ? await r.json() : [];
   fecharModal();
   var m = document.createElement("div"); m.id = "mcm_modal"; m.className = "mcm-modal";
@@ -13860,7 +13878,7 @@ if(document.readyState === "loading") document.addEventListener("DOMContentLoade
 
 /* ---------- biblioteca de anexos (RRT/ART em PDF guardadas no servidor) ---------- */
 window.MCM_bibliotecaAnexos = async function(){
-  if(!(await srvOk(true))){ alert("Não há conexão com o servidor de cadastros. Use “PDF do computador”."); return; }
+  if(!(await srvOk(true))){ srvAvisoFalha(" Use “PDF do computador”."); return; }
   var r = await srvFetch("/api/marcos-anexos"), lista = r.ok ? await r.json() : [];
   fecharModal();
   var m = document.createElement("div"); m.id = "mcm_modal"; m.className = "mcm-modal";
@@ -73537,7 +73555,7 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ background:var(--pend-cl
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.11.23-7';
+window.APP_VERSAO = '2026.11.23-8';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.11.19-1';
 (function(){
