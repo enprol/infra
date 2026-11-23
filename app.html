@@ -71915,6 +71915,163 @@ body.fbx-com-modal { overflow:hidden; }
   }
   if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", ligar); else ligar();
 })();
+</script><style>/* =====================================================================
+   Pendência = âmbar (23/11/2026, pedido do Fernando).
+
+   Toda indicação de pendência (número de itens em falta, etapa incompleta,
+   item do check list marcado "Não", tabela de pendências do Parecer, campo
+   ainda em branco) usa a mesma família de amarelo, do claro ao escuro.
+   Substitui, só para pendência, o tom marinho que o css/198 tinha posto em
+   13/11/2026; a origem do dado (auto/manual/espelho) continua sóbria.
+
+   Tokens (usar estes, não hex soltos):
+     --pend-claro    fundo de campo/etiqueta          #FFF6DB
+     --pend-claro-2  fundo no pico do pulso            #FDE5A1
+     --pend-fio      contorno discreto                 #EDC86E
+     --pend          contorno, marcador, barra         #D99A1E
+     --pend-escuro   preenchimento forte (botão "Não") #A86A00
+     --pend-texto    texto sobre fundo claro (7:1)     #6B4100
+     --pend-luz      texto/contorno sobre fundo escuro #F2C14E
+   Campos vazios piscando: js/203 põe .pend-vazio; checklist sem resposta: só CSS.
+   Para voltar ao visual anterior basta tirar este arquivo e o js/203 do manifest.
+   ===================================================================== */
+:root{
+  --pend-claro:#FFF6DB; --pend-claro-2:#FDE5A1; --pend-fio:#EDC86E; --pend:#D99A1E;
+  --pend-escuro:#A86A00; --pend-texto:#6B4100; --pend-luz:#F2C14E;
+  --gl-warn:var(--pend-escuro);          /* Painel Geral: ícone "falta", barras de progresso, gráficos */
+}
+
+/* ---------- menu lateral (fundo escuro): número de pendências do setor/documento ---------- */
+body.ctx-on .app-sidebar :is(.sb-setor, .sb-link)[data-ctx-n]::after{ background:rgba(242,193,78,.14); box-shadow:inset 0 0 0 1px var(--pend-luz); color:var(--pend-luz); }
+body.ctx-on .app-sidebar .sb-setor.ctx-ok[data-ctx-n]::after{ background:transparent; box-shadow:none; color:rgba(255,255,255,.5); }
+body.ctx-on .app-sidebar .sb-grp-btn.ctx-tem::after{ background:var(--pend-luz); }
+/* cartão "Pendências" no pé do menu: etapa com falta */
+.ctx-et.falta{ border-color:rgba(242,193,78,.55); background:rgba(242,193,78,.10); }
+.ctx-et.falta b{ color:var(--pend-luz); }
+.ctx-et.falta:hover, .ctx-et.falta[aria-expanded="true"]{ border-color:var(--pend-luz); background:rgba(242,193,78,.2); }
+
+/* ---------- títulos das seções ("N em falta") e sumário da Ficha de Vistoria ---------- */
+body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ background:var(--pend-claro); box-shadow:inset 0 0 0 1px var(--pend-fio); color:var(--pend-texto); }
+#panel-desp1-vist #fbdoc_nav .nv .nv-pend{ background:var(--pend-claro); box-shadow:inset 0 0 0 1px var(--pend-fio); color:var(--pend-texto); }
+#panel-desp1-vist #fbdoc .fbdoc-leg .m-pend{ background:var(--pend); box-shadow:none; }
+
+/* ---------- trilhas de etapas (Técnica .tec-*, Planta .v2-*): etapa em falta ---------- */
+.tec-st.falta, .v2-st.falta{ border-color:var(--pend-fio); background:var(--pend-claro); }
+.tec-st.falta i, .v2-st.falta i{ box-shadow:inset 0 0 0 1px var(--pend); color:var(--pend-texto); }
+.tec-st.falta:hover, .v2-st.falta:hover{ border-color:var(--pend); background:var(--pend-claro-2); }
+
+/* ---------- Checklist Documental: "Não" é pendência documental ---------- */
+#panel-desp1-checklist .ckd-pilha .nao, #panel-desp1-checklist .ckd-legenda .pt.nao{ background:var(--pend); }
+#panel-desp1-checklist em.nao{ color:var(--pend-escuro); }
+#panel-desp1-checklist .ckd-pulos button .pt{ background:var(--pend); }
+#panel-desp1-checklist .ckd-item.r-nao{ box-shadow:inset 3px 0 0 var(--pend); }
+#panel-desp1-checklist .ckd-item.r-nao .c-num{ color:var(--pend-escuro); }
+#panel-desp1-checklist .ckd-ck.nao:hover{ border-color:var(--pend); color:rgba(168,106,0,.4); }
+#panel-desp1-checklist .ckd-ck.nao.on{ background:var(--pend-escuro); border-color:var(--pend-escuro); color:#fff; }
+#panel-desp1-checklist .ckd-sum-it:not(.completo) .nb{ background:var(--pend-claro); color:var(--pend-texto); box-shadow:inset 0 0 0 1px var(--pend-fio); }
+
+/* ---------- Parecer: espelho do check list e tabela de pendências ---------- */
+#panel-desp1-parecer .par-mk.on.nao{ background:var(--pend-escuro); border-color:var(--pend-escuro); }
+#panel-desp1-parecer .par-mk-ro.nao{ color:var(--pend-escuro); }
+#panel-desp1-parecer table.par-pend thead th{ background:var(--pend-claro); color:var(--pend-texto); }
+#panel-desp1-parecer .par-aviso{ background:var(--pend-claro); border-color:var(--pend-fio); color:var(--pend-texto); }
+
+/* ---------- demais etiquetas de pendência espalhadas ---------- */
+.sgc-chip.sgc-falta, .sgc-falta .sgc-chip, .sgc-chip.aud-pend{ background:var(--pend-claro); color:var(--pend-texto); }
+#panel-desp1-campo .cm-st.st-pend{ color:var(--pend-escuro); }
+#mdp_aba_car .car-obs-lista .car-ind.pend,
+#panel-avaliacao .bnf-sg-tg.pend, #panel-desp1-tecnica .bnf-sg-tg.pend,
+.ddx-ctl button.pend:not(.zero){ border-color:var(--pend-fio); background:var(--pend-claro); color:var(--pend-texto); }
+#panel-desp1-rel .rel-grau-conf:has(.rel-grau-info.pendente){ border-left-color:var(--pend); background:var(--pend-claro); }
+
+/* ---------- campos ainda em branco: amarelo piscando devagar ----------
+   Ficha de Vistoria, Relatório Técnico, Parecer e Checklist Documental (DESP 1).
+   .pend-vazio vem do js/203 (só campo visível, editável e vazio). Ao focar, o pulso para
+   para não atrapalhar a digitação; com "reduzir movimento" no sistema, fica amarelo fixo. */
+/* O padrão dos campos da DESP 1 (css/196) fixa fundo, borda e sombra com !important e seletor com id; por isso:
+   - fundo e borda âmbar também com !important, num seletor mais específico (ids + .pend-vazio duas vezes);
+   - o pulso anima o CONTORNO (outline), que não está travado: animação não sobrepõe !important. */
+@keyframes pendPulso{
+  from{ outline-color:var(--pend-fio); outline-offset:0; }
+  to  { outline-color:var(--pend);     outline-offset:2px; }
+}
+:is(#panel-desp1-vist, #panel-desp1-rel, #panel-desp1-parecer) :is(input, textarea, select, .rtf-box).pend-vazio.pend-vazio:not(:focus){
+  background-color:var(--pend-claro) !important; border-color:var(--pend) !important;
+  outline:2px solid var(--pend-fio); outline-offset:0;
+  animation:pendPulso 1.8s ease-in-out infinite alternate;
+}
+:is(#panel-desp1-vist, #panel-desp1-rel, #panel-desp1-parecer) .pend-vazio::placeholder{ color:var(--pend-texto); opacity:.75; }
+
+/* Checklist: item sem resposta — as três caixas (Sim / Não / Não Aplic.) piscam */
+#panel-desp1-checklist .ckd-item:not(.r-sim):not(.r-nao):not(.r-na) .ckd-ck:not(:focus-visible){
+  border-color:var(--pend) !important; background-color:var(--pend-claro);
+  outline:2px solid var(--pend-fio); outline-offset:0;
+  animation:pendPulso 1.8s ease-in-out infinite alternate;
+}
+#panel-desp1-checklist .ckd-item:not(.r-sim):not(.r-nao):not(.r-na) .c-num{ color:var(--pend-escuro); }
+#panel-desp1-checklist .ckd-item:not(.r-sim):not(.r-nao):not(.r-na){ box-shadow:inset 3px 0 0 var(--pend-fio); }
+
+@media (prefers-reduced-motion: reduce){
+  :is(#panel-desp1-vist, #panel-desp1-rel, #panel-desp1-parecer) :is(input, textarea, select, .rtf-box).pend-vazio.pend-vazio:not(:focus),
+  #panel-desp1-checklist .ckd-item:not(.r-sim):not(.r-nao):not(.r-na) .ckd-ck:not(:focus-visible){ animation:none; outline-color:var(--pend); }
+}
+@media print{
+  :is(#panel-desp1-vist, #panel-desp1-rel, #panel-desp1-parecer) .pend-vazio.pend-vazio, #panel-desp1-checklist .ckd-ck{ animation:none !important; outline:none !important; background-color:transparent !important; }
+}
+</style><script>/* Campos em branco piscando em amarelo (23/11/2026, pedido do Fernando).
+   DESP 1 › Ficha de Vistoria, Relatório Técnico e Parecer: todo campo VISÍVEL, EDITÁVEL e VAZIO ganha a classe
+   .pend-vazio (cor e pulso em css/203). Checklist Documental: o item sem resposta é marcado só por CSS (css/203),
+   porque a linha já traz a classe da resposta (r-sim / r-nao / r-na).
+   Regras:
+   - só o painel aberto é varrido (a cada 1,2 s e na hora em que o usuário digita/escolhe);
+   - fica de fora: campo oculto (seção recolhida, bloco que não se aplica), só leitura/desabilitado (espelho, trava
+     por setor), .bloqueado, caixas de busca, checkbox/rádio/arquivo e quem tiver data-sem-pend;
+   - caixa de texto rico (.rtf-box) conta como vazia sem texto e sem imagem.
+   Só lê o formulário e troca uma classe: não grava nada no cadastro nem mexe no "não salvo". */
+(function(){
+  "use strict";
+  var PAINEIS = ["panel-desp1-vist", "panel-desp1-rel", "panel-desp1-parecer"];
+  var ALVOS = "input, textarea, select, .rtf-box[contenteditable='true']";
+  var FORA_TIPO = /^(checkbox|radio|file|hidden|button|submit|reset|image|color|range|search)$/i;
+  var CLS = "pend-vazio";
+
+  function conta(e){
+    if(e.hasAttribute("data-sem-pend") || e.closest("[data-sem-pend]")) return false;
+    if(e.classList.contains("bloqueado") || e.disabled || e.readOnly) return false;
+    if(e.tagName === "INPUT" && FORA_TIPO.test(e.type || "")) return false;
+    if(/busca/i.test(e.id || "") || e.getAttribute("role") === "searchbox") return false;
+    // seletor de data nativo escondido atrás da caixa dd/mm/aaaa (js de datas): quem conta é a caixa visível
+    if(e.classList.contains("data-br-hidden") || e.getAttribute("aria-hidden") === "true") return false;
+    return e.getClientRects().length > 0;          // oculto (display:none em si ou num pai) não conta
+  }
+  function vazio(e){
+    if(e.classList.contains("rtf-box")) return !(e.textContent || "").trim() && !e.querySelector("img");
+    return String(e.value == null ? "" : e.value).trim() === "";
+  }
+  function marcar(e){
+    var v = conta(e) && vazio(e);
+    if(e.classList.contains(CLS) !== v) e.classList.toggle(CLS, v);
+  }
+  function limpar(p){ Array.prototype.forEach.call(p.querySelectorAll("." + CLS), function(e){ e.classList.remove(CLS); }); }
+
+  function varrer(){
+    var b = document.body.classList, noCad = b.contains("ativ-cadastro") && !b.contains("modo-painel");
+    PAINEIS.forEach(function(id){
+      var p = document.getElementById(id); if(!p) return;
+      if(noCad && p.classList.contains("ativa")) Array.prototype.forEach.call(p.querySelectorAll(ALVOS), marcar);
+      else if(p.querySelector("." + CLS)) limpar(p);
+    });
+  }
+  // resposta imediata ao digitar/escolher (sem esperar a próxima varredura)
+  function aoMudar(ev){
+    var t = ev.target, e = t && t.closest && t.closest(ALVOS);
+    if(e && e.closest && PAINEIS.some(function(id){ var p = e.closest("#" + id); return !!p; })) marcar(e);
+  }
+  ["input", "change"].forEach(function(tipo){ document.addEventListener(tipo, aoMudar, true); });
+  setInterval(varrer, 1200);
+  if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", varrer); else varrer();
+  window.PEND_varrer = varrer;   // para quem trocar campos por código e quiser o retorno na hora
+})();
 </script><style>
 /* ===== DESP 3 › Avaliação FTN › Aspectos Gerais do laudo (SGPD) — 18/10/2026 =====
    Mesmo visual das seções da aba (vsec/vcard/vfield); só o que falta: caixas de seleção e textarea bloqueada. */
@@ -73355,7 +73512,7 @@ body.fbx-com-modal { overflow:hidden; }
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.11.23-3';
+window.APP_VERSAO = '2026.11.23-4';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.11.19-1';
 (function(){
