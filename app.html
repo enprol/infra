@@ -11416,6 +11416,9 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 #panel-util-marcos .mcm-tab td input{width:100%; border:0; background:transparent; padding:7px 8px; font:12.5px "Segoe UI",Arial,sans-serif; color:var(--texto);}
 #panel-util-marcos .mcm-tab td input:focus{outline:none; background:#f2f8fe; box-shadow:inset 0 0 0 2px rgba(31,111,192,.35);}
 #panel-util-marcos .mcm-racts{white-space:nowrap; padding:3px 6px !important; text-align:right;}
+#panel-util-marcos .mcm-fotobtn{margin-left:3px;font-size:11px;white-space:nowrap;}
+#panel-util-marcos .mcm-fotobtn.tem{color:#127a31;background:#e2f5e8;border-color:#9fd3ae;}
+#panel-util-marcos .mcm-fotosbase{align-items:center;}
 #panel-util-marcos .mcm-ok{font-size:10.5px; font-weight:800; color:#127a31; background:#e2f5e8; border-radius:10px; padding:2px 6px; margin-left:3px;}
 
 /* ---------- Conteúdo: texto corrido como página ---------- */
@@ -11504,6 +11507,9 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 .mcm-modal .vbtn{border:1px solid #b3bfcc;background:#fff;border-radius:9px;padding:7px 14px;font:700 12.5px "Segoe UI",Arial,sans-serif;cursor:pointer;}
 .mcm-modal .vbtn-primary{background:#1F6FC0;border-color:#1F6FC0;color:#fff;}
 .mcm-modal .mcm-dica{font-size:13px;color:#5a6b7c;}
+.mcm-modal .mcm-btn-lixo{padding:7px 9px;color:#b42318;display:inline-flex;align-items:center;}
+.mcm-modal .mcm-btn-lixo:hover{background:#fdecea;border-color:#e3a59f;}
+.mcm-modal .mcm-btn-perigo{background:#b42318;border-color:#b42318;color:#fff;display:inline-flex;align-items:center;gap:6px;}
 
 #panel-util-marcos .mc-anexos{margin-top:12px;border:1px solid #d3dbe4;border-radius:10px;padding:12px 14px;background:#fbfcfe;font-family:"Segoe UI",Arial,sans-serif;}
 #panel-util-marcos .mc-anx-t{font-weight:800;font-size:13px;color:#175a9f;margin-bottom:6px;}
@@ -11970,7 +11976,8 @@ function salvar(imediato){
 function procDe(id){ for(var i=0;i<ST.procs.length;i++) if(ST.procs[i].id === id) return ST.procs[i]; return null; }
 function marcoDe(p, id){ if(!p) return null; for(var i=0;i<p.marcos.length;i++) if(p.marcos[i].id === id) return p.marcos[i]; return null; }
 function alvoDe(el){
-  var d = el.dataset, f = d.f; if(!f) return null;
+  // 23/11/2026: os campos de foto (Anexar/Trocar/Remover) só têm data-foto; sem isto voltava null e a foto não gravava
+  var d = el.dataset, f = d.f || d.foto; if(!f) return null;
   if(d.g) return { obj: ST[d.g], key: f };
   if(d.t1){
     var pp = procDe(String(d.t1).replace(/^a_/, "")); if(!pp) return null;
@@ -12767,13 +12774,14 @@ function formProc(p, idx){
   h += '<div class="mcm-sub">Marco de apoio (Base)</div>';
   h += '<div class="vrow">' + F("Identificação do vértice", ab, p.base, "ident", { ph:"BASE / (xxxxxx – M000)" }) + F("E (m)", ab, p.base, "E", { ph:"000.000,0000" }) + F("N (m)", ab, p.base, "N", { ph:"0.000.000,0000" }) + F("Altitude “h” (m)", ab, p.base, "h", { ph:"000,0000" }) + '</div>';
   h += '<div class="vrow">' + F("δ (φ)", ab, p.base, "dphi") + F("δ (λ)", ab, p.base, "dlam") + F("δ (h)", ab, p.base, "dh") + F("Tempo de rastreio", ab, p.base, "rastreio") + F("Espera (IBGE)", ab, p.base, "espera") + '</div>';
+  h += '<div class="mcm-acts mcm-fotosbase"><span class="mcm-dica">Fotos da Base:</span>' + fotoBtnForm(p.base, "fl", ab) + fotoBtnForm(p.base, "fd", ab) + '</div>';
   h += '<div class="mcm-sub">Marcos geodésicos <small>(' + p.marcos.length + ')</small></div>';
   h += '<div class="mc-scroll"><table class="mcm-tab"><tr><th>Código do vértice</th><th>Latitude</th><th>Longitude</th><th>Alt. elipsoidal</th><th>N</th><th>E</th><th>δ(φ)</th><th>δ(λ)</th><th>δ(h)</th><th></th></tr>';
   p.marcos.forEach(function(m){
     var am = 'data-pid="' + p.id + '" data-mid="' + m.id + '"';
     h += '<tr>' + ["cod", "lat", "lon", "alt", "N", "E", "dphi", "dlam", "dh"].map(function(f){ return '<td><input type="text" class="mc-i" value="' + esc(m[f]) + '" data-f="' + f + '" ' + am + '></td>'; }).join("")
       + '<td class="mcm-racts"><button type="button" class="dd-b" data-act="marcodup" ' + am + ' title="Duplicar">⧉</button><button type="button" class="dd-b" data-act="marcodel" ' + am + ' title="Excluir">🗑</button>'
-      + (m.fl ? '<span class="mcm-ok" title="foto de localização anexada">L✓</span>' : "") + (m.fd ? '<span class="mcm-ok" title="foto de detalhe anexada">D✓</span>' : "") + '</td></tr>';
+      + fotoBtnForm(m, "fl", am) + fotoBtnForm(m, "fd", am) + '</td></tr>';
   });
   h += '</table></div>';
   h += '<div class="mcm-acts"><button type="button" class="vbtn vbtn-ghost" data-act="addmarco" ' + a + '>＋ Marco</button>'
@@ -12822,9 +12830,16 @@ function colarMarcos(p, txt, substituir){
   p.marcos = substituir ? novos : p.marcos.concat(novos);
   if(!p.marcos.length) p.marcos.push(marcoNovo(p));
 }
+/* 23/11/2026: no Formulário, cada marco (e a Base) tem o seu botão de foto de localização e de detalhe —
+   antes só havia o “Fotos em lote”, que depende do nome do arquivo (código do marco + “det”). */
+function fotoBtnForm(obj, f, attrs){
+  var tem = !!obj[f], rot = f === "fd" ? "Det." : "Loc.", nome = f === "fd" ? "foto de detalhe" : "foto de localização";
+  return '<label class="dd-b mcm-fotobtn' + (tem ? ' tem' : '') + '" title="' + (tem ? "Trocar a " : "Anexar a ") + nome + '">' + rot + (tem ? ' ✓' : ' +')
+    + '<input type="file" accept="image/*" class="mc-fotoin" data-foto="' + f + '" ' + attrs + ' style="display:none"></label>';
+}
 function fotosEmLote(p, files){
   var fs = Array.prototype.slice.call(files || []); if(!fs.length) return;
-  var n = 0, sem = [];
+  var n = 0, sem = [], onde = [];
   Promise.all(fs.map(function(f){
     var nome = norm(f.name.replace(/\.[^.]+$/, "")).replace(/[\s_]+/g, "-");
     var alvo = null;
@@ -12832,10 +12847,15 @@ function fotosEmLote(p, files){
     else p.marcos.forEach(function(m){ if(m.cod && nome.indexOf(norm(m.cod).replace(/[\s_]+/g, "-")) >= 0) alvo = alvo || m; });
     if(!alvo){ sem.push(f.name); return null; }
     var campo = /det/.test(nome) ? "fd" : "fl";
-    return lerImg(f, 1400, .8).then(function(src){ alvo[campo] = src; n++; }, function(){ sem.push(f.name); });
+    return lerImg(f, 1400, .8).then(function(src){
+      var substituiu = !!alvo[campo]; alvo[campo] = src; n++;
+      onde.push(f.name + " → " + (alvo === p.base ? "Base" : alvo.cod) + ", " + (campo === "fd" ? "detalhe" : "localização") + (substituiu ? " (substituiu a anterior)" : ""));
+    }, function(){ sem.push(f.name + " (formato não lido)"); });
   })).then(function(){
     salvar(true); renderForm();
-    alert(n + " foto(s) anexada(s)." + (sem.length ? "\n\nNão consegui associar: " + sem.join(", ") + "\n(o nome do arquivo precisa conter o código do marco ou a palavra “base”)." : ""));
+    alert(n + " foto(s) anexada(s)." + (onde.length ? "\n\n" + onde.join("\n") : "")
+      + (sem.length ? "\n\nNão consegui associar: " + sem.join(", ") + "\n(o nome do arquivo precisa conter o código do marco ou a palavra “base”)." : "")
+      + "\n\nNo lote, só vai para a foto de DETALHE o arquivo com “det” no nome. Para uma foto avulsa, use os botões Loc./Det. de cada marco.");
   });
 }
 function ligarForm(){
@@ -12858,7 +12878,12 @@ function ligarForm(){
   f.addEventListener("change", function(e){
     var t = e.target; if(!t) return;
     if(t.tagName === "SELECT" && t.dataset.f){ gravaCampo(t); return; }
-    if(t.classList && t.classList.contains("mcm-lote")){ fotosEmLote(procDe(t.dataset.pid), t.files); t.value = ""; }
+    if(t.classList && t.classList.contains("mcm-lote")){ fotosEmLote(procDe(t.dataset.pid), t.files); t.value = ""; return; }
+    if(t.classList && t.classList.contains("mc-fotoin") && t.files && t.files[0]){
+      var al = alvoDe(t), fo = t.getAttribute("data-foto");
+      if(al) lerImg(t.files[0], 1400, .8).then(function(src){ al.obj[fo] = src; salvar(true); renderForm(); }, avisoFormato);
+      t.value = "";
+    }
   });
   f.addEventListener("focusout", function(e){
     var t = e.target; if(!t || !t.dataset) return;
@@ -13854,18 +13879,46 @@ window.MCM_abrirServidor = async function(){
   var m = document.createElement("div"); m.id = "mcm_modal"; m.className = "mcm-modal";
   var h = '<div class="mcm-modal-box"><div class="mcm-modal-h"><b>Documentos de Implantação de Marcos no servidor</b><button type="button" class="vbtn vbtn-ghost" data-x="fechar">✕</button></div>';
   h += lista.length ? '<div class="mcm-modal-l">' + lista.map(function(d){
-    return '<div class="mcm-modal-i"><div><b>' + esc(d.nome) + '</b><small>' + esc(d.titulo || "") + ' · atualizado ' + esc(d.atualizado_em ? new Date(d.atualizado_em).toLocaleString("pt-BR") : "—") + ' · ' + d.pdfs.length + ' PDF(s)</small></div><button type="button" class="vbtn vbtn-primary" data-nome="' + esc(d.nome) + '">Abrir</button></div>';
+    return '<div class="mcm-modal-i"><div><b>' + esc(d.nome) + '</b><small>' + esc(d.titulo || "") + ' · atualizado ' + esc(d.atualizado_em ? new Date(d.atualizado_em).toLocaleString("pt-BR") : "—") + ' · ' + d.pdfs.length + ' PDF(s)</small></div>' +
+      '<button type="button" class="vbtn vbtn-primary" data-nome="' + esc(d.nome) + '">Abrir</button>' +
+      '<button type="button" class="vbtn mcm-btn-lixo" data-excluir="' + esc(d.nome) + '" title="Excluir o documento “' + esc(d.nome) + '”" aria-label="Excluir o documento ' + esc(d.nome) + '">' + ico("trash") + '</button></div>';
   }).join("") + '</div>' : '<p class="mcm-dica" style="padding:14px">Nenhum documento salvo ainda. Dê um nome ao documento e use “Salvar no servidor”.</p>';
   m.innerHTML = h + '</div>';
   document.body.appendChild(m);
   m.addEventListener("click", async function(e){
-    if(e.target === m || (e.target.dataset && e.target.dataset.x === "fechar")){ fecharModal(); return; }
+    if(e.target === m || (e.target.closest && e.target.closest('[data-x="fechar"]'))){ fecharModal(); return; }
+    var x = e.target.closest && e.target.closest("button[data-excluir]");
+    if(x){ confirmarExclusao(x.dataset.excluir); return; }
     var b = e.target.closest && e.target.closest("button[data-nome]"); if(!b) return;
     if(!confirm("Abrir “" + b.dataset.nome + "”? O que está nesta aba será substituído.")) return;
     fecharModal();
     try{ await abrirDoServidor(b.dataset.nome); }catch(err){ srvStatus("falha ao abrir", "erro"); alert("Não consegui abrir: " + (err && err.message || err)); }
   });
 };
+/* 23/11/2026: excluir um documento do servidor (lixeira na lista do “Abrir do servidor”), sempre com janela de confirmação.
+   O servidor não apaga: move a pasta inteira (JSON, IMAGENS, PDF) para LIXEIRA/IMPLANTAÇÃO DE MARCOS/<nome> - <data>. */
+function confirmarExclusao(nome){
+  var aberto = ST && ST.nomeSrv === nome;
+  var corpo = '<div style="padding:16px 18px;font-size:14px;color:#243447;line-height:1.5">' +
+    '<p style="margin:0 0 10px">Deseja realmente excluir o documento <b>“' + esc(nome) + '”</b> do servidor?</p>' +
+    '<p class="mcm-dica" style="margin:0">A pasta inteira (projeto, imagens e PDFs) vai para a <b>LIXEIRA</b> da base de cadastros e some desta lista.' +
+    (aberto ? ' Ele é o documento aberto nesta aba: o que está na tela continua aqui e, se você salvar de novo no servidor, vira um documento novo.' : '') + '</p></div>' +
+    '<div class="mcm-modal-f"><button type="button" class="vbtn" data-x="fechar" data-foco="1">Cancelar</button>' +
+    '<button type="button" class="vbtn mcm-btn-perigo" data-sim="1">' + ico("trash") + ' Excluir</button></div>';
+  var m = abrirModal("Excluir documento", corpo);
+  m.addEventListener("click", async function(e){
+    if(e.target === m || (e.target.closest && e.target.closest('[data-x="fechar"]'))){ fecharModal(); window.MCM_abrirServidor(); return; }
+    var s = e.target.closest && e.target.closest("button[data-sim]"); if(!s) return;
+    s.disabled = true;
+    try{
+      var r = await srvFetch("/api/marcos/" + enc(nome), { method:"DELETE" }, 30000);
+      if(!r.ok){ var j = {}; try{ j = await r.json(); }catch(_){} throw new Error(j.erro || srvMotivo(r.status)); }
+      if(ST && ST.nomeSrv === nome){ ST.nomeSrv = ""; var el = $("mcm_srv"); if(el) delete el.dataset.salvo; salvar(); }
+      srvStatus("“" + nome + "” foi para a lixeira do servidor", "ok");
+      fecharModal(); window.MCM_abrirServidor();
+    }catch(err){ s.disabled = false; alert("Não consegui excluir: " + (err && err.message || err)); }
+  });
+}
 
 function initServidor(){
   var n = $("mcm_nome");
@@ -73555,7 +73608,7 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ background:var(--pend-cl
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.11.23-8';
+window.APP_VERSAO = '2026.11.23-9';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.11.19-1';
 (function(){
