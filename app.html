@@ -70359,7 +70359,8 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ content:attr(data-ctx-n)
       var box = faixa.querySelector(".ctx-etapas"); box.textContent = "";
       if(!comp) return;
       ETAPAS.forEach(function(e){
-        var k = n[e[0]], nc = !!(comp[e[0]] && comp[e[0]].nc), b = el("button", "ctx-et " + (nc ? "nc" : k ? "falta" : "ok")); b.type = "button"; b.setAttribute("data-etapa", e[0]);
+        // 24/11/2026: n[] é a chave do cache ("0", "3nc"…); a contagem é sempre número — "0" em texto acendia "falta"
+        var nc = !!(comp[e[0]] && comp[e[0]].nc), k = nc ? 0 : faltando(e[0]).length, b = el("button", "ctx-et " + (nc ? "nc" : k ? "falta" : "ok")); b.type = "button"; b.setAttribute("data-etapa", e[0]);
         b.setAttribute("aria-haspopup", "dialog"); b.setAttribute("aria-expanded", "false");
         b.appendChild(el("span", null, e[1])); b.appendChild(el("b", null, nc ? "—" : k ? String(k) : "✓"));
         b.title = nc ? e[1] + ": produto não contratado — não é pendência" : k ? e[1] + ": " + k + " pendência(s). Clique para ver." : e[1] + ": completo";
@@ -73958,9 +73959,9 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ background:var(--pend-cl
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.11.24-2';
+window.APP_VERSAO = '2026.11.24-3';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
-window.SERVIDOR_RECOMENDADO = '2026.11.24-1';
+window.SERVIDOR_RECOMENDADO = '2026.11.24-3';
 (function(){
   var SEM_VERSAO = '0000.00.00-0';
   var LEGADO_LAYOUT = '2026.10.07-0';   // servidor que já tem layout_antigo no health, mas ainda sem número de versão
