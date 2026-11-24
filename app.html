@@ -8993,25 +8993,9 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 </div>
 
 <div id="campo_conteudo" style="display:none;"></div>
-
-<div class="vcard">
-  <div class="vsub">3 · Cabeçalho do relatório (linhas 2 e 3 do PDF)</div>
-  <div class="vrow">
-    <div class="vfield grow"><label for="campo_rf_l2">Linha 2 (empreendimento)<span class="hint-auto"> em branco = usa a Ferrovia do Relatório Técnico</span></label>
-      <input type="text" id="campo_rf_l2" placeholder="Ferrovia Transnordestina – EF-232"></div>
-    <div class="vfield grow"><label for="campo_rf_l3">Linha 3 (identificação)<span class="hint-auto"> em branco = CTD – Lote – Município</span></label>
-      <input type="text" id="campo_rf_l3" placeholder="CTD 001 - CP- SPS-04 – PE"></div>
-  </div>
-</div>
-
-<div class="vcard">
-  <div class="vsub">4 · Gerar e aproveitar</div>
-  <div class="vactions">
-    <button class="vbtn vbtn-primary" type="button" onclick="CAMPO_pdfRelatorio()">📄 PDF — Relatório de Campo (ficha + mapa + fotos)</button>
-    <button class="vbtn vbtn-ghost" type="button" onclick="CAMPO_paraFicha()">↧ Enviar dados para a Ficha de Vistoria</button>
-  </div>
-  <p class="hint-inline">O envio para a Ficha de Vistoria preenche proprietário, município/UF, data, o resumo das benfeitorias (3.1.1 e 3.2.1) e acrescenta as fotografias em 5.3 — e também substitui o Relatório Fotográfico da DESP 2 pelas mesmas fotos do relatório de campo — mostrando antes o que vai ser escrito.</p>
-</div>
+<!-- 24/11/2026 (Fernando): saíram "3 · Cabeçalho do relatório" (campo_rf_l2/l3: o PDF usa o padrão — Ferrovia do Relatório
+     Técnico e CTD – Lote – Município) e "4 · Gerar e aproveitar" (o PDF fica no Pré-visualizar/Baixar do topo; CAMPO_paraFicha
+     continua existindo no js/130, sem botão) -->
 
 </div>
 </section>
@@ -43890,6 +43874,8 @@ function AV_gerarDescSituacao(){
     });
   }
   function init(){ document.querySelectorAll("input.data-br").forEach(aplicar); }
+  // 24/11/2026: campos de data desenhados depois da carga (ex.: aba Campo, js/130) chamam isto
+  window.DATA_BR_mascara = function(root){ (root || document).querySelectorAll("input.data-br").forEach(aplicar); };
   if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", init);
   else init();
 })();
@@ -43955,6 +43941,8 @@ function AV_gerarDescSituacao(){
     });
   }
   function init(){ document.querySelectorAll("input.data-br").forEach(equipar); }
+  // 24/11/2026: campos de data desenhados depois da carga (ex.: aba Campo, js/130) chamam isto
+  window.DATA_BR_calendario = function(root){ (root || document).querySelectorAll("input.data-br").forEach(equipar); };
   if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", init);
   else init();
 })();
@@ -52593,7 +52581,7 @@ window.DRL_gerarPDF=async function(opts){
     if(c.t === "text"){
       h += '<input type="text" value="'+esc(v==null?"":v)+'"'+attr+' oninput="CAMPO_set(\''+cam+'\',this.value)">';
     } else if(c.t === "date"){
-      h += '<input type="date" value="'+esc(v==null?"":v)+'"'+attr+' oninput="CAMPO_set(\''+cam+'\',this.value)">';
+      h += '<input type="text" class="data-br" inputmode="numeric" maxlength="10" placeholder="dd/mm/aaaa" value="'+esc(dataBR(v))+'"'+attr+' oninput="CAMPO_setData(\''+cam+'\',this.value)">';
     } else if(c.t === "ta"){
       h += '<textarea rows="'+(c.rows||3)+'"'+attr+' oninput="CAMPO_set(\''+cam+'\',this.value)">'+esc(v==null?"":v)+'</textarea>';
     } else if(c.t === "sel"){
@@ -52718,6 +52706,17 @@ window.DRL_gerarPDF=async function(opts){
   function juntarFrases(arr){
     if(arr.length <= 1) return arr[0] || "";
     return arr.slice(0, -1).join(", ") + " e " + arr[arr.length - 1];
+  }
+  // 24/11/2026: data na tela em dd/mm/aaaa (classe data-br, padrão do app); no arquivo do campo continua AAAA-MM-DD
+  window.CAMPO_setData = function(cam, br){
+    var s = String(br || "").trim(), m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if(!s) window.CAMPO_set(cam, "");
+    else if(m) window.CAMPO_set(cam, m[3] + "-" + m[2] + "-" + m[1]);
+  };
+  function equiparDatas(root){
+    if(!root) return;
+    if(window.DATA_BR_mascara) window.DATA_BR_mascara(root);
+    if(window.DATA_BR_calendario) window.DATA_BR_calendario(root);
   }
   window.CAMPO_set = function(cam, v){
     if(!CAMPO) return;
@@ -52937,78 +52936,72 @@ window.DRL_gerarPDF=async function(opts){
     box.style.display = ""; if(vazio) vazio.style.display = "none";
 
     var f = CAMPO, h = "";
-    h += '<p class="hint-inline" style="margin:0 0 10px">✏️ Tudo abaixo é <b>editável</b> — o que você alterar fica salvo com o cadastro. Use “Enviar dados para a Ficha de Vistoria” (mais abaixo) para levar ao documento.</p>';
+    h += '<p class="hint-inline" style="margin:0 0 10px">✏️ Tudo abaixo é <b>editável</b> — o que você alterar fica salvo com o cadastro.</p>';
 
     FSECOES.forEach(function(sec){
       var cs = camposDaSecao(f, sec);
       if(!cs.length) return;
-      h += '<div class="vcard"><div class="vsub">'+esc(sec.t)+'</div><div class="cf-grid">'
-         + cs.map(campoHTML).join("") + '</div></div>';
+      h += secAcc(sec.t.replace(" · ", " — "), '<div class="cf-grid">' + cs.map(campoHTML).join("") + '</div>');
     });
     var extras = chavesExtras(f);
     if(extras.length){
-      h += '<div class="vcard"><div class="vsub">Demais campos <span style="color:#7a8797;font-weight:600">('+extras.length+')</span></div>'
-         + '<p class="hint-inline">Campos que vieram no arquivo e não fazem parte do formulário atual.</p><div class="cf-grid">'
-         + extras.map(extraHTML).join("") + '</div></div>';
+      h += secAcc("Demais campos (" + extras.length + ")",
+           '<p class="hint-inline">Campos que vieram no arquivo e não fazem parte do formulário atual.</p><div class="cf-grid">'
+         + extras.map(extraHTML).join("") + '</div>');
     }
 
     // listas do formato antigo do app de campo (só leitura; as fotos delas ficam nas galerias abaixo)
     ["reprodutivas","pastagem","naoReprodutivas","acessorias"].forEach(function(lista){
       var arr = f[lista] || [];
       if(!arr.length) return;
-      h += '<div class="vcard"><div class="vsub">'+esc(TIT_REP[lista])+' <span style="color:#7a8797;font-weight:600">('+arr.length+')</span></div>';
+      var c2 = "";
       arr.forEach(function(it, i){
-        h += '<div class="campo-sub">'+esc(ROT_REP[lista])+' '+(i+1)+'</div><div class="campo-cols">';
+        c2 += '<div class="campo-sub">'+esc(ROT_REP[lista])+' '+(i+1)+'</div><div class="campo-cols">';
         CAMPOS_REP[lista].forEach(function(c){
           var v = val(it[c[1]]), largo = String(v).length > 90;
-          h += '<div class="kvc'+(largo?" largo":"")+'"><span class="kl">'+esc(c[0])+'</span>'
+          c2 += '<div class="kvc'+(largo?" largo":"")+'"><span class="kl">'+esc(c[0])+'</span>'
              + '<span class="kvv">'+esc(v)+'</span></div>';
         });
-        h += '</div>';
+        c2 += '</div>';
       });
-      h += '</div>';
+      h += secAcc(TIT_REP[lista] + " (" + arr.length + ")", c2);
     });
 
     if(f.gps && isFinite(f.gps.lat)){
-      h += '<div class="vcard"><div class="vsub">Coordenada (GPS)</div><div class="kvc"><span class="kvv">'+f.gps.lat.toFixed(6)+", "+f.gps.lon.toFixed(6)
+      h += secAcc("Coordenada (GPS)", '<div class="kvc"><span class="kvv">'+f.gps.lat.toFixed(6)+", "+f.gps.lon.toFixed(6)
          + (f.gps.precisao ? " (±"+Math.round(f.gps.precisao)+" m)" : "")
-         + ' <a href="https://www.google.com/maps?q='+f.gps.lat+','+f.gps.lon+'" target="_blank" rel="noopener">ver no mapa</a></span></div></div>';
+         + ' <a href="https://www.google.com/maps?q='+f.gps.lat+','+f.gps.lon+'" target="_blank" rel="noopener">ver no mapa</a></span></div>');
     }
 
-    h += '<div class="vcard"><div class="vsub" id="campo_fotos_tit">Fotografias</div><div id="campo_fotos_box"></div></div>';
+    h += secAcc("Fotografias", '<div id="campo_fotos_box"></div>', "campo_fotos_tit");
     box.innerHTML = h;
     renderFotos();
-    secoesRetrateis();
+    equiparDatas(box);
   }
-  /* 24/11/2026 (Fernando): tópicos da aba Campo retráteis — todo cartão (.vcard) cujo 1º filho é o título (.vsub) abre e
-     fecha pelo título. O estado fica por título (o formulário é redesenhado a cada importação/edição) e no navegador. */
+  /* 24/11/2026 (Fernando): tópicos da aba Campo retráteis no MESMO padrão das outras abas da DESP 1 (Ficha de Vistoria,
+     Técnica): cabeçalho h2.vsec.acc ("1 — IDENTIFICAÇÃO", seta à direita) e o corpo no .vcard logo abaixo (.oculto quando
+     fechado). O estado fica por título (o formulário é redesenhado a cada importação/edição) e só neste navegador. */
   var SEC_FECHADAS = {}; try{ SEC_FECHADAS = JSON.parse(localStorage.getItem("campo_secoes_fechadas") || "{}") || {}; }catch(e){}
-  function secChave(v){ return String(v.textContent || "").replace(/\(\d+\)/g, "").replace(/\s+/g, " ").trim(); }
-  function secoesRetrateis(){
-    var p = _("panel-desp1-campo"); if(!p) return;
-    Array.prototype.forEach.call(p.querySelectorAll(".vcard > .vsub:first-child"), function(v){
-      var card = v.parentNode, fech = !!SEC_FECHADAS[secChave(v)];
-      card.classList.add("cf-sec"); card.classList.toggle("cf-fechado", fech);
-      v.setAttribute("role", "button"); v.setAttribute("tabindex", "0"); v.setAttribute("aria-expanded", fech ? "false" : "true");
-      v.title = fech ? "Clique para abrir o tópico" : "Clique para recolher o tópico";
-    });
+  function secChave(t){ return String(t || "").replace(/\s*\(\d+\)\s*$/, "").replace(/\s+/g, " ").trim(); }
+  function secAcc(tit, corpo, idTit){
+    var fech = !!SEC_FECHADAS[secChave(tit)];
+    return '<h2 class="vsec acc' + (fech ? " fechado" : "") + '" data-cf-sec="' + esc(secChave(tit)) + '" role="button" tabindex="0" aria-expanded="' + (fech ? "false" : "true") + '" onclick="CAMPO_secAlternar(this)">'
+      + '<span' + (idTit ? ' id="' + idTit + '"' : "") + '>' + esc(tit) + '</span><span class="acc-chevron" aria-hidden="true">▾</span></h2>'
+      + '<div class="vcard' + (fech ? " oculto" : "") + '">' + corpo + '</div>';
   }
-  function secAlternar(v){
-    var card = v.parentNode, fech = !card.classList.contains("cf-fechado"), k = secChave(v);
+  window.CAMPO_secAlternar = function(h2){
+    var fech = !h2.classList.contains("fechado"), k = h2.getAttribute("data-cf-sec") || "", el = h2.nextElementSibling;
+    h2.classList.toggle("fechado", fech); h2.setAttribute("aria-expanded", fech ? "false" : "true");
+    while(el && !el.classList.contains("vcard")) el = el.nextElementSibling;
+    if(el) el.classList.toggle("oculto", fech);
     if(fech) SEC_FECHADAS[k] = 1; else delete SEC_FECHADAS[k];
     try{ localStorage.setItem("campo_secoes_fechadas", JSON.stringify(SEC_FECHADAS)); }catch(e){}
-    secoesRetrateis();
-  }
-  document.addEventListener("click", function(ev){
-    var v = ev.target.closest && ev.target.closest("#panel-desp1-campo .vcard.cf-sec > .vsub:first-child");
-    if(v && !ev.target.closest("a,button,input,select,label")) secAlternar(v);
-  });
+  };
   document.addEventListener("keydown", function(ev){
     if(ev.key !== "Enter" && ev.key !== " ") return;
-    var v = ev.target.closest && ev.target.closest("#panel-desp1-campo .vcard.cf-sec > .vsub:first-child");
-    if(v && ev.target === v){ ev.preventDefault(); secAlternar(v); }
+    var h2 = ev.target && ev.target.matches && ev.target.matches("#panel-desp1-campo h2.vsec.acc[data-cf-sec]") ? ev.target : null;
+    if(h2){ ev.preventDefault(); window.CAMPO_secAlternar(h2); }
   });
-  if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", secoesRetrateis); else secoesRetrateis();
   window.CAMPO_render = CAMPO_render;
   window.CAMPO_getFotos = function(){
     if(!CAMPO) return [];
@@ -54501,10 +54494,10 @@ window.DRL_gerarPDF=async function(opts){
     var acts = '<button type="button" class="dd-b" data-act="' + (s.oculto ? "show" : "hide") + '" title="Tira/põe esta seção no PDF">' + (s.oculto ? "👁 Incluir no PDF" : "Ocultar") + '</button>';
     var fech = !!CDD_FECHADAS[s.id];   // 24/11/2026: seção recolhida (só a tela; não mexe no PDF nem no cadastro)
     return '<section class="dd-top lv1' + (s.oculto ? " is-oculto" : "") + (fech ? " cdd-fechado" : "") + '" id="cdd_' + s.id + '" data-id="' + s.id + '">'
-      + '<div class="dd-head"><button type="button" class="cdd-tog" data-act="tog" aria-expanded="' + (fech ? "false" : "true") + '" title="' + (fech ? "Abrir o tópico" : "Recolher o tópico") + '" aria-label="' + (fech ? "Abrir" : "Recolher") + ' o tópico ' + esc(s.head) + '">▾</button>'
-      + '<span class="dd-num">' + esc(s.oculto ? "—" : s.num) + '</span>'
+      + '<div class="dd-head"><span class="dd-num">' + esc(s.oculto ? "—" : s.num) + '</span>'
       + '<span class="dd-tit" contenteditable="true" spellcheck="true" data-id="' + s.id + '">' + esc(s.head) + '</span>'
-      + '<span class="dd-tags"><span class="dd-tag t-oculto">fora do PDF</span></span><span class="dd-acts">' + acts + '</span></div>'
+      + '<span class="dd-tags"><span class="dd-tag t-oculto">fora do PDF</span></span><span class="dd-acts">' + acts + '</span>'
+      + '<button type="button" class="cdd-tog acc-chevron" data-act="tog" aria-expanded="' + (fech ? "false" : "true") + '" title="' + (fech ? "Abrir o tópico" : "Recolher o tópico") + '" aria-label="' + (fech ? "Abrir" : "Recolher") + ' o tópico ' + esc(s.head) + '">▾</button></div>'
       + '<div class="dd-corpo">' + corpo + '</div></section>';
   }
   /* 24/11/2026 (Fernando): tópicos retráteis também no modo "Conteúdo do relatório" — botão ▾ no título; estado por tópico,
@@ -54531,6 +54524,7 @@ window.DRL_gerarPDF=async function(opts){
     var y = window.scrollY;
     nav.innerHTML = relNavHtml(lista);
     main.innerHTML = lista.map(function(s){ return relSecaoHtml(f, s); }).join("");
+    equiparDatas(main);
     if(_("campo_fotos_box")) renderFotos();
     if(_("cm_mapa")){
       relAtualizarMapa();
@@ -59978,18 +59972,24 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
 #panel-desp1-campo .cf-xy{ font-weight:600; font-size:10.5px; color:#175a9f; margin-left:6px; white-space:nowrap; }
 #panel-desp1-campo .cf-xy.ruim{ color:#a86412; }
 #panel-desp1-campo .dd-doc .cf-gal-h .cf-add{ text-transform:none; }
-/* 24/11/2026: tópicos retráteis (js/130 secoesRetrateis) */
-#panel-desp1-campo .vcard.cf-sec > .vsub:first-child{ cursor:pointer; user-select:none; position:relative; padding-left:22px; }
-#panel-desp1-campo .vcard.cf-sec > .vsub:first-child::before{ content:"\25BE"; position:absolute; left:4px; top:50%; transform:translateY(-50%); font-size:12px; color:#5b6b7c; transition:transform .15s; }
-#panel-desp1-campo .vcard.cf-sec.cf-fechado > .vsub:first-child::before{ transform:translateY(-50%) rotate(-90deg); }
-#panel-desp1-campo .vcard.cf-sec > .vsub:first-child:hover{ color:var(--azul-esc, #14294a); }
-#panel-desp1-campo .vcard.cf-sec > .vsub:first-child:focus-visible{ outline:2px solid #1f6fc0; outline-offset:2px; border-radius:4px; }
-#panel-desp1-campo .vcard.cf-sec.cf-fechado > :not(.vsub:first-child){ display:none !important; }
-#panel-desp1-campo .vcard.cf-sec.cf-fechado{ padding-bottom:10px; }
-/* 24/11/2026: modo "Conteúdo do relatório" — tópicos retráteis (botão ▾ no título; js/130 cddAlternar) */
-#panel-desp1-campo .dd-top .cdd-tog{ border:0; background:transparent; cursor:pointer; color:#5b6b7c; font-size:13px; width:22px; height:22px; margin-right:2px; border-radius:6px; transition:transform .15s, background .15s; flex:0 0 auto; }
-#panel-desp1-campo .dd-top .cdd-tog:hover{ background:#e8eef5; color:#14294a; }
-#panel-desp1-campo .dd-top .cdd-tog:focus-visible{ outline:2px solid #1f6fc0; outline-offset:1px; }
+/* 24/11/2026: tópicos retráteis no padrão da DESP 1 (o mesmo cabeçalho da Ficha de Vistoria e da Técnica:
+   h2.vsec.acc "1 — IDENTIFICAÇÃO", barra azul-marinho à esquerda, seta à direita; corpo no .vcard logo abaixo) */
+#panel-desp1-campo .vsec.acc{
+  display:flex; align-items:center; justify-content:space-between; cursor:pointer; user-select:none;
+  font:700 14px var(--gl-font, "Segoe UI Variable Text", "Segoe UI", sans-serif) !important; letter-spacing:.06em !important; text-transform:uppercase;
+  color:var(--gl-ink, #0F2236) !important; background:var(--card, #fff) !important;
+  border:1px solid var(--gl-line, #DCE1E8) !important; border-bottom:none !important; border-left:4px solid var(--gl-navy, #1B3A5C) !important;
+  border-radius:9px 9px 0 0; padding:9px 16px 9px 14px !important; margin:22px 0 0; box-shadow:none !important; }
+#panel-desp1-campo .vsec.acc .acc-chevron{ font-size:13px; transition:transform .2s; }
+#panel-desp1-campo .vsec.acc.fechado{ border-radius:9px; }
+#panel-desp1-campo .vsec.acc.fechado .acc-chevron{ transform:rotate(-90deg); }
+#panel-desp1-campo .vsec.acc:focus-visible{ outline:2px solid #1F6FC0; outline-offset:2px; }
+#panel-desp1-campo .vsec.acc + .vcard{ border-radius:0 0 12px 12px; padding:18px 18px 20px; margin:0 0 8px; }
+#panel-desp1-campo .vcard.oculto{ display:none; }
+/* modo "Conteúdo do relatório": a mesma seta, à direita do título (js/130 cddAlternar) */
+#panel-desp1-campo .dd-top .cdd-tog{ border:0; background:transparent; cursor:pointer; color:var(--gl-ink, #0F2236); font-size:13px; width:24px; height:24px; margin-left:6px; border-radius:6px; transition:transform .2s, background .15s; flex:0 0 auto; }
+#panel-desp1-campo .dd-top .cdd-tog:hover{ background:#e8eef5; }
+#panel-desp1-campo .dd-top .cdd-tog:focus-visible{ outline:2px solid #1F6FC0; outline-offset:1px; }
 #panel-desp1-campo .dd-top.cdd-fechado .cdd-tog{ transform:rotate(-90deg); }
 #panel-desp1-campo .dd-top.cdd-fechado > .dd-corpo{ display:none; }
 </style>
@@ -73958,7 +73958,7 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ background:var(--pend-cl
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.11.24-1';
+window.APP_VERSAO = '2026.11.24-2';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.11.24-1';
 (function(){
