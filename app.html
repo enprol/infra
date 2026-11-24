@@ -11821,6 +11821,7 @@ var TX = {
   s31: "Em atenção ao produto e ao cronograma/planejamento de confecção de produtos e subprodutos executados e planejados - FIOL (item 3.1.1), foi protocolado pela Contratada Ofício e Relatório Padronização de marcos e plaquetas, sendo conforme figuras abaixo:",
   s31b: "",
   s31c: "",
+  anexos: "**ART:** Conforme responsável técnico.",
   s312: "Como explanado no item 2 deste documento, foi feito uma triagem, levantando todas as propriedades abrangidas pela FIOL II que possui Certificação de georreferenciamento junto ao sistema SIGEF/SNCI/INCRA, após confrontando as datas da execução do georreferenciamento com a “data de consentimento” da desapropriação, em seguida obteve os resultados. No mês (abril/2023) foi executado a implantação de marcos em 5 (cinco) processos abrangidos do lote 7F (174, 175, 177, 178 e 179), segue a descrição das áreas na tabela abaixo:",
   concl: [
     "De acordo com o explanado neste relatório foram implantados marcos (GERC-6) em 5 (cinco) processos (174-7F, 175-7F, 177-7F, 178-7F e 179-7F), serviços executados nesta ordem com sucesso, resultando na implantação de 14 (quatorze) marcos, para o marco de referência (base) foi utilizado marco de Referência de Nível (RN) do próprio projeto, implantado pela VALEC, sendo utilizado apenas o RN/VALEC – M083 para execução dos serviços nos respectivos processos, sendo justificada esta implantação na Tabela 01 do item 3.1.2 acima.",
@@ -11842,6 +11843,7 @@ var FIXOS = [
   { id:"s313",  lv:3, head:"Dados e localização da implantação de marcos georreferenciados na {{emp}}", num:1, txt:1, auto:"s313" },
   "*PROCS*",
   { id:"concl", lv:1, head:"CONCLUSÃO", num:1, txt:1, kind:"concl", auto:"concl" },
+  { id:"anexos", lv:1, head:"ANEXOS", num:0, txt:1 },   // 24/11/2026 (Fernando): lista dos anexos, ao final (antes das páginas da ART)
   { id:"art",   lv:1, head:"ANOTAÇÕES DE RESPONSABILIDADE TÉCNICA – ART", num:0, kind:"art", pagina:1 }
 ];
 
@@ -12338,7 +12340,8 @@ function secHtml(tp){
   if(ex) acts += ddBtn("up", "↑", "Mover para cima") + ddBtn("down", "↓", "Mover para baixo") + ddBtn("nivel", "Nível", "Alterna Seção / Subseção / Subtítulo") + ddBtn("del", "🗑", "Excluir este tópico");
   else if(k === "proc") acts += ddBtn("addmarco", "＋ Marco", "Acrescenta um marco a este processo", ' data-pid="' + tp.pid + '"') + ddBtn("procdel", "🗑 Processo", "Exclui o processo e todos os marcos dele", ' data-pid="' + tp.pid + '"');
   else if(k === "marco") acts += ddBtn("marcodup", "⧉ Duplicar", "Copia este marco logo abaixo", ' data-pid="' + tp.pid + '" data-mid="' + tp.mid + '"') + ddBtn("marcodel", "🗑", "Excluir este marco", ' data-pid="' + tp.pid + '" data-mid="' + tp.mid + '"');
-  else if(k === "base") acts += ddBtn("basecopia", "⧉ Usar em todos os processos", "Copia estes dados da Base (coordenadas, precisões, tempos) para o marco de apoio dos demais processos", ' data-pid="' + tp.pid + '"');
+  else if(k === "base") acts += ddBtn("basecopia", "⧉ Usar em todos os processos", "Copia estes dados da Base (coordenadas, precisões, tempos) para o marco de apoio dos demais processos", ' data-pid="' + tp.pid + '"')
+    + ddBtn(tp.oculto ? "show" : "hide", tp.oculto ? "👁 Incluir no documento" : "Ocultar", "Tira/põe a monografia do marco de apoio (Base) deste processo no PDF");   // 24/11/2026 (Fernando)
   else if(!tp.semTitulo) acts += ddBtn(tp.oculto ? "show" : "hide", tp.oculto ? "👁 Incluir no documento" : "Ocultar", "Tira/põe este tópico no PDF");
 
   var menu = '<div class="dd-menu" hidden><span>Inserir abaixo:</span>' + ddBtn("addx", "Seção <small>(1, 2…)</small>", "", ' data-lv="1"') + ddBtn("addx", "Subseção", "", ' data-lv="2"') + ddBtn("addx", "Subtítulo", "", ' data-lv="3"') + '</div>';
@@ -13637,9 +13640,26 @@ function carregar(){
   });
 }
 window.MCM_abrir = function(){
+  var CL = window.CAD_load, tm = null;
+  // 24/11/2026: relatório guardado nesta máquina com muitas imagens demora a montar — mesma tela de carregamento dos cadastros
+  if(!ST && CL) tm = setTimeout(function(){ CL.mostrar("Abrindo Implantação de Marcos", 0, "Lendo o relatório guardado nesta máquina…", ["Lendo o relatório", "Montando o relatório"]); }, 250);
   var p = ST ? Promise.resolve() : carregar();
-  p.then(function(){ window.MCM_modo(modoAtual()); });
+  p.then(function(){
+    if(tm){ clearTimeout(tm); if(CL) CL.passo(1, "Montando o relatório…", null); }
+    window.MCM_modo(modoAtual());
+  }).finally(function(){ if(tm && CL) CL.ocultar(); presConferirAoEntrar(); });
 };
+// o documento guardado nesta tela pode ter sido aberto por outra pessoa depois: avisa e não o segura
+var _presConferido = "";
+function presConferirAoEntrar(){
+  var n = ST && ST.nomeSrv; if(!n || n === _pres.nome || n === _presConferido) return;
+  _presConferido = n;
+  presOutros(n).then(function(outros){
+    if(!outros.length){ presSync(); return; }
+    _pres.cedido = n;
+    alert(presErro(n, outros, "Gravar no servidor") + "\n\nO que está nesta tela é a sua cópia local; para trabalhar no documento do servidor, espere a outra pessoa fechar e use “Abrir do servidor”.");
+  });
+}
 
 window.MCM_flush = function(){ if(_tmSalvar) gravarAgora(); };
 
@@ -13798,6 +13818,10 @@ async function emFila(itens, n, fn){
 async function salvarServidor(){
   var nome = pedirNome(); if(!nome) return null;
   if(window.MCM_flush) window.MCM_flush();
+  // 24/11/2026: trava — não grava por cima de documento aberto com outro usuário (nem renomeia o que está aberto lá)
+  var emUso = await presOutros(nome);
+  if(emUso.length) throw new Error(presErro(nome, emUso, "Gravar por cima dele"));
+  if(ST.nomeSrv && ST.nomeSrv !== nome){ var emUso2 = await presOutros(ST.nomeSrv); if(emUso2.length) throw new Error(presErro(ST.nomeSrv, emUso2, "Renomear")); }
   // trocou o nome do documento: é o MESMO documento — renomeia a pasta no servidor (não cria outro)
   if(ST.nomeSrv && ST.nomeSrv !== nome){
     srvStatus("renomeando a pasta…", "");
@@ -13820,6 +13844,7 @@ async function salvarServidor(){
   var r = await srvFetch("/api/marcos/" + enc(nome), { method:"PUT", headers:{ "Content-Type":"application/json" }, body:ex.json }, 60000);
   if(!r.ok){ var j = {}; try{ j = await r.json(); }catch(e){} throw new Error(j.erro || ("servidor recusou (" + r.status + ")")); }
   ST.nomeSrv = nome;
+  _pres.cedido = ""; presSync();
   var el = $("mcm_srv"); if(el) el.dataset.salvo = "1";
   srvStatus("salvo no servidor · " + new Date().toLocaleTimeString("pt-BR") + " · " + ex.mapa.size + " imagem(ns)", "ok");
   return nome;
@@ -13856,25 +13881,80 @@ async function pdfNoServidor(blob, nomeArq){
   }
 }
 
+/* ---------- trava de abertura (24/11/2026, pedido do Fernando) ----------
+   O documento aberto nesta tela (ST.nomeSrv) avisa o servidor a cada minuto (mesma "presença" dos cadastros: um arquivo por
+   tela em _LOCKS, some 2,5 min depois do último aviso ou ao fechar a página). Outra tela não abre, não exclui e não grava por
+   cima de um documento que está aberto com outra pessoa. Servidor sem a rota (antigo): nada trava, como antes. */
+var _pres = { nome:"", t:null, s:"" };
+function presSessao(){
+  if(window.CAD_sessaoTela) return window.CAD_sessaoTela();
+  return _pres.s || (_pres.s = "m" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10));
+}
+async function presOutros(nome){
+  try{
+    var r = await srvFetch("/api/marcos/" + enc(nome) + "/presenca?sessao=" + enc(presSessao()), {}, 8000);
+    if(!r.ok) return [];
+    var j = await r.json(); return (j && j.outros) || [];
+  }catch(e){ return []; }
+}
+function presBater(){
+  if(!_pres.nome) return;
+  srvFetch("/api/marcos/" + enc(_pres.nome) + "/presenca", { method:"PUT", headers:{ "Content-Type":"application/json" }, body:JSON.stringify({ sessao:presSessao() }) }, 8000).catch(function(){});
+}
+function presSoltar(nome){
+  if(!nome) return;
+  try{ fetch(srvBase() + "/api/marcos/" + enc(nome) + "/presenca?sessao=" + enc(presSessao()), { method:"DELETE", keepalive:true, cache:"no-store" }).catch(function(){}); }catch(e){}
+}
+// acompanha o documento aberto: trocou (abriu outro, salvou com nome novo, projeto novo) -> solta o antigo e segura o novo
+function presSync(){
+  var n = (ST && ST.nomeSrv) || "";
+  if(n && n === _pres.cedido) n = "";            // aberto com outra pessoa quando esta tela entrou: não segura (presConferirAoEntrar)
+  if(n !== _pres.nome){ presSoltar(_pres.nome); _pres.nome = n; }
+  presBater();
+}
+function presHa(iso){ var m = Math.round((Date.now() - Date.parse(iso)) / 60000); return !(m >= 1) ? "agora" : m < 60 ? "há " + m + " min" : "há " + Math.floor(m / 60) + " h " + (m % 60) + " min"; }
+function presQuem(outros){
+  return outros.map(function(o){ return (o.usuario || "sem conta") + (o.maquina ? " (" + o.maquina + ")" : "") + " · aberto " + presHa(o.desde); }).join("\n");
+}
+function presErro(nome, outros, acao){
+  return "O documento “" + nome + "” está aberto com outro usuário:\n\n" + presQuem(outros) + "\n\n" + acao
+    + " fica bloqueado até ele fechar o documento (ou a página). A trava se solta sozinha cerca de 3 minutos depois que a outra tela for fechada.";
+}
+setInterval(presSync, 60000);
+window.addEventListener("pagehide", function(){ presSoltar(_pres.nome); });
+
 /* ---------- abrir ---------- */
 function blobParaUrl(b){ return new Promise(function(ok, no){ var fr = new FileReader(); fr.onload = function(){ ok(fr.result); }; fr.onerror = no; fr.readAsDataURL(b); }); }
+// 24/11/2026: tela de carregamento igual à dos cadastros (CAD_load, js/030) e trava de abertura
+var PASSOS_ABRIR = ["Conferindo no servidor", "Baixando o projeto", "Baixando imagens", "Montando o relatório"];
 async function abrirDoServidor(nome){
+  var CL = window.CAD_load;
   srvStatus("abrindo…", "");
-  var r = await srvFetch("/api/marcos/" + enc(nome), {}, 60000); if(!r.ok) throw new Error("não encontrei o documento (" + r.status + ")");
-  var o = await r.json(), refs = new Set();
-  andar(o, function(ob, k, v){ if(v.indexOf("@img:") === 0) refs.add(v.slice(5)); });
-  var lista = Array.from(refs), dados = {}, feitas = 0;
-  await emFila(lista, 4, async function(ref){
-    var ri = await srvFetch("/api/marcos/" + enc(nome) + "/img/" + enc(ref), {}, 60000);
-    dados[ref] = ri.ok ? await blobParaUrl(await ri.blob()) : "";
-    srvStatus("baixando imagens… " + (++feitas) + "/" + lista.length, "");
-  });
-  andar(o, function(ob, k, v){ if(v.indexOf("@img:") === 0) ob[k] = dados[v.slice(5)] || ""; });
-  mesclar(o); ST.nome = nome; ST.nomeSrv = nome;
-  await gravarAgora();
-  var el = $("mcm_srv"); if(el) el.dataset.salvo = "1";
-  window.MCM_modo(modoAtual());
-  srvStatus("aberto do servidor: " + nome, "ok");
+  if(CL) CL.mostrar("Abrindo “" + nome + "”", 0, "Conferindo se o documento está livre…", PASSOS_ABRIR);
+  try{
+    var outros = await presOutros(nome);
+    if(outros.length){ var eTrava = new Error(presErro(nome, outros, "Abrir")); eTrava.trava = true; throw eTrava; }
+    if(CL) CL.passo(1, "Baixando o projeto do servidor…", null);
+    var r = await srvFetch("/api/marcos/" + enc(nome), {}, 60000); if(!r.ok) throw new Error("não encontrei o documento (" + r.status + ")");
+    var o = await r.json(), refs = new Set();
+    andar(o, function(ob, k, v){ if(v.indexOf("@img:") === 0) refs.add(v.slice(5)); });
+    var lista = Array.from(refs), dados = {}, feitas = 0;
+    if(CL) CL.passo(2, lista.length ? "0 de " + lista.length + " imagem(ns)" : "Nenhuma imagem para baixar", lista.length ? 0 : null);
+    await emFila(lista, 4, async function(ref){
+      var ri = await srvFetch("/api/marcos/" + enc(nome) + "/img/" + enc(ref), {}, 60000);
+      dados[ref] = ri.ok ? await blobParaUrl(await ri.blob()) : "";
+      srvStatus("baixando imagens… " + (++feitas) + "/" + lista.length, "");
+      if(CL) CL.passo(2, feitas + " de " + lista.length + " imagem(ns)", feitas / lista.length);
+    });
+    if(CL) CL.passo(3, "Montando o relatório…", null);
+    andar(o, function(ob, k, v){ if(v.indexOf("@img:") === 0) ob[k] = dados[v.slice(5)] || ""; });
+    mesclar(o); ST.nome = nome; ST.nomeSrv = nome;
+    _pres.cedido = ""; presSync();                                   // segura o documento para esta tela já na abertura
+    await gravarAgora();
+    var el = $("mcm_srv"); if(el) el.dataset.salvo = "1";
+    window.MCM_modo(modoAtual());
+    srvStatus("aberto do servidor: " + nome, "ok");
+  } finally { if(CL) CL.ocultar(); }
 }
 window.MCM_abrirServidor = async function(){
   if(!(await srvOk(true))){ srvAvisoFalha(); return; }
@@ -13896,7 +13976,21 @@ window.MCM_abrirServidor = async function(){
     var b = e.target.closest && e.target.closest("button[data-nome]"); if(!b) return;
     if(!confirm("Abrir “" + b.dataset.nome + "”? O que está nesta aba será substituído.")) return;
     fecharModal();
-    try{ await abrirDoServidor(b.dataset.nome); }catch(err){ srvStatus("falha ao abrir", "erro"); alert("Não consegui abrir: " + (err && err.message || err)); }
+    try{ await abrirDoServidor(b.dataset.nome); }
+    catch(err){
+      if(err && err.trava){ srvStatus("aberto com outro usuário — não abri", "erro"); alert(err.message); return; }
+      srvStatus("falha ao abrir", "erro"); alert("Não consegui abrir: " + (err && err.message || err));
+    }
+  });
+  // trava de abertura: marca na lista quem está com cada documento aberto (o documento desta tela não conta)
+  Array.prototype.forEach.call(m.querySelectorAll("button[data-nome]"), function(b){
+    var nome = b.dataset.nome;
+    presOutros(nome).then(function(outros){
+      if(!outros.length || !b.isConnected) return;
+      b.disabled = true; b.textContent = "🔒 Em uso"; b.title = "Aberto com outro usuário:\n" + presQuem(outros);
+      var x = m.querySelector('button[data-excluir="' + (window.CSS && CSS.escape ? CSS.escape(nome) : nome) + '"]'); if(x){ x.disabled = true; x.title = "Aberto com outro usuário — não pode ser excluído agora"; }
+      var sm = b.parentNode.querySelector("small"); if(sm) sm.appendChild(document.createTextNode(" · 🔒 aberto por " + outros.map(function(o){ return o.usuario || "sem conta"; }).join(", ")));
+    });
   });
 };
 /* 23/11/2026: excluir um documento do servidor (lixeira na lista do “Abrir do servidor”), sempre com janela de confirmação.
@@ -13915,6 +14009,8 @@ function confirmarExclusao(nome){
     var s = e.target.closest && e.target.closest("button[data-sim]"); if(!s) return;
     s.disabled = true;
     try{
+      var emUso = await presOutros(nome);   // 24/11/2026: trava — aberto com outro usuário não vai para a lixeira
+      if(emUso.length){ s.disabled = false; alert(presErro(nome, emUso, "Excluir")); return; }
       var r = await srvFetch("/api/marcos/" + enc(nome), { method:"DELETE" }, 30000);
       if(!r.ok){ var j = {}; try{ j = await r.json(); }catch(_){} throw new Error(j.erro || srvMotivo(r.status)); }
       if(ST && ST.nomeSrv === nome){ ST.nomeSrv = ""; var el = $("mcm_srv"); if(el) delete el.dataset.salvo; salvar(); }
@@ -14907,11 +15003,13 @@ function pendencias(){
     if(vz(p.kmIni) || vz(p.kmFim)) F("aviso", g, "KM inicial/final sem preencher (gere o mapa com o KML do eixo ou digite)", irF(vz(p.kmIni) ? "kmIni" : "kmFim"));
     // base
     var b = p.base || {};
+    if(!(ST.doc.hide || {})["p_" + pid + "_base"]){   // 24/11/2026: monografia da Base oculta não sai no PDF — não cobra os dados dela
     [["ident", "Identificação da Base"], ["E", "E da Base"], ["N", "N da Base"], ["h", "Altitude da Base"]].forEach(function(c){ if(vz(b[c[0]])) F("erro", g, c[1] + " sem preencher", irF(c[0], true)); });
     if(vz(b.dphi) || vz(b.dlam) || vz(b.dh)) F("aviso", g, "Precisões (δ) da Base sem preencher", irF(vz(b.dphi) ? "dphi" : (vz(b.dlam) ? "dlam" : "dh"), true));
     var irB = { modo:"doc", id:"p_" + pid + "_base" };
     if(!b.fl) F("erro", g, "Base sem foto de localização", irB);
     if(!b.fd) F("erro", g, "Base sem foto de detalhe", irB);
+    }
     // marcos
     var ms = p.marcos || [];
     if(!ms.length) F("erro", g, "Nenhum marco cadastrado", { modo:"form", pid:pid });
@@ -23413,6 +23511,7 @@ function AV_gerarDescSituacao(){
     if (_PG_STATUS_CAMPOS.indexOf(campo) >= 0){
       var st = it.completude && it.completude[campo];
       if (!st) return 'nao_iniciado';
+      if (st.nc) return 'nao_contratado';   // produto não contratado (js/204)
       if (st.ok) return 'concluido';
       // Maquina com server.js anterior a 22/09 nao manda "iniciado". Sem esse
       // campo nao da pra saber se e "nao iniciado" ou "pendente" — entao cai no
@@ -23463,6 +23562,7 @@ function AV_gerarDescSituacao(){
     if (_PG_STATUS_CAMPOS.indexOf(campo) >= 0){
       if (v === 'concluido') return 'Concluído';
       if (v === 'pendente') return 'Pendente';
+      if (v === 'nao_contratado') return 'Não contratado';
       return 'Não iniciado';
     }
     return v;
@@ -23490,6 +23590,7 @@ function AV_gerarDescSituacao(){
       : fetch(q).then(function(r){ return r.json(); });
     Promise.resolve(p).then(function(itens){
       _pgItens = Array.isArray(itens) ? itens : ((itens && itens.itens) || []);
+      if(window.PRODUTOS) _pgItens.forEach(window.PRODUTOS.ajustar);   // idempotente (js/204): o caminho sem CAD_pesquisar também passa
       PG_renderizar();
       if(status) status.textContent = "Atualizado " + new Date().toLocaleTimeString("pt-BR");
     }).catch(function(e){
@@ -23513,6 +23614,8 @@ function AV_gerarDescSituacao(){
     else if(it.medicao === undefined && d === undefined) return true;   // servidor anterior a 18/11 não gerencial: sem o dado, vale o comportamento antigo (todos)
     else base = !!(it.medicao && it.medicao !== PG_MEDICAO_VAZIO && d && (d.d1 || d.d2 || d.d3));
     if(!base) return false;
+    // 24/11/2026: etapa de produto não contratado (DESP desmarcado) não entra no andamento — Campo/Social/Jurídica = DESP 1 (js/204)
+    if(etapa && window.PRODUTOS){ var pc = window.PRODUTOS.etapaContratada(it, etapa); if(pc !== null) return pc; }
     if(etapa === 'tecnica'){
       if(typeof it.monitorado_tecnica === 'boolean') return it.monitorado_tecnica;
       if(d) return !!d.d2;
@@ -23555,7 +23658,7 @@ function AV_gerarDescSituacao(){
       var ordD = {sim:0, nao:1, __nd:2};
       opcoes.sort(function(a,b){ return (ordD[a]||0) - (ordD[b]||0); });
     } else if (_PG_STATUS_CAMPOS.indexOf(campo) >= 0){
-      var ordem = {nao_iniciado:0, pendente:1, concluido:2};
+      var ordem = {nao_iniciado:0, pendente:1, concluido:2, nao_contratado:3};
       opcoes.sort(function(a,b){ return (ordem[a]||0) - (ordem[b]||0); });
     } else {
       opcoes.sort(function(a,b){ return String(a).localeCompare(String(b), "pt-BR", {numeric:true}); });
@@ -23775,6 +23878,8 @@ function AV_gerarDescSituacao(){
       var resp = await r.json();
       var it = _pgItens.filter(function(x){ return String(x.ctd) === String(ctd) && String(x.secao) === String(secao); })[0];
       if(it) it.desps = (resp && resp.desps) || Object.assign({}, it.desps, (function(o){ o[k] = valor; return o; })({}));
+      if(it && window.PRODUTOS) window.PRODUTOS.ajustar(it);   // a pendência acompanha o produto marcado/desmarcado
+      try{ document.dispatchEvent(new CustomEvent('produtos-mudaram', { detail:{ ctd:ctd, secao:secao } })); }catch(e){}   // o cadastro aberto relê (js/193)
       PG_renderizar();     // rodapé, filtros, resumo e Gráficos acompanham a marcação
     }catch(e){
       alert('Não foi possível salvar a marcação do DESP: ' + (e && e.message || e));
@@ -24216,12 +24321,14 @@ function AV_gerarDescSituacao(){
   function PG_statusCelHTML(st){
     if(!st){ return '<td class="pg-status-td pg-col-st"><span class="pg-status-vazio">—</span></td>'; }
     var cls, simbolo;
-    if(st.ok){ cls='pg-status-ok'; simbolo='✓'; }
+    if(st.nc){ cls='pg-status-nc'; simbolo='N/C'; }   // produto não contratado (js/204)
+    else if(st.ok){ cls='pg-status-ok'; simbolo='✓'; }
     else if(st.iniciado || st.iniciado === undefined){ cls='pg-status-falta'; simbolo='◐' + ((st.faltando && st.faltando.length) ? '<small class="pgx-n">' + st.faltando.length + '</small>' : ''); }   // undefined = server.js antigo
     else { cls='pg-status-naoiniciado'; simbolo='–'; }
     return '<td class="pg-status-td pg-col-st"><span class="pg-status-ico ' + cls + '" data-pg-tt="' + esc(JSON.stringify(st)) + '">' + simbolo + '</span></td>';
   }
   function PG_tooltipConteudo(st){
+    if(st.nc) return '<b class="pg-tt-naoiniciado">N/C · Não contratado</b><div>' + esc(((window.PRODUTOS && window.PRODUTOS.NOME[st.produto]) || 'Produto') + ' desmarcado em Medição e produtos: o conteúdo desta etapa não é pendência.') + '</div>';
     if(st.ok) return '<b class="pg-tt-ok">✓ Completo</b><div>Nenhuma pendência encontrada.</div>';
     if(!st.iniciado && st.iniciado !== undefined) return '<b class="pg-tt-naoiniciado">– Não iniciado</b><div>Nada foi preenchido ainda nesta aba.</div>';
     var porDoc = {};
@@ -44989,7 +45096,9 @@ function AV_gerarDescSituacao(){
       var q = "/api/cadastros?limite=" + (limite || 500);
       if (termo && termo.trim()) q += "&termo=" + encodeURIComponent(termo.trim());
       var js = await _api("GET", q);
-      return Array.isArray(js) ? js : ((js && js.itens) || []);
+      var l = Array.isArray(js) ? js : ((js && js.itens) || []);
+      if (window.PRODUTOS) l.forEach(window.PRODUTOS.ajustar);   // 24/11/2026: produto não contratado e DRL não são pendência (js/204)
+      return l;
     }catch(e){ console.warn("Erro ao pesquisar cadastros:", e); return []; }
   };
 
@@ -51826,8 +51935,7 @@ window.DRL_gerarPDF=async function(opts){
       {k:"geral.obsNaoReprodutivas", l:"Observações (não reprodutiva e acessórias)", t:"ta", rows:3, largo:true, legado:true}
     ]},
     { t:"4 · Responsável", campos:[
-      {k:"tecnico.nome", l:"Nome do técnico", t:"text"},
-      {k:"tecnico.documento", l:"CPF/Documento", t:"text"}
+      {k:"tecnico.nome", l:"Nome do técnico", t:"text"}   // 24/11/2026 (Fernando): sem CPF/Documento — não se faz necessário (o dado antigo fica guardado, só não aparece nem sai no PDF)
     ]}
   ];
   var FMAP = {};
@@ -52870,7 +52978,37 @@ window.DRL_gerarPDF=async function(opts){
     h += '<div class="vcard"><div class="vsub" id="campo_fotos_tit">Fotografias</div><div id="campo_fotos_box"></div></div>';
     box.innerHTML = h;
     renderFotos();
+    secoesRetrateis();
   }
+  /* 24/11/2026 (Fernando): tópicos da aba Campo retráteis — todo cartão (.vcard) cujo 1º filho é o título (.vsub) abre e
+     fecha pelo título. O estado fica por título (o formulário é redesenhado a cada importação/edição) e no navegador. */
+  var SEC_FECHADAS = {}; try{ SEC_FECHADAS = JSON.parse(localStorage.getItem("campo_secoes_fechadas") || "{}") || {}; }catch(e){}
+  function secChave(v){ return String(v.textContent || "").replace(/\(\d+\)/g, "").replace(/\s+/g, " ").trim(); }
+  function secoesRetrateis(){
+    var p = _("panel-desp1-campo"); if(!p) return;
+    Array.prototype.forEach.call(p.querySelectorAll(".vcard > .vsub:first-child"), function(v){
+      var card = v.parentNode, fech = !!SEC_FECHADAS[secChave(v)];
+      card.classList.add("cf-sec"); card.classList.toggle("cf-fechado", fech);
+      v.setAttribute("role", "button"); v.setAttribute("tabindex", "0"); v.setAttribute("aria-expanded", fech ? "false" : "true");
+      v.title = fech ? "Clique para abrir o tópico" : "Clique para recolher o tópico";
+    });
+  }
+  function secAlternar(v){
+    var card = v.parentNode, fech = !card.classList.contains("cf-fechado"), k = secChave(v);
+    if(fech) SEC_FECHADAS[k] = 1; else delete SEC_FECHADAS[k];
+    try{ localStorage.setItem("campo_secoes_fechadas", JSON.stringify(SEC_FECHADAS)); }catch(e){}
+    secoesRetrateis();
+  }
+  document.addEventListener("click", function(ev){
+    var v = ev.target.closest && ev.target.closest("#panel-desp1-campo .vcard.cf-sec > .vsub:first-child");
+    if(v && !ev.target.closest("a,button,input,select,label")) secAlternar(v);
+  });
+  document.addEventListener("keydown", function(ev){
+    if(ev.key !== "Enter" && ev.key !== " ") return;
+    var v = ev.target.closest && ev.target.closest("#panel-desp1-campo .vcard.cf-sec > .vsub:first-child");
+    if(v && ev.target === v){ ev.preventDefault(); secAlternar(v); }
+  });
+  if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", secoesRetrateis); else secoesRetrateis();
   window.CAMPO_render = CAMPO_render;
   window.CAMPO_getFotos = function(){
     if(!CAMPO) return [];
@@ -54361,11 +54499,25 @@ window.DRL_gerarPDF=async function(opts){
       corpo = '<div id="campo_fotos_box"></div>';
     }
     var acts = '<button type="button" class="dd-b" data-act="' + (s.oculto ? "show" : "hide") + '" title="Tira/põe esta seção no PDF">' + (s.oculto ? "👁 Incluir no PDF" : "Ocultar") + '</button>';
-    return '<section class="dd-top lv1' + (s.oculto ? " is-oculto" : "") + '" id="cdd_' + s.id + '" data-id="' + s.id + '">'
-      + '<div class="dd-head"><span class="dd-num">' + esc(s.oculto ? "—" : s.num) + '</span>'
+    var fech = !!CDD_FECHADAS[s.id];   // 24/11/2026: seção recolhida (só a tela; não mexe no PDF nem no cadastro)
+    return '<section class="dd-top lv1' + (s.oculto ? " is-oculto" : "") + (fech ? " cdd-fechado" : "") + '" id="cdd_' + s.id + '" data-id="' + s.id + '">'
+      + '<div class="dd-head"><button type="button" class="cdd-tog" data-act="tog" aria-expanded="' + (fech ? "false" : "true") + '" title="' + (fech ? "Abrir o tópico" : "Recolher o tópico") + '" aria-label="' + (fech ? "Abrir" : "Recolher") + ' o tópico ' + esc(s.head) + '">▾</button>'
+      + '<span class="dd-num">' + esc(s.oculto ? "—" : s.num) + '</span>'
       + '<span class="dd-tit" contenteditable="true" spellcheck="true" data-id="' + s.id + '">' + esc(s.head) + '</span>'
       + '<span class="dd-tags"><span class="dd-tag t-oculto">fora do PDF</span></span><span class="dd-acts">' + acts + '</span></div>'
       + '<div class="dd-corpo">' + corpo + '</div></section>';
+  }
+  /* 24/11/2026 (Fernando): tópicos retráteis também no modo "Conteúdo do relatório" — botão ▾ no título; estado por tópico,
+     guardado só neste navegador */
+  var CDD_FECHADAS = {}; try{ CDD_FECHADAS = JSON.parse(localStorage.getItem("campo_doc_fechadas") || "{}") || {}; }catch(e){}
+  function cddAlternar(sec){
+    var id = sec.getAttribute("data-id"), fech = !sec.classList.contains("cdd-fechado");
+    sec.classList.toggle("cdd-fechado", fech);
+    if(fech) CDD_FECHADAS[id] = 1; else delete CDD_FECHADAS[id];
+    try{ localStorage.setItem("campo_doc_fechadas", JSON.stringify(CDD_FECHADAS)); }catch(e){}
+    var bt = sec.querySelector(".cdd-tog");
+    if(bt){ bt.setAttribute("aria-expanded", fech ? "false" : "true"); bt.title = fech ? "Abrir o tópico" : "Recolher o tópico"; }
+    if(!fech && sec.querySelector("#cm_mapa") && typeof relAtualizarMapa === "function") setTimeout(relAtualizarMapa, 50);   // mapa desenhado escondido: redesenha ao abrir
   }
   function relNavHtml(lista){
     return lista.map(function(s){
@@ -54395,11 +54547,13 @@ window.DRL_gerarPDF=async function(opts){
       if(nv){
         ev.preventDefault();
         var s = _("cdd_" + nv.getAttribute("data-ir"));
+        if(s && s.classList.contains("cdd-fechado")) cddAlternar(s);   // ir a um tópico recolhido abre ele
         if(s){ s.scrollIntoView({ behavior:"smooth", block:"start" }); s.classList.add("pisca"); setTimeout(function(){ s.classList.remove("pisca"); }, 1300); }
         return;
       }
       var b = t.closest("[data-act]"); if(!b || !CAMPO) return;
       var act = b.getAttribute("data-act"), sec = b.closest(".dd-top"), id = sec && sec.getAttribute("data-id");
+      if(act === "tog"){ if(sec) cddAlternar(sec); return; }
       if(act === "hide" || act === "show"){
         var R = relEstado(CAMPO); if(act === "hide") R.hide[id] = 1; else delete R.hide[id];
         marcarSujo(); renderDoc();
@@ -54514,7 +54668,7 @@ window.DRL_gerarPDF=async function(opts){
       });
       despejar();
     }
-    // seções 1–4: campos (o item 4 é só nome e CPF/documento do técnico — sem linha de assinatura)
+    // seções 1–4: campos (o item 4 é só o nome do técnico — sem linha de assinatura; CPF saiu em 24/11/2026)
     function secaoFicha(s){
       titulo(s.num + " · " + s.head);
       itens(camposDaSecao(f, s.sec).filter(function(cc){ return !cc.semPdf; }).map(function(cc){ return [cc.l, textoDe(f, cc.k, cc), cc.largo]; }));
@@ -59824,6 +59978,20 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
 #panel-desp1-campo .cf-xy{ font-weight:600; font-size:10.5px; color:#175a9f; margin-left:6px; white-space:nowrap; }
 #panel-desp1-campo .cf-xy.ruim{ color:#a86412; }
 #panel-desp1-campo .dd-doc .cf-gal-h .cf-add{ text-transform:none; }
+/* 24/11/2026: tópicos retráteis (js/130 secoesRetrateis) */
+#panel-desp1-campo .vcard.cf-sec > .vsub:first-child{ cursor:pointer; user-select:none; position:relative; padding-left:22px; }
+#panel-desp1-campo .vcard.cf-sec > .vsub:first-child::before{ content:"\25BE"; position:absolute; left:4px; top:50%; transform:translateY(-50%); font-size:12px; color:#5b6b7c; transition:transform .15s; }
+#panel-desp1-campo .vcard.cf-sec.cf-fechado > .vsub:first-child::before{ transform:translateY(-50%) rotate(-90deg); }
+#panel-desp1-campo .vcard.cf-sec > .vsub:first-child:hover{ color:var(--azul-esc, #14294a); }
+#panel-desp1-campo .vcard.cf-sec > .vsub:first-child:focus-visible{ outline:2px solid #1f6fc0; outline-offset:2px; border-radius:4px; }
+#panel-desp1-campo .vcard.cf-sec.cf-fechado > :not(.vsub:first-child){ display:none !important; }
+#panel-desp1-campo .vcard.cf-sec.cf-fechado{ padding-bottom:10px; }
+/* 24/11/2026: modo "Conteúdo do relatório" — tópicos retráteis (botão ▾ no título; js/130 cddAlternar) */
+#panel-desp1-campo .dd-top .cdd-tog{ border:0; background:transparent; cursor:pointer; color:#5b6b7c; font-size:13px; width:22px; height:22px; margin-right:2px; border-radius:6px; transition:transform .15s, background .15s; flex:0 0 auto; }
+#panel-desp1-campo .dd-top .cdd-tog:hover{ background:#e8eef5; color:#14294a; }
+#panel-desp1-campo .dd-top .cdd-tog:focus-visible{ outline:2px solid #1f6fc0; outline-offset:1px; }
+#panel-desp1-campo .dd-top.cdd-fechado .cdd-tog{ transform:rotate(-90deg); }
+#panel-desp1-campo .dd-top.cdd-fechado > .dd-corpo{ display:none; }
 </style>
 <style id="obsoleto-css">
 /* DESP 3 › Avaliação FTN x Obsoleto (06/10/2026) */
@@ -60629,7 +60797,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     // a Técnica só entra nos cadastros com o DESP 2 marcado (as pendências dela são itens da DESP 2)
     $('pgvEt').innerHTML = ST.map(function(s){ var lm = l.filter(function(it){ return window.PG_monitorado ? window.PG_monitorado(it, s[0]) : true; }), nm = lm.length;
       var ok = lm.filter(function(it){ return okE(it, s[0]); }).length, p = nm ? Math.round(ok/nm*100) : 0;
-      return '<button type="button" onclick="PGX_aplicarVisao(\'' + s[2] + '\')" title="' + ok + ' de ' + nm + (s[0] === 'tecnica' ? ' cadastros com Medição e DESP 2 marcados' : ' cadastros com Medição e DESP marcados') + ' estão completos — clique para ver os que faltam"><span>' + s[1] + '</span><span class="pgv-trilho"><i data-p="' + p + '"></i></span><span>' + p + '%</span></button>'; }).join('');
+      return '<button type="button" onclick="PGX_aplicarVisao(\'' + s[2] + '\')" title="' + ok + ' de ' + nm + (s[0] === 'tecnica' ? ' cadastros com Medição e DESP 2 marcados' : ' cadastros com Medição e DESP 1 marcados') + ' estão completos — clique para ver os que faltam"><span>' + s[1] + '</span><span class="pgv-trilho"><i data-p="' + p + '"></i></span><span>' + p + '%</span></button>'; }).join('');
     requestAnimationFrame(function(){ Array.prototype.forEach.call(document.querySelectorAll('#pgvEt .pgv-trilho i'), function(i){ i.style.width = i.dataset.p + '%'; i.style.setProperty('--bg', (100/Math.max(1,+i.dataset.p/100)) + '%'); }); });
 
 
@@ -60648,7 +60816,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       var it = map[tr.getAttribute('data-secao') + '/' + tr.getAttribute('data-ctd')]; if(!it) return;
       var p = pend(it); tr.setAttribute('data-sit', p === 0 ? 'ok' : String(p));
       var td = tr.children[iCad]; if(td){ td.classList.add('pgv-w-cad'); if(!td.querySelector('.pgv-prog')){ var sp = document.createElement('span'); sp.className = 'pgv-prog'; sp.title = p === 0 ? 'Todas as etapas completas' : 'Faltam: ' + ST.filter(function(s){ return !okE(it, s[0]); }).map(function(s){ return s[1]; }).join(', ');
-        sp.innerHTML = ST.map(function(s){ var c = it.completude && it.completude[s[0]]; return '<i class="' + (okE(it, s[0]) ? 'ok' : (c && c.iniciado === false ? 'nao' : '')) + '"></i>'; }).join(''); td.appendChild(sp); } }
+        sp.innerHTML = ST.map(function(s){ var c = it.completude && it.completude[s[0]]; return '<i class="' + (c && c.nc ? 'nc' : okE(it, s[0]) ? 'ok' :(c && c.iniciado === false ? 'nao' : '')) + '"></i>'; }).join(''); td.appendChild(sp); } }
       if(tr.children[iProp]) tr.children[iProp].classList.add('pgv-w-prop');
       [[iTot, max.t, 'pgv-bar pgv-bar-v'], [iHa, max.h, 'pgv-bar']].forEach(function(c){ var cel = tr.children[c[0]], v = val(cel); if(!cel || !isFinite(v) || !c[1]) return; c[2].split(' ').forEach(function(k){ cel.classList.add(k); }); cel.style.setProperty('--bar', Math.max(4, Math.round(v/c[1]*100)) + '%'); });
     });
@@ -70184,16 +70352,17 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ content:attr(data-ctx-n)
     if(!montar()) return;
     var d = noCadastro() ? dados() : null;
     faixa.hidden = !d; document.body.classList.toggle("ctx-on", !!d);
+    if(window.PRODUTOS) window.PRODUTOS.aplicar(d ? compItem : null);   // 24/11/2026: aba de produto não contratado inabilitada (js/204)
     if(!d){ document.body.classList.remove("ctx-sujo"); fecharPop(); marcas(false); return; }
-    var n = {}; ETAPAS.forEach(function(e){ n[e[0]] = comp ? faltando(e[0]).length : -1; });
+    var n = {}; ETAPAS.forEach(function(e){ n[e[0]] = comp ? faltando(e[0]).length + (comp[e[0]] && comp[e[0]].nc ? "nc" : "") : -1; });
     por("etapas", JSON.stringify(n), function(){
       var box = faixa.querySelector(".ctx-etapas"); box.textContent = "";
       if(!comp) return;
       ETAPAS.forEach(function(e){
-        var k = n[e[0]], b = el("button", "ctx-et " + (k ? "falta" : "ok")); b.type = "button"; b.setAttribute("data-etapa", e[0]);
+        var k = n[e[0]], nc = !!(comp[e[0]] && comp[e[0]].nc), b = el("button", "ctx-et " + (nc ? "nc" : k ? "falta" : "ok")); b.type = "button"; b.setAttribute("data-etapa", e[0]);
         b.setAttribute("aria-haspopup", "dialog"); b.setAttribute("aria-expanded", "false");
-        b.appendChild(el("span", null, e[1])); b.appendChild(el("b", null, k ? String(k) : "✓"));
-        b.title = k ? e[1] + ": " + k + " pendência(s). Clique para ver." : e[1] + ": completo";
+        b.appendChild(el("span", null, e[1])); b.appendChild(el("b", null, nc ? "—" : k ? String(k) : "✓"));
+        b.title = nc ? e[1] + ": produto não contratado — não é pendência" : k ? e[1] + ": " + k + " pendência(s). Clique para ver." : e[1] + ": completo";
         box.appendChild(b);
       });
       if(pop && !pop.hidden) montarPop();
@@ -70211,6 +70380,7 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ content:attr(data-ctx-n)
   function marcas(ligar){
     var porPainel = {}, ids = [], porEtapa = {};
     if(ligar && comp) ETAPAS.forEach(function(e){
+      if(comp[e[0]] && comp[e[0]].nc) return;   // produto não contratado: o setor fica sem número (js/204)
       var l = faltando(e[0]); porEtapa[e[2]] = l.length;
       l.forEach(function(f){ var p = painelDe(f, e[0]); if(p) porPainel[p] = (porPainel[p] || 0) + 1; if(f.id) ids.push(f.id); });
     });
@@ -70308,6 +70478,7 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ content:attr(data-ctx-n)
   setInterval(tick, 1500);
   if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", tick); else tick();
   window.CTX_atualizar = function(){ cache = {}; compDe = ""; tick(); };
+  document.addEventListener("produtos-mudaram", function(){ cache = {}; compDe = ""; });   // DESP marcado/desmarcado no Painel: relê no próximo tick
 })();
 </script><style>/* =====================================================================
    Origem do dado e densidade dos formulários (12/11/2026, js/194).
@@ -72217,6 +72388,136 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ background:var(--pend-cl
   if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", varrer); else varrer();
   window.PEND_varrer = varrer;   // para quem trocar campos por código e quiser o retorno na hora
 })();
+</script><style>/* Produtos não contratados (js/204): menu sem clique e painel inerte com aviso. */
+#appSidebar .prod-off{ opacity:.42; cursor:not-allowed; filter:grayscale(1); }
+#appSidebar .prod-off[data-ctx-n]::after{ display:none !important; }
+.tab-panel.prod-off::before{
+  content:attr(data-prod-msg); display:block; margin:0 0 14px; padding:10px 14px; border-radius:8px;
+  background:#eef1f4; border:1px solid #c9d2db; color:#3a4a58; font:600 13px/1.45 system-ui, sans-serif;
+}
+.tab-panel.prod-off > *{ opacity:.5; filter:grayscale(.6); }
+/* Painel Geral e cartão Pendências: etapa de produto não contratado */
+.pg-status-ico.pg-status-nc{ color:#8a97a3; font-size:11px; letter-spacing:.02em; }
+.pgv-prog i.nc{ background:#c9d2db !important; }
+.ctx-et.nc{ opacity:.55; }
+</style><script>/* Produtos contratados por cadastro (24/11/2026, pedido do Fernando).
+   No Painel Geral › "Medição e produtos (DESP)", as caixas DESP 1 / 2 / 3 dizem quais produtos foram contratados para o
+   cadastro (só o modo gerencial marca). Produto DESMARCADO = não contratado:
+   - o que ele cobra deixa de ser pendência (Painel Geral, cartão Pendências e menu lateral do cadastro);
+   - a aba dele fica inabilitada dentro do cadastro (menu sem clique; painel inerte, com aviso).
+   Regras:
+   - etapas: Campo, Social e Jurídica são itens da DESP 1; Técnica é item da DESP 2 (já era assim no Painel, 18/11);
+   - abas: DESP 1 › setores Campo, Assistência Social e Jurídico; grupo DESP 2 inteiro; grupo DESP 3 inteiro.
+     O setor Técnica (Técnica, Planta e Memorial) NUNCA fecha: alimenta DESP 1, DESP 2 (figuras, áreas) e DESP 3 (benfeitorias);
+   - NENHUM DESP marcado = contrato ainda não definido: nada muda (tudo cobrado, tudo aberto);
+   - servidor antigo sem o dado (não gerencial): DESP 1 desconhecido = cobrado/aberto; a Técnica segue monitorado_tecnica;
+   - DRL não é pendência (24/11/2026): sai da Social em qualquer caso; a Jurídica deixa de ficar "Bloqueada pela Social"
+     quando só a DRL faltava.
+   A marcação mora fora do cadastro (_PAINEL-desps.json): aqui só se lê — nada é gravado no cadastro.
+   Funciona no navegador (window.PRODUTOS) e no Node (require), para o teste. */
+(function(raiz){
+  "use strict";
+  var ETAPA_PRODUTO = { campo:"d1", social:"d1", juridica:"d1", tecnica:"d2" };
+  var NOME = { d1:"DESP 1", d2:"DESP 2", d3:"DESP 3" };
+
+  /* ---------- regra (sem tela) ---------- */
+  // {d1,d2,d3} do cadastro, ou null quando não há marcação (nenhum DESP marcado ou servidor sem o dado)
+  function produtos(it){
+    if(!it) return null;
+    var d = it.desps || it.contratados;   // desps = gerencial; contratados = não gerencial (servidor de 24/11/2026)
+    if(!d || typeof d !== "object" || !(d.d1 || d.d2 || d.d3)) return null;
+    return { d1:!!d.d1, d2:!!d.d2, d3:!!d.d3 };
+  }
+  // a etapa é de produto contratado? true / false; null = não se sabe (vale o comportamento antigo: cobra)
+  function etapaContratada(it, etapa){
+    var k = ETAPA_PRODUTO[etapa]; if(!k || !it) return null;
+    var p = produtos(it); if(p) return p[k];
+    if(k === "d2" && it.monitorado === true && typeof it.monitorado_tecnica === "boolean") return it.monitorado_tecnica;
+    return null;
+  }
+  function semDoc(st, doc){
+    if(!st || st.ok || !Array.isArray(st.faltando)) return st;
+    var f = st.faltando.filter(function(x){ return !(x && x.doc === doc); });
+    if(f.length === st.faltando.length) return st;
+    var n = {}; Object.keys(st).forEach(function(k){ n[k] = st[k]; });
+    n.faltando = f; n.ok = f.length === 0; return n;
+  }
+  // refaz it.completude a partir do que o servidor mandou (guardado em it.completudeServidor): pode ser chamada de novo
+  // quando a marcação do DESP muda, sem acumular
+  function ajustar(it){
+    if(!it || !it.completude) return it;
+    if(!it.completudeServidor) it.completudeServidor = it.completude;
+    var o = it.completudeServidor, c = {};
+    Object.keys(o).forEach(function(k){ c[k] = o[k]; });
+    c.social = semDoc(c.social, "DRL");
+    if(c.social && c.social.ok) c.juridica = semDoc(c.juridica, "Bloqueado pela Social");
+    Object.keys(ETAPA_PRODUTO).forEach(function(e){
+      if(c[e] && etapaContratada(it, e) === false)
+        c[e] = { ok:true, nc:true, produto:ETAPA_PRODUTO[e], iniciado:c[e].iniciado, faltando:[] };
+    });
+    it.completude = c;
+    return it;
+  }
+
+  var m = { ETAPA_PRODUTO:ETAPA_PRODUTO, NOME:NOME, produtos:produtos, etapaContratada:etapaContratada, ajustar:ajustar };
+  if(typeof module === "object" && module.exports) module.exports = m;
+  if(!raiz || !raiz.document) return;
+
+  /* ---------- abas do cadastro (navegador) ---------- */
+  var doc = raiz.document, SETORES_D1 = { campo:1, social:1, juridico:1 }, atual = "";
+  function grupo(g){ return doc.querySelector('#appSidebar .sb-sub-grupo[data-grupo="' + g + '"]'); }
+  // botões do menu e painéis de cada produto
+  function alvos(k){
+    var out = { botoes:[], paineis:[] }, g, links;
+    if(k === "d1"){
+      g = grupo("desp1"); if(!g) return out;
+      links = Array.prototype.filter.call(g.querySelectorAll(".sb-link[data-setor]"), function(b){ return SETORES_D1[b.dataset.setor]; });
+      out.botoes = links.concat(Array.prototype.filter.call(g.querySelectorAll(".sb-setor[data-setor]"), function(b){ return SETORES_D1[b.dataset.setor]; }));
+    } else {
+      var nome = k === "d2" ? "desp2" : "laudo"; g = grupo(nome); if(!g) return out;
+      links = Array.prototype.slice.call(g.querySelectorAll(".sb-link[data-alvo]"));
+      out.botoes = links.concat(Array.prototype.slice.call(doc.querySelectorAll('#appSidebar .sb-grp-btn[data-grupo="' + nome + '"]')));
+    }
+    links.forEach(function(b){ var p = doc.getElementById(b.dataset.alvo); if(p) out.paineis.push(p); });
+    return out;
+  }
+  function msg(k){ return NOME[k] + " não contratado para este cadastro (desmarcado no Painel Geral › Medição e produtos). Aba inabilitada — o conteúdo dela não é pendência."; }
+  function fechar(k, off){
+    var a = alvos(k), t = msg(k);
+    a.botoes.forEach(function(b){
+      if(off){
+        if(!b.hasAttribute("data-prod-off")){ b.setAttribute("data-prod-titulo", b.getAttribute("title") || ""); }
+        b.setAttribute("data-prod-off", k); b.classList.add("prod-off"); b.setAttribute("aria-disabled", "true"); b.title = t;
+      } else if(b.hasAttribute("data-prod-off")){
+        var tt = b.getAttribute("data-prod-titulo"); if(tt) b.title = tt; else b.removeAttribute("title");
+        b.removeAttribute("data-prod-off"); b.removeAttribute("data-prod-titulo"); b.removeAttribute("aria-disabled"); b.classList.remove("prod-off");
+      }
+    });
+    a.paineis.forEach(function(p){
+      if(off){
+        if(!p.hasAttribute("data-prod-off")){ p.setAttribute("data-prod-off", k); p.setAttribute("data-prod-msg", "⛔ " + t); p.classList.add("prod-off"); p.setAttribute("inert", ""); }
+      } else if(p.hasAttribute("data-prod-off")){
+        p.removeAttribute("data-prod-off"); p.removeAttribute("data-prod-msg"); p.classList.remove("prod-off"); p.removeAttribute("inert");
+      }
+    });
+  }
+  // it = item do cadastro aberto (lista do servidor) ou null (fora de cadastro / sem marcação): libera tudo
+  function aplicar(it){
+    var p = produtos(it), chave = p ? (p.d1 ? 1 : 0) + "" + (p.d2 ? 1 : 0) + (p.d3 ? 1 : 0) : "";
+    if(chave === atual) return; atual = chave;
+    ["d1", "d2", "d3"].forEach(function(k){ fechar(k, !!(p && !p[k])); });
+  }
+  // menu: o clique num item inabilitado não chega ao onclick dele (captura no menu lateral)
+  doc.addEventListener("click", function(ev){
+    var b = ev.target && ev.target.closest && ev.target.closest("#appSidebar [data-prod-off]");
+    if(!b) return;
+    ev.preventDefault(); ev.stopPropagation(); if(ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+  }, true);
+
+  m.aplicar = aplicar;
+  m.contratadoTxt = function(k){ return msg(k); };
+  raiz.PRODUTOS = m;
+})(typeof window !== "undefined" ? window : null);
 </script><style>
 /* ===== DESP 3 › Avaliação FTN › Aspectos Gerais do laudo (SGPD) — 18/10/2026 =====
    Mesmo visual das seções da aba (vsec/vcard/vfield); só o que falta: caixas de seleção e textarea bloqueada. */
@@ -73657,9 +73958,9 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ background:var(--pend-cl
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.11.23-10';
+window.APP_VERSAO = '2026.11.24-1';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
-window.SERVIDOR_RECOMENDADO = '2026.11.19-1';
+window.SERVIDOR_RECOMENDADO = '2026.11.24-1';
 (function(){
   var SEM_VERSAO = '0000.00.00-0';
   var LEGADO_LAYOUT = '2026.10.07-0';   // servidor que já tem layout_antigo no health, mas ainda sem número de versão
