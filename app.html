@@ -9033,7 +9033,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 <button type="button" class="fbx-capa" onclick="FBX_abrir('fbx_m_origem')" aria-label="Abrir os dados do laudo de origem">
 <span class="fbx-capa-k">Endereço / identificação do sítio</span><span class="fbx-capa-v" id="fbx_capa_end">—</span>
 <span class="fbx-capa-k">Antigo possuidor</span><span class="fbx-capa-v" id="fbx_capa_nome">—</span>
-<span class="fbx-capa-pe"><span>Laudo nº <b id="fbx_capa_laudo">—</b></span><span>Valor total <b id="fbx_capa_total">—</b></span></span>
+<span class="fbx-capa-pe"><span>Laudo nº <b id="fbx_capa_laudo">—</b></span><span>Valor total <b id="fbx_capa_total">—</b></span><span>PDF <b id="fbx_capa_pdf">—</b></span></span>
 <span class="fbx-capa-acao">Abrir dados do laudo de origem ›</span>
 </button></div></div>
 <div class="fbx-modal" id="fbx_m_origem" hidden data-sem-doc role="dialog" aria-modal="true" aria-labelledby="fbx_m_origem_t">
@@ -9065,6 +9065,9 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
         <div class="vfield grow"><label for="fb_orig_vtn">Valor da terra nua (R$)</label><input type="text" id="fb_orig_vtn" readonly class="bloqueado" tabindex="-1"></div>
         <div class="vfield grow"><label for="fb_orig_vbenf">Valor das benfeitorias (R$)</label><input type="text" id="fb_orig_vbenf" readonly class="bloqueado" tabindex="-1"></div>
         <div class="vfield grow"><label for="fb_orig_vtotal">Valor total (R$)</label><input type="text" id="fb_orig_vtotal" readonly class="bloqueado" tabindex="-1"></div></div></fieldset>
+      <!-- 25/11/2026: PDF do laudo de origem, como no Checklist Documental (pacote.fbOrigemDocs, js/199; servidor grava em DESP 1/IMAGENS/Laudo de origem/) -->
+      <fieldset class="fbx-g"><legend>Documento do laudo de origem</legend>
+        <div class="fbx-odocs" id="fbx_odocs" ondragover="FBX_origemSobre(event,this)" ondragleave="FBX_origemSai(event,this)" ondrop="FBX_origemSoltar(event,this)" data-solte="Solte o PDF do laudo de origem"></div></fieldset>
     </div>
     <div class="fbx-f"><button type="button" class="vbtn vbtn-sm" onclick="FBX_fechar(this)">Concluir</button></div>
   </div>
@@ -44130,6 +44133,7 @@ function AV_gerarDescSituacao(){
       imagens: (window.__AV_IMAGENS__ || {}),
       fotos: (window.FB_getFotos?window.FB_getFotos():[]),
       fbObsImgs: (window.FB_getObsImgs?window.FB_getObsImgs():[]),   // 17/11/2026: imagens do 1.5 Observações (js/199)
+      fbOrigemDocs: (window.FB_getOrigemDocs?window.FB_getOrigemDocs():[]),   // 25/11/2026: PDF do laudo de origem (Nº Origem, js/199)
       tecMapas: (window.MAV_get?window.MAV_get():[]),   // 19/11/2026: mapas avulsos da Técnica (js/202)
       d2figs: (window.D2_getFigs?window.D2_getFigs():{}),
       familia: (window.FB_getFamilia?window.FB_getFamilia():[]),
@@ -44309,6 +44313,7 @@ function AV_gerarDescSituacao(){
     etapa("imagens", function(){ restaurarImagens(pacote.imagens); });
     etapa("fotografias", function(){ if(pacote.fotos && window.FB_setFotos) window.FB_setFotos(pacote.fotos); });
     etapa("imagens das Observações (Ficha)", function(){ if(window.FB_setObsImgs) window.FB_setObsImgs(pacote.fbObsImgs || []); });
+    etapa("PDF do laudo de origem (Ficha)", function(){ if(window.FB_setOrigemDocs) window.FB_setOrigemDocs(pacote.fbOrigemDocs || []); });
     etapa("mapas avulsos (Técnica)", function(){ if(window.MAV_set) window.MAV_set(pacote.tecMapas || []); });
     etapa("figuras (DESP 2)", function(){ if(pacote.d2figs && window.D2_setFigs) window.D2_setFigs(pacote.d2figs); });
     etapa("benfeitorias reprodutivas/não reprodutivas (itens 12/13)", function(){ if(pacote.avBenf && window.BNF_setLinhas) window.BNF_setLinhas(pacote.avBenf); });
@@ -44803,7 +44808,7 @@ function AV_gerarDescSituacao(){
   });
   var _NOME_CHAVE = { radios: "opções marcadas", imagens: "imagens da Avaliação", d2figs: "figuras do DESP 2", d2fotos: "fotos do DESP 2",
     d2ressalvas: "ressalvas do DESP 2", d2atividades: "atividades do DESP 2", d2impacto: "impacto (DESP 2)", d2fund: "situação fundiária (DESP 2)",
-    d2doc: "documentação (DESP 2)", d2resp: "responsável (DESP 2)", fotos: "fotos da Ficha", fbObsImgs: "imagens das Observações (Ficha)", tecMapas: "mapas avulsos (Técnica)", familia: "família", estacas: "estacas",
+    d2doc: "documentação (DESP 2)", d2resp: "responsável (DESP 2)", fotos: "fotos da Ficha", fbObsImgs: "imagens das Observações (Ficha)", fbOrigemDocs: "PDF do laudo de origem (Ficha)", tecMapas: "mapas avulsos (Técnica)", familia: "família", estacas: "estacas",
     na: "nota agronômica", ccuGlebas: "glebas (CCU)", relAreas: "áreas do Relatório", relTabelas: "tabelas do Relatório", assinaturas: "assinaturas",
     parChecklist: "checklist do Parecer", parPendencias: "pendências do Parecer", parPendExtras: "pendências extras do Parecer",
     parPendExcluidas: "pendências excluídas do Parecer", campoFicha: "Ficha de Campo", avBenf: "benfeitorias (Avaliação)",
@@ -71043,6 +71048,30 @@ body.fbx-com-modal { overflow:hidden; }
 #panel-desp1-vist .d2-imp-resumo span { color:#5d6b7a; }
 #panel-desp1-vist .d2-imp-resumo p { margin:6px 0 8px; font-size:12.5px; line-height:1.45; color:#4a5867; }
 #panel-desp1-vist .fb-fotos-man-t { font-size:12.5px; font-weight:700; color:#1f3864; margin:4px 0 6px; }
+
+/* 25/11/2026: PDF do laudo de origem no card do Nº Origem (js/199 seção 4) — mesma linguagem dos anexos do Checklist Documental */
+#panel-desp1-vist .fbx-odocs { display:flex; flex-direction:column; gap:6px; margin-top:10px; padding:8px 10px; border:1px dashed transparent; border-radius:10px; position:relative; }
+#panel-desp1-vist .fbx-odocs.solte { border-color:#1f6fc0; background:#f1f6fc; }
+#panel-desp1-vist .fbx-odocs.solte::after { content:attr(data-solte); position:absolute; inset:0; display:grid; place-items:center; font-weight:600; color:#1f6fc0; background:rgba(241,246,252,.92); border-radius:10px; }
+#panel-desp1-vist .fbx-odocs-t { font-size:12px; color:#6b7686; }
+#panel-desp1-vist .fbx-odoc { display:flex; align-items:center; gap:6px; border:1px solid #d6dee8; border-radius:7px; padding:2px 2px 2px 6px; background:#fff; }
+#panel-desp1-vist .fbx-odoc .tp { flex:none; font-weight:700; font-size:9.5px; line-height:1; padding:3px 4px; border-radius:4px; color:#fff; background:#ae3f38; }
+#panel-desp1-vist .fbx-odoc .nm { flex:1; min-width:0; border:0; background:none; padding:3px 0; text-align:left; cursor:pointer; font:inherit; font-size:12.5px; color:#0f2236; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#panel-desp1-vist .fbx-odoc .nm:hover { text-decoration:underline; }
+#panel-desp1-vist .fbx-odoc .tam { flex:none; font-size:10.5px; color:#5a6b7c; }
+#panel-desp1-vist .fbx-odoc .rm { flex:none; display:grid; place-items:center; width:26px; height:26px; border:0; border-radius:6px; background:none; color:#ae3f38; cursor:pointer; }
+#panel-desp1-vist .fbx-odoc .rm svg { width:15px; height:15px; }
+#panel-desp1-vist .fbx-odoc .rm:hover { background:#fbeceb; }
+#panel-desp1-vist .fbx-odocs-pe { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+#panel-desp1-vist .fbx-oadd { display:inline-flex; align-items:center; gap:5px; border:1px dashed #b3bfcc; border-radius:7px; padding:5px 9px; font-size:12px; font-weight:600; color:#1f6fc0; cursor:pointer; position:relative; }
+#panel-desp1-vist .fbx-oadd svg { width:14px; height:14px; }
+#panel-desp1-vist .fbx-oadd:hover, #panel-desp1-vist .fbx-oadd:focus-within { border-color:#1f6fc0; background:#f3f8fe; }
+#panel-desp1-vist .fbx-oadd input { position:absolute; width:1px; height:1px; opacity:0; pointer-events:none; }
+#panel-desp1-vist .fbx-oolho { display:inline-grid; place-items:center; width:30px; height:30px; border:1px solid #b3bfcc; border-radius:7px; background:#fff; color:#1f6fc0; cursor:pointer; }
+#panel-desp1-vist .fbx-oolho svg { width:16px; height:16px; }
+#panel-desp1-vist .fbx-oolho:hover, #panel-desp1-vist .fbx-oolho:focus-visible { border-color:#1f6fc0; background:#f3f8fe; }
+#panel-desp1-vist .fbx-oolho:disabled { opacity:.4; cursor:not-allowed; color:#5a6b7c; background:#fff; }
+#panel-desp1-vist .fbx-odocs-h { font-size:12px; color:#9aa5b4; }
 </style><script>/* =====================================================================
    FICHA DE VISTORIA (Anexo B) — MODOS FORMULÁRIO · CONTEÚDO (12/11/2026)
    Mesmo seletor das outras abas de relatório da DESP 1 (Relatório Socioeconômico, Parecer, Campo):
@@ -71545,6 +71574,7 @@ body.fbx-com-modal { overflow:hidden; }
    2) Nº Origem: dados do laudo anterior (fb_proc_laudo + fb_orig_*). Terreno = área × preço unitário
       (pode ser digitado à mão); resumo = terra nua + benfeitorias. A capa no card mostra endereço,
       antigo possuidor, laudo e valor total. Nada disso sai em relatório (blocos data-sem-doc).
+   4) Nº Origem: PDF do laudo de origem com olho de pré-visualização (pacote.fbOrigemDocs; ver seção 4).
    3) 1.5 Observações: imagens com legenda e fonte, como as imagens avulsas da DESP 2.
       Ficam em pacote.fbObsImgs = [{id, src, leg, fonte, w, h}] e saem no PDF/Word da Ficha (js/119)
       logo depois do texto do 1.5, como "Imagem N – legenda" + "Fonte: …" (manual §2.8).
@@ -71577,7 +71607,8 @@ body.fbx-com-modal { overflow:hidden; }
   };
   document.addEventListener("keydown", function(ev){
     if(ev.key !== "Escape") return;
-    var ab = document.querySelectorAll(".fbx-modal:not([hidden])"); if(!ab.length) return;
+    if(document.getElementById("fbx_pv")) return;   // 25/11/2026: pré-visualização do laudo aberta por cima do modal — o Esc fecha só ela (seção 4)
+    var ab =document.querySelectorAll(".fbx-modal:not([hidden])"); if(!ab.length) return;
     ev.preventDefault(); ev.stopPropagation(); window.FBX_fechar(ab[ab.length - 1]);
   }, true);
   // clique no fundo escuro fecha (só se o clique começou e terminou fora da caixa)
@@ -71613,8 +71644,10 @@ body.fbx-com-modal { overflow:hidden; }
     t("fbx_capa_nome", val("fb_orig_titular"));
     t("fbx_capa_laudo", val("fb_proc_laudo"));
     t("fbx_capa_total", tot ? "R$ " + tot : "");
+    var nPdf = (typeof odocs !== "undefined" && odocs) ? odocs.length : 0;   // 25/11/2026: PDFs anexados dentro do modal (seção 4)
+    t("fbx_capa_pdf", nPdf ? nPdf + (nPdf > 1 ? " anexados" : " anexado") : "");
     var card = document.querySelector(".fbx-orig");
-    if(card) card.classList.toggle("fbx-vazio", !(end || mun || val("fb_orig_titular") || val("fb_proc_laudo") || tot));
+    if(card) card.classList.toggle("fbx-vazio", !(end || mun || val("fb_orig_titular") || val("fb_proc_laudo") || tot || nPdf));
   }
   window.FBX_origemCapa = origemCapa;
   document.addEventListener("focusin", function(ev){
@@ -71730,7 +71763,110 @@ body.fbx-com-modal { overflow:hidden; }
     render();
   };
 
-  function iniciar(){ ligar(); render(); origemCapa(); }
+  /* ---------------- 4) PDF do laudo de origem (25/11/2026) ----------------
+     Como os anexos do Checklist Documental (js/124): 📎 Anexar (ou arrastar sobre o card), lista com o nome,
+     tamanho e 🗑, e o olho abre a pré-visualização (.ckd-pv, com a lista à esquerda quando há mais de um).
+     Ficam em pacote.fbOrigemDocs = [{nome, src:"data:image/pdf;base64,..."}] — o mesmo formato do check list,
+     que o servidor tira do JSON e grava como arquivo. Pasta: DESP 1/IMAGENS/Laudo de origem/<hash>.pdf
+     (servidor antigo: DESP 2/IMAGENS/OUTROS; vai para a pasta certa no próximo Salvar com o servidor novo).
+     Só consulta: bloco data-sem-doc, não sai em relatório. */
+  var odocs = [];
+  var SVG = {
+    clipe:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 11.5l-8.2 8.2a5 5 0 0 1-7.1-7.1l8.5-8.5a3.4 3.4 0 0 1 4.8 4.8l-8.4 8.4a1.7 1.7 0 0 1-2.4-2.4l7.6-7.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    olho:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>',
+    lixo:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+  };
+  function b64(d){ var s = String(d && d.src || ""), p = s.indexOf(","); return p >= 0 ? s.slice(p + 1) : ""; }
+  function tam(d){ var b = Math.round(b64(d).length * 0.75); return b > 1048576 ? (b / 1048576).toFixed(1).replace(".", ",") + " MB" : Math.max(1, Math.round(b / 1024)) + " KB"; }
+  function bytes(d){ var s = atob(b64(d)), u = new Uint8Array(s.length); for(var i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return u; }
+  function blobUrl(d){ return URL.createObjectURL(new Blob([bytes(d)], { type:"application/pdf" })); }
+  function renderODocs(){
+    var host = $("fbx_odocs"); if(!host) return;
+    var n = odocs.length;
+    host.innerHTML = odocs.map(function(d, k){
+          return '<div class="fbx-odoc"><span class="tp">PDF</span>'
+            + '<button type="button" class="nm" onclick="FBX_origemVer(' + k + ')" title="Pré-visualizar ' + esc(d.nome) + ' (' + tam(d) + ')">' + esc(d.nome) + '</button>'
+            + '<span class="tam">' + tam(d) + '</span>'
+            + '<button type="button" class="rm" onclick="FBX_origemRem(' + k + ')" title="Excluir este anexo" aria-label="Excluir ' + esc(d.nome) + '">' + SVG.lixo + '</button></div>';
+        }).join("")
+      + '<div class="fbx-odocs-pe"><label class="fbx-oadd" title="Anexar o PDF do laudo de origem (ou arraste o arquivo para este card)">' + SVG.clipe + (n ? "Anexar mais" : "Anexar PDF")
+      + '<input type="file" multiple accept=".pdf,application/pdf" onchange="FBX_origemAdd(this.files);this.value=\'\'" aria-label="Anexar o PDF do laudo de origem"></label>'
+      + '<button type="button" class="fbx-oolho" ' + (n ? 'onclick="FBX_origemVer(0)"' : "disabled") + ' title="' + (n ? "Pré-visualizar " + (n > 1 ? "os " + n + " arquivos anexados" : "o arquivo anexado") : "Nada anexado ainda — anexe o PDF para pré-visualizar") + '" aria-label="Pré-visualizar o laudo de origem">' + SVG.olho + '</button>'
+      + (n ? "" : '<span class="fbx-odocs-h">nenhum arquivo anexado</span>') + '</div>';
+    origemCapa();
+  }
+  function lerPdf(f){ return new Promise(function(ok, no){ var r = new FileReader(); r.onload = function(){ ok("data:image/pdf;base64," + String(r.result).slice(String(r.result).indexOf(",") + 1)); }; r.onerror = function(){ no(r.error); }; r.readAsDataURL(f); }); }
+  window.FBX_origemAdd = async function(files){
+    var fs = Array.prototype.slice.call(files || []); if(!fs.length) return;
+    var recus = [];
+    for(var k = 0; k < fs.length; k++){
+      var f = fs[k];
+      if(!(/pdf$/i.test(f.type) || /\.pdf$/i.test(f.name))){ recus.push(f.name + " (não é PDF)"); continue; }
+      if(f.size > 25 * 1024 * 1024){ recus.push(f.name + " (maior que 25 MB)"); continue; }
+      try{ odocs.push({ nome:f.name, src:await lerPdf(f) }); }catch(e){ recus.push(f.name + " (não consegui ler)"); }
+    }
+    renderODocs(); sujo();
+    if(recus.length) alert("Não anexados:\n• " + recus.join("\n• "));
+  };
+  window.FBX_origemRem = function(k){
+    var d = odocs[k]; if(!d) return;
+    if(!confirm('Excluir o anexo "' + d.nome + '" do laudo de origem?')) return;
+    odocs.splice(k, 1); renderODocs(); sujo();
+  };
+  window.FBX_origemSobre = function(ev, el){ if(!ev.dataTransfer || Array.prototype.indexOf.call(ev.dataTransfer.types || [], "Files") < 0) return; ev.preventDefault(); el.classList.add("solte"); };
+  window.FBX_origemSai = function(ev, el){ if(!el.contains(ev.relatedTarget)) el.classList.remove("solte"); };
+  window.FBX_origemSoltar = function(ev, el){ ev.preventDefault(); el.classList.remove("solte"); if(ev.dataTransfer && ev.dataTransfer.files) window.FBX_origemAdd(ev.dataTransfer.files); };
+  // pré-visualização: a mesma janela do check list (css .ckd-pv), com id próprio
+  var PV = { k:0, url:"" };
+  function pvFechar(){
+    var m = $("fbx_pv"); if(m) m.remove();
+    if(PV.url){ try{ URL.revokeObjectURL(PV.url); }catch(e){} PV.url = ""; }
+    document.removeEventListener("keydown", pvTecla, true);
+  }
+  function pvTecla(e){
+    if(e.key === "Escape"){ e.stopPropagation(); e.preventDefault(); pvFechar(); }
+    else if(e.key === "ArrowLeft") window.FBX_origemPvIr(-1);
+    else if(e.key === "ArrowRight") window.FBX_origemPvIr(1);
+  }
+  function pvMostrar(){
+    if(!odocs.length){ pvFechar(); return; }
+    if(PV.k < 0) PV.k = odocs.length - 1; if(PV.k >= odocs.length) PV.k = 0;
+    var d = odocs[PV.k], varios = odocs.length > 1;
+    if(PV.url){ try{ URL.revokeObjectURL(PV.url); }catch(e){} }
+    PV.url = blobUrl(d);
+    var m = $("fbx_pv");
+    if(!m){
+      m = document.createElement("div"); m.id = "fbx_pv"; m.className = "ckd-pv"; m.setAttribute("role", "dialog"); m.setAttribute("aria-modal", "true"); m.setAttribute("aria-label", "Laudo de origem");
+      m.addEventListener("mousedown", function(e){ if(e.target === m) pvFechar(); });
+      document.body.appendChild(m);
+      document.addEventListener("keydown", pvTecla, true);
+    }
+    var lista = varios ? '<ol class="ckd-pv-lista" aria-label="Arquivos do laudo de origem">' + odocs.map(function(x, k){
+        return '<li><button type="button" class="' + (k === PV.k ? "on" : "") + '" aria-current="' + (k === PV.k) + '" onclick="FBX_origemPvIr(' + (k - PV.k) + ')" title="' + esc(x.nome) + '"><span class="tp pdf">PDF</span><span class="nmx">' + esc(x.nome) + '</span><small>' + tam(x) + '</small></button></li>';
+      }).join("") + '</ol>' : "";
+    var laudo = val("fb_proc_laudo"), tit = val("fb_orig_titular");
+    m.innerHTML = '<div class="ckd-pv-cx"><div class="ckd-pv-cab">'
+      + (varios ? '<button type="button" onclick="FBX_origemPvIr(-1)" title="Anterior (←)" aria-label="Arquivo anterior">◀</button>' : "")
+      + '<span class="nm" title="' + esc(d.nome) + '">' + esc(d.nome) + '</span>'
+      + '<span class="ct">' + (varios ? (PV.k + 1) + " de " + odocs.length + " · " : "") + tam(d) + '</span>'
+      + (varios ? '<button type="button" onclick="FBX_origemPvIr(1)" title="Próximo (→)" aria-label="Próximo arquivo">▶</button>' : "")
+      + '<button type="button" onclick="FBX_origemAbrir()" title="Abrir em outra aba">Abrir em nova aba</button>'
+      + '<button type="button" class="fx" onclick="FBX_origemPvFechar()" title="Fechar (Esc)" aria-label="Fechar">✕</button></div>'
+      + '<div class="ckd-pv-item"><b>Nº Origem — laudo anterior</b>' + (laudo ? " — Laudo nº " + esc(laudo) : "") + (tit ? " · " + esc(tit) : "") + '</div>'
+      + '<div class="ckd-pv-meio">' + lista + '<iframe class="ckd-pv-corpo" src="' + PV.url + '" title="' + esc(d.nome) + '"></iframe></div></div>';
+  }
+  window.FBX_origemVer = function(k){ PV.k = k | 0; pvMostrar(); };
+  window.FBX_origemPvIr = function(p){ if(!$("fbx_pv")) return; PV.k += p; pvMostrar(); };
+  window.FBX_origemPvFechar = pvFechar;
+  window.FBX_origemAbrir = function(){ var d = odocs[PV.k]; if(!d) return; var u = blobUrl(d); window.open(u, "_blank"); setTimeout(function(){ URL.revokeObjectURL(u); }, 120000); };
+  window.FB_getOrigemDocs = function(){ return odocs; };
+  window.FB_setOrigemDocs = function(arr){
+    pvFechar();
+    odocs = (Array.isArray(arr) ? arr : []).filter(function(x){ return x && x.src; }).map(function(x){ return { nome:x.nome || "laudo-de-origem.pdf", src:x.src }; });
+    renderODocs();
+  };
+
+  function iniciar(){ ligar(); render(); origemCapa(); renderODocs(); }
   if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", iniciar); else iniciar();
 })();
 </script><style>/* Trava por setor (js/201): faixa no topo da aba em modo visualização, campos travados e aviso de cadastro salvo em outra tela */
@@ -71820,7 +71956,7 @@ body.fbx-com-modal { overflow:hidden; }
   // blocos inteiros do pacote
   var BLOCOS = {
     campoFicha: "d1-campo",
-    fotos: "d1-social", fbObsImgs: "d1-social", familia: "d1-social", relAreas: "d1-social", relTabelas: "d1-social", assinaturas: "d1-social",
+    fotos: "d1-social", fbObsImgs: "d1-social", fbOrigemDocs: "d1-social", familia: "d1-social", relAreas: "d1-social", relTabelas: "d1-social", assinaturas: "d1-social",
     avBenf: "d1-tecnica", tecMapas: "d1-tecnica",                 // tecMapas: mapas avulsos da Técnica (19/11/2026, js/202) · DÚVIDA 1: benfeitorias (itens 12/13) — editadas na Técnica e na DESP 3
     estacas: "livre",                                             // DÚVIDA 3: estacas da Ficha antiga (#fv_estacas, aba Obsoleto)
     na: "desp3", ccuGlebas: "desp3", avBenfTotais: "desp3", avAmostra: "desp3",
@@ -73969,9 +74105,9 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ background:var(--pend-cl
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.11.25-2';
+window.APP_VERSAO = '2026.11.25-3';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
-window.SERVIDOR_RECOMENDADO = '2026.11.24-3';
+window.SERVIDOR_RECOMENDADO = '2026.11.25-3';
 (function(){
   var SEM_VERSAO = '0000.00.00-0';
   var LEGADO_LAYOUT = '2026.10.07-0';   // servidor que já tem layout_antigo no health, mas ainda sem número de versão
