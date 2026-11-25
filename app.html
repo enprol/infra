@@ -51538,7 +51538,12 @@ window.DRL_gerarPDF=async function(opts){
 
   function _drlImg(src){ return new Promise(function(res){ if(!src){res(null);return;} var im=new Image(); im.onload=function(){res(im);}; im.onerror=function(){res(null);}; im.src=src; }); }
   function _c(k){ try{ return String((window.D2_campo ? window.D2_campo(k) : '') || '').trim(); }catch(e){ return ''; } }
-  var _ident='DRL (Declaração de Respeito de Limites): INFRA S.A. CTD-'+(_c('cadastro')||'___')+(_c('sei')?(' (SEI nº '+_c('sei')+')'):'');
+  // 25/11/2026: CTD e SEI caem para a DESP 1 (fb_proc_ctd / nº do processo) quando o campo da DESP 2 está vazio —
+  // d2_cadastro/d2_sei vazios em todo o SPS-07 faziam a DRL sair com "CTD-___" e sem SEI.
+  function _f(id){ var e=document.getElementById(id); return e ? String(e.value||'').trim() : ''; }
+  var _ctd=_c('cadastro')||_f('fb_proc_ctd');
+  var _sei=_c('sei')||(((_f('fb_processo')||_f('fb_proc_preview')).match(/\d{5}\.\d{6}\/\d{4}-\d{2}/)||[])[0]||'');
+  var _ident='DRL (Declaração de Respeito de Limites): INFRA S.A. CTD-'+(_ctd||'___')+(_sei?(' (SEI nº '+_sei+')'):'');
   function rodape(){ DOCPDF.rodape(pdf, { mL:mL, xR:M.xR, H:H }); }
   function cabecalho(){ PG++; DOCPDF.cabecalho(pdf, { logos:LG, fonte:FONT, ident:_ident, pagina:PG, mL:mL, xR:M.xR, larguraIdent:RW-24 }); pdf.setTextColor(0,0,0); }
   var topY=M.topY, botY=M.botY, y=topY;
@@ -73959,7 +73964,7 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ background:var(--pend-cl
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.11.24-3';
+window.APP_VERSAO = '2026.11.25-1';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.11.24-3';
 (function(){
