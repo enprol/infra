@@ -35440,7 +35440,7 @@ function AV_gerarDescSituacao(){
     try{
       if(!G || !G.segs || geralAtivo()) return 1;
       var g1 = geomFmt(id, 1);
-      if(G.segs.length <= capacidadeTabela(g1.tabh - 12.8 - RES_PE - 3.4)) return 1;
+      if(G.segs.length <= capacidadeTabela(g1.tabh - 12.8 - resPe() - 3.4)) return 1;
       var g2 = geomFmt(id, 2), bb = limitesPlanta(), fg = folgaConfMm();
       var cabe = function(e){ return (bb[1]-bb[0])*1.12/(e/1000) + fg <= g2.mw - 6 && (bb[3]-bb[2])*1.12/(e/1000) + fg <= g2.mh - 6; };
       var esc = escUso(OPC.escala || escLer());
@@ -37807,15 +37807,20 @@ function AV_gerarDescSituacao(){
   /* mapa-chave: o contorno inteiro com os quadros numerados; o desta prancha em vermelho */
   var CACHE_CHAVE = { chave:"", url:null, el:null };
   /* 03/11/2026 (Fernando): o pé da coluna da direita não fica mais reservado (era o bloco CONFRONTAÇÕES, que saiu em 19/10):
-     a tabela vai até RES_PE do fim. Nas pranchas de quadro o mapa-chave fica com no máximo ~42% da coluna e a tabela de
+     a tabela vai até resPe() do fim. Nas pranchas de quadro o mapa-chave fica com no máximo ~42% da coluna e a tabela de
      coordenadas começa logo abaixo dele (o plano pode encolher o mapa-chave até CHAVE_MIN para não sobrar prancha rala). */
-  var RES_PE = 6, CHAVE_MIN = 35;
+  var CHAVE_MIN = 35;
+  /* 25/11/2026 (Fernando): com o "Quadro de áreas do imóvel" ligado no Carimbo (extras.quadro_areas), o pé da coluna guarda
+     a altura dele, embaixo da tabela de coordenadas. resPe() no lugar da antiga constante RES_PE = 6. */
+  function quadroPlanta(){ try{ return (extras().quadro_areas && window.AREAS_quadro) ? window.AREAS_quadro(true) : null; }catch(e){ return null; } }
+  function altQuadroPlanta(q){ return q ? 4.6 + ALT_CAB + q.linhas.length*3.6 + 3 : 0; }
+  function resPe(){ return 6 + altQuadroPlanta(quadroPlanta()); }
   function chaveHmax(){ return Math.max(CHAVE_MIN, Math.min(TAB.h - 72.8, TAB.h*.42)); }
   function chaveDims(pg){ return { w:TAB.w - 4, hmax:(pg && pg.chaveH) || chaveHmax() }; }   // 16,8 = onde o mapa-chave começa dentro do painel
   // linhas de tabela que cabem embaixo do mapa-chave numa prancha de quadro (mesmas medidas do desenho)
   function capSobChave(pg, hmax, altMin){
     var g = geomChave(pg, TAB.w - 4, hmax), y = 12.8 + 4 + g.h + 1.5;
-    var hDisp = TAB.h - RES_PE - 3.4 - y;
+    var hDisp = TAB.h - resPe() - 3.4 - y;
     return hDisp > ALT_CAB + 3*ALT_LIN_MIN ? capacidadeTabela(hDisp, altMin) : 0;
   }
   // enquadramento do mapa-chave: o contorno inteiro + todos os quadros, ajustado à caixa
@@ -37993,7 +37998,7 @@ function AV_gerarDescSituacao(){
       fp.forEach(function(p){ p.total = fp.length; p.tabTotal = total; });
       return fp;
     }
-    var hP1 = TAB.h - 12.8 - RES_PE - 3.4;
+    var hP1 = TAB.h - 12.8 - resPe() - 3.4;
     var cap1 = capacidadeTabela(hP1)*TAB_COLS;           // 29/10/2026: até 2 colunas de tabela na prancha 1
     if(total <= cap1) return [{ n:1, total:1, de:0, ate:total, fmt:base }];
     // 03/11/2026: sobra pequena (seria uma prancha só com poucas linhas): aperta as linhas da prancha 1 (sem a linha do
@@ -38668,7 +38673,7 @@ function AV_gerarDescSituacao(){
         y = desenharMapaChave(P, TAB.x + 2, y, larg, chaveDims(pg).hmax, pg) + 1.5;
         // 03/11/2026: a tabela começa aqui, embaixo do mapa-chave (o plano já reparte as linhas entre as pranchas)
         if(pg.ate > pg.de){
-          y = desenharGradeCoords(P, TAB.x + 2, y, larg, pg.de, pg.ate, TAB.y + TAB.h - RES_PE - 3.4 - y, null, pg.altMin).y;
+          y = desenharGradeCoords(P, TAB.x + 2, y, larg, pg.de, pg.ate, TAB.y + TAB.h - resPe() - 3.4 - y, null, pg.altMin).y;
           if(pg.ate < (pg.tabTotal || G.segs.length)){ P.texto(TAB.x + 2, y + 3.4, "continua na folha " + (NUMF.off + pg.n + 1) + "/" + NUMF.total + " →", { tam:5, bold:true, cor:"#0a5c86" }); y += 3.4; }
         } else if(pg.total > pg.kTotal){
           P.texto(TAB.x + 2, y + 3.4, "tabelas nas folhas " + (NUMF.off + pg.kTotal + 1) + (pg.total > pg.kTotal + 1 ? ("–" + (NUMF.off + pg.total)) : "") + "/" + NUMF.total + " →", { tam:5, bold:true, cor:"#0a5c86" });
@@ -38679,15 +38684,36 @@ function AV_gerarDescSituacao(){
       } else {
         if(TAB_COLS > 1 && pg.ate - pg.de > 1){
           // duas tabelas lado a lado (a 2ª continua a 1ª), mesma altura de linha
-          var gapT = 4, cwT = (larg - gapT)/2, porT = Math.ceil((pg.ate - pg.de)/2), hT = TAB.y + TAB.h - RES_PE - (pg.total > 1 ? 3.4 : 0) - y;
+          var gapT = 4, cwT = (larg - gapT)/2, porT = Math.ceil((pg.ate - pg.de)/2), hT = TAB.y + TAB.h - resPe() - (pg.total > 1 ? 3.4 : 0) - y;
           var yA = desenharGradeCoords(P, TAB.x + 2, y, cwT, pg.de, pg.de + porT, hT, porT, pg.altMin).y;
           var yB = desenharGradeCoords(P, TAB.x + 2 + cwT + gapT, y, cwT, pg.de + porT, pg.ate, hT, porT, pg.altMin).y;
           y = Math.max(yA, yB);
-        } else y = desenharGradeCoords(P, TAB.x + 2, y, larg, pg.de, pg.ate, TAB.y + TAB.h - RES_PE - (pg.total > 1 ? 3.4 : 0) - y, null, pg.altMin).y;
+        } else y = desenharGradeCoords(P, TAB.x + 2, y, larg, pg.de, pg.ate, TAB.y + TAB.h - resPe() - (pg.total > 1 ? 3.4 : 0) - y, null, pg.altMin).y;
         if(pg.total > 1){
           P.texto(TAB.x + 2, y + 3.4, "continua na folha " + (NUMF.off + pg.n + 1) + "/" + NUMF.total + " →", { tam:5, bold:true, cor:"#0a5c86" });
           y += 3.4;
         }
+      }
+      // 25/11/2026: Quadro de áreas do imóvel (js/205) no pé da coluna, na altura que resPe() reservou
+      var qA = quadroPlanta();
+      if(qA){
+        var qx = TAB.x + 2, qw = TAB.w - 4, qy = TAB.y + TAB.h - resPe() + 3, wv = qw*.3, alq = 3.6;
+        P.texto(TAB.x + TAB.w/2, qy + 3.2, "QUADRO DE ÁREAS DO IMÓVEL", { tam:6.4, bold:true, align:"center" }); qy += 4.6;
+        var qy0 = qy;
+        P.ret(qx, qy, qw, ALT_CAB, { peso:.15, fill:"#eef2f6" });
+        P.texto(qx + 1.2, qy + 2.95, "ITEM", { tam:TAM.tabCab, bold:true });
+        P.texto(qx + qw - 1.2, qy + 2.95, "ÁREA (ha)", { tam:TAM.tabCab, bold:true, align:"right" });
+        qy += ALT_CAB;
+        qA.linhas.forEach(function(l, k){
+          if(k % 2) P.ret(qx, qy, qw, alq, { peso:0, fill:"#f5f8fb" });
+          var it = caber(P, l[0], qw - wv - 2.4, 5.4, !!l[3], 3.8);
+          P.texto(qx + 1.2, qy + alq*.5 + it.tam*.3528*.36, it.txt, { tam:it.tam, bold:!!l[3] });
+          P.texto(qx + qw - 1.2, qy + alq*.5 + 5.4*.3528*.36, qA.fmt(l[2]), { tam:5.4, bold:!!l[3], align:"right" });
+          P.linha(qx, qy + alq, qx + qw, qy + alq, { cor:"#c9d3de", peso:.08 });
+          qy += alq;
+        });
+        P.ret(qx, qy0, qw, qy - qy0, { peso:.18 });
+        P.linha(qx + qw - wv, qy0, qx + qw - wv, qy, { cor:"#c9d3de", peso:.1 });
       }
       // 19/10/2026: sem o bloco CONFRONTAÇÕES (pontos, nome do confrontante, KM inicial/final) abaixo da tabela
     })();
@@ -41387,6 +41413,11 @@ function AV_gerarDescSituacao(){
     } else {
       h += inputEx("area_rem_desap", "Área remanescente a desapropriar", "automático: 0,0000 ha — descreva se houver");
       h += inputEx("area_remanescente", "Área remanescente da propriedade", ph(au.area_remanescente, "KML da área total − faixa de domínio do projeto"));
+      // 25/11/2026 (Fernando): o quadro de áreas do imóvel (memorial do cálculo, js/205) sai na planta só quando pedido
+      var qOk = !!(window.AREAS_quadro && window.AREAS_quadro(true));
+      h += '<label class="mdp-chk" style="flex:1 1 100%" title="Tabela com remanescentes, faixa do projeto, área a desapropriar e totais — a mesma da DESP 2">' +
+        '<input type="checkbox"' + (ex0.quadro_areas ? " checked" : "") + (qOk ? "" : " disabled") + ' onchange="MDP_setEx(\'quadro_areas\', this.checked ? 1 : \'\')"> ' +
+        'Quadro de áreas do imóvel na planta (embaixo da tabela de coordenadas)' + (qOk ? '' : ' — <i>sem o cálculo das áreas (Técnica) ou a área ocupada não bate com o KML</i>') + '</label>';
     }
     var vd = extras().desenhista || "", nomes = DESENHISTAS.map(function(d){ return d.nome; });
     h += '<div class="vfield grow"><label>Desenhista <span class="hint-auto">sai com a assinatura</span></label><select onchange="MDP_setEx(\'desenhista\',this.value)"><option value="">— selecione —</option>' +
@@ -55434,9 +55465,20 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
   function rows(txt){ return Math.min(20, Math.max(3, Math.round((txt||"").length/70)+1)); }
   function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
   /* markdown simples (**negrito**, "• " bullets, quebras) -> HTML de visualização */
+  /* 25/11/2026: linha "§QA" = Tabela 1 – Quadro de áreas do imóvel (js/205). Na tela vira uma prévia que não se edita;
+     ao salvar o texto volta a ser "§QA" (o PDF e o Word desenham a tabela com os números do momento). */
+  window.D2_qaHtml=function(){
+    var q=window.AREAS_quadro?window.AREAS_quadro(true):null;
+    var corpo=q ? ('<div style="font:italic 700 12px/1.3 inherit;text-align:center;margin:2px 0 4px">Tabela 1 – '+esc(q.titulo)+'</div><table style="width:100%;border-collapse:collapse;font-size:12px">'
+      +'<tr style="background:#dae8f6;color:#14294a">'+q.cols.map(function(c,i){ return '<th style="text-align:'+(i===2?'right':'left')+';padding:3px 6px;border-bottom:2px solid #1f6fc0">'+esc(c)+'</th>'; }).join('')+'</tr>'
+      +q.linhas.map(function(l,i){ return '<tr style="'+(i%2?'background:#fafcfe;':'')+(l[3]?'font-weight:700;':'')+'border-bottom:1px solid #edf1f5"><td style="padding:3px 6px">'+esc(l[0])+'</td><td style="padding:3px 6px;font-weight:400">'+esc(l[1])+'</td><td style="padding:3px 6px;text-align:right">'+q.fmt(l[2])+'</td></tr>'; }).join('')+'</table>')
+      : '<div style="color:#8a5a00;font-size:12px">[Quadro de áreas do imóvel — sem o cálculo das áreas: abra a Técnica com os KML do imóvel e da área abrangida]</div>';
+    return '<div class="d2-qa" data-qa="1" contenteditable="false" style="margin:6px 0;padding:6px;border:1px dashed #9ab;border-radius:6px;user-select:none">'+corpo+'</div>';
+  };
   function mdToHtml(md){
     return String(md||'').split('\n').map(function(ln){
       if(ln.trim()===''){ return '<div><br></div>'; }
+      if(ln.trim()==='§QA'){ return window.D2_qaHtml(); }
       var bullet=/^•\s+/.test(ln);
       var h=esc(bullet?ln.replace(/^•\s+/,''):ln).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');
       return bullet ? ('<div class="d2-li">• '+h+'</div>') : ('<div>'+h+'</div>');
@@ -55468,6 +55510,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       view.childNodes.forEach(function(n){
         if(n.nodeType===3){ if(n.nodeValue.trim()!=='') lines.push(n.nodeValue); }
         else if(n.nodeType===1){
+          if(n.getAttribute && n.getAttribute('data-qa')){ lines.push('§QA'); return; }
           var line=serialLine(n).replace(/\n+$/,'');
           if((n.className||'').indexOf('d2-li')>=0){ line='• '+line.replace(/^•\s*/,''); }
           lines.push(line);
@@ -55990,7 +56033,9 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     // é a certificada no SIGEF (sem a faixa); total do perímetro = certificada + desapropriada.
     var _par006=D2_paragrafoAreas006();
     var _parAl=_par006?null:d2paragrafoAlargamento();
-    if(_par006){ t+="\n"+_par006; } else if(_parAl){ t+="\n"+_parAl; } else
+    // 25/11/2026 (Fernando): o quadro de áreas (js/205) entra logo depois do parágrafo das áreas — "§QA" vira a tabela no PDF e no Word
+    var _qa=(!_par006 && window.AREAS_quadro && window.AREAS_quadro(true)) ? "\n§QA" : "";
+    if(_par006){ t+="\n"+_par006; } else if(_parAl){ t+="\n"+_parAl+_qa; } else
     t+="\nConsiderando a área total de **"+areaTotal+"** correspondente ao imóvel antes da implantação da faixa de domínio, a área destinada à desapropriação corresponde a **"+areaDesap+"**, permanecendo como área remanescente o total de **"+areaRem+"**, conforme os títulos de domínio disponibilizados.";
 
     return t;
@@ -58920,11 +58965,37 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
         DOCPDF.tabelaLinha(pdf, mL, yc+rowH, cw); yc+=rowH; ri++;
       }); yc+=3;
     }
+    /* 25/11/2026: Tabela 1 – Quadro de áreas do imóvel (js/205 AREAS_quadro), no padrão do manual §2.7: título acima,
+       faixa de títulos, zebra, filete, cabeçalho repetido em página nova; totais em negrito. */
+    function quadroAreasPDF(){
+      const q=window.AREAS_quadro?window.AREAS_quadro(true):null; if(!q) return;
+      const wI=52,wV=26,wC=cw-wI-wV, xV=mL+cw-2.5;
+      function head(){ yc=DOCPDF.tabelaCab(pdf, { fonte:FONT, tam:9, x:mL, y:yc, w:cw, cols:[{t:q.cols[0], x:mL+2.5}, {t:q.cols[1], x:mL+wI+2.5}, {t:q.cols[2], x:xV, align:"right"}] }); }
+      ensure(14+q.linhas.length*6.9);
+      yc+=1.5; pdf.setFont(FONT,"bolditalic"); pdf.setFontSize(9.5); pdf.setTextColor(0,0,0);
+      pdf.text("Tabela 1 – "+q.titulo,CX,yc,{align:"center"}); yc+=2.5;
+      head(); let ri=0;
+      q.linhas.forEach(function(l){
+        pdf.setFont(FONT,l[3]?"bold":"normal"); pdf.setFontSize(8.5); pdf.setTextColor(40,51,63);
+        const iLs=pdf.splitTextToSize(l[0],wI-3), cLs=pdf.splitTextToSize(String(l[1]).replace(/−/g,"–"),wC-3);   // a fonte do PDF não tem o "−"
+        const rowH=Math.max(iLs.length,cLs.length,1)*3.9+3;
+        if(yc+rowH>botY){ rod(); nova(); head(); }
+        DOCPDF.tabelaZebra(pdf, mL, yc, cw, rowH, ri);
+        pdf.setFont(FONT,l[3]?"bold":"normal"); pdf.setTextColor(40,51,63);
+        pdf.text(iLs,mL+2.5,yc+3.9); pdf.setFont(FONT,"normal"); pdf.text(cLs,mL+wI+2.5,yc+3.9);
+        pdf.setFont(FONT,l[3]?"bold":"normal"); pdf.text(q.fmt(l[2]),xV,yc+3.9,{align:"right"});
+        DOCPDF.tabelaLinha(pdf, mL, yc+rowH, cw); yc+=rowH; ri++;
+      });
+      pdf.setFont(FONT,"italic"); pdf.setFontSize(8.5); pdf.setTextColor(90,100,115);
+      yc+=4; pdf.text("Fonte: KML do imóvel, KML da área abrangida e faixa de domínio do projeto (ENPROL, "+(q.calculado?q.calculado.slice(0,10).split("-").reverse().join("/"):"")+").",CX,yc,{align:"center"});
+      yc+=5; pdf.setTextColor(0,0,0);
+    }
     function bloco(text){
       let romanoSeq=0;
       String(text||"").split("\n").forEach(function(ln){
         const t=ln.trim();
         if(!t){ yc+=2.4; romanoSeq=0; return; }
+        if(t==="§QA"){ romanoSeq=0; quadroAreasPDF(); return; }
         if(/^Tabela\s*1\b/i.test(t.replace(/\*/g,""))){
           pdf.setFont(FONT,"bolditalic"); pdf.setFontSize(9.5); pdf.setTextColor(0,0,0);
           ensure(8); pdf.text(t.replace(/\*/g,""),CX,yc,{align:"center"}); yc+=5.5; romanoSeq=0; return;
@@ -59135,6 +59206,22 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     const K=[];
     const PAR={alignment:AlignmentType.JUSTIFIED, spacing:{after:120, line:300}};
     function par(t,o){ o=o||{}; K.push(new Paragraph(Object.assign({children:runs(t,o)},PAR,o.p||{}))); }
+    // 25/11/2026: Tabela 1 – Quadro de áreas do imóvel (mesmas linhas do PDF, js/205 AREAS_quadro)
+    function quadroAreasWord(){
+      const q=window.AREAS_quadro?window.AREAS_quadro(true):null; if(!q) return;
+      const nada={style:BorderStyle.NONE,size:0,color:"FFFFFF"};
+      const bd=function(cor,sz){ return {top:nada,left:nada,right:nada,bottom:{style:BorderStyle.SINGLE,size:sz,color:cor}}; };
+      const wI=Math.round(CW*52/160), wV=Math.round(CW*26/160), wC=CW-wI-wV;
+      const cel=function(txt,w,o){ return new TableCell({width:{size:w,type:WidthType.DXA}, borders:bd(o.cab?"1F6FC0":"EDF1F5",o.cab?12:4),
+        shading:(o.fill?{type:ShadingType.CLEAR,fill:o.fill,color:"auto"}:undefined), margins:{top:50,bottom:50,left:80,right:80},
+        children:[new Paragraph({alignment:o.dir?AlignmentType.RIGHT:AlignmentType.LEFT, children:[R(txt,{bold:!!o.b,size:o.cab?18:17,color:o.cab?"14294A":"28333F"})]})]}); };
+      K.push(new Paragraph({alignment:AlignmentType.CENTER, keepNext:true, spacing:{before:120,after:80}, children:[R("Tabela 1 – "+q.titulo,{bold:true,italics:true,size:19})]}));
+      const linhas=[new TableRow({tableHeader:true, cantSplit:true, children:[cel(q.cols[0],wI,{cab:1,b:1,fill:"DAE8F6"}),cel(q.cols[1],wC,{cab:1,b:1,fill:"DAE8F6"}),cel(q.cols[2],wV,{cab:1,b:1,fill:"DAE8F6",dir:1})]})];
+      q.linhas.forEach(function(l,i){ const f=(i%2===1)?"FAFCFE":undefined;
+        linhas.push(new TableRow({cantSplit:true, children:[cel(l[0],wI,{b:l[3],fill:f}),cel(l[1],wC,{fill:f}),cel(q.fmt(l[2]),wV,{b:l[3],fill:f,dir:1})]})); });
+      K.push(new Table({width:{size:CW,type:WidthType.DXA}, columnWidths:[wI,wC,wV], rows:linhas}));
+      K.push(new Paragraph({alignment:AlignmentType.CENTER, spacing:{before:60,after:200}, children:[R("Fonte: KML do imóvel, KML da área abrangida e faixa de domínio do projeto (ENPROL, "+(q.calculado?q.calculado.slice(0,10).split("-").reverse().join("/"):"")+").",{italics:true,size:17,color:"5A6473"})]}));
+    }
 
     // ---- títulos (estilos do Word: aparecem no painel de navegação / sumário) ----
     function h1(t){ const m=String(t).match(/^(\d+)\.\s*(.*)$/);
@@ -59155,6 +59242,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
       String(text||"").split("\n").forEach(function(ln){
         const t=ln.trim();
         if(!t){ emRomano=false; return; }
+        if(t==="§QA"){ emRomano=false; quadroAreasWord(); return; }
         if(/^Tabela\s*1\b/i.test(t.replace(/\*/g,""))){ emRomano=false; K.push(new Paragraph({alignment:AlignmentType.CENTER, keepNext:true, spacing:{before:120,after:80}, children:[R(t.replace(/\*/g,""),{bold:true,italics:true,size:19})]})); return; }
         if(t.indexOf("§R ")===0){ if(!emRomano){ romanoInst++; emRomano=true; }
           K.push(new Paragraph(Object.assign({children:runs(t.slice(3)), numbering:{reference:"d2-romano", level:0, instance:romanoInst}},PAR,{spacing:{after:60,line:288}}))); return; }
@@ -59379,6 +59467,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
   function romano(n){ var v=[[1000,"M"],[900,"CM"],[500,"D"],[400,"CD"],[100,"C"],[90,"XC"],[50,"L"],[40,"XL"],[10,"X"],[9,"IX"],[5,"V"],[4,"IV"],[1,"I"]], r=""; v.forEach(function(p){ while(n>=p[0]){ r+=p[1]; n-=p[0]; } }); return r; }
   function docLinhaHtml(ln){
     var s=String(ln).trim(), k="p", l="", t=s;
+    if(s==="§QA") return window.D2_qaHtml();
     if(s.indexOf("§R ")===0){ k="R"; t=s.slice(3); }
     else if(s.indexOf("§A ")===0){ k="A"; t=s.slice(3); }
     else if(s.indexOf("§C ")===0){ k="C"; t=s.slice(3); }
@@ -59393,6 +59482,7 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     ed.childNodes.forEach(function(n){
       if(n.nodeType===3){ if(n.nodeValue.trim()) out.push(n.nodeValue.trim()); return; }
       if(n.nodeType!==1) return;
+      if(n.getAttribute("data-qa")){ out.push("§QA"); return; }
       var k=n.getAttribute("data-k")||"p";
       var s=serialLine(n).replace(/ /g," ").replace(/\*\*\s*\*\*/g,"").replace(/\s+/g," ").trim();
       if(!s){ out.push(""); return; }
@@ -62732,6 +62822,25 @@ window.MG_motion={abertura:abertura,cadastro:cadastro,fichas:fichas};
     var a = areasRaw(), L = a ? (a.avisos || []).slice() : [];
     if(a && a.tipo !== "faixa") L.unshift("Alargamento: área ocupada de fato = remanescente " + fmt(a.rem) + " ha + abrangida " + fmt(a.desap) + " ha = " + fmt(a.ocupReal) + " ha (o KML total, " + fmt(a.ocupKml) + " ha, inclui a faixa desapropriada antes" + (isFinite(a.anterior) && a.anterior != null ? ", " + fmt(a.anterior) + " ha" : "") + ").");
     b.textContent = L.join(" "); b.style.display = L.length ? "" : "none";
+    quadroAreas(b, a);
+  }
+  // 25/11/2026 (Fernando): o memorial do cálculo na tela — a mesma Tabela 1 da DESP 2 e da planta (js/205), com as fontes
+  function quadroAreas(depoisDe, a){
+    var box = $("tec_areas_quadro");
+    if(!box){ box = document.createElement("div"); box.id = "tec_areas_quadro"; box.style.cssText = "margin:8px 0 4px;max-width:720px;"; depoisDe.parentNode.insertBefore(box, depoisDe.nextSibling); }
+    var q = a && window.AREAS_quadro ? window.AREAS_quadro(false) : null;
+    if(!q){ box.innerHTML = ""; box.style.display = "none"; return; }
+    var e = function(s){ return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); };
+    var f = q.fontes || {}, dt = q.calculado ? new Date(q.calculado).toLocaleString("pt-BR") : "";
+    var velho = window.AREAS_atual && window.AREAS_atual() === false, semDoc = window.AREAS_remanescente && window.AREAS_remanescente() == null;
+    box.style.display = "";
+    box.innerHTML = '<div style="font-weight:700;font-size:12.5px;color:#14294a;margin-bottom:3px">' + e(q.titulo) + ' <span style="font-weight:400;color:#5a6473">— memorial do cálculo (sai igual na DESP 2 e, se ligado no Carimbo, na planta)</span></div>' +
+      '<table style="width:100%;border-collapse:collapse;font-size:12px"><tr style="background:#dae8f6;color:#14294a">' +
+      q.cols.map(function(c, i){ return '<th style="text-align:' + (i === 2 ? "right" : "left") + ';padding:3px 6px;border-bottom:2px solid #1f6fc0">' + e(c) + '</th>'; }).join("") + '</tr>' +
+      q.linhas.map(function(l, i){ return '<tr style="' + (i % 2 ? "background:#fafcfe;" : "") + (l[3] ? "font-weight:700;" : "") + 'border-bottom:1px solid #edf1f5"><td style="padding:3px 6px">' + e(l[0]) + '</td><td style="padding:3px 6px;font-weight:400;color:#4a5a6a">' + e(l[1]) + '</td><td style="padding:3px 6px;text-align:right">' + q.fmt(l[2]) + '</td></tr>'; }).join("") +
+      '</table><div class="hint-inline" style="margin-top:3px">Fontes: área total — <b>' + e((f.ocupada && f.ocupada.nome) || "KML do imóvel") + '</b>; área abrangida — <b>' + e((f.desap && f.desap.nome) || "KML da área abrangida") + '</b>; ' + e((f.faixa && f.faixa.nome) || "faixa de domínio do projeto") + (dt ? '. Calculado em ' + e(dt) + (q.versao ? ' (versão ' + e(q.versao) + ')' : '') : '') + '.</div>' +
+      (velho ? '<div class="hint-inline" style="color:#b3141b;font-weight:600">⚠ Um KML mudou depois deste cálculo: o quadro será refeito ao recalcular; a DESP 2 e a planta não o imprimem enquanto isso.</div>' : '') +
+      (semDoc ? '<div class="hint-inline" style="color:#8A5208">A área ocupada do cadastro não bate com a do KML: a DESP 2 e a planta não imprimem este quadro.</div>' : '');
   }
   function recalcAreas(){ if(!window.AREAS_calcular) return; window.AREAS_calcular().then(function(r){ if(r) areasAuto(); }); }
   window.TEC_areasRecalc = recalcAreas;
@@ -72745,14 +72854,49 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ background:var(--pend-cl
     return { tipo:tipo, ocupKml:O, interna:isFinite(g.interna) ? r4(g.interna) : NaN, desap:d, n:n, s:s, rem:rem, ocupReal:ocupReal, anterior:anterior, avisos:avisos };
   }
   function br4(x){ var v = (Math.round(x * 1e4) / 1e4).toFixed(4).split("."); return v[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".") + "," + v[1]; }
+  /* Quadro de áreas do imóvel (25/11/2026, Fernando): a MESMA tabela na DESP 2 (cap. 3), na planta e na Técnica.
+     linhas: [item, como se obtém, ha (número com 4 casas), destaque]. Os totais são a soma das parcelas impressas
+     (fecham na calculadora), não a medida direta do KML. null sem o cálculo. */
+  function quadroAreas(a){
+    if(!a || !(a.rem > 0)) return null;
+    var n = r4(a.n || 0), s = r4(a.s || 0), rem = r4(n + s), d = r4(a.desap || 0);
+    var L = [];
+    if(a.tipo === "faixa"){
+      L.push(["Área a desapropriar (faixa de domínio)", "KML da área abrangida pelo projeto", d, false]);
+      L.push(["Remanescente norte", "parte do imóvel ao norte da faixa do projeto ferroviário", n, false]);
+      L.push(["Remanescente sul", "parte do imóvel ao sul da faixa do projeto ferroviário", s, false]);
+      L.push(["Remanescente total", "norte + sul", rem, true]);
+      L.push(["Área total abrangida", "remanescente total + área a desapropriar", r4(rem + d), true]);
+    } else {
+      var f = (a.anterior != null && isFinite(a.anterior)) ? r4(a.anterior) : null;
+      L.push(["Remanescente norte", "parte do imóvel ao norte da faixa do projeto ferroviário", n, false]);
+      L.push(["Remanescente sul", "parte do imóvel ao sul da faixa do projeto ferroviário", s, false]);
+      L.push(["Remanescente total", "norte + sul", rem, true]);
+      if(f != null) L.push(["Faixa de área do projeto ferroviário", "parte do imóvel dentro da faixa do projeto − alargamento", f, false]);
+      L.push(["Área a desapropriar (alargamento)", "KML da área abrangida pelo projeto", d, false]);
+      L.push(["Área ocupada de fato", "remanescente total + alargamento", r4(rem + d), true]);
+      if(f != null) L.push(["Área total abrangida", "remanescente total + faixa do projeto + alargamento", r4(rem + f + d), true]);
+    }
+    return { titulo:"Quadro de áreas do imóvel", tipo:a.tipo, cols:["Item", "Como se obtém", "Área (ha)"], linhas:L };
+  }
   /* ---------------- fim da conta ---------------- */
 
   function num(v){ var t = String(v == null ? "" : v).replace(/[^0-9,.-]/g, ""); if(t.indexOf(",") >= 0) t = t.replace(/\./g, "").replace(",", "."); var n = parseFloat(t); return isFinite(n) ? n : NaN; }
   function extras(){ try{ return JSON.parse(($("mdp_extras") || {}).value || "{}") || {}; }catch(e){ return {}; } }
+  // memorial: de onde veio cada geometria (nome do arquivo + impressão do conteúdo), para saber se o cálculo ficou velho
+  function hashTxt(s){ s = String(s || ""); var h = 5381; for(var i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return s ? (h >>> 0).toString(16) : ""; }
+  function fontesAtuais(){
+    var v = function(id){ return (($(id) || {}).value || "").trim(); };
+    return { ocupada:{ nome:v("imv_kml_area_nome"), h:hashTxt(v("imv_kml_area_dados")) },
+             desap:{ nome:v("rel_kml_nome"), h:hashTxt(v("rel_kml_dados")) },
+             faixa:{ nome:"faixa de domínio do projeto (mapas fixos do SPS" + (v("fb_proc_lote") ? " " + v("fb_proc_lote") : "") + ")" } };
+  }
+  function semData(o){ if(!o) return null; var c = {}; Object.keys(o).forEach(function(k){ if(k !== "calculado" && k !== "versao") c[k] = o[k]; }); return c; }
   function gravar(res){
     var el = $("mdp_extras"); if(!el) return;
-    var o = extras(), novo = JSON.stringify(res), velho = JSON.stringify(o.areas_auto || null);
+    var o = extras(), novo = JSON.stringify(semData(res)), velho = JSON.stringify(semData(o.areas_auto || null));
     if(novo === velho) return;
+    res.calculado = new Date().toISOString(); res.versao = window.APP_VERSAO || "";
     (window.CAD_automatico || function(f){ f(); })(function(){
       o = extras(); o.areas_auto = res; el.value = JSON.stringify(o); el.dispatchEvent(new Event("input", { bubbles:true }));
     });
@@ -72792,6 +72936,9 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ background:var(--pend-cl
         dForaF: soma(GA.exec(T.ctDifference, Dpaths, F))
       });
       var gr = {}; Object.keys(res).forEach(function(k){ var v = res[k]; gr[k] = (typeof v === "number" && !isFinite(v)) ? null : v; });
+      gr.fontes = fontesAtuais();
+      gr.formula = res.tipo === "faixa" ? "remanescente = KML da área total − faixa do projeto (norte + sul); área total abrangida = remanescente + área a desapropriar"
+        : "remanescente = KML da área total − faixa do projeto (norte + sul); faixa de área do projeto = (KML ∩ faixa) − alargamento; área ocupada de fato = remanescente + alargamento";
       gravar(gr);
       return gr;
     })();
@@ -72811,6 +72958,21 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ background:var(--pend-cl
     return a.rem;
   };
   window.AREAS_br4 = br4;
+  // false quando um KML mudou depois do último cálculo (o memorial gravado é de outra geometria); null sem cálculo
+  window.AREAS_atual = function(){
+    var a = window.AREAS_imovel(); if(!a) return null; if(!a.fontes) return true;   // gravado antes do memorial: não acusa
+    var f = fontesAtuais();
+    return a.fontes.ocupada.h === f.ocupada.h && a.fontes.desap.h === f.desap.h;
+  };
+  /* quadro de áreas para os relatórios. paraDoc: DESP 2 e planta — só quando a remanescente da geometria vale para este
+     cadastro (AREAS_remanescente) e o cálculo é o dos KML atuais; fora disso null (não imprime quadro que não fecha). */
+  window.AREAS_quadro = function(paraDoc){
+    var a = window.AREAS_imovel(); if(!a) return null;
+    if(paraDoc && (window.AREAS_remanescente() == null || window.AREAS_atual() === false)) return null;
+    var q = quadroAreas(a); if(!q) return null;
+    q.fmt = br4; q.fontes = a.fontes || null; q.calculado = a.calculado || null; q.versao = a.versao || null; q.avisos = a.avisos || [];
+    return q;
+  };
 })();
 </script><style>
 /* ===== DESP 3 › Avaliação FTN › Aspectos Gerais do laudo (SGPD) — 18/10/2026 =====
@@ -74252,7 +74414,7 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ background:var(--pend-cl
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.11.25-5';
+window.APP_VERSAO = '2026.11.25-6';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.11.25-3';
 (function(){
