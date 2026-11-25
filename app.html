@@ -8679,6 +8679,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 
     <div class="import-amostra">
       <button type="button" class="vbtn vbtn-primary" onclick="document.getElementById('av_amostra_file').click()">↧ Importar dados da amostra</button>
+      <button type="button" class="vbtn vbtn-ghost" id="av_amostra_prev" onclick="AV_previaAmostra()" disabled title="Mostra o arquivo importado e os valores lidos dele">👁 Pré-visualizar</button>
       <input type="file" id="av_amostra_file" accept=".rtf,.docx,.txt,.csv" style="display:none" onchange="AV_importarAmostra(this)">
       <span class="import-hint" id="av_amostra_status">Selecione o arquivo do relatório da amostra (.rtf, .docx, .txt) — Nível de Confiança 80%.</span>
     </div>
@@ -22270,9 +22271,9 @@ function FV_toggleSec(h2){
   while(el && !el.classList.contains("vcard")) el=el.nextElementSibling;
   if(el) el.classList.toggle("oculto");
 }
-// por padrão, todas as seções retráteis começam recolhidas
-document.addEventListener("DOMContentLoaded", function(){
-  document.querySelectorAll("#panel-vistoria .vsec.acc, #panel-avaliacao .vsec.acc, #panel-desp1-vist .vsec.acc, #panel-desp1-rel .vsec.acc").forEach(h2=>{
+/* recolhe todas as seções retráteis dos painéis indicados */
+function FV_recolher(sel){
+  document.querySelectorAll(sel).forEach(h2=>{
     if(!h2.classList.contains("fechado")){
       h2.classList.add("fechado");
       let el=h2.nextElementSibling;
@@ -22280,7 +22281,13 @@ document.addEventListener("DOMContentLoaded", function(){
       if(el) el.classList.add("oculto");
     }
   });
+}
+// por padrão, todas as seções retráteis começam recolhidas
+// 25/11/2026 (Fernando): a Avaliação FTN (DESP 3) também, e de novo a cada cadastro aberto (js/117 chama FV_recolherAoAbrir)
+document.addEventListener("DOMContentLoaded", function(){
+  FV_recolher("#panel-vistoria .vsec.acc, #panel-avaliacao .vsec.acc, #panel-avaliacao-ftn .vsec.acc, #panel-desp1-vist .vsec.acc, #panel-desp1-rel .vsec.acc");
 });
+window.FV_recolherAoAbrir = function(){ FV_recolher("#panel-avaliacao-ftn .vsec.acc"); };
 </script>
 
 <script>
@@ -22441,6 +22448,8 @@ function AV_gerarDescSituacao(){
     function processar(texto){
       try{
         const dados = AV_parseAmostra(texto);
+        // 25/11/2026: o texto lido fica junto da amostra (grava com o cadastro) para a pré-visualização
+        dados.arquivo = { nome: file.name || "", data: new Date().toLocaleString("pt-BR"), texto: String(texto || "").slice(0, 300000) };
         AV_preencherAmostra(dados);
         if(status){ status.textContent = "Arquivo \""+file.name+"\" importado com sucesso."; status.style.color="#159a3c"; }
       }catch(err){
@@ -22592,7 +22601,45 @@ function AV_gerarDescSituacao(){
 
     // guardar para o PDF
     window.__AV_AMOSTRA__ = d;
+    const bp = el("av_amostra_prev"); if(bp) bp.disabled = !d;
+    const sa = el("av_amostra_status");
+    if(sa && d && d.arquivo && d.arquivo.nome && !/Lendo|importado/.test(sa.textContent)){ sa.textContent = "Amostra: \""+d.arquivo.nome+"\" (importada em "+d.arquivo.data+")."; sa.style.color = "#159a3c"; }
     if(typeof window.REL_atualizarTela==="function") window.REL_atualizarTela();
+  };
+
+  /* 25/11/2026 (Fernando): pré-visualização da amostra importada — o arquivo (texto lido dele) e os valores que entraram */
+  window.AV_previaAmostra = function(){
+    const d = window.__AV_AMOSTRA__;
+    if(!d){ alert("Nenhuma amostra importada ainda."); return; }
+    const esc = s => String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    const pc = p => p ? " ("+p+"%)" : "";
+    const lin = [
+      ["Modelo", d.modelo], ["Data de referência", d.data_ref], ["Área (ha)", d.area], ["Nota agronômica", d.na],
+      [d.vila!=null ? "Influência Vila" : "Zona", d.vila!=null ? d.vila : d.zona],
+      ["Valor unitário mínimo", d.vu_min && "R$ "+d.vu_min+pc(d.vu_min_pct)], ["Valor unitário médio", d.vu_med && "R$ "+d.vu_med], ["Valor unitário máximo", d.vu_max && "R$ "+d.vu_max+pc(d.vu_max_pct)],
+      ["Valor total mínimo", d.vt_min && "R$ "+d.vt_min], ["Valor total médio", d.vt_med && "R$ "+d.vt_med], ["Valor total máximo", d.vt_max && "R$ "+d.vt_max],
+      ["Campo de arbítrio (RL mín. / máx.)", (d.ca_min||d.ca_max) && "R$ "+(d.ca_min||"—")+" / R$ "+(d.ca_max||"—")]
+    ].filter(r => r[1]!=null && r[1]!=="");
+    const a = d.arquivo || null;
+    let m = document.getElementById("av_m_amostra");
+    if(!m){
+      m = document.createElement("div"); m.id = "av_m_amostra"; m.className = "fbx-modal"; m.hidden = true;
+      m.setAttribute("data-sem-doc",""); m.setAttribute("role","dialog"); m.setAttribute("aria-modal","true");
+      m.addEventListener("click", e => { if(e.target === m) fechar(); });
+      document.body.appendChild(m);
+    }
+    function fechar(){ m.hidden = true; document.body.classList.remove("fbx-com-modal"); document.removeEventListener("keydown", tecla); }
+    function tecla(e){ if(e.key === "Escape") fechar(); }
+    m.innerHTML = '<div class="fbx-box"><div class="fbx-h"><span>👁 Amostra importada'+(a&&a.nome ? ' — '+esc(a.nome) : '')+'</span><button type="button" class="fbx-x" aria-label="Fechar">✕</button></div>'
+      + '<div class="fbx-c">'
+      + (a&&a.data ? '<p class="hint-inline" style="margin-top:0;">Importada em '+esc(a.data)+'.</p>' : '')
+      + '<fieldset class="fbx-g fbx-resumo"><legend>Valores lidos do arquivo</legend><table class="av-prev-tab">'
+      + lin.map(r => '<tr><th>'+esc(r[0])+'</th><td>'+esc(r[1])+'</td></tr>').join("") + '</table></fieldset>'
+      + '<fieldset class="fbx-g"><legend>Conteúdo do arquivo</legend>'
+      + (a&&a.texto ? '<pre class="av-prev-txt">'+esc(a.texto)+'</pre>' : '<p class="hint-inline" style="margin:0;">Esta amostra foi importada antes da pré-visualização existir: o texto do arquivo não foi guardado. Importe o arquivo de novo para vê-lo aqui.</p>')
+      + '</fieldset></div><div class="fbx-f"><button type="button" class="vbtn vbtn-primary">Fechar</button></div></div>';
+    m.querySelectorAll(".fbx-x, .fbx-f .vbtn").forEach(b => b.addEventListener("click", fechar));
+    m.hidden = false; document.body.classList.add("fbx-com-modal"); document.addEventListener("keydown", tecla);
   };
 
   // grau de fundamentação pela amplitude do intervalo (NBR 14.653)
@@ -44228,7 +44275,7 @@ function AV_gerarDescSituacao(){
     if(!campos) return;
     window.__CAD_RESTAURANDO = true;
     try{ restaurarCampos0(campos); }
-    finally{ window.__CAD_RESTAURANDO = false; var pend = window.__CAD_pend; window.__CAD_pend = null; if(pend) pend.forEach(function(f){ try{ f(); }catch(e){ console.warn("recalculo adiado falhou:", e); } }); }
+    finally{ window.__CAD_RESTAURANDO = false; try{ if(window.FV_recolherAoAbrir) window.FV_recolherAoAbrir(); }catch(e){} var pend = window.__CAD_pend; window.__CAD_pend = null; if(pend) pend.forEach(function(f){ try{ f(); }catch(e){ console.warn("recalculo adiado falhou:", e); } }); }
   }
   function restaurarCampos0(campos){
     Object.entries(campos).forEach(([id,val])=>{
@@ -46398,7 +46445,10 @@ function AV_gerarDescSituacao(){
     // 20/10/2026: mapa geral das fotos de campo incorporadas a esta ficha (numeradas como saem aqui)
     // 20/10/2026: fotos por tópico do Campo (a ordem de impressão é a do mapa)
     var __orgF = null; try{ __orgF = window.CAMPO_organizarFotos ? await window.CAMPO_organizarFotos((window.FB_fotosRelatorio ? window.FB_fotosRelatorio() : []) || []) : null; }catch(e){}
-    var __mapaF = null;   // 21/10/2026: a Ficha (5.3 Fotografias do imóvel) não leva mapa de localização; ele fica para as fotos da aba Campo nos relatórios   /* campoMapa */
+    var __mapaF = null;   /* campoMapa */
+    // 25/11/2026 (Fernando): com o cartão "Fotografias do Campo" marcado, o 5.4 vira relatório fotográfico com o mapa de localização
+    // (mesmo mapa e numeração "Foto 01 – …" do Socioeconômico). Sem o cartão, só as fotos da Ficha, sem mapa (como era desde 21/10).
+    if(campoOn()){ try{ __mapaF = window.CAMPO_mapaPara ? await window.CAMPO_mapaPara(__orgF ? __orgF.itens : ((window.FB_fotosRelatorio ? window.FB_fotosRelatorio() : []) || []), { area:true }) : null; }catch(e){ __mapaF = null; } }
     if(!(window.jspdf||window.jsPDF)){
       alert("Biblioteca de PDF ainda carregando. Tente novamente em instantes."); return;
     }
@@ -46926,7 +46976,9 @@ function AV_gerarDescSituacao(){
       const mw = contentW, mh = mw*__mapaF.h/__mapaF.w;
       if(y + mh + 6 > botY){ rodape(); novaPagina(); }
       try{ pdf.addImage(__mapaF.url, "JPEG", mL, y, mw, mh); }catch(e){}
-      y += mh + 1.5; F("italic"); pdf.setFontSize(FS-2); pdf.text("Mapa de localização das fotografias", mL + contentW/2, y + 2.6, {align:"center"}); F("normal"); pdf.setFontSize(FS); y += 7;
+      y += mh + 1.5; F("italic"); pdf.setFontSize(FS-2); pdf.text("Mapa de localização das fotografias", mL + contentW/2, y + 2.6, {align:"center"});
+      if(window.CAMPO_OBS_MAPA){ pdf.setFontSize(FS-2.5); pdf.text(window.CAMPO_OBS_MAPA, mL + contentW/2, y + 6.2, {align:"center", maxWidth:contentW}); y += 3.6; }
+      F("normal"); pdf.setFontSize(FS); y += 7;
     }
     if(fotos.length){
       const fw=(contentW-6)/2, fh=fw*0.72, lh=4;
@@ -73250,7 +73302,19 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ background:var(--pend-cl
   if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", ligar); else ligar();
   window.FB_cascata = tudo;
 })();
-</script><style>
+</script><style>/* DESP 3 › Avaliação FTN — ajustes de 25/11/2026 */
+
+/* Descrição sumária do bem: o mesmo cinza dos campos da Vistoria (textarea.bloqueado), mas continua editável */
+#panel-avaliacao-ftn#panel-avaliacao-ftn textarea#av_sg_descricao { background:#eef1f4 !important; color:#5a6b7c !important; border-color:#d3dbe4 !important; }
+#panel-avaliacao-ftn#panel-avaliacao-ftn textarea#av_sg_descricao:focus { color:#1e2935 !important; }
+
+/* pré-visualização da amostra importada (js/104, modal .fbx-modal do css/199) */
+#av_m_amostra .av-prev-tab { border-collapse:collapse; width:100%; font-size:12.5px; }
+#av_m_amostra .av-prev-tab th { text-align:left; font-weight:600; color:#5a6473; padding:3px 12px 3px 0; white-space:nowrap; width:1%; }
+#av_m_amostra .av-prev-tab td { padding:3px 0; color:#1f2a37; }
+#av_m_amostra .av-prev-txt { margin:0; max-height:52vh; overflow:auto; white-space:pre-wrap; word-break:break-word; font:12px/1.45 Consolas, "Courier New", monospace;
+  background:#f7f9fc; border:1px solid #e3e8ef; border-radius:8px; padding:10px 12px; color:#1f2a37; }
+</style><style>
 /* ===== DESP 3 › Avaliação FTN › Aspectos Gerais do laudo (SGPD) — 18/10/2026 =====
    Mesmo visual das seções da aba (vsec/vcard/vfield); só o que falta: caixas de seleção e textarea bloqueada. */
 #panel-avaliacao-ftn .av-sg-nota{font-size:12.5px; color:var(--label); margin:0 0 4px;}
@@ -73368,6 +73432,30 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ background:var(--pend-cl
   }
   function st(m){ var e = G("av_vila_status"); if(e) e.textContent = m || ""; }
 
+  /* 25/11/2026: a área abrangida toca a área de influência? vértice de um dentro do outro ou lados que se cruzam
+     (antes só olhava vértices da área dentro da Vila: uma Vila pequena dentro da área passava como "fora"). */
+  function segCruza(a, b, c, d){
+    function o(p, q, r){ var v = (q[1] - p[1]) * (r[0] - q[0]) - (q[0] - p[0]) * (r[1] - q[1]); return v > 0 ? 1 : v < 0 ? -1 : 0; }
+    return o(a, b, c) !== o(a, b, d) && o(c, d, a) !== o(c, d, b);
+  }
+  function cruzaVila(area, vila){
+    return area.some(function(r){ return vila.some(function(v){
+      if(r.some(function(q){ return dentro(q[0], q[1], v); }) || v.some(function(q){ return dentro(q[0], q[1], r); })) return true;
+      for(var i = 0; i < r.length; i++){ var a = r[i], b = r[(i + 1) % r.length];
+        for(var j = 0; j < v.length; j++){ if(segCruza(a, b, v[j], v[(j + 1) % v.length])) return true; } }
+      return false;
+    }); });
+  }
+  /* escolhe 1/2 na Memória de Cálculo: só quando está vazia ou foi o próprio sistema que escolheu (escolha à mão não é trocada;
+     nesse caso a nota âmbar abaixo do mapa avisa a diferença) */
+  function escolherVila(cod){
+    var sel = G("av_mem_vila"); if(!sel || !cod) return;
+    if(sel.value && sel.value !== sel.getAttribute("data-vila-auto")) return;
+    sel.setAttribute("data-vila-auto", cod);
+    if(sel.value === cod) return;
+    sel.value = cod;
+    sel.dispatchEvent(new Event("input", { bubbles:true })); sel.dispatchEvent(new Event("change", { bubbles:true }));
+  }
   var _gerando = false, _chave = "";
   window.AVVILA_gerar = async function(forcar){
     if(_gerando) return; _gerando = true;
@@ -73389,6 +73477,8 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ background:var(--pend-cl
         r.forEach(function(q){ a = Math.min(a, q[0]); b = Math.max(b, q[0]); c = Math.min(c, q[1]); d = Math.max(d, q[1]); });
         return !(b < w || a > e || d < s || c > n);
       });
+      // 25/11/2026 (Fernando): a análise da camada escolhe sozinha 1 ou 2 na Memória de Cálculo, antes do satélite (funciona offline)
+      escolherVila(cruzaVila(area, vila) ? "2" : "1");
       var z = 18; for(; z >= 10; z--){ if(lonpx(e, z) - lonpx(w, z) <= 2600 && latpx(s, z) - latpx(n, z) <= 2600) break; }
       var w0 = lonpx(w, z), n0 = latpx(n, z), cw = Math.max(1, Math.round(lonpx(e, z) - w0)), ch = Math.max(1, Math.round(latpx(s, z) - n0));
       var cv = document.createElement("canvas"); cv.width = cw; cv.height = ch; var ctx = cv.getContext("2d");
@@ -73442,7 +73532,7 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ background:var(--pend-cl
       if(url){ window.__AV_VILA_IMG__ = url; if(img){ img.src = url; img.hidden = false; } }
       // conferência com a variável escolhida na Memória de Cálculo
       var cx = 0, cy = 0, cn = 0; area[0].forEach(function(q){ cx += q[0]; cy += q[1]; cn++; }); cx /= cn; cy /= cn;
-      var dentroV = area.some(function(r){ return r.some(function(q){ return window.AVVILA_polys().some(function(v){ return dentro(q[0], q[1], v); }); }); });
+      var dentroV = cruzaVila(area, vila);
       var sel = G("av_mem_vila") ? G("av_mem_vila").value : "";
       if(nota){
         var cod = dentroV ? "2" : "1";
@@ -74690,7 +74780,7 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ background:var(--pend-cl
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.11.25-7';
+window.APP_VERSAO = '2026.11.25-8';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.11.25-3';
 (function(){
