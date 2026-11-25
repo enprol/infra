@@ -45972,8 +45972,7 @@ function AV_gerarDescSituacao(){
     line2("Município:",gvW("fb_municipio"),"Telefone:",gvW("fb_telefone"),TW(34),TW(112));
     rv("1.3.2 Informante (nome):",gvW("fb_inf_nome"),{tab:TW(44)});
     rv("Grau de parentesco:",gvW("fb_411_par"),{tab:TW(44)});
-    if(gvW("fb_ocup_e_prop")==="2 - Não" || gvW("fb_subtipo")==="Espólio"){   // 25/11/2026: no Espólio é o(a) inventariante
-      K.push(new Paragraph({spacing:{after:40},children:[R("")]}));
+    if(gvW("fb_ocup_e_prop")==="2 - Não" || gvW("fb_subtipo")==="Espólio"){   // 25/11/2026: no Espólio é o(a) inventariante (sem o espaço extra antes do RG/CPF)
       line2("RG:",gvW("fb_ocup_rg"),"CPF:",gvW("fb_ocup_cpf"),TW(34),TW(112));
       rv("Estado Civil:",FB_civilTxt(gvW("fb_ocup_estcivil")),{tab:TW(44)});
       if(FB_conjAplica("fb_ocup_estcivil","fb_ocup_conjuge","fb_ocup_conj_rg","fb_ocup_conj_cpf")){ rv("Cônjuge:",gvW("fb_ocup_conjuge"),{tab:TW(44)});
@@ -45990,8 +45989,9 @@ function AV_gerarDescSituacao(){
     line2("Área Total (ha):",gvW("fb_area_total"),"Área total ocupada (ha):",gvW("fb_area_ocupada"),TW(30),TW(100));
     rv("Observação (origem da área total):",gvW("fb_area_total_obs"),{});
     rv("Observação (origem da área ocupada):",gvW("fb_area_ocupada_obs"),{});
-    line2("Área abrangida pelo projeto (ha):",gvW("fb_area_desap"),"Matrícula:",gvW("fb_matricula"),TW(52),TW(100));
-    rv("Cartório:",(window.FB_cartorioDoc ? window.FB_cartorioDoc() : gvW("fb_cartorio")),{tab:TW(30)});
+    rv("Área abrangida pelo projeto (ha):",gvW("fb_area_desap"),{tab:TW(52)});
+    line2("Matrícula:",gvW("fb_matricula"),"Livro/Folha:",gvW("fb_cart_livro"),TW(30),TW(100));   // 25/11/2026 (Fernando): Livro/Folha ao lado da Matrícula, fora do Cartório
+    rv("Cartório:",gvW("fb_cartorio"),{tab:TW(30)});
     K.push(new Paragraph({spacing:{after:40},children:[R("")]}));
     h2("1.5 Observações:");
     para(gvW("fb_15_obs"),0,true);
@@ -46775,8 +46775,7 @@ function AV_gerarDescSituacao(){
     rv2("Município:", gv("fb_municipio"), "UF:", gv("fb_uf"), {navy:true, valTab:49});
     rv("1.3.2 Informante (nome):", gv("fb_inf_nome"), {navy2:true, regra:true, valTab:49, gapTop:3.5});
     rv("Grau de parentesco:", gv("fb_411_par"), {navy2:true, regra:true, valTab:49});
-    if(gv("fb_ocup_e_prop")==="2 - Não" || gv("fb_subtipo")==="Espólio"){   // 25/11/2026: no Espólio é o(a) inventariante
-      y+=3.5;
+    if(gv("fb_ocup_e_prop")==="2 - Não" || gv("fb_subtipo")==="Espólio"){   // 25/11/2026: no Espólio é o(a) inventariante (sem o espaço extra antes do RG/CPF)
       rv2("RG:", gv("fb_ocup_rg"), (document.getElementById("fb_ocup_cpf_tipo")&&document.getElementById("fb_ocup_cpf_tipo").value==="cnpj"?"CNPJ:":"CPF:"), gv("fb_ocup_cpf"), {navy:true, valTab:49});
       rv("Estado Civil:", FB_civilTxt(gv("fb_ocup_estcivil")), {navy2:true, regra:true, valTab:49});
       if(FB_conjAplica("fb_ocup_estcivil","fb_ocup_conjuge","fb_ocup_conj_rg","fb_ocup_conj_cpf")){ rv("Cônjuge:", gv("fb_ocup_conjuge"), {navy2:true, regra:true, valTab:49});
@@ -46797,8 +46796,8 @@ function AV_gerarDescSituacao(){
     rv("Área total ocupada (ha):", gv("fb_area_ocupada"), {navy2:true, regra:true, valTab:49});
     rv("Observação (origem da área ocupada):", gv("fb_area_ocupada_obs"), {navy2:true, valTab:49, regra:true, quebra:true});
     rv("Área abrangida pelo projeto (ha):", gv("fb_area_desap"), {navy2:true, regra:true, valTab:49});
-    rv("Matrícula:", gv("fb_matricula"), {navy2:true, regra:true, valTab:49});
-    rv("Cartório:", (window.FB_cartorioDoc ? window.FB_cartorioDoc() : gv("fb_cartorio")), {navy2:true, regra:true, valTab:49});
+    rv2("Matrícula:", gv("fb_matricula"), "Livro/Folha:", gv("fb_cart_livro"), {navy:true, valTab:49});   // 25/11/2026 (Fernando): Livro/Folha ao lado da Matrícula, fora do Cartório
+    rv("Cartório:", gv("fb_cartorio"), {navy2:true, regra:true, valTab:49});
     rv("CIB/ITR:", gv("fb_cib"), {navy2:true, regra:true, valTab:49});
     rv("CCIR:", gv("fb_ccir"), {navy2:true, regra:true, valTab:49});
     rv("Possui georreferenciamento?:", gv("fb_georref"), {navy2:true, regra:true, valTab:49});
@@ -74798,7 +74797,7 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ background:var(--pend-cl
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.11.25-9';
+window.APP_VERSAO = '2026.11.25-10';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.11.25-3';
 (function(){
