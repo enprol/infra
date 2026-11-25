@@ -31,6 +31,7 @@ html.pre-logado body:not(.logado)::before{ content:""; position:fixed; inset:0; 
     "assinaturas":       { api: "/api/assinaturas",     tipo: "assin", globais: ["__ASSIN_DESENHISTA__", "__ASSINATURA_CELITO__", "__ASSIN_APLICADORES__"] },
     "docx":              { arq: "docx.min.js",          tipo: "js",   globais: ["docx"] },
     "avvila":            { arq: "avvila-dados.json",    tipo: "json", globais: ["__AVVILA_DADOS__"] },
+    "municipios":        { arq: "municipios-ibge.js",   tipo: "js",   globais: ["__MUNICIPIOS_UF__"] },   // 25/11/2026: municípios do IBGE por UF (Ficha, js/206)
     "pesquisa":          { arq: "pesq-mercado.html",    tipo: "bin",  globais: [] },
     "modelo-gpkg":       { arq: "modelo-legenda-prancha.js", tipo: "js", globais: ["__MODELO_GPKG_B64__"] }   // 20/10/2026: GeoPackage-modelo da legenda
   };
@@ -9080,9 +9081,12 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
     </div>
     <div class="vrow">
       <div class="vfield"><label>1.2 Notificação Proprietário</label><select id="fb_12_notif"><option value="">Selecione</option><option>1 - Sim</option><option>2 - Não</option></select></div>
-      <div class="vfield grow"><label>Quais?</label><input type="text" id="fb_12_quais" placeholder="Quais?"></div>
+      <!-- 25/11/2026 (Fernando): lista com o item recorrente; continua aceitando outro texto digitado -->
+      <div class="vfield grow"><label>Quais?</label><input type="text" id="fb_12_quais" list="dl_fb12_quais" autocomplete="off" placeholder="Escolha na lista ou digite"><datalist id="dl_fb12_quais"><option value="Carta de Apresentação e Autorização de Passagem."></option></datalist></div>
     </div>
 
+    <!-- 25/11/2026: 1.3 + 1.3.2 numa zona só, para a cascata de preenchimento (js/206) -->
+    <div id="fb_13_zona">
     <div class="vsub">1.3 Proprietário(a)</div>
     <div class="vrow">
       <div class="vfield grow"><label>O ocupante é o(a) proprietário(a)?</label><select id="fb_ocup_e_prop"><option value="">Selecione</option><option>1 - Sim</option><option>2 - Não</option></select></div>
@@ -9091,7 +9095,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
       <div class="vfield" data-sem-doc><label for="fb_subtipo">Subtipo <span class="hint-auto"> SGPD</span></label><select id="fb_subtipo"><option value="" selected>Selecione</option><option>Normal</option><option>Posseiro</option><option>Espólio</option></select></div>
     </div>
     <div id="fb_esp_wrap" data-sem-doc style="display:none;">
-      <p class="hint-auto" style="margin:0 0 8px;">Espólio: dados do(a) falecido(a). Nome / Razão Social, RG e CPF abaixo acompanham estes campos (travados enquanto o Subtipo for Espólio).</p>
+      <p class="hint-auto" style="margin:0 0 8px;">Espólio: dados do(a) falecido(a). Valem como Nome / RG / CPF do(a) proprietário(a) nos relatórios; os dados do(a) inventariante vão no 1.3.2.</p>
       <div class="vrow">
         <div class="vfield grow"><label for="fb_esp_de">Espólio de</label><input type="text" id="fb_esp_de" placeholder="Nome do(a) falecido(a)"></div>
         <div class="vfield"><label for="fb_esp_rg">RG</label><input type="text" id="fb_esp_rg" placeholder="RG"></div>
@@ -9104,14 +9108,20 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
     <!-- 23/11/2026: dados do 1.3 abaixo do Subtipo só abrem depois de escolhê-lo (js/190, item 6) -->
     <p class="hint-auto" id="fb_13_aviso" data-sem-doc style="display:none;margin:0 0 8px;">Escolha o Subtipo para preencher os dados do(a) proprietário(a).</p>
     <div id="fb_13_dados">
-    <div class="vrow">
+    <!-- 25/11/2026: com Subtipo = Espólio esta linha some (repetia Espólio de / RG / CPF, que continuam sendo copiados para cá: js/190, js/206) -->
+    <div class="vrow" id="fb_13_nome_row">
       <div class="vfield grow"><label>Nome / Razão Social</label><input type="text" id="fb_nome" placeholder="Nome / Razão Social"></div>
       <div class="vfield fb-campo-pf"><label>RG</label><input type="text" id="fb_rg" placeholder="RG"></div>
       <div class="vfield"><label><select id="fb_cpf_tipo" class="doc-tipo-sel" data-target="fb_cpf"><option value="cpf">CPF</option><option value="cnpj">CNPJ</option></select></label><input type="text" id="fb_cpf" class="mask-cpf" inputmode="numeric" maxlength="14" placeholder="000.000.000-00"></div>
     </div>
     <div class="vrow fb-row-pf">
       <div class="vfield"><label>Estado Civil</label><select id="fb_estcivil"><option value="">Selecione</option><option>SOLTEIRO(A)</option><option>CASADO(A)</option><option>DIVORCIADO(A)</option><option>VIÚVO(A)</option><option>UNIÃO ESTÁVEL</option></select></div>
-      <div class="vfield grow"><label>Cônjuge</label><input type="text" id="fb_conjuge" placeholder="Cônjuge"></div>
+    </div>
+    <!-- 25/11/2026: Cônjuge (com RG e CPF) só com Casado(a), Viúvo(a) ou União estável (js/206) -->
+    <div class="vrow fb-row-pf fb-conj-row" data-civil="fb_estcivil">
+      <div class="vfield grow"><label>Cônjuge</label><input type="text" id="fb_conjuge" placeholder="Nome do(a) cônjuge"></div>
+      <div class="vfield"><label for="fb_conj_rg">RG do(a) cônjuge</label><input type="text" id="fb_conj_rg" placeholder="RG"></div>
+      <div class="vfield"><label for="fb_conj_cpf">CPF do(a) cônjuge</label><input type="text" id="fb_conj_cpf" class="mask-cpf" inputmode="numeric" maxlength="14" placeholder="000.000.000-00"></div>
     </div>
     <div class="vrow">
       <div class="vfield grow"><label>Endereço</label><input type="text" id="fb_endereco" placeholder="Endereço"></div>
@@ -9122,47 +9132,54 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
       <div class="vfield"><label for="fb_tipo_end">Tipo de endereço <span class="hint-auto"> SGPD</span></label><select id="fb_tipo_end"><option value="" selected>Selecione</option></select></div>
       <div class="vfield grow"><label for="fb_bairro">Bairro <span class="hint-auto"> SGPD</span></label><input type="text" id="fb_bairro" placeholder="Ex.: Centro, Zona Rural"></div>
     </div>
+    <!-- 25/11/2026: UF primeiro; o Município é escolhido na lista do IBGE da UF (js/206). fb_municipio continua sendo o campo gravado -->
     <div class="vrow">
-      <div class="vfield grow"><label>Município</label><input type="text" id="fb_municipio" placeholder="Município"></div>
       <div class="vfield"><label>UF</label><select id="fb_uf"><option value="">UF</option><option>AC</option><option>AL</option><option>AP</option><option>AM</option><option>BA</option><option>CE</option><option>DF</option><option>ES</option><option>GO</option><option>MA</option><option>MT</option><option>MS</option><option>MG</option><option>PA</option><option>PB</option><option>PR</option><option>PE</option><option>PI</option><option>RJ</option><option>RN</option><option>RS</option><option>RO</option><option>RR</option><option>SC</option><option>SP</option><option>SE</option><option>TO</option><option>Não informado</option></select></div>
+      <div class="vfield grow"><label>Município</label><input type="hidden" id="fb_municipio"><select class="fb-mun-sel" data-mun="fb_municipio" data-uf="fb_uf" aria-label="Município"></select></div>
       <div class="vfield"><label>Telefone</label><input type="text" id="fb_telefone" class="mask-tel" inputmode="numeric" maxlength="15" placeholder="(00) 00000-0000"></div>
     </div>
     </div><!-- /fb_13_dados -->
 
     <!-- 11/11/2026: 1.3.2 Informante inteiro só aparece com "O ocupante é o(a) proprietário(a)?" = 2 - Não (js/190); com dados e outra resposta, continua à vista com aviso -->
     <div id="fb_inf_bloco" style="display:none;">
-    <div class="vsub">1.3.2 Informante</div>
+    <!-- 25/11/2026 (Fernando): ordem grau › documentação › dados comp. › nome › RG/CPF › estado civil › cônjuge › endereço › UF/município › telefone.
+         Com Subtipo = Espólio o bloco aparece sempre e vira o(a) Inventariante (mesmos campos; js/190 e js/206) -->
+    <div class="vsub"><span id="fb_inf_tit">1.3.2 Informante</span></div>
     <p class="hint-auto" id="fb_inf_aviso" data-sem-doc style="display:none;margin:0 0 8px;">Há dados do(a) informante, mas o ocupante não está marcado como "2 - Não": confira o item "O ocupante é o(a) proprietário(a)?".</p>
     <div class="vrow">
-      <div class="vfield grow"><label>Nome</label><input type="text" id="fb_inf_nome" placeholder="Nome"></div>
       <div class="vfield grow"><label>Grau de parentesco</label><select id="fb_411_par"><option value="">Selecione</option><option>Cônjuge</option><option>Filho(a)</option><option>Neto(a)</option><option>Irmão(ã)</option><option>Pai/Mãe</option><option>Sobrinho(a)</option><option>Genro/Nora</option><option>Outro</option><option>Não se aplica</option></select></div>
-    </div>
-    <div class="vrow">
       <div class="vfield grow"><label>Disponibilizou documentação comprobatória?</label><select id="fb_inf_doc"><option value="">Selecione</option><option>1 - Sim</option><option>2 - Não</option></select></div>
     </div>
     <div class="vrow">
       <div class="vfield grow"><label>Dados Comp.</label><input type="text" id="fb_inf_dados" placeholder="Dados Comp."></div>
     </div>
+    <div class="vrow">
+      <div class="vfield grow"><label>Nome</label><input type="text" id="fb_inf_nome" placeholder="Nome"></div>
+    </div>
 
     <div id="fb_ocup_wrap">
-      <p class="hint-auto" style="margin:0 0 8px;">Dados completos do(a) informante (o(a) ocupante do imóvel)</p>
       <div class="vrow">
         <div class="vfield"><label>RG</label><input type="text" id="fb_ocup_rg" placeholder="RG"></div>
         <div class="vfield"><label><select id="fb_ocup_cpf_tipo" class="doc-tipo-sel" data-target="fb_ocup_cpf"><option value="cpf">CPF</option><option value="cnpj">CNPJ</option></select></label><input type="text" id="fb_ocup_cpf" class="mask-cpf" inputmode="numeric" maxlength="14" placeholder="000.000.000-00"></div>
         <div class="vfield"><label>Estado Civil</label><select id="fb_ocup_estcivil"><option value="">Selecione</option><option>SOLTEIRO(A)</option><option>CASADO(A)</option><option>DIVORCIADO(A)</option><option>VIÚVO(A)</option><option>UNIÃO ESTÁVEL</option></select></div>
       </div>
+      <div class="vrow fb-conj-row" data-civil="fb_ocup_estcivil">
+        <div class="vfield grow"><label>Cônjuge</label><input type="text" id="fb_ocup_conjuge" placeholder="Nome do(a) cônjuge"></div>
+        <div class="vfield"><label for="fb_ocup_conj_rg">RG do(a) cônjuge</label><input type="text" id="fb_ocup_conj_rg" placeholder="RG"></div>
+        <div class="vfield"><label for="fb_ocup_conj_cpf">CPF do(a) cônjuge</label><input type="text" id="fb_ocup_conj_cpf" class="mask-cpf" inputmode="numeric" maxlength="14" placeholder="000.000.000-00"></div>
+      </div>
       <div class="vrow">
-        <div class="vfield grow"><label>Cônjuge</label><input type="text" id="fb_ocup_conjuge" placeholder="Cônjuge"></div>
         <div class="vfield grow"><label>Endereço</label><input type="text" id="fb_ocup_endereco" placeholder="Endereço"></div>
         <div class="vfield"><label>CEP</label><input type="text" id="fb_ocup_cep" class="mask-cep" inputmode="numeric" maxlength="10" placeholder="00.000-000"></div>
       </div>
       <div class="vrow">
-        <div class="vfield grow"><label>Município</label><input type="text" id="fb_ocup_municipio" placeholder="Município"></div>
         <div class="vfield"><label>UF</label><select id="fb_ocup_uf"><option value="">UF</option><option>AC</option><option>AL</option><option>AP</option><option>AM</option><option>BA</option><option>CE</option><option>DF</option><option>ES</option><option>GO</option><option>MA</option><option>MT</option><option>MS</option><option>MG</option><option>PA</option><option>PB</option><option>PR</option><option>PE</option><option>PI</option><option>RJ</option><option>RN</option><option>RS</option><option>RO</option><option>RR</option><option>SC</option><option>SP</option><option>SE</option><option>TO</option></select></div>
+        <div class="vfield grow"><label>Município</label><input type="hidden" id="fb_ocup_municipio"><select class="fb-mun-sel" data-mun="fb_ocup_municipio" data-uf="fb_ocup_uf" aria-label="Município do(a) informante"></select></div>
         <div class="vfield"><label>Telefone</label><input type="text" id="fb_ocup_telefone" class="mask-tel" inputmode="numeric" maxlength="15" placeholder="(00) 00000-0000"></div>
       </div>
     </div>
     </div><!-- /fb_inf_bloco -->
+    </div><!-- /fb_13_zona -->
 
     <div class="vsub">1.4 Propriedade</div>
     <!-- 11/11/2026: Tipologia e zoneamento = os mesmos campos da DESP 3 › Avaliação FTN (av_sg_tipologia/av_sg_zoneamento); estas caixas não têm id (não gravam à parte) e espelham as de lá (js/190) -->
@@ -9187,8 +9204,8 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
       <div class="vfield grow"><label for="fb_prop_bairro">Bairro <span class="hint-auto"> SGPD</span></label><input type="text" id="fb_prop_bairro" placeholder="Ex.: P.A. Riacho Seco Zona Rural"></div>
     </div>
     <div class="vrow">
-      <div class="vfield grow"><label>Município</label><input type="text" id="fb_prop_mun" placeholder="Município"></div>
       <div class="vfield"><label>UF</label><select id="fb_prop_uf"><option value="">UF</option><option>AC</option><option>AL</option><option>AP</option><option>AM</option><option>BA</option><option>CE</option><option>DF</option><option>ES</option><option>GO</option><option>MA</option><option>MT</option><option>MS</option><option>MG</option><option>PA</option><option>PB</option><option>PR</option><option>PE</option><option>PI</option><option>RJ</option><option>RN</option><option>RS</option><option>RO</option><option>RR</option><option>SC</option><option>SP</option><option>SE</option><option>TO</option></select></div>
+      <div class="vfield grow"><label>Município</label><input type="hidden" id="fb_prop_mun"><select class="fb-mun-sel" data-mun="fb_prop_mun" data-uf="fb_prop_uf" aria-label="Município do imóvel"></select></div>
       <div class="vfield"><label>Matrícula</label><input type="text" id="fb_matricula" placeholder="Matrícula"></div>
     </div>
     <div class="vrow">
@@ -45905,17 +45922,19 @@ function AV_gerarDescSituacao(){
     if(_isPJw){ rv("CNPJ:",gvW("fb_cpf"),{tab:TW(34)}); }
     else { line2("RG:",gvW("fb_rg"),(document.getElementById("fb_cpf_tipo")&&document.getElementById("fb_cpf_tipo").value==="cnpj"?"CNPJ:":"CPF:"),gvW("fb_cpf"),TW(34),TW(112));
     rv("Estado Civil (Casado, solteiro, viúvo, divorciado ou união estável):",gvW("fb_estcivil"));
-    rv("Cônjuge:",gvW("fb_conjuge"),{tab:TW(34)}); }
+    rv("Cônjuge:",gvW("fb_conjuge"),{tab:TW(34)});
+    if(FB_conjAplica("fb_estcivil","fb_conj_rg","fb_conj_cpf")) line2("RG do cônjuge:",gvW("fb_conj_rg"),"CPF:",gvW("fb_conj_cpf"),TW(34),TW(112)); }   // 25/11/2026
     rv("Endereço:",gvW("fb_endereco"),{tab:TW(34)});
     line2("Município:",gvW("fb_municipio"),"Telefone:",gvW("fb_telefone"),TW(34),TW(112));
     rv("1.3.2 Informante (nome):",gvW("fb_inf_nome"),{tab:TW(44)});
     rv("Grau de parentesco:",gvW("fb_411_par"),{tab:TW(44)});
     rv("Dados comprobatório:",gvW("fb_inf_dados"),{tab:TW(44)});
-    if(gvW("fb_ocup_e_prop")==="2 - Não"){
+    if(gvW("fb_ocup_e_prop")==="2 - Não" || gvW("fb_subtipo")==="Espólio"){   // 25/11/2026: no Espólio é o(a) inventariante
       K.push(new Paragraph({spacing:{after:40},children:[R("")]}));
       line2("RG:",gvW("fb_ocup_rg"),"CPF:",gvW("fb_ocup_cpf"),TW(34),TW(112));
       rv("Estado Civil:",gvW("fb_ocup_estcivil"),{tab:TW(44)});
       rv("Cônjuge:",gvW("fb_ocup_conjuge"),{tab:TW(44)});
+      if(FB_conjAplica("fb_ocup_estcivil","fb_ocup_conj_rg","fb_ocup_conj_cpf")) line2("RG do cônjuge:",gvW("fb_ocup_conj_rg"),"CPF:",gvW("fb_ocup_conj_cpf"),TW(44),TW(112));
       rv("Endereço:",gvW("fb_ocup_endereco"),{tab:TW(44)});
       line2("Município:",gvW("fb_ocup_municipio"),"UF:",gvW("fb_ocup_uf"),TW(44),TW(112));
       line2("CEP:",gvW("fb_ocup_cep"),"Telefone:",gvW("fb_ocup_telefone"),TW(44),TW(112));
@@ -46243,12 +46262,13 @@ function AV_gerarDescSituacao(){
       parSel.addEventListener("change", syncPar);
       syncPar();
     }
-    // Estado Civil = Viúvo(a)/Solteiro(a) -> desabilita o campo Cônjuge (não se aplica)
+    // Estado Civil = Solteiro(a)/Divorciado(a) -> desabilita o campo Cônjuge (não se aplica)
     function ligarEstadoCivilConjuge(selId, conjId){
       const sel = document.getElementById(selId), conj = document.getElementById(conjId);
       if(!sel || !conj) return;
       const atualizar = ()=>{
-        const desabilita = (sel.value === "VIÚVO(A)" || sel.value === "SOLTEIRO(A)");
+        // 25/11/2026 (Fernando): Viúvo(a) também tem cônjuge (nome, RG e CPF); a linha só aparece com Casado/Viúvo/União estável (js/206)
+        const desabilita = (sel.value === "SOLTEIRO(A)" || sel.value === "DIVORCIADO(A)");
         conj.disabled = desabilita;
         conj.classList.toggle("bloqueado", desabilita);
       };
@@ -46702,18 +46722,20 @@ function AV_gerarDescSituacao(){
     rv(_isPJ ? "CNPJ:" : (document.getElementById("fb_cpf_tipo")&&document.getElementById("fb_cpf_tipo").value==="cnpj"?"CNPJ:":"CPF:"), gv("fb_cpf"), {navy2:true, regra:true, valTab:49});
     rv("Telefone:", gv("fb_telefone"), {navy2:true, regra:true, valTab:49});
     if(!_isPJ){ rv("Estado Civil:", gv("fb_estcivil"), {navy2:true, regra:true, valTab:49});
-    rv("Cônjuge:", gv("fb_conjuge"), {navy2:true, regra:true, valTab:49}); }
+    rv("Cônjuge:", gv("fb_conjuge"), {navy2:true, regra:true, valTab:49});
+    if(FB_conjAplica("fb_estcivil","fb_conj_rg","fb_conj_cpf")) rv2("RG do cônjuge:", gv("fb_conj_rg"), "CPF:", gv("fb_conj_cpf"), {navy:true, valTab:49}); }   // 25/11/2026
     rv("Endereço:", gv("fb_endereco"), {navy2:true, regra:true, valTab:49, gapTop:3.5});
     rv2("Município:", gv("fb_municipio"), "UF:", gv("fb_uf"), {navy:true, valTab:49});
     rv("1.3.2 Informante (nome):", gv("fb_inf_nome"), {navy2:true, regra:true, valTab:49, gapTop:3.5});
     rv("Grau de parentesco:", gv("fb_411_par"), {navy2:true, regra:true, valTab:49});
     rv("Dados comprobatório:", gv("fb_inf_dados"), {navy2:true, regra:true, valTab:49});
-    if(gv("fb_ocup_e_prop")==="2 - Não"){
+    if(gv("fb_ocup_e_prop")==="2 - Não" || gv("fb_subtipo")==="Espólio"){   // 25/11/2026: no Espólio é o(a) inventariante
       y+=3.5;
       rv("RG:", gv("fb_ocup_rg"), {navy2:true, regra:true, valTab:49});
       rv((document.getElementById("fb_ocup_cpf_tipo")&&document.getElementById("fb_ocup_cpf_tipo").value==="cnpj"?"CNPJ:":"CPF:"), gv("fb_ocup_cpf"), {navy2:true, regra:true, valTab:49});
       rv("Estado Civil:", gv("fb_ocup_estcivil"), {navy2:true, regra:true, valTab:49});
       rv("Cônjuge:", gv("fb_ocup_conjuge"), {navy2:true, regra:true, valTab:49});
+      if(FB_conjAplica("fb_ocup_estcivil","fb_ocup_conj_rg","fb_ocup_conj_cpf")) rv2("RG do cônjuge:", gv("fb_ocup_conj_rg"), "CPF:", gv("fb_ocup_conj_cpf"), {navy:true, valTab:49});
       rv("Endereço:", gv("fb_ocup_endereco"), {navy2:true, regra:true, valTab:49});
       rv2("Município:", gv("fb_ocup_municipio"), "UF:", gv("fb_ocup_uf"), {navy:true, valTab:49});
       rv("Telefone:", gv("fb_ocup_telefone"), {navy2:true, regra:true, valTab:49});
@@ -69454,7 +69476,9 @@ section.tab-panel.rel-pad{ background:#e9eef3 repeating-linear-gradient(135deg, 
   /* ---------- 3. 1.3.2 Informante só com ocupante ≠ proprietário ---------- */
   function informante(){
     var b = G("fb_inf_bloco"); if(!b) return;
-    var nao = gv("fb_ocup_e_prop") === "2 - Não", tem = false;
+    // 25/11/2026 (Fernando): Subtipo = Espólio → o bloco aparece sempre e é o(a) Inventariante
+    var esp = gv("fb_subtipo") === "Espólio", nao = gv("fb_ocup_e_prop") === "2 - Não" || esp, tem = false;
+    var tit = G("fb_inf_tit"); if(tit) tit.textContent = esp ? "1.3.2 Informante — Inventariante" : "1.3.2 Informante";
     b.querySelectorAll("input[id], select[id], textarea[id]").forEach(function(e){
       if(e.classList.contains("doc-tipo-sel")) return;                       // CPF/CNPJ: tem valor padrão
       if(e.id === "fb_ocup_uf") return;                                      // preenchida sozinha pela UF do código (item 1)
@@ -69463,7 +69487,7 @@ section.tab-panel.rel-pad{ background:#e9eef3 repeating-linear-gradient(135deg, 
     b.style.display = (nao || tem) ? "" : "none";
     var av = G("fb_inf_aviso"); if(av) av.style.display = (!nao && tem) ? "" : "none";
     // 23/11/2026: ocupante = proprietário ("1 - Sim") → nada do 1.3.2 conta como pendência (js/203)
-    if(gv("fb_ocup_e_prop") === "1 - Sim") b.setAttribute("data-sem-pend", ""); else b.removeAttribute("data-sem-pend");
+    if(gv("fb_ocup_e_prop") === "1 - Sim" && !esp) b.setAttribute("data-sem-pend", ""); else b.removeAttribute("data-sem-pend");
   }
 
   /* ---------- 6. 1.3: dados abaixo do Subtipo só depois de escolhê-lo; Espólio preenche Nome/RG/CPF (23/11/2026) ----------
@@ -69498,6 +69522,14 @@ section.tab-panel.rel-pad{ background:#e9eef3 repeating-linear-gradient(135deg, 
       }
       travar(d, esp);
     });
+    // 25/11/2026 (Fernando): no Espólio a linha Nome / RG / CPF repetia o Espólio de / RG / CPF → some (os valores continuam
+    // sendo copiados, os relatórios leem fb_nome). Se o Nome gravado for diferente do Espólio de, a linha fica à vista.
+    var row = G("fb_13_nome_row");
+    if(row){
+      var chv = function(s){ return String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").trim().toUpperCase(); };
+      var igual = !gv("fb_nome") || chv(gv("fb_nome")) === chv(gv("fb_esp_de"));
+      row.classList.toggle("fb-oculto", esp && igual);
+    }
     if(mudou) sujo();
   }
 
@@ -69577,7 +69609,7 @@ section.tab-panel.rel-pad{ background:#e9eef3 repeating-linear-gradient(135deg, 
     if(id === "fb_proc_uf" && ev.type === "change" && ev.isTrusted) ufDoCodigo();
     if(id === "fb_prop_mesmo_end") mesmoEnd(true);
     else if(FONTES_END.indexOf(id) >= 0 && G("fb_prop_mesmo_end") && G("fb_prop_mesmo_end").checked) mesmoEnd(true);
-    if(id === "fb_ocup_e_prop" || (el.closest && el.closest("#fb_inf_bloco"))) informante();
+    if(id === "fb_ocup_e_prop" || id === "fb_subtipo" || (el.closest && el.closest("#fb_inf_bloco"))) informante();
     if(id === "fb_subtipo" || id === "fb_pf_pj_pf" || id === "fb_pf_pj_pj" || /^fb_esp_(de|rg|cpf)$/.test(id)) proprietario13(id === "fb_pf_pj_pf" || id === "fb_pf_pj_pj" ? "" : id);
     else if(!gv("fb_subtipo") && el.closest && el.closest("#fb_13_dados")) proprietario13("");
     if(id === "av_sg_tipologia" || id === "av_sg_zoneamento") espelhosSel();
@@ -72974,6 +73006,250 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ background:var(--pend-cl
     return q;
   };
 })();
+</script><style>/* DESP 1 › Ficha de Vistoria: cascata de preenchimento, cônjuge e município por UF (25/11/2026, js/206).
+   O fundo dos campos é travado pelo css/196 (id + !important); o id repetido aqui ganha dele sem mexer lá. */
+#panel-desp1-vist .fb-oculto { display:none !important; }
+
+/* zona ainda não liberada: cinza claro sólido, sem clique (o `inert` é posto pelo js/206) */
+#panel-desp1-vist .fb-casc-off:not(h2) { opacity:.6; filter:grayscale(1); cursor:not-allowed; user-select:none; }
+#panel-desp1-vist.tab-panel .vcard.fb-casc-off,
+#panel-desp1-vist .fb-casc-off .vcard { background:#eef1f5 !important; }
+#panel-desp1-vist#panel-desp1-vist .fb-casc-off :is(input, select, textarea, [contenteditable]),
+#panel-desp1-vist#panel-desp1-vist .fb-casc-off.vfield > :is(input, select, textarea) { background-color:#e4e8ee !important; color:#8a94a3 !important; }
+#panel-desp1-vist h2.fb-casc-off { color:#8a94a3 !important; }
+#panel-desp1-vist .fb-casc-na label::after { content:" — não se aplica"; font-weight:400; color:#8a94a3; }
+
+/* aviso do próximo passo, logo acima de "1 — IDENTIFICAÇÃO" */
+#panel-desp1-vist .fb-casc-aviso { margin:4px 0 10px; padding:8px 12px; border-radius:8px; background:#FCF1DE; border:1px solid #F0D7A8;
+  color:#7A4A00; font:600 12.5px/1.35 "Segoe UI", Arial, sans-serif; }
+#panel-desp1-vist .fb-casc-aviso[hidden] { display:none !important; }
+
+/* município fora da lista do IBGE: âmbar, como as pendências (css/203) */
+#panel-desp1-vist#panel-desp1-vist select.fb-mun-sel.fb-mun-fora { border-color:#E0A23B !important; background-color:#FFF7E8 !important; }
+</style><script>/* ===== DESP 1 › Ficha de Vistoria (Assistência Social): ordem de preenchimento — 25/11/2026 (Fernando) =====
+   1. CASCATA. Num cadastro novo só ficam abertos o cabeçalho (Montar Processo Nº, Nome do Aplicador(a), Data e o Nº Origem).
+      O resto fica cinza e `inert`, e abre um passo de cada vez:
+        cabeçalho (Nº CTD, Lote, Aplicador, Data) → 1.1 Documentos dominiais → 1.1 Quais? (só com "1 - Sim")
+        → 1.2 Notificação → 1.2 Quais? (só com "1 - Sim") → 1.3 Proprietário(a) + 1.3.2 → 1.4 e seções 2 a 5.
+      "1.3 completo" = Subtipo + (Espólio: Espólio de | senão: "O ocupante é…" e Nome) + nome do 1.3.2 quando ele se aplica.
+      Dado nunca fica escondido: um passo com dado (ou com dado em qualquer passo depois dele) abre sozinho — cadastros
+      antigos e fichas importadas do aplicativo abrem inteiros. Nada é apagado.
+   2. CÔNJUGE. A linha Cônjuge / RG / CPF (1.3 e 1.3.2) só aparece com Casado(a), Viúvo(a) ou União estável (ou se já tem dado).
+      FB_conjAplica() diz ao PDF/Word (js/119) se a linha do RG/CPF do cônjuge sai.
+   3. MUNICÍPIO POR UF. fb_municipio, fb_ocup_municipio e fb_prop_mun viraram <input type="hidden"> (continuam sendo o campo
+      gravado); a lista ao lado (select.fb-mun-sel, sem id) mostra os municípios do IBGE da UF escolhida (dados/municipios-ibge.js,
+      DADOS "municipios"). Valor antigo fora da lista continua à vista, em âmbar. Sem a lista (sem servidor e sem internet),
+      volta a ser caixa de texto.
+   Só mexe em classes/atributos de tela; grava no cadastro apenas quando o usuário escolhe um município (ou troca a UF e o
+   município antigo não existe nela). */
+(function(){
+  "use strict";
+  var PAINEL = "panel-desp1-vist";
+  var CIVIL_COM = /^(CASADO\(A\)|VIÚVO\(A\)|UNIÃO ESTÁVEL)$/;
+  var UF_RE = /^[A-Z]{2}$/;
+  var UF_AUTO = { fb_uf:1, fb_prop_uf:1, fb_ocup_uf:1 };   // preenchidas sozinhas pela UF do código (js/190): não contam como dado
+  function G(id){ return document.getElementById(id); }
+  function gv(id){ var e = G(id); return e ? String(e.value || "").trim() : ""; }
+  function sujo(){ if(window.__CAD_RESTAURANDO) return; try{ if(window.CAD_marcarSujo) window.CAD_marcarSujo(); }catch(e){} }
+  function avisar(el){ el.dispatchEvent(new Event("input", { bubbles:true })); el.dispatchEvent(new Event("change", { bubbles:true })); }
+  function esc(s){ return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;"); }
+
+  /* ---------- 2. Cônjuge ---------- */
+  window.FB_conjAplica = function(civ, rg, cpf){ return CIVIL_COM.test(gv(civ)) || !!gv(rg) || !!gv(cpf); };
+  function conjuges(){
+    document.querySelectorAll("#" + PAINEL + " .fb-conj-row[data-civil]").forEach(function(r){
+      var com = CIVIL_COM.test(gv(r.getAttribute("data-civil"))), tem = false;
+      r.querySelectorAll("input[id]").forEach(function(e){ var v = String(e.value || "").trim(); if(v && v !== "n/a") tem = true; });
+      r.classList.toggle("fb-oculto", !com && !tem);
+    });
+  }
+
+  /* ---------- 3. Município por UF ---------- */
+  var MUN = null, pedindo = false, falhouEm = 0;
+  function chave(s){
+    return String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "")
+      .replace(/\s*[\/–-]\s*[A-Za-z]{2}\s*$/, "")            // "Custódia/PE", "Sertânia – PE"
+      .replace(/[’`´]/g, "'").replace(/\s+/g, " ").trim().toUpperCase();
+  }
+  function lista(uf){ if(!MUN) return null; var s = MUN[uf]; return s ? s.split("|") : []; }
+  function carregar(){
+    if(MUN) return;
+    if(window.__MUNICIPIOS_UF__){ MUN = window.__MUNICIPIOS_UF__; return; }
+    if(pedindo || (falhouEm && Date.now() - falhouEm < 60000)) return;
+    if(!(window.DADOS && window.DADOS.garantir)){ falhouEm = Date.now(); semLista(); return; }
+    pedindo = true;
+    window.DADOS.garantir("municipios").then(function(){
+      MUN = window.__MUNICIPIOS_UF__ || null;
+      if(!MUN) throw new Error("lista vazia");
+      municipios(true);
+    }).catch(function(e){ console.warn("FB206: lista de municípios indisponível:", e); falhouEm = Date.now(); semLista(); })
+      .then(function(){ pedindo = false; });
+  }
+  function semLista(){       // sem a lista: volta a ser caixa de texto, para não travar o preenchimento
+    document.querySelectorAll("#" + PAINEL + " select.fb-mun-sel").forEach(function(sel){
+      var inp = G(sel.getAttribute("data-mun")); if(!inp) return;
+      inp.type = "text"; inp.placeholder = "Município"; sel.classList.add("fb-oculto");
+    });
+  }
+  function comLista(){
+    document.querySelectorAll("#" + PAINEL + " select.fb-mun-sel.fb-oculto").forEach(function(sel){
+      var inp = G(sel.getAttribute("data-mun")); if(inp) inp.type = "hidden"; sel.classList.remove("fb-oculto");
+    });
+  }
+  function achar(L, val){ var k = chave(val); if(!k || !L) return ""; for(var i = 0; i < L.length; i++) if(chave(L[i]) === k) return L[i]; return ""; }
+  function montarSel(sel, forcar){
+    var inp = G(sel.getAttribute("data-mun")); if(!inp) return;
+    var uf = gv(sel.getAttribute("data-uf")).toUpperCase(), val = String(inp.value || "").trim(), ufOk = UF_RE.test(uf);
+    var trav = !!inp.readOnly || inp.classList.contains("bloqueado");      // 1.4 "Mesmo endereço do(a) proprietário(a)" (js/190)
+    var sig = uf + "|" + val + "|" + (MUN ? 1 : 0) + "|" + (trav ? 1 : 0);
+    if(!forcar && sel.dataset.sig === sig) return;
+    sel.dataset.sig = sig;
+    var L = ufOk ? lista(uf) : [], achou = achar(L, val), html = [];
+    html.push('<option value="">' + (!ufOk ? (uf ? "—" : "Escolha a UF primeiro") : (L === null ? "Carregando a lista…" : "Selecione o município")) + "</option>");
+    if(val && !achou) html.push('<option value="' + esc(val) + '">' + esc(val) + (L && L.length ? " (fora da lista do IBGE – " + uf + ")" : "") + "</option>");
+    (L || []).forEach(function(n){ html.push('<option value="' + esc(n) + '">' + esc(n) + "</option>"); });
+    sel.innerHTML = html.join("");
+    sel.value = achou || val;
+    var fora = !!val && !achou && !!(L && L.length);
+    sel.classList.toggle("fb-mun-fora", fora);
+    sel.disabled = trav || (!ufOk && !val);
+    sel.classList.toggle("bloqueado", trav);
+    sel.title = trav ? "Igual ao 1.3 (Mesmo endereço do(a) proprietário(a)). Desmarque para editar."
+      : fora ? "Este nome não está na lista do IBGE para " + uf + ". Escolha o município correto na lista."
+      : !ufOk ? "Escolha a UF primeiro: a lista de municípios é a da UF." : "";
+  }
+  function municipios(forcar){
+    if(!MUN) carregar();
+    if(MUN) comLista();
+    document.querySelectorAll("#" + PAINEL + " select.fb-mun-sel").forEach(function(s){ montarSel(s, forcar); });
+  }
+  function escolheuMun(sel){
+    var inp = G(sel.getAttribute("data-mun")); if(!inp || inp.value === sel.value) return;
+    inp.value = sel.value; avisar(inp); sujo(); montarSel(sel);
+  }
+  function trocouUf(ufId){              // UF trocada pelo usuário: município que não existe na nova UF sai
+    document.querySelectorAll('#' + PAINEL + ' select.fb-mun-sel[data-uf="' + ufId + '"]').forEach(function(sel){
+      var inp = G(sel.getAttribute("data-mun")), uf = gv(ufId).toUpperCase(); if(!inp || !MUN) return;
+      var val = String(inp.value || "").trim();
+      if(val && UF_RE.test(uf) && !achar(lista(uf), val)){ inp.value = ""; avisar(inp); sujo(); }
+      montarSel(sel, true);
+    });
+  }
+
+  /* ---------- 1. Cascata ---------- */
+  function vf(id){ var e = G(id); return e ? (e.closest(".vfield") || e) : null; }
+  function restoNos(){                  // 1.4 em diante (resto do cartão da seção 1) + seções 2 a 5
+    var z = G("fb_13_zona"); if(!z) return [];
+    var out = [], n = z.nextElementSibling;
+    while(n){ out.push(n); n = n.nextElementSibling; }
+    // seções 2 a 5: pela ORDEM DO DOCUMENTO, não por vizinhança — no "Conteúdo da ficha" (js/195) cada seção mora num bloco próprio
+    document.querySelectorAll("#" + PAINEL + " .vcard, #" + PAINEL + " h2.vsec").forEach(function(c){
+      if(c.contains(z) || !(z.compareDocumentPosition(c) & Node.DOCUMENT_POSITION_FOLLOWING)) return;
+      if(c.closest(".fbx-modal") || out.some(function(o){ return o.contains(c); })) return;
+      out.push(c);
+    });
+    return out;
+  }
+  function padraoSel(s){ for(var i = 0; i < s.options.length; i++) if(s.options[i].defaultSelected) return i; return 0; }
+  function temValor(e){
+    if(e.closest("[hidden]") || e.classList.contains("doc-tipo-sel") || UF_AUTO[e.id]) return false;
+    if(e.tagName === "SELECT") return e.selectedIndex !== padraoSel(e) && !!String(e.value || "").trim();
+    if(e.type === "radio" || e.type === "file" || e.type === "button") return false;
+    if(e.type === "checkbox") return e.checked && !e.defaultChecked;
+    var v = String(e.value || "").trim();
+    return !!v && v !== "n/a" && v !== String(e.defaultValue || "").trim();
+  }
+  function temDado(no){
+    if(!no) return false;
+    if(no.matches && no.matches("input[id], select[id], textarea[id]")) return temValor(no);
+    return Array.prototype.some.call(no.querySelectorAll("input[id], select[id], textarea[id]"), temValor);
+  }
+  function faltaCab(){
+    var f = [];
+    if(!gv("fb_proc_ctd")) f.push("Nº CTD");
+    if(!gv("fb_proc_lote")) f.push("Nº Lote");
+    if(!gv("fb_aplicador")) f.push("Nome do Aplicador(a)");
+    if(!gv("fb_data")) f.push("Data");
+    return f;
+  }
+  function falta13(){
+    var esp = gv("fb_subtipo") === "Espólio";
+    if(!gv("fb_subtipo")) return "o Subtipo do 1.3";
+    if(esp){ if(!gv("fb_esp_de")) return "o Espólio de (1.3)"; }
+    else {
+      if(!gv("fb_ocup_e_prop")) return "“O ocupante é o(a) proprietário(a)?” (1.3)";
+      if(!gv("fb_nome")) return "o Nome / Razão Social (1.3)";
+    }
+    if((esp || gv("fb_ocup_e_prop") === "2 - Não") && !gv("fb_inf_nome")) return esp ? "o nome do(a) inventariante (1.3.2)" : "o nome do(a) informante (1.3.2)";
+    return "";
+  }
+  function zonas(){
+    return [
+      { nos:[vf("fb_11_dom")],  ok:function(){ return !!gv("fb_11_dom"); },  falta:"1.1 Documentos dominiais" },
+      { nos:[vf("fb_11_quais")], aplica:function(){ return !/^2/.test(gv("fb_11_dom")); }, ok:function(){ return !!gv("fb_11_quais"); }, falta:"1.1 Quais?" },
+      { nos:[vf("fb_12_notif")], ok:function(){ return !!gv("fb_12_notif"); }, falta:"1.2 Notificação Proprietário" },
+      { nos:[vf("fb_12_quais")], aplica:function(){ return !/^2/.test(gv("fb_12_notif")); }, ok:function(){ return !!gv("fb_12_quais"); }, falta:"1.2 Quais?" },
+      { nos:[G("fb_13_zona")], ok:function(){ return !falta13(); }, falta:function(){ return falta13(); } },
+      { nos:restoNos(), ok:function(){ return true; }, falta:"" }
+    ];
+  }
+  function travar(n, on, na){
+    if(!n) return;
+    n.classList.toggle("fb-casc-off", on);
+    n.classList.toggle("fb-casc-na", !!na);
+    if(n.tagName === "H2") return;                                  // título da seção: só cinza (o acordeão continua abrindo)
+    if(on){ if(!n.hasAttribute("inert")){ n.setAttribute("inert", ""); n.setAttribute("aria-disabled", "true"); n.dataset.casc = "1"; } }
+    else if(n.dataset.casc){ n.removeAttribute("inert"); n.removeAttribute("aria-disabled"); delete n.dataset.casc; }
+  }
+  function avisoEl(){
+    var a = G("fb_casc_aviso"); if(a) return a;
+    var z = vf("fb_11_dom"), card = z && z.closest(".vcard");   // dentro do cartão da seção 1: aparece no Formulário e no Conteúdo da ficha (js/195)
+    if(!card) return null;
+    a = document.createElement("p"); a.id = "fb_casc_aviso"; a.className = "fb-casc-aviso"; a.setAttribute("data-sem-doc", ""); a.setAttribute("role", "status"); a.hidden = true;
+    card.insertBefore(a, card.firstChild);
+    return a;
+  }
+  function cascata(){
+    if(!G(PAINEL) || !G("fb_13_zona")) return;
+    var Z = zonas(), dados = Z.map(function(z){ return z.nos.some(temDado); }), depois = [], acc = false;
+    for(var i = Z.length - 1; i >= 0; i--){ acc = acc || dados[i]; depois[i] = acc; }
+    var cab = faltaCab(), livre = !cab.length || depois[0], prox = cab.length ? "preencha o cabeçalho: " + cab.join(", ") : "";
+    Z.forEach(function(z, i){
+      var aplica = !z.aplica || z.aplica();
+      if(!aplica && !dados[i]){ z.nos.forEach(function(n){ travar(n, true, true); }); return; }   // "Não" no 1.1/1.2: Quais? não se aplica e não segura a fila
+      var aberto = livre || depois[i];
+      z.nos.forEach(function(n){ travar(n, !aberto, false); });
+      if(aberto && !prox && !z.ok()){ var f = typeof z.falta === "function" ? z.falta() : z.falta; if(f) prox = "preencha " + f; }
+      livre = aberto && z.ok();
+    });
+    var a = avisoEl(), restoFechado = Z[Z.length - 1].nos.some(function(n){ return n.classList.contains("fb-casc-off"); });
+    if(a){
+      var txt = prox && restoFechado ? "Próximo passo: " + prox + (/[?.)]$/.test(prox) ? "" : ".") + " Os itens em cinza abrem conforme o anterior é preenchido." : "";
+      if(a.textContent !== txt) a.textContent = txt;
+      a.hidden = !txt;
+    }
+  }
+
+  /* ---------- eventos ---------- */
+  function tudo(){ try{ conjuges(); municipios(false); cascata(); }catch(e){ console.warn("FB206:", e); } }
+  function aoMudar(ev){
+    var el = ev.target; if(!el || !el.closest || !el.closest("#" + PAINEL)) return;
+    if(el.classList && el.classList.contains("fb-mun-sel")){ if(ev.type === "change") escolheuMun(el); }
+    else if(ev.type === "change" && ev.isTrusted && el.id && document.querySelector('#' + PAINEL + ' select.fb-mun-sel[data-uf="' + el.id + '"]')) trocouUf(el.id);
+    tudo();
+  }
+  document.addEventListener("change", aoMudar);
+  document.addEventListener("input", aoMudar);
+  // reset de cadastro novo, restauração e importação do aplicativo podem trocar valores sem evento: confere de tempos em tempos
+  setInterval(function(){ var p = G(PAINEL); if(p && p.classList.contains("ativa")) tudo(); }, 1500);
+  function ligar(){
+    tudo();
+    var p = G(PAINEL); if(!p) return;
+    new MutationObserver(function(){ if(p.classList.contains("ativa")) tudo(); }).observe(p, { attributes:true, attributeFilter:["class"] });
+  }
+  if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", ligar); else ligar();
+  window.FB_cascata = tudo;
+})();
 </script><style>
 /* ===== DESP 3 › Avaliação FTN › Aspectos Gerais do laudo (SGPD) — 18/10/2026 =====
    Mesmo visual das seções da aba (vsec/vcard/vfield); só o que falta: caixas de seleção e textarea bloqueada. */
@@ -74414,7 +74690,7 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ background:var(--pend-cl
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.11.25-6';
+window.APP_VERSAO = '2026.11.25-7';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.11.25-3';
 (function(){
