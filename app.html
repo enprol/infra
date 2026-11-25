@@ -55989,10 +55989,20 @@ const DESP2_TOPICOS=[{"id": "apresenta_o", "level": 1, "num": "1.", "head": "APR
     // CTD 006A a 006Z (SPS-04, PA Riacho Seco) — 30/09/2026, pedido do usuário: a área do item 1.4 da Ficha
     // é a certificada no SIGEF (sem a faixa); total do perímetro = certificada + desapropriada.
     var _par006=D2_paragrafoAreas006();
-    if(_par006){ t+="\n"+_par006; } else
+    var _parAl=_par006?null:d2paragrafoAlargamento();
+    if(_par006){ t+="\n"+_par006; } else if(_parAl){ t+="\n"+_parAl; } else
     t+="\nConsiderando a área total de **"+areaTotal+"** correspondente ao imóvel antes da implantação da faixa de domínio, a área destinada à desapropriação corresponde a **"+areaDesap+"**, permanecendo como área remanescente o total de **"+areaRem+"**, conforme os títulos de domínio disponibilizados.";
 
     return t;
+  }
+  /* 25/11/2026 (Fernando): Alargamento — a área registrada ainda conta a faixa desapropriada em processo anterior, então
+     "registrada − desapropriada" não dá a remanescente. O parágrafo parte da área ocupada de fato (js/205): ocupada − abrangida
+     = remanescente, fechando na conta. null fora do Alargamento ou sem o cálculo da faixa. */
+  function d2paragrafoAlargamento(){
+    var a=window.AREAS_imovel?window.AREAS_imovel():null, rem=window.AREAS_remanescente?window.AREAS_remanescente():null;
+    if(!a || a.tipo==="faixa" || !(rem>0) || D2_eh006()) return null;
+    var tot=C("areaTotal")?("área total registrada de **"+C("areaTotal")+" ha**, conforme os títulos de domínio disponibilizados, e a "):"";
+    return "Considerando a "+tot+"área ocupada de fato de **"+ha(a.ocupReal)+" ha**, já descontada a faixa de domínio desapropriada em processo anterior, a área destinada à desapropriação, referente ao alargamento da faixa de domínio, corresponde a **"+ha(a.desap)+" ha**, permanecendo como área remanescente o total de **"+ha(rem)+" ha**.";
   }
   // Parágrafo das áreas (cap. 3) só para CTD 006A–006Z / SPS-04; null nos demais cadastros.
   function D2_eh006(){ return /^006[A-Z]$/i.test(gid("fb_proc_ctd")) && /^0?4$/.test(gid("fb_proc_lote")); }
@@ -74242,7 +74252,7 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ background:var(--pend-cl
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.11.25-4';
+window.APP_VERSAO = '2026.11.25-5';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.11.25-3';
 (function(){
