@@ -3739,6 +3739,13 @@ window.REL_baixarConjunto = async function(){
   .ccu-imp:hover{background:#e3f0fc;}
   .ccu-imp input{margin:0; width:15px; height:15px; accent-color:#1F6FC0; cursor:pointer;}
   .ccu-imp:has(input:not(:checked)){background:#fff; border-color:#d3dce5; color:#7a8a9c;}
+  /* CCU por gleba (Avaliação FTN): glebas recolhidas por padrão; o "Imprimir no PDF" fica sempre à vista no título (26/11/2026) */
+  .ccu-retrair{display:inline-flex; align-items:center; gap:6px; margin-left:8px; padding:3px 10px; border:1px solid #bcd6f0; border-radius:999px; background:#fff; color:#175a9f; font-size:11.5px; font-weight:700; text-transform:none; letter-spacing:0; cursor:pointer; vertical-align:middle;}
+  .ccu-retrair:hover{background:#e3f0fc;}
+  .ccu-retrair .ccu-seta{display:inline-block; transition:transform .15s;}
+  .ccu-retrair[aria-expanded="true"] .ccu-seta{transform:rotate(90deg);}
+  .ccu-retrair .ccu-falta{color:#b45309;}
+  #av_t11[data-modo="ftn"]:not(.ccu-glebas-aberto) #av_glebas{display:none;}
 
   /* auto-glebas e tabela NA editável */
   #panel-avaliacao .hint-auto,
@@ -8537,6 +8544,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
     <div class="vsub" id="av_vs_cls">Classes de Capacidade de Uso (CCU) por gleba
       <span class="hint-auto">preenchida automaticamente pela Tabela de Nota Agronômica — edite apenas o Fator mais restritivo</span>
       <label class="ccu-imp av-so-ftn" title="Marque para que este tópico (CCU por gleba) saia no PDF da Avaliação da terra nua"><input type="checkbox" id="av_imp_ccu_gleba" checked> 🖨️ Imprimir no PDF</label>
+      <button type="button" class="ccu-retrair av-so-ftn" id="av_glebas_btn" onclick="AV_toggleGlebas()" aria-expanded="false" aria-controls="av_glebas" title="Mostrar/recolher as glebas (classe, fator limitante e característica)"><span class="ccu-seta">▸</span> <span id="av_glebas_txt">Mostrar glebas</span></button>
     </div>
     <div class="antes-depois-sel" id="av_ad_sel">
       <label class="ad-lbl">Cálculo de Nota Agronômica com "Antes e Depois"?</label>
@@ -19428,7 +19436,27 @@ window.FOTO_rodapeHTML=rodapeHTML;
     if(!lista.length){
       host.innerHTML='<div class="gleba-vazia">Preencha as áreas na Tabela de Nota Agronômica acima para gerar as glebas.</div>';
     }
+    AV_resumoGlebas();
   }
+
+  // CCU por gleba (Avaliação FTN, 26/11/2026): as glebas ficam recolhidas por padrão; o botão do título abre/fecha e
+  // resume quantas são e quantas ainda estão sem fator. Recolher só esconde: o PDF continua lendo as glebas do DOM.
+  function AV_resumoGlebas(){
+    const txt = document.getElementById("av_glebas_txt"), host = document.getElementById("av_glebas"), b = document.getElementById("av_t11");
+    if(!txt || !host) return;
+    const ls = host.querySelectorAll(".gleba-linha"), n = ls.length;
+    const falta = Array.prototype.filter.call(ls, l => { const f = l.querySelector(".g-fator"); return !f || !String(f.value).trim(); }).length;
+    const aberto = !!(b && b.classList.contains("ccu-glebas-aberto"));
+    txt.innerHTML = (aberto ? "Recolher glebas" : "Mostrar glebas") + (n ? " (" + n + ")" : "") + (falta ? ' <span class="ccu-falta">· ' + falta + " sem fator</span>" : "");
+  }
+  window.AV_toggleGlebas = function(){
+    const b = document.getElementById("av_t11"), btn = document.getElementById("av_glebas_btn");
+    if(!b) return;
+    const aberto = b.classList.toggle("ccu-glebas-aberto");
+    if(btn) btn.setAttribute("aria-expanded", aberto ? "true" : "false");
+    AV_resumoGlebas();
+  };
+  document.addEventListener("change", function(e){ if(e.target && e.target.closest && e.target.closest("#av_glebas")) AV_resumoGlebas(); });
 
   // (glebas agora são geradas automaticamente pela Tabela de Nota Agronômica — ver gerarGlebasAuto)
   window.AV_addGleba = function(){ /* obsoleto: as glebas vêm da tabela NA */ };
@@ -74958,7 +74986,7 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ background:var(--pend-cl
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.11.26-6';
+window.APP_VERSAO = '2026.11.26-7';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.11.26-5';
 (function(){
