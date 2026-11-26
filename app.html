@@ -45211,7 +45211,8 @@ function AV_gerarDescSituacao(){
     // sem mostrar nada — parecia travado. Agora: checagem leve (?meta=1), recarga, um único download com progresso.
     if (window.CAD_load) window.CAD_load.mostrar("Abrindo " + rot, 0, "Conferindo o cadastro no servidor…");
     try{
-      var js = await _apiComRetry("GET", "/api/cadastros/" + encodeURIComponent(secao) + "/" + encodeURIComponent(ctd) + "?meta=1", undefined,
+      // 26/11/2026: aquecer=1 = o servidor já começa a ler o cadastro e as fotos enquanto a página recarrega
+      var js = await _apiComRetry("GET", "/api/cadastros/" + encodeURIComponent(secao) + "/" + encodeURIComponent(ctd) + "?meta=1&aquecer=1", undefined,
         function(n, t){ if (window.CAD_load) window.CAD_load.passo(0, "Servidor não respondeu — tentando de novo (" + n + "/" + t + ")…", null); });
       if (!js || !(js.meta || js.pacote)){ if (window.CAD_load) window.CAD_load.ocultar(); alert("Cadastro não encontrado no servidor."); return; }
     }catch(e){
@@ -45240,6 +45241,7 @@ function AV_gerarDescSituacao(){
     var js;
     try{
       js = await _baixarJSON("/api/cadastros/" + encodeURIComponent(secao) + "/" + encodeURIComponent(ctd), function(lido, total){
+        _tp.bytes = lido;
         if (L) L.passo(2, "Baixando dados e fotografias… " + _mb(lido) + (total ? " de " + _mb(total) : ""), total ? lido / total : null);
       });
     }catch(e){
@@ -45287,6 +45289,13 @@ function AV_gerarDescSituacao(){
     if (L) L.ocultar();
     _tp.total_ms = Math.round(performance.now() - _tp.ini); _tp.montar_ms = _tp.total_ms - _tp.baixar_ms;
     window.__CAD_TEMPOS = _tp; console.info("CADASTRO aberto — tempos (ms):", _tp);
+    // 26/11/2026: os tempos vão para o servidor desta máquina (tempos-abertura.jsonl + resumo em /api/maquinas).
+    // Servidor antigo responde 404: ignora em silêncio.
+    try{
+      fetch(CAD_API + "/api/tempos-abertura", { method: "POST", keepalive: true, headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ secao: secao, ctd: ctd, bytes: _tp.bytes || null, pagina_ms: _tp.pagina_ms, baixar_ms: _tp.baixar_ms, montar_ms: _tp.montar_ms, total_ms: _tp.total_ms }) })
+        .catch(function(){});
+    }catch(e){}
 
     var msg = 'Cadastro "' + ctd + '" carregado com sucesso.';
     if (falhas.length) msg = "Cadastro carregado, mas com " + falhas.length + " problema(s) em seções específicas:\n\n" + falhas.join("\n");
@@ -74804,9 +74813,9 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ background:var(--pend-cl
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.11.26-1';
+window.APP_VERSAO = '2026.11.26-2';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
-window.SERVIDOR_RECOMENDADO = '2026.11.25-3';
+window.SERVIDOR_RECOMENDADO = '2026.11.26-2';
 (function(){
   var SEM_VERSAO = '0000.00.00-0';
   var LEGADO_LAYOUT = '2026.10.07-0';   // servidor que já tem layout_antigo no health, mas ainda sem número de versão
