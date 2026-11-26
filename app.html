@@ -6629,6 +6629,10 @@ body.pgx-conforto .pg-tabela tbody td{ padding-top:11px; padding-bottom:11px; }
    22 Influência Vila · 23 VTN/ha · 24 Terra nua · 25 Benf. reprodutivas · 26 Benf. não reprodutivas · 27 Total */
 .pg-tabela:not(.pgx-modo-valores) .pgx-col-v, .pg-tabela:not(.pgx-modo-valores) .pgx-so-v{ display:none; }
 .pg-tabela.pgx-modo-valores tr.pg-grupos{ display:none; }
+/* sem a linha de grupos, os títulos grudam no topo (não em 25px) e os filtros logo abaixo da altura REAL dos títulos
+   (quebram em 2–3 linhas); senão o cabeçalho fixo cobre a primeira linha de valores */
+.pg-tabela.pgx-modo-valores thead tr.pg-cabecalho th{ top:0; height:auto; min-height:40px; }
+.pg-tabela.pgx-modo-valores thead tr.pg-filtros th{ top:var(--pg-cab-h, 40px); }
 .pg-tabela.pgx-modo-valores tr:not(.pg-grupos) > :is(:nth-child(n+2):nth-child(-n+5), :nth-child(n+10):nth-child(-n+14), :nth-child(17), :nth-child(25)):not([colspan]){ display:none !important; }
 .pg-tabela.pgx-modo-valores tbody td.pg-num{ font-weight:400; }
 .pg-tabela.pgx-modo-valores tbody td.pgx-calc{ font-weight:800; color:#0a3a63; }
@@ -23536,6 +23540,8 @@ function AV_gerarDescSituacao(){
         tabela.style.setProperty('--pg-col3-w', w3 + 'px');
       }
     }
+    var trCab = tabela.querySelector('thead tr.pg-cabecalho'), hCab = trCab ? trCab.getBoundingClientRect().height : 0;
+    if(hCab > 0) tabela.style.setProperty('--pg-cab-h', Math.round(hCab) + 'px');   // modo "$ Valores": filtros logo abaixo dos títulos
 
     if(!_pgResizeOk){
       _pgResizeOk = true;
@@ -74952,7 +74958,7 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ background:var(--pend-cl
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.11.26-5';
+window.APP_VERSAO = '2026.11.26-6';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.11.26-5';
 (function(){
