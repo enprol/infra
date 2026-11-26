@@ -5673,7 +5673,7 @@ body.ativ-pesquisa{ overflow:hidden; }
       <button type="button" class="pg-btn" id="pgBtnMapa" onclick="PG_mapaAlternar()" aria-expanded="false"><svg class="pgi" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 4 3.5 6v14L9 18l6 2 5.5-2V4L15 6 9 4z"/><path d="M9 4v14M15 6v14"/></svg>Mapa Geral</button>
       <button type="button" class="pg-btn" id="pgBtnGraf" onclick="PG_grafAlternar()" aria-expanded="false"><svg class="pgi" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20h16M7 16v-5M12 16V6M17 16v-8"/></svg>Gráficos</button>
       <button type="button" class="pg-btn" id="pgxBtnFiltros" onclick="PGX_toggleFiltros()"><svg class="pgi" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 6h16M7 12h10M10 18h4"/></svg>Filtros<span class="pgx-badge" id="pgxFiltN" hidden></span></button>
-      <button type="button" class="pg-btn" id="pgxBtnValores" onclick="PGX_toggleValores()" title="Mostrar/ocultar áreas e valores (R$)"><svg class="pgi" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3v18M16.5 7.5H10a2.75 2.75 0 0 0 0 5.5h4a2.75 2.75 0 0 1 0 5.5H7"/></svg>Valores</button>
+      <button type="button" class="pg-btn" id="pgxBtnValores" onclick="PGX_toggleValores()" title="Mostrar só as áreas e valores (R$) do cálculo da terra nua — em negrito, o que entrou no cálculo de cada cadastro"><svg class="pgi" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3v18M16.5 7.5H10a2.75 2.75 0 0 0 0 5.5h4a2.75 2.75 0 0 1 0 5.5H7"/></svg>Valores</button>
       <button type="button" class="pg-btn" id="pgxBtnDens" onclick="PGX_toggleDens()" title="Linhas compactas / confortáveis"><svg class="pgi" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 4v16M8.5 7.5 12 4l3.5 3.5M8.5 16.5 12 20l3.5-3.5"/></svg>Linhas</button>
       <button type="button" class="pg-btn" onclick="PGX_exportar()" title="Baixar a visão atual em CSV (abre no Excel)"><svg class="pgi" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 20h14"/></svg>Exportar</button>
       <span class="pg-status" id="pgStatus"></span>
@@ -5710,8 +5710,12 @@ body.ativ-pesquisa{ overflow:hidden; }
             <th>Proprietário</th>
             <th>Posseiro</th>
             <th>KM Abrangido</th>
-            <th>Área&nbsp;total (ha)</th>
+            <th>Área&nbsp;total (ha)<span class="pgx-so-v"> registrada</span></th>
+            <th class="pgx-col-v">Área&nbsp;total (ha) ocupada</th>
             <th>Área abrangida pelo projeto (ha)</th>
+            <th class="pgx-col-v" title="Nota Agronômica que entrou no valor unitário (amostra SISDEA)">N.A.</th>
+            <th class="pgx-col-v" title="Influência Vila que entrou no valor unitário: 1 = fora · 2 = dentro do raio de 1 km">Influência Vila</th>
+            <th class="pgx-col-v" title="Valor unitário médio da amostra (R$/ha) que multiplica a área abrangida pelo projeto">R$&nbsp;VTN/ha</th>
             <th>R$&nbsp;Terra nua</th>
             <th>R$&nbsp;Benf. reprodutivas</th>
             <th>R$&nbsp;Benf. não reprodutivas</th>
@@ -5734,11 +5738,11 @@ body.ativ-pesquisa{ overflow:hidden; }
             <th class="pg-col-resumo"></th>
             <th></th>
             <th><button type="button" class="pg-filtbtn" id="pgFiltBtnPosseiro" onclick="PG_toggleFiltro(event,'posseiro')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
-            <th></th><th></th><th></th><th></th><th></th><th></th><th></th>
+            <th></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th>
           </tr>
         </thead>
         <tbody id="pgCorpo">
-          <tr><td colspan="23" class="pg-vazio">Carregando…</td></tr>
+          <tr><td colspan="27" class="pg-vazio">Carregando…</td></tr>
         </tbody>
         <tfoot id="pgRodape"></tfoot>
       </table>
@@ -6620,9 +6624,16 @@ body.pgx-conforto .pg-tabela tbody td{ padding-top:11px; padding-bottom:11px; }
 /* andamento em 3 estados: ✓ completo · ◐ em andamento (n pendências) · – não iniciado */
 .pg-status-ico.pg-status-falta{ color:#d98a00; font-size:15px; font-weight:800; }
 .pgx-n{ font-size:10px; font-weight:800; margin-left:2px; vertical-align:1px; }
-/* recolher áreas e valores */
-.pg-tabela.pgx-sem-valores tr:not(.pg-grupos) > :nth-child(n+18){ display:none; }
-.pg-tabela.pgx-sem-valores tr.pg-grupos > th:last-child{ display:none; }
+/* modo "$ Valores" (26/11/2026): só as colunas do cálculo da terra nua. Colunas: 1 Medição · 2–5 DESP · 6–9 Lote/Laudo/SEI/Cadastro ·
+   10–14 andamento · 15 Proprietário · 16 Posseiro · 17 KM · 18 Área registrada · 19 Área ocupada · 20 Área abrangida · 21 N.A. ·
+   22 Influência Vila · 23 VTN/ha · 24 Terra nua · 25 Benf. reprodutivas · 26 Benf. não reprodutivas · 27 Total */
+.pg-tabela:not(.pgx-modo-valores) .pgx-col-v, .pg-tabela:not(.pgx-modo-valores) .pgx-so-v{ display:none; }
+.pg-tabela.pgx-modo-valores tr.pg-grupos{ display:none; }
+.pg-tabela.pgx-modo-valores tr:not(.pg-grupos) > :is(:nth-child(n+2):nth-child(-n+5), :nth-child(n+10):nth-child(-n+14), :nth-child(17), :nth-child(25)):not([colspan]){ display:none !important; }
+.pg-tabela.pgx-modo-valores tbody td.pg-num{ font-weight:400; }
+.pg-tabela.pgx-modo-valores tbody td.pgx-calc{ font-weight:800; color:#0a3a63; }
+.pg-tabela.pgx-modo-valores tbody td.pg-total{ font-weight:600; }
+.pg-tabela tbody td.pgx-col-v small{ font-size:10px; color:#6b7a8c; font-weight:400; }
 /* grupo "Produtos (DESP)" (colunas 2 a 5): mesma faixa suave do "Andamento por etapa", sem recolher */
 .pg-tabela thead tr.pg-grupos th.pg-grupo-desp{ background:#fdf3de; border-bottom-color:#e0a21b; color:#8a5a00; }
 .pg-tabela tr:not(.pg-grupos) > :nth-child(1):not([colspan]){ border-left:1px solid #f0dcae; }
@@ -23643,7 +23654,7 @@ function AV_gerarDescSituacao(){
       PG_renderizar();
       if(status) status.textContent = "Atualizado " + new Date().toLocaleTimeString("pt-BR");
     }).catch(function(e){
-      if(corpo) corpo.innerHTML = '<tr><td colspan="23" class="pg-vazio">Não foi possível carregar: ' + esc(e && e.message || e) + '</td></tr>';
+      if(corpo) corpo.innerHTML = '<tr><td colspan="27" class="pg-vazio">Não foi possível carregar: ' + esc(e && e.message || e) + '</td></tr>';
       if(status) status.textContent = "";
     });
   };
@@ -24057,7 +24068,7 @@ function AV_gerarDescSituacao(){
 
     if(!itens.length){
       var temFiltro = _PG_CAMPOS.some(function(campo){ return !!_pgSel[campo]; });
-      corpo.innerHTML = '<tr><td colspan="23" class="pg-vazio">Nenhum cadastro encontrado' + (temFiltro ? " para este filtro." : ".") + '</td></tr>';
+      corpo.innerHTML = '<tr><td colspan="27" class="pg-vazio">Nenhum cadastro encontrado' + (temFiltro ? " para este filtro." : ".") + '</td></tr>';
       if(rodape) rodape.innerHTML = "";
       return;
     }
@@ -24080,8 +24091,11 @@ function AV_gerarDescSituacao(){
         + '<td class="pg-prop">' + esc(nomeCompleto(it.proprietario)) + '</td>'
         + PG_posseiroCelHTML(it)
         + PG_kmCelHTML(it)
-        + PG_haCelHTML(it.area_total)
-        + PG_haCelHTML(it.area_desapropriada)
+        + PG_calcCel(PG_haCelHTML(it.area_total), it.calc_area === 'total')
+        + PG_calcCel(PG_haCelHTML(it.area_ocupada), it.calc_area === 'ocupada', 'pgx-col-v')
+        + PG_calcCel(PG_haCelHTML(it.area_desapropriada), !!it.calc_area_desap || it.calc_area === 'desap')
+        + PG_naCelHTML(it) + PG_vilaCelHTML(it)
+        + '<td class="pg-num pgx-col-v' + (it.calc_vtn_ha != null ? ' pgx-calc' : '') + '">' + money(it.calc_vtn_ha) + '</td>'
         + '<td class="pg-num">' + money(it.valor_terra_nua) + '</td>'
         + '<td class="pg-num">' + money(it.valor_benf_reprodutiva) + '</td>'
         + '<td class="pg-num">' + money(it.valor_benf_nao_reprodutiva) + '</td>'
@@ -24114,7 +24128,9 @@ function AV_gerarDescSituacao(){
         + '<td></td>'
         + '<td></td>'
         + '<td class="pg-num">' + haFmt(somaHa("area_total")) + '</td>'
+        + '<td class="pg-num pgx-col-v">' + haFmt(somaHa("area_ocupada")) + '</td>'
         + '<td class="pg-num">' + haFmt(somaHa("area_desapropriada")) + '</td>'
+        + '<td class="pgx-col-v"></td><td class="pgx-col-v"></td><td class="pgx-col-v"></td>'
         + '<td class="pg-num">' + money(soma("valor_terra_nua")) + '</td>'
         + '<td class="pg-num">' + money(soma("valor_benf_reprodutiva")) + '</td>'
         + '<td class="pg-num">' + money(soma("valor_benf_nao_reprodutiva")) + '</td>'
@@ -24126,7 +24142,7 @@ function AV_gerarDescSituacao(){
 
   /* ===== Painel Geral v2 (ambiente de teste) ===== */
   var _pgxOrd = { col:null, dir:1 };
-  var _PGX_COLS = ['medicao','d1','d2','d3','valor_desp','lote','laudo','sei','cad','campo','social','tecnica','juridica',null,'proprietario','posseiro','km_abrangido','area_total','area_desapropriada','valor_terra_nua','valor_benf_reprodutiva','valor_benf_nao_reprodutiva','valor_total'];
+  var _PGX_COLS = ['medicao','d1','d2','d3','valor_desp','lote','laudo','sei','cad','campo','social','tecnica','juridica',null,'proprietario','posseiro','km_abrangido','area_total','area_ocupada','area_desapropriada','calc_na','calc_vila','calc_vtn_ha','valor_terra_nua','valor_benf_reprodutiva','valor_benf_nao_reprodutiva','valor_total'];
   function _pgxValor(it, k){
     switch(k){
       case 'medicao': return PG_MEDICAO_OPCOES.indexOf(it.medicao || PG_MEDICAO_VAZIO);
@@ -24140,7 +24156,7 @@ function AV_gerarDescSituacao(){
       case 'km_abrangido': return it.km_abrangido ? String(it.km_abrangido) : null;
       case 'valor_desp': return it.desps ? despValor(it) : null;
       case 'd1': case 'd2': case 'd3': return it.desps ? (it.desps[k] ? 1 : 0) : null;
-      case 'area_total': case 'area_desapropriada': var h = haNum(it[k]); return h == null ? null : h;
+      case 'area_total': case 'area_ocupada': case 'area_desapropriada': case 'calc_na': var h = haNum(it[k]); return h == null ? null : h;
       default: return it[k] == null ? null : Number(it[k]);
     }
   }
@@ -24243,20 +24259,22 @@ function AV_gerarDescSituacao(){
     PG_renderizar();
   };
   // filtros por coluna recolhidos / áreas e valores / densidade (lembrados no navegador)
-  var _pgxFiltAberto = false, _pgxSemValores = false, _pgxConforto = false;
-  try{ _pgxFiltAberto = localStorage.getItem('pgx_filtros') === '1'; _pgxSemValores = localStorage.getItem('pgx_sem_valores') === '1'; _pgxConforto = localStorage.getItem('pgx_conforto') === '1'; }catch(e){}
+  // 26/11/2026: "$ Valores" deixou de só esconder/mostrar as áreas e R$; ligado, a grade mostra APENAS as colunas do cálculo
+  // da terra nua (com área ocupada, N.A., Influência Vila e VTN/ha) e o negrito marca o que entrou no cálculo de cada cadastro.
+  var _pgxFiltAberto = false, _pgxModoValores = false, _pgxConforto = false;
+  try{ _pgxFiltAberto = localStorage.getItem('pgx_filtros') === '1'; _pgxModoValores = localStorage.getItem('pgx_modo_valores') === '1'; _pgxConforto = localStorage.getItem('pgx_conforto') === '1'; }catch(e){}
   function PGX_aplicarEstados(){
     var t = document.querySelector('#painelGeral .pg-tabela');
-    if(t){ t.classList.toggle('pgx-filtros-aberto', _pgxFiltAberto); t.classList.toggle('pgx-sem-valores', _pgxSemValores); }
+    if(t){ t.classList.toggle('pgx-filtros-aberto', _pgxFiltAberto); t.classList.toggle('pgx-modo-valores', _pgxModoValores); }
     document.body.classList.toggle('pgx-conforto', _pgxConforto);
     var b1 = document.getElementById('pgxBtnFiltros'), b2 = document.getElementById('pgxBtnValores');
     if(b1) b1.classList.toggle('pgx-on', _pgxFiltAberto);
-    if(b2) b2.classList.toggle('pgx-on', !_pgxSemValores);
+    if(b2) b2.classList.toggle('pgx-on', _pgxModoValores);
     requestAnimationFrame(PG_ajustarLayoutTabela);
   }
   function _pgxSalvar(k, v){ try{ localStorage.setItem(k, v ? '1' : '0'); }catch(e){} }
   window.PGX_toggleFiltros = function(){ _pgxFiltAberto = !_pgxFiltAberto; _pgxSalvar('pgx_filtros', _pgxFiltAberto); PGX_aplicarEstados(); };
-  window.PGX_toggleValores = function(){ _pgxSemValores = !_pgxSemValores; _pgxSalvar('pgx_sem_valores', _pgxSemValores); PGX_aplicarEstados(); };
+  window.PGX_toggleValores = function(){ _pgxModoValores = !_pgxModoValores; _pgxSalvar('pgx_modo_valores', _pgxModoValores); PGX_aplicarEstados(); };
   window.PGX_toggleDens    = function(){ _pgxConforto = !_pgxConforto; _pgxSalvar('pgx_conforto', _pgxConforto); PGX_aplicarEstados(); };
   window.PGX_limpar = function(){ _pgMonOnly = false; _PG_CAMPOS.forEach(function(c){ _pgSel[c] = null; }); PG_renderizar(); };
   // exportar a visão atual (CSV com ; e BOM — abre direto no Excel)
@@ -24264,6 +24282,24 @@ function AV_gerarDescSituacao(){
     var itens = _pgItensFiltrados(null).sort(window.PGX_cmp);
     var st = function(it, c){ return ({nao_iniciado:'Não iniciado', pendente:'Pendente', concluido:'Concluído'})[_pgRawValor(it, c)] || ''; };
     var num = function(v){ return v == null ? '' : String(v).replace('.', ','); };
+    if(_pgxModoValores){   // modo "$ Valores": exporta só as colunas da tela; "*" marca o valor que entrou no cálculo
+      var mk = function(v, usado){ return v === '' ? '' : v + (usado ? ' *' : ''); };
+      var lv = [['Medição','Lote','Nº Laudo Origem','Nº Processo SEI','Cadastro','Proprietário','Posseiro','Área total (ha) registrada','Área total (ha) ocupada','Área abrangida pelo projeto (ha)','N.A.','Influência Vila','R$ VTN/ha','R$ Terra nua','R$ Benf. não reprodutivas','R$ Total']];
+      itens.forEach(function(it){
+        lv.push([it.medicao || '', loteFmt(it.lote), laudoFmt(it.laudo_origem), it.sei || '', ctdFmt(it.ctd), it.proprietario || '', it.posseiro || '',
+          mk(num(haNum(it.area_total)), it.calc_area === 'total'), mk(num(haNum(it.area_ocupada)), it.calc_area === 'ocupada'),
+          mk(num(haNum(it.area_desapropriada)), !!it.calc_area_desap || it.calc_area === 'desap'),
+          it.calc_na || '', it.calc_vila || '', num(it.calc_vtn_ha),
+          num(it.valor_terra_nua), num(it.valor_benf_nao_reprodutiva), num(it.valor_total)]);
+      });
+      lv.push(['* valor que entrou no cálculo do R$ Terra nua']);
+      var csvV = '﻿' + lv.map(function(l){ return l.map(function(c){ return '"' + String(c).replace(/"/g, '""') + '"'; }).join(';'); }).join('\r\n');
+      var av = document.createElement('a');
+      av.href = URL.createObjectURL(new Blob([csvV], { type:'text/csv;charset=utf-8' }));
+      av.download = 'painel-geral-valores-' + new Date().toISOString().slice(0, 10) + '.csv';
+      document.body.appendChild(av); av.click(); setTimeout(function(){ URL.revokeObjectURL(av.href); av.remove(); }, 500);
+      return;
+    }
     var linhas = [['Medição','DESP 1','DESP 2','DESP 3','R$ DESPs','Lote','Nº Laudo Origem','Nº Processo SEI','Cadastro','Campo','Social','Técnica','Jurídica','Proprietário','Posseiro','KM Abrangido','Área total (ha)','Área abrangida pelo projeto (ha)','R$ Terra nua','R$ Benf. reprodutivas','R$ Benf. não reprodutivas','R$ Total']];
     itens.forEach(function(it){
       linhas.push([it.medicao || '',
@@ -24361,6 +24397,23 @@ function AV_gerarDescSituacao(){
   }
 
   // ---- KM abrangido ----
+  // Modo "$ Valores" (26/11/2026): marca a célula cujo valor ENTROU no cálculo do R$ Terra nua (o servidor diz qual:
+  // calc_area / calc_area_desap / calc_na / calc_vila / calc_vtn_ha, lidos da amostra SISDEA que gerou o valor unitário).
+  function PG_calcCel(td, usado, cls){
+    var c = (cls ? ' ' + cls : '') + (usado ? ' pgx-calc' : '');
+    return c ? td.replace('<td class="', '<td class="' + c.trim() + ' ') : td;
+  }
+  function PG_naCelHTML(it){
+    var v = it.calc_na, n = haNum(v), m = haNum(it.mem_na), dif = n != null && m != null && Math.abs(n - m) > 0.00005;
+    var tit = dif ? ' title="A Memória de Cálculo usa N.A. ' + esc(it.mem_na) + '; o valor unitário veio da amostra com ' + esc(v) + '"' : '';
+    return '<td class="pg-num pgx-col-v' + (v != null ? ' pgx-calc' : '') + '"' + tit + '>' + (v != null ? esc(v) + (dif ? ' ⚠' : '') : '—') + '</td>';
+  }
+  function PG_vilaCelHTML(it){
+    var v = it.calc_vila, t = v == null ? '—' : esc(v) + (String(v).trim() === '2' ? ' <small>(até 1 km)</small>' : String(v).trim() === '1' ? ' <small>(fora)</small>' : '');
+    var dif = v != null && it.mem_vila != null && String(it.mem_vila).trim() !== String(v).trim();
+    var tit = dif ? ' title="A Memória de Cálculo usa Influência Vila ' + esc(it.mem_vila) + '; o valor unitário veio da amostra com ' + esc(v) + '"' : '';
+    return '<td class="pg-center pgx-col-v' + (v != null ? ' pgx-calc' : '') + '"' + tit + '>' + t + (dif ? ' ⚠' : '') + '</td>';
+  }
   function PG_kmCelHTML(it){
     if(it.km_abrangido === undefined) return '<td class="pg-center pg-sem" style="color:#a7b2bf" title="Servidor desatualizado — reinstale o servidor para ver esta coluna">?</td>';
     return '<td class="pg-km">' + (it.km_abrangido ? esc(it.km_abrangido) : '') + '</td>';
@@ -74899,9 +74952,9 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ background:var(--pend-cl
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.11.26-4';
+window.APP_VERSAO = '2026.11.26-5';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
-window.SERVIDOR_RECOMENDADO = '2026.11.26-3';
+window.SERVIDOR_RECOMENDADO = '2026.11.26-5';
 (function(){
   var SEM_VERSAO = '0000.00.00-0';
   var LEGADO_LAYOUT = '2026.10.07-0';   // servidor que já tem layout_antigo no health, mas ainda sem número de versão
