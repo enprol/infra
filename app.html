@@ -34807,7 +34807,8 @@ function AV_gerarDescSituacao(){
       municipio: (gv("fb_prop_mun") || gv("fb_municipio") || "").toUpperCase(),
       uf: (gv("fb_prop_uf") || gv("fb_uf") || "PE").toUpperCase(),
       matricula: gv("fb_matricula"),
-      cartorio: (window.FB_cartorioDoc ? window.FB_cartorioDoc() : gv("fb_cartorio")),   // 11/11/2026: cartório + livro/folha (js/189)
+      // 26/11/2026: o memorial tem LIVRO e FOLHA em campos próprios; aqui só o nome do cartório (sem o livro/folha que FB_cartorioDoc, js/189, junta)
+      cartorio: (function(){ var t = String(gv("fb_cartorio") || "").trim(), m = /\b(MATR[IÍ]CULA|LIVRO|FLS?\.?|FOLHAS?|REGISTRO\s+N|INCRA\s+N)/i.exec(t); return m ? t.slice(0, m.index).replace(/[\s,;.\-–(]+$/, "") : t; })(),
       areaTotal: gv("fb_area_total"),
       areaDesap: gv("fb_area_desap"),
       acesso: (gv("rel_roteiro_txt") || gv("d2_roteiro_txt") || gv("d2_tx_roteiro_de_acesso") || ex.acesso || "").replace(/\*\*/g, "").replace(/^\s*localiza[çc][ãa]o\s+e\s+acesso\s*:\s*/i, "").trim(),
@@ -74986,7 +74987,7 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ background:var(--pend-cl
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.11.26-7';
+window.APP_VERSAO = '2026.11.26-8';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.11.26-5';
 (function(){
