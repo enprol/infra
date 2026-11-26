@@ -35128,7 +35128,9 @@ function AV_gerarDescSituacao(){
 
   // vários perímetros no mesmo cadastro: título e nome do arquivo identificam a área (antes todos saíam com o mesmo nome)
   // 19/10/2026: título do memorial = "FAIXA DE DOMÍNIO - " + o Subtítulo do carimbo (Carimbo › 01), se houver; senão o texto de sempre
-  function tituloMemorial(){ var sb = String(extras().subtitulo || "").trim().toUpperCase(); return "FAIXA DE DOMÍNIO - " + (sb || "ÁREA ABRANGIDA PELO PROJETO") + tituloArea(); }
+  // 26/11/2026: o 1º termo segue o tipo da área em Técnica › Áreas de Locação (antes era sempre "FAIXA DE DOMÍNIO")
+  function tipoAreaAtiva(){ var f = window.REL_tipoDoAnel, t = null; try{ if(typeof f === "function") t = f(anelAtivo()); }catch(e){} return String(t || "Faixa de Domínio").trim().toUpperCase(); }
+  function tituloMemorial(){ var sb = String(extras().subtitulo || "").trim().toUpperCase(); return tipoAreaAtiva() + " - " + (sb || "ÁREA ABRANGIDA PELO PROJETO") + tituloArea(); }
   function tituloArea(){ return ANEIS.length > 1 ? " – ÁREA " + String(numArea(ST.area)).padStart(2,"0") : ""; }
   function sufixoArea(){ return ANEIS.length > 1 ? "_AREA-" + String(numArea(ST.area)).padStart(2,"0") : ""; }
 
@@ -47558,6 +47560,11 @@ window.UFOTO_rodapeHTML=rodapeHTML;
     if(!a || a.kmFonte!=="manual") return null;
     const ini=String(a.ini||"").trim(), fim=String(a.fim||"").trim();
     return (ini||fim) ? {ini:ini, fim:fim} : null;
+  };
+  // 26/11/2026: tipo da área do j-ésimo perímetro do KML (mesma correspondência do KM) — o título do memorial segue o tipo
+  window.REL_tipoDoAnel=function(j){
+    const idx=areas.map((a,k)=>ehDesap(a)?k:-1).filter(k=>k>=0), a=areas[idx[j]];
+    return a ? (a.tipo||"Faixa de Domínio") : null;
   };
   window.REL_kmUsarKml=function(i){ if(areas[i] && typeof areas[i]==="object"){ areas[i].kmFonte="auto"; agendarKm(0, true); } };
   let _kmTm=null, _kmVez=0;
@@ -74797,7 +74804,7 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ background:var(--pend-cl
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.11.25-10';
+window.APP_VERSAO = '2026.11.26-1';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.11.25-3';
 (function(){
