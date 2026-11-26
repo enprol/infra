@@ -11467,7 +11467,7 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
 #panel-util-marcos .mc-fotoacts .dd-b{display:inline-block;}
 
 /* cronograma e tabela 01 */
-#panel-util-marcos .mc-crono{min-width:760px;} #panel-util-marcos .mc-tab1{min-width:860px;}
+#panel-util-marcos .mc-crono{min-width:760px;} #panel-util-marcos .mc-tab1{min-width:960px;}
 #panel-util-marcos .mc-tal{resize:none; text-align:left; font-size:11.5px; line-height:1.25; min-height:36px;}
 #panel-util-marcos .mc-grade{border-collapse:collapse; width:100%; font:12px "Segoe UI",Arial,sans-serif; background:#fff;}
 #panel-util-marcos .mc-grade th, #panel-util-marcos .mc-grade td{border:1px solid #6b7480; padding:2px 3px; text-align:center;}
@@ -11868,7 +11868,7 @@ function baseNova(p){
 }
 function procNovo(){
   var p = { id: uid("p"), num:"", kmIni:"", kmFim:"", prop:"", propriedade:"", municipio: ST.pad.local, matricula:"", procAdm:"",
-    tramite:"", sei:"", consData:"", consFonte:"", georrefData:"", obs: OBS_PADRAO, sigef: [] };
+    tramite:"", sei:"", autos:"", consData:"", consFonte:"", georrefData:"", obs: OBS_PADRAO, sigef: [] };
   p.base = baseNova(p); p.marcos = [ marcoNovo(p) ];
   return p;
 }
@@ -12011,7 +12011,7 @@ function extenso(n){
 function tab1Rows(){
   return ST.procs.map(function(p, i){
     var vz = ehProcVazio(p);
-    return { id:"a_" + p.id, idl: p.idl || (vz ? "" : String(i + 1)), lote: p.lote || (vz ? "" : (ST.capa.lote || "")), num:p.num || "", sei:p.sei || "", prop:p.prop || "", tramite:p.tramite || "",
+    return { id:"a_" + p.id, idl: p.idl || (vz ? "" : String(i + 1)), lote: p.lote || (vz ? "" : (ST.capa.lote || "")), num:p.num || "", sei:p.sei || "", autos:p.autos || "", prop:p.prop || "", tramite:p.tramite || "",
       cdata:p.consData || "", cfonte:p.consFonte || "", gdata:p.georrefData || "", qtd: p.qtd || (vz ? "" : String(p.marcos.length)) };
   });
 }
@@ -12286,15 +12286,15 @@ function cronoHtml(){
 }
 function tab1Html(){
   var t = ST.tab1, rows = tab1Rows(), h = '<p class="mc-cap"><input class="mc-i ctr neg" type="text" value="' + esc(tab1Leg()) + '" data-g="tab1" data-f="leg"></p>';
-  h += '<div class="mc-scroll"><table class="mc-grade mc-tab1"><tr><th rowspan="2">ID</th><th rowspan="2">LOTE</th><th colspan="2">PROCESSO EXPROPRIATÓRIO</th><th rowspan="2">OCUPANTE / POSSUIDOR</th><th rowspan="2">TRÂMITE</th><th colspan="2">CONSENTIMENTO DA DESAPROPRIAÇÃO</th><th rowspan="2">DATA DO GEORREFERENCIAMENTO</th><th rowspan="2">QTD. DE MARCOS</th></tr>'
-    + '<tr><th>Nº</th><th>SEI</th><th>DATA</th><th>FONTE</th></tr>';
+  h += '<div class="mc-scroll"><table class="mc-grade mc-tab1"><tr><th rowspan="2">ID</th><th rowspan="2">LOTE</th><th colspan="3">PROCESSO EXPROPRIATÓRIO</th><th rowspan="2">OCUPANTE / POSSUIDOR</th><th rowspan="2">TRÂMITE</th><th colspan="2">CONSENTIMENTO DA DESAPROPRIAÇÃO</th><th rowspan="2">DATA DO GEORREFERENCIAMENTO</th><th rowspan="2">QTD. DE MARCOS</th></tr>'
+    + '<tr><th>Nº</th><th>SEI</th><th>AUTOS</th><th>DATA</th><th>FONTE</th></tr>';
   rows.forEach(function(r){
     var a = 'data-t1="' + r.id + '"';
-    h += '<tr>' + ["idl", "lote", "num", "sei", "prop", "tramite", "cdata", "cfonte", "gdata", "qtd"].map(function(f){
+    h += '<tr>' + ["idl", "lote", "num", "sei", "autos", "prop", "tramite", "cdata", "cfonte", "gdata", "qtd"].map(function(f){
       return '<td><input class="mc-i ctr" type="text" value="' + esc(r[f]) + '" data-f="' + f + '" ' + a + '></td>';
     }).join("") + '</tr>';
   });
-  h += '<tr class="mc-tot"><td colspan="9" style="text-align:right;font-weight:800;">TOTAL DE MARCOS</td><td style="text-align:center;font-weight:800;">' + esc(tab1Total()) + '</td></tr>';
+  h += '<tr class="mc-tot"><td colspan="10" style="text-align:right;font-weight:800;">TOTAL DE MARCOS</td><td style="text-align:center;font-weight:800;">' + esc(tab1Total()) + '</td></tr>';
   h += '</table></div><p class="dd-nota">As linhas nascem dos processos (arquivo de campo e Formulário): editar uma célula aqui altera o processo. Para acrescentar ou tirar uma linha, inclua ou exclua o processo.</p>'
     + '<p class="mc-fonte"><input class="mc-i ctr" type="text" value="' + esc(t.fonte) + '" data-g="tab1" data-f="fonte"></p>';
   return h;
@@ -12585,7 +12585,7 @@ function aplicarDadosAosMarcos(p){
 }
 function tab1DosProcessos(){
   ST.tab1.rows = ST.procs.map(function(p, i){
-    return { id: uid("r"), idl: String(i + 1), lote: ST.capa.lote, num: p.num, sei: p.sei, prop: p.prop, tramite: p.tramite, cdata: p.consData, cfonte: p.consFonte, gdata: p.georrefData, qtd: String(p.marcos.length) };
+    return { id: uid("r"), idl: String(i + 1), lote: ST.capa.lote, num: p.num, sei: p.sei, autos: p.autos || "", prop: p.prop, tramite: p.tramite, cdata: p.consData, cfonte: p.consFonte, gdata: p.georrefData, qtd: String(p.marcos.length) };
   });
 }
 
@@ -12716,7 +12716,7 @@ function ligar(){
     if(act === "crono-rmmes"){ var c2 = ST.crono; if(c2.meses.length > 1){ c2.meses.pop(); c2.linhas.forEach(function(l){ l.v.pop(); }); salvar(true); render(); } return; }
     if(act === "crono-addlinha"){ var c3 = ST.crono; c3.linhas.push({ n:"", v: c3.meses.map(function(){ return ["", ""]; }) }); salvar(true); render(); return; }
     if(act === "crono-rmlinha"){ ST.crono.linhas.splice(+b.getAttribute("data-r"), 1); salvar(true); render(); return; }
-    if(act === "t1-add"){ ST.tab1.rows.push({ id: uid("r"), idl:"", lote: ST.capa.lote, num:"", sei:"", prop:"", tramite:"", cdata:"", cfonte:"", gdata:"", qtd:"" }); salvar(true); render(); return; }
+    if(act === "t1-add"){ ST.tab1.rows.push({ id: uid("r"), idl:"", lote: ST.capa.lote, num:"", sei:"", autos:"", prop:"", tramite:"", cdata:"", cfonte:"", gdata:"", qtd:"" }); salvar(true); render(); return; }
     if(act === "t1-rm"){ ST.tab1.rows = ST.tab1.rows.filter(function(r){ return r.id !== b.getAttribute("data-t1"); }); salvar(true); render(); return; }
     if(act === "t1-gerar"){
       if(ST.tab1.rows.length && !confirm("Refazer a Tabela 01 com uma linha por processo? As linhas atuais serão substituídas.")) return;
@@ -12774,7 +12774,7 @@ function formProc(p, idx){
   h += '<div class="vrow">' + F("Processo nº", a, p, "num", { ph:"000-XX" }) + F("Km inicial", a, p, "kmIni", { ph:"000+000,00" }) + F("Km final", a, p, "kmFim", { ph:"000+000,00" }) + '</div>';
   h += '<div class="vrow">' + F("Proprietário(a)", a, p, "prop") + F("Propriedade (imóvel)", a, p, "propriedade") + '</div>';
   h += '<div class="vrow">' + F("Município / UF", a, p, "municipio", { ph:"xxxxxxxx - UF" }) + F("Matrícula do imóvel", a, p, "matricula", { ph:"xxxxxx (C.R.I.H. DE xxxxxx)" }) + '</div>';
-  h += '<div class="vrow">' + F("Nº SEI do processo", a, p, "sei", { ph:"00000.000000/0000-00" })
+  h += '<div class="vrow">' + F("Nº SEI do processo", a, p, "sei", { ph:"00000.000000/0000-00" }) + F("Autos (processo judicial)", a, p, "autos", { ph:"0000000-00.0000.0.00.0000" })
     + '<div class="vfield grow"><label>Trâmite</label><select data-f="tramite" ' + a + '><option value=""></option><option' + (p.tramite === "JUDICIAL" ? " selected" : "") + '>JUDICIAL</option><option' + (p.tramite === "AMIGÁVEL" ? " selected" : "") + '>AMIGÁVEL</option></select></div>'
     + F("Consentimento (data)", a, p, "consData", { ph:"dd/mm/aaaa" }) + F("Fonte do consentimento", a, p, "consFonte", { ph:"xxxxxxxx" }) + F("Data do georreferenciamento", a, p, "georrefData", { ph:"dd/mm/aaaa" }) + '</div>';
   h += '<div class="vrow">' + F("Processo administrativo (como sai nos marcos)", a, p, "procAdm", { ph:"xxxx 0 - 000" }) + F("ID na Tabela 01", a, p, "idl", { ph:"auto (1, 2, 3…)", w:"150px", grow:false }) + F("Lote", a, p, "lote", { ph:ST.capa.lote || "xx", w:"110px", grow:false }) + F("Qtd. de marcos (Tabela 01)", a, p, "qtd", { ph:"auto: " + p.marcos.length, w:"190px", grow:false }) + '</div>';
@@ -12963,7 +12963,7 @@ function procDoJson(j, arquivo){
   var fotos = [];
   function F(u, set){ fotos.push(comprimirFoto(u).then(set)); }
   var p = { id: uid("p"), num:num, kmIni:(km[1] || "").trim(), kmFim:(km[2] || "").trim(), prop:"", propriedade:propOk || "", municipio:b.localidade || m0.localidade || j.baseLocalidade || "",
-    matricula:"", procAdm:admOk || "", tramite:"", sei:"", consData:"", consFonte:"", georrefData:"", obs:j.observacao || OBS_PADRAO, sigef:[] };
+    matricula:"", procAdm:admOk || "", tramite:"", sei:"", autos:"", consData:"", consFonte:"", georrefData:"", obs:j.observacao || OBS_PADRAO, sigef:[] };
   p.base = { ident:b.identificacao || "", data:b.data || "", local:b.localidade || "", propriedade:propOk || b.propriedade || "", proprietario:b.proprietario || "", processo:admOk || b.processo || "",
     datum:b.sgr || b.datum || "SIRGAS 2000", proj:b.projecao || "UTM", fuso:b.fuso || "", mc:b.mc || "", h:semM(b.altH), E:semM(b.e), N:semM(b.n),
     dphi:semM(b.dphi), dlam:semM(b.dlam), dh:semM(b.dh), rastreio:b.rastreio || "", espera:b.espera || "", fl:"", fd:"" };
@@ -13003,7 +13003,7 @@ function importarMonografias(files){
         // processo "em branco" que veio no modelo/limpar: não conta como existente
         if(ex){
           if(!confirm("O processo " + p.num + " já existe neste documento.\nSubstituir os dados dele pelos do arquivo? (Cancelar = mantém o atual)")){ return; }
-          ["prop", "matricula", "tramite", "sei", "consData", "consFonte", "georrefData", "sigef"].forEach(function(k){ p[k] = ex[k]; });
+          ["prop", "matricula", "tramite", "sei", "autos", "consData", "consFonte", "georrefData", "sigef"].forEach(function(k){ p[k] = ex[k]; });
           p.id = ex.id; ST.procs[ST.procs.indexOf(ex)] = p; subst++;
         } else {
           ST.procs.push(p); novos++;
@@ -13286,18 +13286,19 @@ function construir(J, imgI, imgE, pagAnt, dry, AR, ANX){
     headEndY = -99;
   }
   function tabelaTab1(){
-    var t = ST.tab1, cols = [6, 17, 10, 26, 31, 14, 14, 15, 16, 11], fs = 6.8, x = [mL];
+    // 26/11/2026 (Fernando): PROCESSO EXPROPRIATÓRIO ganhou a 3ª coluna AUTOS (Nº · SEI · AUTOS); mesma largura total
+    var t = ST.tab1, cols = [6, 9, 10, 25, 31, 16, 12, 14, 13, 14, 10], fs = 6.8, x = [mL];
     var LEG = tab1Leg();
     cols.forEach(function(w, i){ x.push(x[i] + w); });
     if(LEG){ ensure(8 + 14 + KEEP); pdf.setFont(FONT, "bold"); pdf.setFontSize(9.5); pdf.setTextColor(0, 0, 0); pdf.text(LEG, mL + cw / 2, yc + 3, { align:"center" }); yc += 6.5; }
     ensure(14 + 8);
     var y = yc;
     function H(i, j, y0, h, txt){ var w = x[j + 1] - x[i]; caixa(x[i], y0, w, h, AZ); textoCaixa(txt, x[i], y0, w, h, { bold:true, fs:fs }); }
-    H(0, 0, y, 14, "ID"); H(1, 1, y, 14, "LOTE"); H(2, 3, y, 7, "PROCESSO EXPROPRIATÓRIO"); H(4, 4, y, 14, "OCUPANTE / POSSUIDOR"); H(5, 5, y, 14, "TRÂMITE"); H(6, 7, y, 7, "CONSENTIMENTO DA DESAPROPRIAÇÃO"); H(8, 8, y, 14, "DATA DO GEORREFERENCIAMENTO"); H(9, 9, y, 14, "QTD. DE MARCOS");
-    H(2, 2, y + 7, 7, "Nº"); H(3, 3, y + 7, 7, "SEI"); H(6, 6, y + 7, 7, "DATA"); H(7, 7, y + 7, 7, "FONTE");
+    H(0, 0, y, 14, "ID"); H(1, 1, y, 14, "LOTE"); H(2, 4, y, 7, "PROCESSO EXPROPRIATÓRIO"); H(5, 5, y, 14, "OCUPANTE / POSSUIDOR"); H(6, 6, y, 14, "TRÂMITE"); H(7, 8, y, 7, "CONSENTIMENTO DA DESAPROPRIAÇÃO"); H(9, 9, y, 14, "DATA DO GEORREFERENCIAMENTO"); H(10, 10, y, 14, "QTD. DE MARCOS");
+    H(2, 2, y + 7, 7, "Nº"); H(3, 3, y + 7, 7, "SEI"); H(4, 4, y + 7, 7, "AUTOS"); H(7, 7, y + 7, 7, "DATA"); H(8, 8, y + 7, 7, "FONTE");
     y += 14;
     tab1Rows().forEach(function(r){
-      var vals = [r.idl, r.lote, r.num, r.sei, r.prop, r.tramite, r.cdata, r.cfonte, r.gdata, r.qtd];
+      var vals = [r.idl, r.lote, r.num, r.sei, r.autos, r.prop, r.tramite, r.cdata, r.cfonte, r.gdata, r.qtd];
       var h = Math.max(6.5, Math.max.apply(null, vals.map(function(v, i){ return altLinhas(v, cols[i], fs); })) * fs * 0.43 + 2.6);
       if(y + h > botY){ yc = y; rod(); nova(); y = yc; }
       vals.forEach(function(v, i){ caixa(x[i], y, cols[i], h); textoCaixa(v, x[i], y, cols[i], h, { fs:fs }); });
@@ -13305,9 +13306,9 @@ function construir(J, imgI, imgE, pagAnt, dry, AR, ANX){
     });
     // total de marcos
     if(y + 6.5 > botY){ yc = y; rod(); nova(); y = yc; }
-    var wTot = x[9] - x[0];
+    var wTot = x[10] - x[0];
     caixa(x[0], y, wTot, 6.5); textoCaixa("TOTAL DE MARCOS", x[0], y, wTot - 2, 6.5, { bold:true, fs:fs, dir:true });
-    caixa(x[9], y, cols[9], 6.5); textoCaixa(tab1Total(), x[9], y, cols[9], 6.5, { bold:true, fs:fs });
+    caixa(x[10], y, cols[10], 6.5); textoCaixa(tab1Total(), x[10], y, cols[10], 6.5, { bold:true, fs:fs });
     y += 6.5;
     yc = y + 2;
     if(t.fonte){ ensure(6); pdf.setFont(FONT, "italic"); pdf.setFontSize(8.5); pdf.setTextColor(90, 100, 115); pdf.text(t.fonte, mL + cw / 2, yc + 3, { align:"center" }); pdf.setTextColor(0, 0, 0); yc += 8; }
@@ -14802,7 +14803,7 @@ function decorarIcones(raiz){
 
 /* ---------- rótulos acessíveis ---------- */
 var ROT_CAMPO = { cod:"Código do vértice", lat:"Latitude", lon:"Longitude", alt:"Altitude elipsoidal", N:"N (m)", E:"E (m)", dphi:"δ(φ)", dlam:"δ(λ)", dh:"δ(h)",
-  idl:"ID na Tabela 01", lote:"Lote", num:"Nº do processo", sei:"Nº SEI", prop:"Ocupante / possuidor", tramite:"Trâmite", cdata:"Data do consentimento", cfonte:"Fonte do consentimento", gdata:"Data do georreferenciamento", qtd:"Quantidade de marcos",
+  idl:"ID na Tabela 01", lote:"Lote", num:"Nº do processo", sei:"Nº SEI", autos:"Autos", prop:"Ocupante / possuidor", tramite:"Trâmite", cdata:"Data do consentimento", cfonte:"Fonte do consentimento", gdata:"Data do georreferenciamento", qtd:"Quantidade de marcos",
   leg:"Legenda da tabela", fonte:"Fonte" };
 function rotuloDe(i){
   var lb = i.closest("label");
@@ -74898,7 +74899,7 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ background:var(--pend-cl
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.11.26-3';
+window.APP_VERSAO = '2026.11.26-4';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.11.26-3';
 (function(){
