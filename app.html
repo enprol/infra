@@ -35544,7 +35544,10 @@ function AV_gerarDescSituacao(){
   var FIG_OCUP = 0, FIG_ESPERA = [];
   function figInicio(){ FIG_OCUP++; }
   function figFim(){ if(--FIG_OCUP <= 0){ FIG_OCUP = 0; var w = FIG_ESPERA; FIG_ESPERA = []; w.forEach(function(ok){ ok(); }); } }
-  function figLivre(){ return FIG_OCUP ? new Promise(function(ok){ FIG_ESPERA.push(ok); }) : Promise.resolve(); }      // 04/11/2026: planta do Modelo 02 (MDP_imagemQuadro com o.semDxf) — sem o DXF inserido no quadro
+  function figLivre(){   // 26/11/2026: espera também o DXF adiado chegar (senão a planta sairia sem ele)
+    var f = FIG_OCUP ? new Promise(function(ok){ FIG_ESPERA.push(ok); }) : Promise.resolve();
+    return quadroDxfAtivo() ? Promise.all([f, dxfPronto()]) : f;
+  }      // 04/11/2026: planta do Modelo 02 (MDP_imagemQuadro com o.semDxf) — sem o DXF inserido no quadro
   function escMax(){ return (geralAtivo() || FIG_SEM_LIMITE) ? Infinity : ESC_MAX_AREA; }
   function escUso(e){ e = +e || 0; return (e && e > escMax()) ? escMax() : e; }
   function escalasOk(){ var m = escMax(); return ESCALAS.filter(function(s){ return s <= m; }); }
@@ -38140,7 +38143,26 @@ function AV_gerarDescSituacao(){
      (canvas, PDF e DXF exportado). Coordenadas do DXF = UTM SIRGAS 2000 (as mesmas do KML): o desenho cai no lugar e na escala da prancha.
      ======================================================================= */
   var DXFQ = { k:"", g:null }, DXF_MAX_MB = 15;
-  function dxfTexto(){ var e = $("mdp_dxf_dados"); return e ? (e.value || "") : ""; }
+  /* 26/11/2026: ao abrir do servidor o campo vem com a marca "adiado://…" (js/117 CAD_campoAdiado) e o texto chega
+     em segundo plano. dxfTexto() devolve "" enquanto não chegou (e pede); dxfTem() = há DXF no cadastro (chegou ou não);
+     dxfPronto() = espera chegar (exportações: figLivre, MDP_imagemQuadro). Quando chega: redesenha. */
+  function dxfMarca(){ var e = $("mdp_dxf_dados"), v = e ? (e.value || "") : ""; return (window.CAD_ehAdiado && window.CAD_ehAdiado(v)) ? v : ""; }
+  function dxfTexto(){
+    var e = $("mdp_dxf_dados"), v = e ? (e.value || "") : "", m = dxfMarca();
+    if(!m) return v;
+    var t = window.CAD_campoAdiadoTexto ? window.CAD_campoAdiadoTexto(m) : null;
+    if(t != null) return t;
+    dxfPronto();
+    return "";
+  }
+  function dxfTem(){ var e = $("mdp_dxf_dados"); return !!(e && e.value); }
+  function dxfPronto(){ return (dxfMarca() && window.CAD_campoAdiado) ? window.CAD_campoAdiado("mdp_dxf_dados").catch(function(){}) : Promise.resolve(); }
+  document.addEventListener("cad:campo-adiado", function(ev){
+    if(!ev.detail || ev.detail.id !== "mdp_dxf_dados") return;
+    DXFQ.k = "";
+    try{ sincronizarBarras(); }catch(e){}
+    try{ agendarPreview(50); }catch(e){}
+  });
   function quadroDxfAtivo(){ return extras().quadro_fonte === "dxf"; }
   function dxfGeo(){
     var t = dxfTexto(); if(!t) return null;
@@ -38516,7 +38538,7 @@ function AV_gerarDescSituacao(){
       });
     }
   }
-  function dxfResumo(){ var g = dxfGeo(); if(!g) return ""; if(g.erro) return "erro: " + g.erro; return g.prims.length + " elementos"; }
+  function dxfResumo(){ var g = dxfGeo(); if(!g) return dxfMarca() ? "carregando…" : ""; if(g.erro) return "erro: " + g.erro; return g.prims.length + " elementos"; }
   function dxfEscolher(){
     var inp = document.createElement("input"); inp.type = "file"; inp.accept = ".dxf,.dwg";
     inp.onchange = function(){ var f = inp.files && inp.files[0]; if(f) dxfLerArquivo(f); };
@@ -39393,8 +39415,8 @@ function AV_gerarDescSituacao(){
     });
     Array.prototype.forEach.call(document.querySelectorAll("[data-opc-solos]"), function(s){ s.value = OPC.solos || ""; });
     sincronizarFmt();
-    Array.prototype.forEach.call(document.querySelectorAll("[data-opc-quadro]"), function(s){ s.value = quadroDxfAtivo() ? "dxf" : "auto"; var rm = s.querySelector('option[value="rm"]'); if(rm) rm.hidden = rm.disabled = !dxfTexto(); });
-    Array.prototype.forEach.call(document.querySelectorAll("[data-opc-dxf]"), function(b){ var nm = gv("mdp_dxf_nome"); b.style.display = quadroDxfAtivo() ? "" : "none"; b.textContent = dxfTexto() ? ("📐 " + (nm.length > 26 ? nm.slice(0, 24) + "…" : nm || "DXF") + " · " + dxfResumo()) : "📐 Escolher DXF…"; b.title = dxfTexto() ? ("DXF sobre o mapa: " + nm + " — clique para trocar") : "Escolher o DXF (UTM SIRGAS 2000) que vai por cima do mapa"; });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-opc-quadro]"), function(s){ s.value = quadroDxfAtivo() ? "dxf" : "auto"; var rm = s.querySelector('option[value="rm"]'); if(rm) rm.hidden = rm.disabled = !dxfTem(); });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-opc-dxf]"), function(b){ var nm = gv("mdp_dxf_nome"); b.style.display = quadroDxfAtivo() ? "" : "none"; b.textContent = dxfTem() ? ("📐 " + (nm.length > 26 ? nm.slice(0, 24) + "…" : nm || "DXF") + " · " + dxfResumo()) : "📐 Escolher DXF…"; b.title = dxfTem() ? ("DXF sobre o mapa: " + nm + " — clique para trocar") : "Escolher o DXF (UTM SIRGAS 2000) que vai por cima do mapa"; });
     Array.prototype.forEach.call(document.querySelectorAll("[data-opc-area]"), function(s){
       var n = ANEIS.length;
       if(n < 2){ s.style.display = "none"; return; }
@@ -39430,7 +39452,7 @@ function AV_gerarDescSituacao(){
       else if(t.hasAttribute("data-opc-folha")){ OPC.folha = parseInt(t.value, 10) || 0; agendarPreview(30); }
       else if(t.hasAttribute("data-opc-quadro")){
         if(t.value === "rm"){ if(confirm("Remover o DXF inserido? O quadro fica só com o mapa automático.")){ var el = $("mdp_dxf_dados"), nm = $("mdp_dxf_nome"); el.value = ""; el.dispatchEvent(new Event("input", {bubbles:true})); if(nm){ nm.value = ""; nm.dispatchEvent(new Event("input", {bubbles:true})); } DXFQ.k = ""; setExtra("quadro_fonte", "auto"); } }
-        else { setExtra("quadro_fonte", t.value); if(t.value === "dxf" && !dxfTexto()) dxfEscolher(); }
+        else { setExtra("quadro_fonte", t.value); if(t.value === "dxf" && !dxfTem()) dxfEscolher(); }
         try{ if(window.CAD_marcarSujo) window.CAD_marcarSujo(); }catch(e){}
         sincronizarBarras(); agendarPreview(30);
       }
@@ -39563,6 +39585,7 @@ function AV_gerarDescSituacao(){
      Mesmo enquadramento/escala e camadas escolhidos na aba; devolve dataURL JPEG. */
   window.MDP_imagemQuadro = async function(o){
     o = o || {};
+    if(!o.semDxf && quadroDxfAtivo()) await dxfPronto();   // 26/11/2026: DXF adiado (ver dxfTexto)
     var a = analisar(); if(a.erro) throw new Error(a.erro);
     aplicarFormato(OPC.formato);
     /* 04/11/2026 (Fernando, CTD 001 SPS-04): perímetro que na planta se divide em pranchas (teto de 1:2.000) saía cortado na
@@ -44261,6 +44284,8 @@ function AV_gerarDescSituacao(){
     try{
       if (window.PAR_gerarTexto){ try{ window.PAR_gerarTexto("titularidade"); }catch(e){} }
       let pacote = montarPacote();
+      try{ await _resolverAdiadosLocal(pacote); }
+      catch(e){ if(!confirm("O desenho DXF da Mesa ainda não chegou do servidor (" + (e && e.message || e) + ").\n\nSalvar o arquivo SEM o DXF?")) return; pacote.campos.mdp_dxf_dados = ""; }
       if(!(opts&&opts.semCompressao) && window.__comprimirImagensPacote){ pacote = await window.__comprimirImagensPacote(pacote); }
       const nomeArq = (window.__CTDsuf?window.__CTDsuf():"CTD 000") + ".json";
       const blob = new Blob([JSON.stringify(pacote, null, 2)], {type:"application/json"});
@@ -44674,6 +44699,58 @@ function AV_gerarDescSituacao(){
 
   function _funcoesOk(){
     return (typeof montarPacote === "function") && (typeof restaurarPacote === "function");
+  }
+
+  /* Campos ADIADOS (26/11/2026, servidor: adiarCampos). O "Abrir" pede ?leve=1 e o DXF da Mesa (até 15 MB) vem como
+     "adiado://<campo>?bytes=N". O campo na tela FICA com a marca (o retrato do Salvar não muda; se a marca for no Salvar,
+     o servidor põe de volta o que está no disco). O texto é buscado logo depois de abrir, em segundo plano, e guardado
+     aqui; quem precisa dele (js/110 dxfTexto) lê por CAD_campoAdiadoTexto e espera por CAD_campoAdiado.
+     Ao chegar: evento "cad:campo-adiado" { id } no document. */
+  var _ADIADOS = {};   // marca -> { p: promessa, txt: texto | null }
+  function _ehAdiado(v){ return typeof v === "string" && v.indexOf("adiado://") === 0; }
+  window.CAD_ehAdiado = _ehAdiado;
+  window.CAD_campoAdiadoTexto = function(marca){ var e = _ADIADOS[marca]; return e && e.txt != null ? e.txt : null; };
+  window.CAD_campoAdiado = function(id){
+    var el = document.getElementById(id), marca = el ? el.value : "";
+    if (!_ehAdiado(marca)) return Promise.resolve(marca || "");
+    var e = _ADIADOS[marca];
+    if (e && e.txt != null) return Promise.resolve(e.txt);
+    if (e && e.p) return e.p;
+    var a = window.__CAD_ATUAL;
+    if (!a || !a.ctd) return Promise.reject(new Error("cadastro não aberto do servidor"));
+    var url = CAD_API + "/api/cadastros/" + encodeURIComponent(a.secao) + "/" + encodeURIComponent(a.ctd) + "/campo/" + encodeURIComponent(id);
+    e = _ADIADOS[marca] = { txt: null };
+    e.p = (async function(){
+      for (var i = 0; ; i++){
+        try{
+          var r = await fetch(url);
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          e.txt = await r.text();
+          try{ document.dispatchEvent(new CustomEvent("cad:campo-adiado", { detail: { id: id } })); }catch(x){}
+          return e.txt;
+        }catch(err){
+          if (i >= 2){ delete _ADIADOS[marca]; throw err; }
+          await new Promise(function(ok){ setTimeout(ok, 2000 * (i + 1)); });
+        }
+      }
+    })();
+    return e.p;
+  };
+  function _buscarAdiados(pacote){
+    var c = (pacote && pacote.campos) || {};
+    Object.keys(c).forEach(function(id){
+      if (!_ehAdiado(c[id])) return;
+      window.CAD_campoAdiado(id).catch(function(e){
+        console.warn("campo adiado " + id + " não chegou:", e);
+        if (window.ENP_toast) try{ window.ENP_toast("O desenho DXF da Mesa não chegou do servidor. Ele continua salvo; reabra o cadastro para vê-lo.", "aviso", 8000); }catch(x){}
+      });
+    });
+  }
+  // pacote para FORA do servidor (arquivo .json): a marca vira o texto (o arquivo precisa ter o dado de verdade)
+  async function _resolverAdiadosLocal(pacote){
+    var c = (pacote && pacote.campos) || {};
+    for (var id of Object.keys(c)) if (_ehAdiado(c[id])) c[id] = await window.CAD_campoAdiado(id);
+    return pacote;
   }
 
   // ids de campos que existem no layout atual (dentro dos painéis)
@@ -45240,7 +45317,8 @@ function AV_gerarDescSituacao(){
     var _tp = { ini: performance.now(), pagina_ms: Math.round(performance.now()) };   // pagina_ms = tempo desde o início do carregamento da página
     var js;
     try{
-      js = await _baixarJSON("/api/cadastros/" + encodeURIComponent(secao) + "/" + encodeURIComponent(ctd), function(lido, total){
+      // 26/11/2026: leve=1 = o DXF da Mesa vem como "adiado://…" e chega depois, em segundo plano (CAD_campoAdiado)
+      js = await _baixarJSON("/api/cadastros/" + encodeURIComponent(secao) + "/" + encodeURIComponent(ctd) + "?leve=1", function(lido, total){
         _tp.bytes = lido;
         if (L) L.passo(2, "Baixando dados e fotografias… " + _mb(lido) + (total ? " de " + _mb(total) : ""), total ? lido / total : null);
       });
@@ -45248,7 +45326,7 @@ function AV_gerarDescSituacao(){
       if (_erroDeRede(e)){
         // servidor reiniciando: tenta de novo com a tela ainda visível
         try{
-          js = await _apiComRetry("GET", "/api/cadastros/" + encodeURIComponent(secao) + "/" + encodeURIComponent(ctd), undefined,
+          js = await _apiComRetry("GET", "/api/cadastros/" + encodeURIComponent(secao) + "/" + encodeURIComponent(ctd) + "?leve=1", undefined,
             function(n, t){ if (L) L.passo(2, "Servidor não respondeu — tentando de novo (" + n + "/" + t + ")…", null); });
         }catch(e2){ if (L) L.ocultar(); throw e2; }
       } else { if (L) L.ocultar(); throw e; }
@@ -45286,6 +45364,7 @@ function AV_gerarDescSituacao(){
     catch(e){ console.warn("retrato do cadastro falhou (salvar volta ao modo antigo):", e); }
     try{ if (window.D2M2_ajustarRoteiro) await window.D2M2_ajustarRoteiro(); }catch(e){ console.warn("ajuste do roteiro:", e); }   // CTD 006A–Z (automático)
     _iniciarPresenca();
+    _buscarAdiados(pacote);
     if (L) L.ocultar();
     _tp.total_ms = Math.round(performance.now() - _tp.ini); _tp.montar_ms = _tp.total_ms - _tp.baixar_ms;
     window.__CAD_TEMPOS = _tp; console.info("CADASTRO aberto — tempos (ms):", _tp);
@@ -72775,6 +72854,9 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ background:var(--pend-cl
   }
   // resposta imediata ao digitar/escolher (sem esperar a próxima varredura)
   function aoMudar(ev){
+    // 26/11/2026: abrindo o cadastro, cada campo reposto dispara um evento e o marcar() mede o layout (getClientRects) —
+    // ~0,6 s só nisso no CTD 006Q. A reposição não precisa da resposta imediata: a varredura de 1,2 s cobre.
+    if(window.__CAD_RESTAURANDO) return;
     var t = ev.target, e = t && t.closest && t.closest(ALVOS);
     if(e && e.closest && PAINEIS.some(function(id){ var p = e.closest("#" + id); return !!p; })) marcar(e);
   }
@@ -73321,6 +73403,9 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ background:var(--pend-cl
     var el = ev.target; if(!el || !el.closest || !el.closest("#" + PAINEL)) return;
     if(el.classList && el.classList.contains("fb-mun-sel")){ if(ev.type === "change") escolheuMun(el); }
     else if(ev.type === "change" && ev.isTrusted && el.id && document.querySelector('#' + PAINEL + ' select.fb-mun-sel[data-uf="' + el.id + '"]')) trocouUf(el.id);
+    // 26/11/2026: abrindo o cadastro, cada campo reposto da Ficha rodava a cascata inteira (~0,6 s no CTD 006Q);
+    // agora roda uma vez no fim da reposição (mesmo mecanismo do js/097: __CAD_pend, js/117 restaurarCampos)
+    if(window.__CAD_RESTAURANDO){ (window.__CAD_pend = window.__CAD_pend || new Set()).add(tudo); return; }
     tudo();
   }
   document.addEventListener("change", aoMudar);
@@ -74813,9 +74898,9 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ background:var(--pend-cl
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.11.26-2';
+window.APP_VERSAO = '2026.11.26-3';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
-window.SERVIDOR_RECOMENDADO = '2026.11.26-2';
+window.SERVIDOR_RECOMENDADO = '2026.11.26-3';
 (function(){
   var SEM_VERSAO = '0000.00.00-0';
   var LEGADO_LAYOUT = '2026.10.07-0';   // servidor que já tem layout_antigo no health, mas ainda sem número de versão
