@@ -5722,9 +5722,10 @@ body.ativ-pesquisa{ overflow:hidden; }
             <th>Área&nbsp;total (ha)<span class="pgx-so-v"> registrada</span></th>
             <th class="pgx-col-v">Área&nbsp;total (ha) ocupada</th>
             <th>Área abrangida pelo projeto (ha)</th>
-            <th class="pgx-col-v" title="Nota Agronômica que entrou no valor unitário (amostra SISDEA)">N.A.</th>
-            <th class="pgx-col-v" title="RGV-1 (SPS-04/05): Influência Vila, 1 = fora · 2 = até 1 km do povoado. RGV-2 (SPS-06/07): Influência da Sede, 1 = fora · 2 = no raio de 4 km da sede (Caruaru 8 km)">Influência Vila / Sede</th>
-            <th class="pgx-col-v" title="Valor unitário médio da amostra (R$/ha) que multiplica a área abrangida pelo projeto">R$&nbsp;VTN/ha</th>
+            <th class="pgx-col-v pgx-col-pib" title="RGV-2 (SPS-06/07): PIB per capita do município do imóvel que entrou no valor unitário (IBGE 2021, Tabela 10 do RGV)">PIB per capita (R$)</th>
+            <th class="pgx-col-v" title="Nota Agronômica que entrou no valor unitário">N.A.</th>
+            <th class="pgx-col-v" id="pgxThInfl" title="RGV-1 (SPS-04/05): Influência Vila, 1 = fora · 2 = até 1 km do povoado. RGV-2 (SPS-06/07): Influência da Sede, 1 = fora · 2 = no raio de 4 km da sede (Caruaru 8 km)">Influência Vila / Sede</th>
+            <th class="pgx-col-v" title="Valor unitário (R$/ha) que multiplica a área abrangida pelo projeto: RGV-1 = amostra do SisDEA; RGV-2 = calculado pelo sistema">R$&nbsp;VTN/ha</th>
             <th>R$&nbsp;Terra nua</th>
             <th>R$&nbsp;Benf. reprodutivas</th>
             <th>R$&nbsp;Benf. não reprodutivas</th>
@@ -5747,7 +5748,7 @@ body.ativ-pesquisa{ overflow:hidden; }
             <th class="pg-col-resumo"></th>
             <th></th>
             <th><button type="button" class="pg-filtbtn" id="pgFiltBtnPosseiro" onclick="PG_toggleFiltro(event,'posseiro')">Todos <span class="pg-filtbtn-seta">▾</span></button></th>
-            <th></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th>
+            <th></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th>
           </tr>
         </thead>
         <tbody id="pgCorpo">
@@ -6642,7 +6643,7 @@ body.pgx-conforto .pg-tabela tbody td{ padding-top:11px; padding-bottom:11px; }
    (quebram em 2–3 linhas); senão o cabeçalho fixo cobre a primeira linha de valores */
 .pg-tabela.pgx-modo-valores thead tr.pg-cabecalho th{ top:0; height:auto; min-height:40px; }
 .pg-tabela.pgx-modo-valores thead tr.pg-filtros th{ top:var(--pg-cab-h, 40px); }
-.pg-tabela.pgx-modo-valores tr:not(.pg-grupos) > :is(:nth-child(n+2):nth-child(-n+5), :nth-child(n+10):nth-child(-n+14), :nth-child(17), :nth-child(25)):not([colspan]){ display:none !important; }
+.pg-tabela.pgx-modo-valores tr:not(.pg-grupos) > :is(:nth-child(n+2):nth-child(-n+5), :nth-child(n+10):nth-child(-n+14), :nth-child(17), :nth-child(26)):not([colspan]){ display:none !important; }   /* 26 = Benf. reprodutivas (27/11/2026: + coluna PIB) */
 .pg-tabela.pgx-modo-valores tbody td.pg-num{ font-weight:400; }
 .pg-tabela.pgx-modo-valores tbody td.pgx-calc{ font-weight:800; color:#0a3a63; }
 .pg-tabela.pgx-modo-valores tbody td.pg-total{ font-weight:600; }
@@ -6661,6 +6662,8 @@ body.pgx-conforto .pg-tabela tbody td{ padding-top:11px; padding-bottom:11px; }
 .pg-tabela td.pg-desp-td input{ width:16px; height:16px; margin:0; cursor:pointer; accent-color:#1F6FC0; vertical-align:middle; }
 .pg-tabela td.pg-desp-td input:disabled{ cursor:progress; opacity:.6; }
 .pg-tabela td.pg-desp-td.pg-sem{ color:#a7b2bf; }
+/* 27/11/2026: coluna PIB per capita (RGV-2) só quando há cadastro de SPS do RGV-2 na tela (js/107 PGX_variaveisDoRgv) */
+.pg-tabela.pgx-sem-rgv2 .pgx-col-pib{ display:none !important; }
 </style>
 
 
@@ -24429,6 +24432,7 @@ function AV_gerarDescSituacao(){
 
     _PG_CAMPOS.forEach(PG_atualizarBotaoFiltro);
     PG_aplicarGrupo(); PG_aplicarGrupoDesp();
+    PGX_variaveisDoRgv(itens);
     if(window.PG_mapaAtualizar) window.PG_mapaAtualizar();   // Mapa Geral acompanha os filtros
     if(window.PG_grafAtualizar) window.PG_grafAtualizar();   // Gráficos também
 
@@ -24460,6 +24464,7 @@ function AV_gerarDescSituacao(){
         + PG_calcCel(PG_haCelHTML(it.area_total), it.calc_area === 'total')
         + PG_calcCel(PG_haCelHTML(it.area_ocupada), it.calc_area === 'ocupada', 'pgx-col-v')
         + PG_calcCel(PG_haCelHTML(it.area_desapropriada), !!it.calc_area_desap || it.calc_area === 'desap')
+        + '<td class="pg-num pgx-col-v pgx-col-pib' + (it.calc_pib ? ' pgx-calc' : '') + '">' + (it.calc_pib ? esc(it.calc_pib) : '—') + '</td>'   // RGV-2 (27/11/2026)
         + PG_naCelHTML(it) + PG_vilaCelHTML(it)
         + '<td class="pg-num pgx-col-v' + (it.calc_vtn_ha != null ? ' pgx-calc' : '') + '">' + money(it.calc_vtn_ha) + '</td>'
         + '<td class="pg-num">' + money(it.valor_terra_nua) + '</td>'
@@ -24496,7 +24501,7 @@ function AV_gerarDescSituacao(){
         + '<td class="pg-num">' + haFmt(somaHa("area_total")) + '</td>'
         + '<td class="pg-num pgx-col-v">' + haFmt(somaHa("area_ocupada")) + '</td>'
         + '<td class="pg-num">' + haFmt(somaHa("area_desapropriada")) + '</td>'
-        + '<td class="pgx-col-v"></td><td class="pgx-col-v"></td><td class="pgx-col-v"></td>'
+        + '<td class="pgx-col-v pgx-col-pib"></td><td class="pgx-col-v"></td><td class="pgx-col-v"></td><td class="pgx-col-v"></td>'
         + '<td class="pg-num">' + money(soma("valor_terra_nua")) + '</td>'
         + '<td class="pg-num">' + money(soma("valor_benf_reprodutiva")) + '</td>'
         + '<td class="pg-num">' + money(soma("valor_benf_nao_reprodutiva")) + '</td>'
@@ -24508,7 +24513,7 @@ function AV_gerarDescSituacao(){
 
   /* ===== Painel Geral v2 (ambiente de teste) ===== */
   var _pgxOrd = { col:null, dir:1 };
-  var _PGX_COLS = ['medicao','d1','d2','d3','valor_desp','lote','laudo','sei','cad','campo','social','tecnica','juridica',null,'proprietario','posseiro','km_abrangido','area_total','area_ocupada','area_desapropriada','calc_na','calc_vila','calc_vtn_ha','valor_terra_nua','valor_benf_reprodutiva','valor_benf_nao_reprodutiva','valor_total'];
+  var _PGX_COLS = ['medicao','d1','d2','d3','valor_desp','lote','laudo','sei','cad','campo','social','tecnica','juridica',null,'proprietario','posseiro','km_abrangido','area_total','area_ocupada','area_desapropriada','calc_pib','calc_na','calc_vila','calc_vtn_ha','valor_terra_nua','valor_benf_reprodutiva','valor_benf_nao_reprodutiva','valor_total'];
   function _pgxValor(it, k){
     switch(k){
       case 'medicao': return PG_MEDICAO_OPCOES.indexOf(it.medicao || PG_MEDICAO_VAZIO);
@@ -24522,7 +24527,7 @@ function AV_gerarDescSituacao(){
       case 'km_abrangido': return it.km_abrangido ? String(it.km_abrangido) : null;
       case 'valor_desp': return it.desps ? despValor(it) : null;
       case 'd1': case 'd2': case 'd3': return it.desps ? (it.desps[k] ? 1 : 0) : null;
-      case 'area_total': case 'area_ocupada': case 'area_desapropriada': case 'calc_na': var h = haNum(it[k]); return h == null ? null : h;
+      case 'area_total': case 'area_ocupada': case 'area_desapropriada': case 'calc_na': case 'calc_pib': var h = haNum(it[k]); return h == null ? null : h;
       default: return it[k] == null ? null : Number(it[k]);
     }
   }
@@ -24638,6 +24643,23 @@ function AV_gerarDescSituacao(){
     if(b2) b2.classList.toggle('pgx-on', _pgxModoValores);
     requestAnimationFrame(PG_ajustarLayoutTabela);
   }
+  /* 27/11/2026 (Fernando): no "$ Valores" as variáveis seguem o RGV dos SPS que estão na tela (filtros):
+     só RGV-1 (SPS-04/05) → Área, N.A., Influência Vila; só RGV-2 (SPS-06/07) → Área, PIB per capita, N.A., Influência da Sede;
+     os dois → todas, com o título "Influência Vila / Sede". O perfil de cada SPS vem de dados/rgv-perfis.json (js/208). */
+  function PGX_rgvDoLote(lote){
+    var n = parseInt(lote, 10); if(isNaN(n)) return null;
+    try{ var D = window.__RGV_PERFIS__; if(D && D.sps){ var id = D.sps["SPS-" + (n < 10 ? "0" : "") + n]; if(id) return id; } }catch(e){}
+    return n >= 6 ? "FTN-RGV2" : "FTN-RGV1";
+  }
+  function PGX_variaveisDoRgv(itens){
+    var t = document.querySelector('#painelGeral .pg-tabela'); if(!t) return;
+    var tem1 = false, tem2 = false;
+    (itens || []).forEach(function(it){ var p = PGX_rgvDoLote(it.lote) || (it.rgv ? it.rgv : null); if(p === "FTN-RGV2") tem2 = true; else if(p) tem1 = true; });
+    if(!tem1 && !tem2) tem1 = true;
+    t.classList.toggle('pgx-sem-rgv2', !tem2);
+    var th = document.getElementById('pgxThInfl');
+    if(th){ var txt = tem1 && tem2 ? 'Influência Vila / Sede' : tem2 ? 'Influência da Sede' : 'Influência Vila'; if(th.textContent !== txt) th.textContent = txt; }
+  }
   function _pgxSalvar(k, v){ try{ localStorage.setItem(k, v ? '1' : '0'); }catch(e){} }
   window.PGX_toggleFiltros = function(){ _pgxFiltAberto = !_pgxFiltAberto; _pgxSalvar('pgx_filtros', _pgxFiltAberto); PGX_aplicarEstados(); };
   window.PGX_toggleValores = function(){ _pgxModoValores = !_pgxModoValores; _pgxSalvar('pgx_modo_valores', _pgxModoValores); PGX_aplicarEstados(); };
@@ -24650,11 +24672,11 @@ function AV_gerarDescSituacao(){
     var num = function(v){ return v == null ? '' : String(v).replace('.', ','); };
     if(_pgxModoValores){   // modo "$ Valores": exporta só as colunas da tela; "*" marca o valor que entrou no cálculo
       var mk = function(v, usado){ return v === '' ? '' : v + (usado ? ' *' : ''); };
-      var lv = [['Medição','Lote','Nº Laudo Origem','Nº Processo SEI','Cadastro','Proprietário','Posseiro','Área total (ha) registrada','Área total (ha) ocupada','Área abrangida pelo projeto (ha)','N.A.','Influência (Vila ou Sede)','R$ VTN/ha','R$ Terra nua','R$ Benf. não reprodutivas','R$ Total']];
+      var lv = [['Medição','Lote','Nº Laudo Origem','Nº Processo SEI','Cadastro','Proprietário','Posseiro','Área total (ha) registrada','Área total (ha) ocupada','Área abrangida pelo projeto (ha)','PIB per capita (R$)','N.A.','Influência (Vila ou Sede)','R$ VTN/ha','R$ Terra nua','R$ Benf. não reprodutivas','R$ Total']];
       itens.forEach(function(it){
         lv.push([it.medicao || '', loteFmt(it.lote), laudoFmt(it.laudo_origem), it.sei || '', ctdFmt(it.ctd), it.proprietario || '', it.posseiro || '',
           mk(num(haNum(it.area_total)), it.calc_area === 'total'), mk(num(haNum(it.area_ocupada)), it.calc_area === 'ocupada'),
-          mk(num(haNum(it.area_desapropriada)), !!it.calc_area_desap || it.calc_area === 'desap'),
+          mk(num(haNum(it.area_desapropriada)), !!it.calc_area_desap || it.calc_area === 'desap'), it.calc_pib || '',
           it.calc_na || '', it.calc_vila || '', num(it.calc_vtn_ha),
           num(it.valor_terra_nua), num(it.valor_benf_nao_reprodutiva), num(it.valor_total)]);
       });
@@ -75781,7 +75803,7 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ background:var(--pend-cl
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.11.27-4';
+window.APP_VERSAO = '2026.11.27-5';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.11.27-3';
 (function(){
