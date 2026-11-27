@@ -74266,11 +74266,13 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ background:var(--pend-cl
   window.AVRGV_adotar = function(){
     const alvo = window.AVRGV_perfilDoCadastro(), campo = G("av_rgv_perfil");
     if(!alvo || !campo) return;
-    if(!confirm("Passar a Avaliação FTN deste cadastro para o " + alvo.titulo + "?\n\nA terra nua passa a ser calculada com Área total do imóvel, PIB per capita do município, Nota Agronômica (CCU e N.A. truncadas em 4 casas) e Influência da Sede. A Influência Vila do RGV-1 deixa de entrar no cálculo. Salve o cadastro depois de conferir.")) return;
+    if(!confirm("Passar a Avaliação FTN deste cadastro para o " + alvo.titulo + "?\n\nA terra nua passa a ser calculada com a área escolhida, PIB per capita do município, Nota Agronômica (CCU e N.A. truncadas em 4 casas) e Influência da Sede. A Influência Vila do RGV-1 deixa de entrar no cálculo. Salve o cadastro depois de conferir.")) return;
     _naoLiga++;
     try{
       campo.value = alvo.id;
-      const f = G("av_mem_area_fonte"); if(f) f.value = "total";
+      // 27/11/2026 (Fernando): a área do modelo é a que o avaliador escolheu — o botão NÃO troca (av_area_base / av_mem_area_fonte ficam);
+      // a "área total" é só o padrão de cadastro sem escolha (D2)
+      const f = G("av_mem_area_fonte"); if(f && !f.value) f.value = "total";
       const s = G("av_mem_sede"); if(s){ s.value = ""; s.removeAttribute("data-sede-auto"); }
       [campo, f].forEach(function(e){ if(e){ e.dispatchEvent(new Event("input", { bubbles:true })); e.dispatchEvent(new Event("change", { bubbles:true })); } });
     } finally { _naoLiga--; }
@@ -75779,7 +75781,7 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ background:var(--pend-cl
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.11.27-3';
+window.APP_VERSAO = '2026.11.27-4';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
 window.SERVIDOR_RECOMENDADO = '2026.11.27-3';
 (function(){
