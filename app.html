@@ -31,6 +31,8 @@ html.pre-logado body:not(.logado)::before{ content:""; position:fixed; inset:0; 
     "assinaturas":       { api: "/api/assinaturas",     tipo: "assin", globais: ["__ASSIN_DESENHISTA__", "__ASSINATURA_CELITO__", "__ASSIN_APLICADORES__"] },
     "docx":              { arq: "docx.min.js",          tipo: "js",   globais: ["docx"] },
     "avvila":            { arq: "avvila-dados.json",    tipo: "json", globais: ["__AVVILA_DADOS__"] },
+    "rgv-perfis":        { arq: "rgv-perfis.json",      tipo: "json", globais: ["__RGV_PERFIS__"] },   // 27/11/2026: perfis de RGV por SPS (js/208)
+    "rgv2-sedes":        { arq: "rgv2-sedes.json",      tipo: "json", globais: ["__RGV2_SEDES__"] },   // 27/11/2026: raios das sedes do RGV-2 (js/208)
     "municipios":        { arq: "municipios-ibge.js",   tipo: "js",   globais: ["__MUNICIPIOS_UF__"] },   // 25/11/2026: municípios do IBGE por UF (Ficha, js/206)
     "pesquisa":          { arq: "pesq-mercado.html",    tipo: "bin",  globais: [] },
     "modelo-gpkg":       { arq: "modelo-legenda-prancha.js", tipo: "js", globais: ["__MODELO_GPKG_B64__"] }   // 20/10/2026: GeoPackage-modelo da legenda
@@ -140,7 +142,7 @@ html.pre-logado body:not(.logado)::before{ content:""; position:fixed; inset:0; 
 
   /* pré-carga em segundo plano dos pequenos, depois da abertura */
   function precarregar(){
-    var fila = ["carlito", "docx", "assinaturas", "avvila"];
+    var fila = ["carlito", "docx", "assinaturas", "avvila", "rgv-perfis", "rgv2-sedes"];
     (function prox(){
       var n = fila.shift(); if(!n) return;
       garantir(n).then(function(){ setTimeout(prox, 150); }, function(){ setTimeout(prox, 150); });
@@ -5721,7 +5723,7 @@ body.ativ-pesquisa{ overflow:hidden; }
             <th class="pgx-col-v">Área&nbsp;total (ha) ocupada</th>
             <th>Área abrangida pelo projeto (ha)</th>
             <th class="pgx-col-v" title="Nota Agronômica que entrou no valor unitário (amostra SISDEA)">N.A.</th>
-            <th class="pgx-col-v" title="Influência Vila que entrou no valor unitário: 1 = fora · 2 = dentro do raio de 1 km">Influência Vila</th>
+            <th class="pgx-col-v" title="RGV-1 (SPS-04/05): Influência Vila, 1 = fora · 2 = até 1 km do povoado. RGV-2 (SPS-06/07): Influência da Sede, 1 = fora · 2 = no raio de 4 km da sede (Caruaru 8 km)">Influência Vila / Sede</th>
             <th class="pgx-col-v" title="Valor unitário médio da amostra (R$/ha) que multiplica a área abrangida pelo projeto">R$&nbsp;VTN/ha</th>
             <th>R$&nbsp;Terra nua</th>
             <th>R$&nbsp;Benf. reprodutivas</th>
@@ -8517,9 +8519,17 @@ g) A avaliação foi realizada para desapropriação parcial em 1 (uma) gleba do
     <textarea id="av_var_na" class="av-web-oculto" rows="4">A Nota Agronômica (N.A.) é uma variável considerada uma variável qualitativa "proxy", composta por dois fatores principais: Situação de Acesso e Classe de Capacidade e Uso dos Solos (CCU), que juntas formam um índice único que avalia a qualidade agronômica de cada imóvel rural na amostra. A metodologia para determinar a N.A. segue o modelo proposto por Kozma (1984), que considera essas duas variáveis essenciais para mensurar a aptidão e as condições de uso da terra.
 A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos de 1 indicam melhor qualidade agronômica, refletindo condições ideais para o uso da terra, como acesso facilitado e solo com alta capacidade produtiva.</textarea>
 
+    <div class="av-so-ftn av-rgv2">
+      <div class="vsub">Variável PIB (Per capita) <span class="auto-tag">texto padrão editável</span></div>
+      <textarea id="av_var_pib" rows="4">Variável quantitativa: Produto Interno Bruto per capita do município onde está o imóvel (IBGE, 2021 — Tabela 10 do RGV FTN SPS-06 e SPS-07), que representa a capacidade econômica média dos habitantes e o potencial de valorização imobiliária do município.</textarea>
+      <div class="vsub">Variável Influência da Sede <span class="auto-tag">texto padrão editável</span></div>
+      <textarea id="av_var_sede" rows="4">Localização do imóvel em relação às sedes municipais = Variável qualitativa (Códigos Alocados):
+1 – Fora do raio de influência — imóvel situado fora do raio de 4 km do centro da sede municipal (Caruaru: 8 km).
+2 – Dentro do raio de influência — imóvel situado dentro do raio de 4 km do centro da sede municipal (Caruaru: 8 km).</textarea>
+    </div>
     <div class="av-so-ftn">
-      <div class="vsub">Variável Influência Vila <span class="auto-tag">texto padrão editável</span></div>
-      <textarea id="av_var_vila" rows="4">Localização dos imóveis em relação aos Povoados/Vilas = Variável quantitativa (Códigos Alocados):
+      <div class="vsub av-rgv1">Variável Influência Vila <span class="auto-tag">texto padrão editável</span></div>
+      <textarea id="av_var_vila" class="av-rgv1" rows="4">Localização dos imóveis em relação aos Povoados/Vilas = Variável quantitativa (Códigos Alocados):
 1 – Fora da área de influência - Imóveis situados a uma distância superior a 1 km do povoado mais próximo.
 2 – Dentro do Raio de 1 km - Imóveis localizados em um intervalo de até 1 km de um povoado.</textarea>
       <div class="av-vila-box" id="av_vila_box">
@@ -8631,6 +8641,11 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
     </div>
 
     <div class="vsub av-web-oculto" id="av_vs_mem">i) Memória de Cálculo para Terra Nua</div>
+    <input type="hidden" id="av_rgv_perfil">
+    <input type="hidden" id="av_rgv_vtn_ha"><!-- RGV-2: unitário calculado (R$/ha, "18.905,30"), lido pelo servidor para o Painel Geral -->
+    <input type="hidden" id="av_rgv_pib"><!-- RGV-2: PIB per capita usado ("9.679,46") -->
+
+    <div class="av-rgv-faixa av-so-ftn" id="av_rgv_faixa" hidden></div>
     <div class="av-modelo-sel av-so-ftn av-web-oculto">
       <label for="av_mem_modelo">Modelo estatístico:</label>
       <select id="av_mem_modelo" title="Variação da equação: muda a constante do modelo (Moda 3127,488781 · Mediana 3337,43421 · Média 3447,634276 · Regressão e^8,11295759 = Mediana)">
@@ -8645,21 +8660,31 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
       <tbody>
         <tr>
           <td>ÁREA DO IMÓVEL (ha)</td>
-          <td><span class="av-so-obs">e^(+0,7420810025 / Área (ha))</span><span class="av-so-ftn">e^(−0,6346406128 × ln(Área (ha)))</span></td>
+          <td><span class="av-so-obs">e^(+0,7420810025 / Área (ha))</span><span class="av-so-ftn" id="av_mem_area_frag">e^(−0,6346406128 × ln(Área (ha)))</span></td>
           <td>
             <select id="av_mem_area_fonte" class="av-so-ftn" title="Qual área entra no cálculo: a área de referência (item I) ou a área total do imóvel" style="margin-bottom:4px; max-width:100%;">
               <option value="ref" selected>Área de referência</option>
               <option value="total">Área total do imóvel</option>
             </select>
             <input type="text" id="av_mem_area" readonly class="bloqueado" placeholder="Preencher este campo">
+            <div class="av-rgv-aviso av-rgv2" id="av_mem_area_aviso" hidden></div>
           </td>
           <td><span id="av_mem_area_r">—</span></td>
         </tr>
+        <tr class="av-so-ftn av-rgv2">
+          <td>PIB (PER CAPITA)</td>
+          <td><span id="av_mem_pib_frag">e^(+1,442850161E-05 × PIB (Per capita))</span></td>
+          <td>
+            <input type="text" id="av_mem_pib" readonly class="bloqueado" placeholder="Município do imóvel" data-sem-pend>
+            <div class="av-rgv-fonte" id="av_mem_pib_fonte"></div>
+          </td>
+          <td><span id="av_mem_pib_r">—</span></td>
+        </tr>
         <tr>
           <td>NOTA AGRONÔMICA (N.A.)</td>
-          <td><span class="av-so-obs">e^(-0,7754092498 / Nota agronômica²)</span><span class="av-so-ftn">e^(+8,17860439 × Nota agronômica²)</span></td>
+          <td><span class="av-so-obs">e^(-0,7754092498 / Nota agronômica²)</span><span class="av-so-ftn" id="av_mem_na_frag">e^(+8,17860439 × Nota agronômica²)</span></td>
           <td>
-            <select id="av_na_casas" class="av-so-ftn" title="Qual valor da Nota Agronômica entra na equação: o obtido (4 casas) ou o arredondado para 3 casas" style="margin-bottom:4px; max-width:100%;">
+            <select id="av_na_casas" class="av-so-ftn av-rgv1" title="Qual valor da Nota Agronômica entra na equação: o obtido (4 casas) ou o arredondado para 3 casas" style="margin-bottom:4px; max-width:100%;">
               <option value="4" selected>Valor obtido (4 casas)</option>
               <option value="3">Arredondada (3 casas)</option>
             </select>
@@ -8679,7 +8704,19 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
           </td>
           <td><span id="av_mem_zona_r">—</span></td>
         </tr>
-        <tr class="av-so-ftn">
+        <tr class="av-so-ftn av-rgv2">
+          <td>INFLUÊNCIA DA SEDE</td>
+          <td><span id="av_mem_sede_frag">e^(+0,8007815932 × Influência da sede)</span></td>
+          <td>
+            <select id="av_mem_sede" title="1 = fora do raio de influência da sede municipal · 2 = dentro do raio (4 km; Caruaru 8 km) — RGV FTN SPS-06 e SPS-07">
+              <option value="">— selecione —</option>
+              <option value="1">1 – Fora do raio de influência da sede</option>
+              <option value="2">2 – Dentro do raio de influência da sede</option>
+            </select>
+          </td>
+          <td><span id="av_mem_sede_r">—</span></td>
+        </tr>
+        <tr class="av-so-ftn av-rgv1">
           <td>INFLUÊNCIA VILA</td>
           <td>e^(+1,076288644 × Influência Vila)</td>
           <td>
@@ -8739,6 +8776,14 @@ A Nota Agronômica (N.A.) varia de 0,00 a 1,00, sendo que valores mais próximos
             <tr>
               <td class="ia-lbl">Campo de Arbítrio</td>
               <td id="ia_ca_min">—</td><td id="ia_ca_med" class="ia-destaque">—</td><td id="ia_ca_max">—</td>
+            </tr>
+            <tr class="av-so-ftn av-rgv2">
+              <td class="ia-lbl">Extrapolação</td>
+              <td colspan="3" id="ia_extrap" class="ia-centro">—</td>
+            </tr>
+            <tr class="av-so-ftn av-rgv2">
+              <td class="ia-lbl">Fundamentação</td>
+              <td colspan="3" id="ia_fund" class="ia-centro">—</td>
             </tr>
 
             <tr class="ia-sub"><td colspan="4">Valor de Avaliação da Terra Nua (R$)</td></tr>
@@ -15880,6 +15925,7 @@ if(document.readyState === "loading") document.addEventListener("DOMContentLoade
   // BENF_abrirPicker / BENF2_exportarImagem.
   window.BENF_imgSrc = function(key){
     load();
+    if(/^quadro-\d{3}$/.test(key || "")){ const s = window.BENF_compSrcs ? window.BENF_compSrcs(key) : []; return s[0] || null; }   // RGV-2: página do quadro (carregada por BENF_carregarComposicoes)
     if(!IMGS){ window.BENF_carregarImgs(); return null; }   // ainda carregando
     if(!key || !IMGS[key]) return null;
     return "data:image/jpeg;base64,"+IMGS[key];
@@ -15997,23 +16043,51 @@ if(document.readyState === "loading") document.addEventListener("DOMContentLoade
       const u = String((l && l.unid) || (it && it.unidade) || "").toLowerCase().replace(/\s/g, "");
       if(u === "h/m") add(243); else if(u === "h/t") add(244); else { add(243); add(244); }
     } else if(n >= 103 && n <= 244) add(n);         // demais itens: a tabela citada já é a composição
-    return out;
+    // RGV-2 (27/11/2026, F5): a linha guarda a referência do RGV-1; a composição citada é a do RGV-2 (perfil.benf.comp)
+    const B = benfPerfil();
+    return B && B.comp ? out.map(k => "comp-" + String(conv(parseInt(k.slice(5), 10), B.comp)).padStart(3, "0")) : out;
   };
-  // os recortes moram na base (Z:\…\CONFIG\RGV\FTN, fora do GitHub público) e vêm do servidor local só os citados:
-  // GET /api/rgv/FTN?itens=comp-060,… -> { "comp-060": [dataURL, parte 2…] }. Nunca rejeita: sem servidor novo, o anexo sai só com o Anexo 3.
-  const RGV_CONTRATO = "FTN", COMP = {};
+
+  /* ===== RGV por perfil (27/11/2026, F5 — docs/decisoes/2026-11-27-rgv2-sps06-07.md) =====
+     As linhas lançadas continuam guardando a referência do RGV-1 ("Tabela 103 (pág. 277)", imagens anexo3-NNN): é o dado
+     estável, inclusive nos cadastros antigos. Quando o cadastro usa o RGV-2 (js/209), a citação, a página, a imagem do
+     quadro (quadro-NNN, CONFIG/RGV/FTN-RGV2) e a composição saem convertidas pelo perfil (dados/rgv-perfis.json › benf). */
+  function benfPerfil(){
+    try{ const P = typeof window.AVRGV_ativo === "function" ? window.AVRGV_ativo() : null; return P && P.benf && P.benf.quadros ? P.benf : null; }catch(e){ return null; }
+  }
+  function conv(n, regras){ for(const r of (regras || [])) if(n >= r[0] && n <= r[1]) return n + r[2]; return n; }
+  function pagRgv2(n, B){ for(const r of (B.paginas || [])) if(n >= r[0] && n <= r[1]) return r[2]; return null; }
+  // { tabela, img, anexo } da linha no RGV em uso (RGV-1: a própria linha)
+  window.BENF_citacao = function(l){
+    const tab = String((l && l.tabela) || ""), img = String((l && l.img) || ""), B = benfPerfil();
+    if(!B || !tab) return { tabela: tab, img: img, anexo: "Anexo 3", rgv2: false };
+    const m = tab.match(/Tabela\s*(\d+)/i), n = m ? parseInt(m[1], 10) : 0;
+    let t = n, pags = [];
+    if(B.quadros[String(n)]){ t = B.quadros[String(n)].t; pags = B.quadros[String(n)].pag.slice(); }
+    else if(n){ t = conv(n, B.itens); const p = pagRgv2(t, B); if(p) pags = [p]; }
+    const pagTxt = pags.length === 1 ? "pág. " + pags[0] : pags.length ? "págs. " + pags[0] + "-" + pags[pags.length - 1] : "";
+    return { tabela: "Tabela " + t + (pagTxt ? " (" + pagTxt + ")" : ""),
+             img: pags.map(p => "quadro-" + String(p).padStart(3, "0")).join("|"), anexo: B.anexo || "Anexo 2", rgv2: true };
+  };
+  // os recortes moram na base (Z:\…\CONFIG\RGV\<contrato>, fora do GitHub público) e vêm do servidor local só os citados:
+  // GET /api/rgv/<contrato>?itens=comp-060,quadro-169,… -> { "comp-060": [dataURL, parte 2…] }. Nunca rejeita: sem servidor novo, o anexo sai só com o Anexo 3.
+  // contrato: "FTN" (RGV-1) ou o do perfil do cadastro (RGV-2: "FTN-RGV2"); o cache separa por contrato.
+  const COMP = {};
+  function contrato(){ const B = benfPerfil(); return (B && B.contrato) || "FTN"; }
   window.BENF_carregarComposicoes = async function(keys){
-    const faltam = (keys || []).filter(k => /^comp-\d{3}$/.test(k) && !COMP[k]);
+    const ct = contrato();
+    const faltam = (keys || []).filter(k => /^(comp|quadro)-\d{3}$/.test(k) && !COMP[ct + ":" + k]);
     if(!faltam.length) return;
     const srv = (typeof window.CAD_SERVIDOR_URL === "string" ? window.CAD_SERVIDOR_URL : "").replace(/\/+$/, "");
     try{
-      const r = await fetch(srv + "/api/rgv/" + RGV_CONTRATO + "?itens=" + encodeURIComponent(faltam.join(",")), { cache: "no-store" });
+      const r = await fetch(srv + "/api/rgv/" + encodeURIComponent(ct) + "?itens=" + encodeURIComponent(faltam.join(",")), { cache: "no-store" });
       if(!r.ok) throw new Error("HTTP " + r.status);
-      Object.assign(COMP, await r.json());
+      const j = await r.json();
+      Object.keys(j).forEach(k => { COMP[ct + ":" + k] = j[k]; });
     }catch(e){ console.error("BENF: composições do RGV indisponíveis —", e); }
   };
-  // imagens (data URI) de uma composição; a que passa de página no RGV vem em partes
-  window.BENF_compSrcs = function(key){ return (COMP[key] || []).slice(); };
+  // imagens (data URI) de uma composição ou página de quadro (RGV-2); a que passa de página no RGV vem em partes
+  window.BENF_compSrcs = function(key){ return (COMP[contrato() + ":" + key] || []).slice(); };
 
   document.addEventListener("DOMContentLoaded", load);
 })();
@@ -16325,7 +16399,7 @@ if(document.readyState === "loading") document.addEventListener("DOMContentLoade
         if(dados.tabela) tr.dataset.tabela = dados.tabela;
         if(dados.img) tr.dataset.img = dados.img;
         const fonteEl = tr.querySelector(".bnf-fonte");
-        if(fonteEl && dados.tabela) fonteEl.textContent = "Fonte: "+dados.tabela+" — Anexo 3 (RGV)";
+        if(fonteEl && dados.tabela){ const c = window.BENF_citacao ? window.BENF_citacao({ tabela: dados.tabela }) : { tabela: dados.tabela, anexo: "Anexo 3" }; fonteEl.textContent = "Fonte: " + c.tabela + " — " + c.anexo + " (" + (c.rgv2 ? "RGV-2" : "RGV") + ")"; }   // 27/11/2026: no RGV do cadastro aberto (js/071)
       }
       BENF2_recalc();
       return tr;
@@ -16365,11 +16439,11 @@ if(document.readyState === "loading") document.addEventListener("DOMContentLoade
       var keys = [], srcs = [], comp = false;
       var por = function(k){ if(k && !/^anexo4cercas/.test(k) && keys.indexOf(k) === -1) keys.push(k); };
       raiz.querySelectorAll("tr[data-img]").forEach(function(tr){
-        (tr.dataset.img||"").split("|").forEach(por);
+        ((window.BENF_citacao ? window.BENF_citacao({ tabela: tr.dataset.tabela, img: tr.dataset.img }).img : tr.dataset.img)||"").split("|").forEach(por);   // RGV-2: página do quadro (quadro-NNN)
         if(typeof window.BENF_composicoes === "function") window.BENF_composicoes({ tabela: tr.dataset.tabela,
           disc: (tr.querySelector(".bnf-disc")||{}).value, unid: (tr.querySelector(".bnf-unid")||{}).value }).forEach(por);
       });
-      keys.sort();                                                                   // "anexo3-*" antes de "comp-*"
+      keys.sort(function(a, b){ var ca = /^comp-/.test(a), cb = /^comp-/.test(b); return ca === cb ? (a < b ? -1 : a > b ? 1 : 0) : (ca ? 1 : -1); });   // quadros antes das composições
       if(window.BENF_carregarComposicoes) await window.BENF_carregarComposicoes(keys);
       keys.forEach(function(k){
         if(/^comp-/.test(k)){ (window.BENF_compSrcs ? window.BENF_compSrcs(k) : []).forEach(function(s){ srcs.push(s); comp = true; }); }
@@ -19170,11 +19244,20 @@ window.FOTO_rodapeHTML=rodapeHTML;
     media:     { nome:"Média",                c:3447.634276,          txt:"3447,634276" },
     regressao: { nome:"Equação de regressão", c:Math.exp(8.11295759),  ln:true }
   };
-  function modeloAtual(){ const e = document.getElementById("av_mem_modelo"); return AV_MODELOS[e && e.value] || AV_MODELOS.moda; }
+  // 27/11/2026 (RGV-2, F2): perfil de RGV em uso no cadastro que NÃO é o RGV-1 (js/209 decide; null = caminho antigo, intocado)
+  function rgv2(){ try{ return (window.__AV_MODO__ !== "obs" && typeof window.AVRGV_ativo === "function") ? window.AVRGV_ativo() : null; }catch(e){ return null; } }
+  function modeloAtual(){
+    const e = document.getElementById("av_mem_modelo"), P = rgv2();
+    if(P){ const k = P.modelo.constantes[e && e.value] || P.modelo.constantes[P.modelo.padrao]; return k.ln ? { nome:k.nome, c:Math.exp(P.modelo.b0), ln:true } : k; }
+    return AV_MODELOS[e && e.value] || AV_MODELOS.moda;
+  }
   window.AV_modeloAtual = modeloAtual;
   // texto da equação do modelo escolhido. o = { area, na, vila, minus, ascii }
   window.AV_eq = function(pref, o){
-    o = o || {}; const m = modeloAtual(), X = o.ascii ? " x " : " × ", M = o.minus || "−";
+    o = o || {};
+    { const P = rgv2(), e = document.getElementById("av_mem_modelo");
+      if(P && window.RGVMOD) return window.RGVMOD.textoEquacao(P, pref, e && e.value, { minus:o.minus, ascii:o.ascii, rotulos:{ area:o.area || "Área (ha)", na:o.na || "Nota agronômica²" } }); }
+    const m = modeloAtual(), X = o.ascii ? " x " : " × ", M = o.minus || "−";
     const A = o.area || "Área (ha)", N = o.na || "Nota agronômica²", V = o.vila || "Influência Vila";
     if(m.ln) return "ln(" + pref + ") = +8,11295759 " + M + " 0,6346406128" + X + "ln(" + A + ") +8,17860439" + X + N + " +1,076288644" + X + V;
     return pref + " = " + m.txt + X + "e^(" + M + "0,6346406128" + X + "ln(" + A + "))" + X + "e^(+8,17860439" + X + N + ")" + X + "e^(+1,076288644" + X + V + ")";
@@ -19480,6 +19563,7 @@ window.FOTO_rodapeHTML=rodapeHTML;
 
   function recalc(){
     if(window.__CAD_RESTAURANDO){ (window.__CAD_pend = window.__CAD_pend || new Set()).add(recalc); return; }   // abrir cadastro: roda uma vez no fim (09/10/2026)
+    if(window.__AV_MODO__ !== "obs" && typeof window.AVRGV_aplicar === "function"){ try{ window.AVRGV_aplicar(); }catch(e){ console.warn("AVRGV:", e); } }   // perfil de RGV, PIB e Sede (js/209)
     // área avaliada de referência repete a Área Total do Imóvel (3.36) e fica bloqueada
     const areaTotalEl = document.getElementById("av_areatotal");
     const areaAvalEl = document.getElementById("av_area_aval");
@@ -19523,6 +19607,9 @@ window.FOTO_rodapeHTML=rodapeHTML;
       }
     });
     if(window.__AV_MODO__ === "obs") ccu = Math.round(ccu*10000)/10000;   // FTN: o CCU segue exato (a N.A. sai dele); exibido com 4 casas
+    const P2 = rgv2();   // RGV-2 (D5): CCU e N.A. truncadas nas casas do perfil
+    const casas = P2 && P2.casas, corta = function(x, c){ return casas && c != null ? (casas.modo === "arredondar" ? Math.round(x * Math.pow(10, c)) / Math.pow(10, c) : window.RGVMOD.trunc(x, c)) : x; };
+    if(P2) ccu = corta(ccu, casas && casas.ccu);
 
     // reconstruir as glebas (auto) a partir da tabela NA
     if(typeof gerarGlebasAuto==="function") gerarGlebasAuto(glebasAuto, areaAval);
@@ -19556,11 +19643,11 @@ window.FOTO_rodapeHTML=rodapeHTML;
     // N.A. = CCU × escala
     document.getElementById("av_na_ccu").value = fmtBR(ccu,4);
     const escala = parseFloat(document.getElementById("av_na_escala").value);
-    const na = Math.round(ccu*escala*10000)/10000;
+    const na = P2 ? corta(ccu*escala, casas && casas.na) : Math.round(ccu*escala*10000)/10000;
     document.getElementById("av_na_result").value = fmtBR(na,4);
     // FTN: N.A. arredondada para 3 casas ao lado do valor obtido; a Memória de Cálculo escolhe qual das duas entra no cálculo
     const na3 = Math.round(na*1000 + 1e-7)/1000;
-    const adota3 = window.__AV_MODO__ !== "obs" && (document.getElementById("av_na_casas") || {}).value === "3";
+    const adota3 = !P2 && window.__AV_MODO__ !== "obs" && (document.getElementById("av_na_casas") || {}).value === "3";   // RGV-2: só 4 casas (D5)
     const naUso = adota3 ? na3 : na;
     { const e3 = document.getElementById("av_na_result3"); if(e3) e3.value = isFinite(na3) ? fmtBR(na3,3) : "";
       const sn = document.getElementById("av_na_casas");
@@ -19589,8 +19676,27 @@ window.FOTO_rodapeHTML=rodapeHTML;
     document.getElementById("av_mem_area").value = fmtBR(areaMem,4);
     document.getElementById("av_mem_na").value   = fmtBR(naUso, adota3 ? 3 : 4);
 
-    let rArea, rNA, rZona = NaN, rVila = NaN, vtn;
-    if(modoFtn){
+    let rArea, rNA, rZona = NaN, rVila = NaN, vtn, rgvEnt = null, rgvU = null;
+    if(P2){
+      // RGV-2: termos do perfil (Área, PIB, N.A., Sede); PIB e Sede vêm de js/209 (município do imóvel e raio da sede)
+      const pibEl = document.getElementById("av_mem_pib"), sedeEl = document.getElementById("av_mem_sede");
+      rgvEnt = { area: areaMem, na: naUso, pib: num(pibEl ? pibEl.value : ""), sede: sedeEl ? parseInt(sedeEl.value, 10) : NaN };
+      const fal = window.RGVMOD ? (function(){ const f = []; P2.modelo.termos.forEach(function(t){ const v = rgvEnt[t.var]; if(!(typeof v === "number" && isFinite(v) && v > 0)) f.push(t.var); }); return f; })() : ["motor"];   // zero = não preenchido (como js/208)
+      const fat = {};
+      if(!fal.length){
+        const sel = document.getElementById("av_mem_modelo");
+        rgvU = window.RGVMOD.unitario(P2, rgvEnt, sel && sel.value);
+        rgvU.fatores.forEach(function(f){ fat[f.var] = f.fator; });
+        vtn = Math.round(rgvU.unitario * 100) / 100;          // o RGV multiplica o unitário de 2 casas pela área
+      } else {
+        P2.modelo.termos.forEach(function(t){ const v = rgvEnt[t.var]; if(fal.indexOf(t.var) < 0) fat[t.var] = Math.exp(t.coef * (t.tr === "ln" ? Math.log(v) : t.tr === "x2" ? v * v : v)); });
+        vtn = NaN;
+      }
+      rArea = fat.area; rNA = fat.na;
+      const sr = function(id, v, falta){ const e = document.getElementById(id); if(e) e.textContent = isFinite(v) ? fmtBR(v,6) : falta; };
+      sr("av_mem_pib_r", fat.pib, "— (município do imóvel)");
+      sr("av_mem_sede_r", fat.sede, "— (escolha a Influência da Sede)");
+    } else if(modoFtn){
       rArea = (areaMem > 0) ? Math.exp(VTN_KA2 * Math.log(areaMem)) : NaN;
       rNA   = Math.exp(VTN_KNA2 * naUso * naUso);
       rVila = isFinite(vila) ? Math.exp(VTN_KV2 * vila) : NaN;
@@ -19604,7 +19710,7 @@ window.FOTO_rodapeHTML=rodapeHTML;
     document.getElementById("av_mem_area_r").textContent = isFinite(rArea)? fmtBR(rArea,6):"—";
     document.getElementById("av_mem_na_r").textContent   = isFinite(rNA)? fmtBR(rNA,6):"—";
     document.getElementById("av_mem_zona_r").textContent = isFinite(rZona)? fmtBR(rZona,6):"—";
-    document.getElementById("av_mem_vila_r").textContent = isFinite(rVila)? fmtBR(rVila,6):"— (escolha a Influência Vila)";
+    if(!P2) document.getElementById("av_mem_vila_r").textContent = isFinite(rVila)? fmtBR(rVila,6):"— (escolha a Influência Vila)";
     document.getElementById("av_vtn").textContent = money(vtn);
     window.__AV_VTN_EXATO = (modoFtn && isFinite(vtn)) ? vtn : NaN;   /* dspExato */
     { const e1 = document.getElementById("av_eq_tela"), e2 = document.getElementById("ia_eq_ftn");
@@ -19640,8 +19746,16 @@ window.FOTO_rodapeHTML=rodapeHTML;
 
     const total = sub1 + sub2;
     document.getElementById("rs_total").textContent = money(total);
-    document.getElementById("av_lim_inf").value = money(total*0.85);
-    document.getElementById("av_lim_sup").value = money(total*1.15);
+    if(P2 && rgvU){
+      // RGV-2 (D9): campo de arbítrio ±15% sobre o unitário da terra nua; o total segue a soma (terra nua no arbítrio + benfeitorias)
+      const sel = document.getElementById("av_mem_modelo"), est = window.RGVMOD.estimar(P2, rgvEnt, { tendencia: sel && sel.value });
+      const aTn = (isFinite(fdArea) ? fdArea : 0) + (isFinite(remArea) ? remArea : 0);
+      document.getElementById("av_lim_inf").value = money(aTn * est.arbitrio.min + sub2);
+      document.getElementById("av_lim_sup").value = money(aTn * est.arbitrio.max + sub2);
+    } else {
+      document.getElementById("av_lim_inf").value = money(total*0.85);
+      document.getElementById("av_lim_sup").value = money(total*1.15);
+    }
 
     // ===== Antes e Depois (desvalorização da remanescente) =====
     const adSim = document.querySelector('input[name="av_antesdepois"]:checked');
@@ -19649,12 +19763,14 @@ window.FOTO_rodapeHTML=rodapeHTML;
       const sitAntes = escala; // situação atual (item III)
       const naAntes = naUso;
       const rNAa = modoFtn ? Math.exp(VTN_KNA2*(naAntes*naAntes)) : Math.exp(-VTN_KNA/(naAntes*naAntes));
-      const vuAntes = modoFtn ? modeloAtual().c * rArea * rNAa * rVila : VTN_A * rArea * rNAa * rZona;
+      // RGV-2: antes/depois pelo motor do perfil, mudando só a N.A.
+      const vuP2 = function(n){ if(!rgvU) return NaN; const e = Object.assign({}, rgvEnt, { na:n }), sel = document.getElementById("av_mem_modelo"); return Math.round(window.RGVMOD.unitario(P2, e, sel && sel.value).unitario * 100) / 100; };
+      const vuAntes = P2 ? vuP2(naAntes) : modoFtn ? modeloAtual().c * rArea * rNAa * rVila : VTN_A * rArea * rNAa * rZona;
       const depoisSel = document.getElementById("av_depois_sit");
       const sitDepois = depoisSel ? parseFloat(depoisSel.value) : 0.75;
-      const naDepois = adota3 ? Math.round(Math.round(ccu*sitDepois*10000)/10000*1000 + 1e-7)/1000 : Math.round(ccu*sitDepois*10000)/10000;
+      const naDepois = P2 ? corta(ccu*sitDepois, casas && casas.na) : adota3 ? Math.round(Math.round(ccu*sitDepois*10000)/10000*1000 + 1e-7)/1000 : Math.round(ccu*sitDepois*10000)/10000;
       const rNAd = modoFtn ? Math.exp(VTN_KNA2*(naDepois*naDepois)) : Math.exp(-VTN_KNA/(naDepois*naDepois));
-      const vuDepois = modoFtn ? modeloAtual().c * rArea * rNAd * rVila : VTN_A * rArea * rNAd * rZona;
+      const vuDepois = P2 ? vuP2(naDepois) : modoFtn ? modeloAtual().c * rArea * rNAd * rVila : VTN_A * rArea * rNAd * rZona;
       const areaRem = remArea;
       const vtnAntes = isFinite(areaRem)? areaRem*vuAntes : NaN;
       const vtnDepois = isFinite(areaRem)? areaRem*vuDepois : NaN;
@@ -19672,9 +19788,11 @@ window.FOTO_rodapeHTML=rodapeHTML;
     }
 
     // guardar para o PDF
-    window.__AV_CALC__ = {ccu, na, escala, vtn, fdArea, remArea, fdVal, remVal, sub1, sub2, total, zona, vila, areaMem, comps};
+    window.__AV_CALC__ = {ccu, na, escala, vtn, fdArea, remArea, fdVal, remVal, sub1, sub2, total, zona, vila, areaMem, comps,
+      rgv: P2 ? P2.id : "FTN-RGV1", pib: rgvEnt ? rgvEnt.pib : NaN, sede: rgvEnt ? rgvEnt.sede : NaN};
 
     if(typeof window.AV_atualizarImovelAvaliando==="function") window.AV_atualizarImovelAvaliando();
+    if(P2 && typeof window.AVRGV_depois==="function"){ try{ window.AVRGV_depois(); }catch(e){ console.warn("AVRGV:", e); } }
 
     if(typeof window.REL_atualizarTela==="function") window.REL_atualizarTela();
 
@@ -19899,7 +20017,7 @@ window.FOTO_rodapeHTML=rodapeHTML;
     // auto-fill + sync
     autoFill(); bindSync();
     // listeners de recálculo em campos que afetam contas
-    ["av_area_aval","av_na_escala","av_mem_zona","av_mem_vila","av_mem_modelo","av_na_casas","av_mem_area_fonte","av_areatotal","av_fd_area","av_rem_area",
+    ["av_area_aval","av_na_escala","av_mem_zona","av_mem_vila","av_mem_sede","av_mem_modelo","av_na_casas","av_mem_area_fonte","av_areatotal","av_fd_area","av_rem_area",
      "rs_121","rs_122","rs_123","rs_124","rs_12","rs_13","fb_area_ocupada","fb_area_desap"].forEach(id=>{
       const el=document.getElementById(id); if(el) el.addEventListener("input", recalc);
     });
@@ -21124,11 +21242,12 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
     const por = function(k){ if(k && !/^anexo4cercas/.test(k) && keys.indexOf(k) === -1) keys.push(k); };
     ["121","122","123","124","13"].forEach(function(g){
       window.BNF_lerLinhas(g).filter(function(l){ return l.disc || l.vu; }).forEach(function(l){
-        String(l.img||"").split("|").forEach(por);
+        // RGV-2 (F5): a imagem do quadro é a página do RGV-2 (quadro-NNN), pela citação convertida (js/071)
+        String((typeof window.BENF_citacao === "function" ? window.BENF_citacao(l).img : l.img) || "").split("|").forEach(por);
         if(typeof window.BENF_composicoes === "function") window.BENF_composicoes(l).forEach(por);
       });
     });
-    return keys.sort();                                                              // "anexo3-*" antes de "comp-*"
+    return keys.sort(function(a, b){ const ca = /^comp-/.test(a), cb = /^comp-/.test(b); return ca === cb ? (a < b ? -1 : a > b ? 1 : 0) : (ca ? 1 : -1); });   // quadros (anexo3-*/quadro-*) antes das composições
   }
   // numeração em sequência dos anexos que vêm depois de I–III: Orçamentos e Roteiro de Acesso
   /* hubMaterial — anexos do memorial, na ordem; a numeração segue o que estiver disponível E selecionado */
@@ -21200,8 +21319,13 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
     doc.text("ORÇAMENTOS", ctx.CX, ctx.H/2+20, {align:"center"});
     doc.line(ctx.CX-90, ctx.H/2+36, ctx.CX+90, ctx.H/2+36);
     novaPagina(doc,ctx);
+    if(rgvAtivo()){   // RGV-2: quadros = Anexo 2; composições = Anexos 3 (não reprodutivas) e 5 (reprodutivas)
+      secBar(doc,ctx,comComp ? "TABELAS DO RGV-2 — ANEXOS 2, 3 E 5" : "TABELAS DO RGV-2 — ANEXO 2");
+      paragrafo(doc,ctx,"Reprodução das tabelas do Relatório Genérico de Valores dos lotes SPS-06 e SPS-07 (RGV-2, SEI 9135854) — quadros sintetizados de preços unitários de benfeitorias (Anexo 2)" + (comComp ? " e composições de preços unitários das benfeitorias lançadas (Anexos 3 e 5)" : "") + " — que fundamentam os valores do memorial de cálculo das benfeitorias.",8.5);
+    } else {
     secBar(doc,ctx,comComp ? "TABELAS DO RGV — ANEXOS 3, 4 E 5" : "TABELAS DO RGV — ANEXO 3");
     paragrafo(doc,ctx,"Reprodução das tabelas do Relatório Genérico de Valores (RGV) — quadros sintetizados de preços unitários de benfeitorias (Anexo 3)" + (comComp ? " e composições de preços unitários das benfeitorias lançadas (Anexos 4 e 5)" : "") + " — que fundamentam os valores do memorial de cálculo das benfeitorias.",8.5);
+    }
     srcs.forEach(function(src){ inserirImagem(doc, ctx, src, 640); ctx.y += 10; });
     doc.deletePage(1);
     const ax = await PDFLib.PDFDocument.load(doc.output("arraybuffer"));
@@ -21229,7 +21353,7 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
     const tabelasUsadas = [], fontes = []; let comImgs = false;
     const marca = function(l){
       String(l.img||"").split("|").forEach(function(k){ if(k && tabelasUsadas.indexOf(k) === -1) tabelasUsadas.push(k); });
-      if(l.tabela && fontes.indexOf(l.tabela) === -1) fontes.push(l.tabela);
+      { const ft = typeof window.BENF_citacao === "function" ? window.BENF_citacao(l).tabela : l.tabela; if(ft && fontes.indexOf(ft) === -1) fontes.push(ft); }   // RGV-2: citação convertida (js/071)
     };
     const tot = function(id){ const e = document.getElementById(id); return (e && e.textContent.trim()) || "R$ 0,00"; };
     const L = ctx.MR - ctx.ML;
@@ -21301,7 +21425,7 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
     }
     if(fontes.length){
       doc.setFont("helvetica","italic"); doc.setFontSize(7.5); doc.setTextColor(90,100,112);
-      doc.splitTextToSize("Fonte dos valores unitários: " + fontes.join("; ") + " — Anexo 3, Quadros Sintetizados de Preços Unitários de Benfeitorias (RGV).", L).forEach(function(t){ ensure(doc,ctx,10); doc.text(t, ctx.ML, ctx.y + 8); ctx.y += 10; });
+      doc.splitTextToSize("Fonte dos valores unitários: " + fontes.join("; ") + " — " + (rgvAtivo() ? "Anexo 2 do RGV-2" : "Anexo 3") + ", Quadros Sintetizados de Preços Unitários de Benfeitorias (RGV).", L).forEach(function(t){ ensure(doc,ctx,10); doc.text(t, ctx.ML, ctx.y + 8); ctx.y += 10; });
       doc.setTextColor(30,40,55); ctx.y += 4;
     }
     /* ordemBenf */
@@ -21383,7 +21507,7 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
     // --- sumário: o memorial de cálculo e os anexos que acompanham este PDF
     (function(){
       const itens = ["Memorial de Cálculo"];
-      if(window.__AV_VILA_IMG__ && window.__AV_MODO__ !== "obs") itens.push("Mapa da Influência Vila");
+      if(window.__AV_VILA_IMG__ && window.__AV_MODO__ !== "obs") itens.push(rgvAtivo() ? "Mapa da Influência da Sede" : "Mapa da Influência Vila");
       benfIndice().forEach(function(t){ itens.push(t); });
       { const pl = anxPlano(); ANX_ORDEM.forEach(function(x){ if(pl[x.k]) itens.push("Anexo " + pl[x.k] + " — " + x.t); }); }
       n1("SUMÁRIO");
@@ -21482,10 +21606,14 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
     ensure(doc,ctx, mm(22));
     doc.setFillColor(240,247,255); doc.setDrawColor(188,214,240);
     doc.roundedRect(ctx.ML,ctx.y,L,mm(20),4,4,"FD");
-    doc.setFont("courier","normal"); doc.setFontSize(10); doc.setTextColor(AZ[0],AZ[1],AZ[2]);
+    // 27/11/2026: com 4 ou mais glebas a linha da CCU passava da margem direita (conferência do manual): a fonte reduz até caber
+    let ccuFs = 10;
+    doc.setFont("courier","normal");
+    while(ccuFs > 6.5 && Math.max(doc.setFontSize(ccuFs).getTextWidth(E("av_ccu_l1").textContent), doc.getTextWidth(E("av_ccu_l2").textContent)) > L - mm(6)) ccuFs -= 0.25;
+    doc.setFontSize(ccuFs); doc.setTextColor(AZ[0],AZ[1],AZ[2]);
     doc.text(E("av_ccu_l1").textContent, ctx.ML+mm(3), ctx.y+mm(5.5));
     doc.text(E("av_ccu_l2").textContent, ctx.ML+mm(3), ctx.y+mm(10.5));
-    doc.setFont("courier","bold");
+    doc.setFont("courier","bold"); doc.setFontSize(10);
     doc.text(E("av_ccu_l3").textContent, ctx.ML+mm(3), ctx.y+mm(15.5));
     ctx.y += mm(24); doc.setTextColor(0,0,0);
 
@@ -21493,7 +21621,8 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
     ensure(doc,ctx, mm(9));
     const es = E("av_na_escala"), esT = es && es.selectedIndex >= 0 ? es.options[es.selectedIndex].textContent.trim() : "";
     const naIni = "N.A. = CCU "+txt("av_na_ccu")+" × escala "+(es ? es.value.replace(".",",") : "")+(esT ? " ("+esT+")" : "")+" = ";
-    const naFim = txt("av_na_result")+" (3 casas: "+txt("av_na_result3")+")"+(E("av_na_casas") && E("av_na_casas").value === "3" ? "  —  adotada: "+txt("av_na_result3") : "");
+    const naFim = rgvAtivo() ? txt("av_na_result") + " (truncada na 4ª casa, RGV-2)"   // RGV-2 (D5): só 4 casas, truncadas
+      : txt("av_na_result")+" (3 casas: "+txt("av_na_result3")+")"+(E("av_na_casas") && E("av_na_casas").value === "3" ? "  —  adotada: "+txt("av_na_result3") : "");
     let naFs = DT.corpo.tam;
     const naLarg = function(){ doc.setFont(FT,"normal"); doc.setFontSize(naFs); const a = doc.getTextWidth(naIni); doc.setFont(FT,"bold"); doc.setFontSize(naFs); return a + doc.getTextWidth(naFim); };
     while(naFs > 8 && naLarg() > L) naFs -= 0.25;
@@ -21507,10 +21636,12 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
     { const vi = window.__AV_VILA_IMG__;
       if(vi && window.__AV_MODO__ !== "obs"){
         ensure(doc,ctx, 330);
-        n1("MAPA DA INFLUÊNCIA VILA");
+        const P2 = rgvAtivo();
+        n1(P2 ? "MAPA DA INFLUÊNCIA DA SEDE" : "MAPA DA INFLUÊNCIA VILA");
         inserirImagem(doc,ctx,vi,470);
         doc.setFont(FT,"bolditalic"); doc.setFontSize(9.5); doc.setTextColor(0,0,0); ensure(doc,ctx,14);
-        doc.text("Figura — Área abrangida pelo projeto e áreas de influência de povoado (Vila)", ctx.CX, ctx.y + mm(1), {align:"center"}); ctx.y += mm(6);
+        doc.text(P2 ? "Figura — Área abrangida pelo projeto, imóvel e raios de influência das sedes municipais (RGV-2)" : "Figura — Área abrangida pelo projeto e áreas de influência de povoado (Vila)", ctx.CX, ctx.y + mm(1), {align:"center"}); ctx.y += mm(6);
+        if(P2){ const nt = E("av_vila_nota"); if(nt && nt.textContent.trim()) corpo(nt.textContent.trim().replace(/→/g, "=>").replace(/[—−]/g, "-")); }
       } }
   }
 
@@ -21856,7 +21987,174 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
     }
     return L;
   }
+  /* ===== RGV-2 (27/11/2026, F4): anexo Metodologia gerado pelo sistema a partir do perfil (decisão do Fernando) =====
+     Mesmo recorte por caso do anexo do RGV-1 (anxCasos: terra nua / reprodutivas / não reprodutivas), no padrão do manual:
+     títulos de nível 1 numerados pela ordem, corpo Carlito 11 justificado, tabelas com faixa, zebra e filete (§2.6–2.7). */
+  function rgvAtivo(){ try{ return typeof window.AVRGV_ativo === "function" ? window.AVRGV_ativo() : null; }catch(e){ return null; } }
+  async function anexoMetRgv(out, procRef, P){
+    const c = anxCasos();
+    const {jsPDF} = window.jspdf, doc = new jsPDF({unit:"pt",format:"a4",compress:true}), ctx = ctxAnx(doc, procRef, "met");
+    capaAnx(doc, ctx, anxPlano().met, "METODOLOGIA");
+    novaPagina(doc,ctx);
+    const FT = DOCPDF.fonteCorpo(doc), DT = DOCPDF.T, mm = function(v){ return v*MM; }, L = ctx.MR - ctx.ML;
+    let nTit = 0, nTab = 0;
+    const fmt = function(n, d){ return Number(n).toLocaleString("pt-BR", { minimumFractionDigits:d, maximumFractionDigits:d }); };
+    function n1(t){
+      ensure(doc,ctx, mm(24));
+      if(ctx.y > ctx.MT + 1) ctx.y += mm(DT.espaco.antes);
+      const ny = DOCPDF.topico(doc, { fonte:FT, x:ctx.ML/MM, xFim:ctx.MR/MM, y:(ctx.y + mm(5))/MM, texto:(++nTit) + ". " + t, separarNumero:true });
+      ctx.y = ny*MM - mm(4); doc.setTextColor(0,0,0);
+    }
+    function n3(t){
+      const S = DT.subsubtopico;
+      ensure(doc,ctx, mm(18)); ctx.y += mm(2);
+      doc.setFont(FT,"bold"); doc.setFontSize(S.tam); doc.setTextColor(S.cor[0],S.cor[1],S.cor[2]);
+      doc.splitTextToSize(t, L).forEach(function(l){ doc.text(l, ctx.ML, ctx.y + mm(4)); ctx.y += mm(S.lh); });
+      ctx.y += mm(S.depois) + mm(1.5); doc.setTextColor(0,0,0);
+    }
+    function corpo(t){
+      const fz = DT.corpo.tam, lh = mm(DT.corpo.lh);
+      String(sanTxt(String(t).replace(/[—−]/g, "-").replace(/→/g, "=>"))).split(/\n\s*\n/).forEach(function(bl){
+        const limpo = bl.replace(/\s*\n\s*/g," ").trim(); if(!limpo) return;
+        doc.setFont(FT,"normal"); doc.setFontSize(fz);
+        const ls = doc.splitTextToSize(limpo, L);
+        ls.forEach(function(ln, i){
+          ensure(doc,ctx, lh); doc.setFont(FT,"normal"); doc.setFontSize(fz); doc.setTextColor(0,0,0);
+          if(i < ls.length-1) justificarLinha(doc, ln, ctx.ML, ctx.y + mm(4), L, fz); else doc.text(ln, ctx.ML, ctx.y + mm(4));
+          ctx.y += lh;
+        });
+        ctx.y += mm(2);
+      });
+    }
+    // lista com a seta do manual (§2.6; a fonte não tem "•" nem "➢"): texto recuado 6 mm, justificado
+    function itens(lista){
+      const fz = DT.corpo.tam, lh = mm(DT.corpo.lh), rec = mm(6);
+      lista.forEach(function(t){
+        doc.setFont(FT,"normal"); doc.setFontSize(fz);
+        const ls = doc.splitTextToSize(String(sanTxt(String(t).replace(/[—−]/g, "-").replace(/→/g, "=>"))), L - rec);
+        ls.forEach(function(ln, i){
+          ensure(doc,ctx, lh); doc.setFont(FT,"normal"); doc.setFontSize(fz); doc.setTextColor(0,0,0);
+          if(i === 0) DOCPDF.seta(doc, (ctx.ML + mm(1))/MM, (ctx.y + mm(1.6))/MM);
+          if(i < ls.length-1) justificarLinha(doc, ln, ctx.ML + rec, ctx.y + mm(4), L - rec, fz); else doc.text(ln, ctx.ML + rec, ctx.y + mm(4));
+          ctx.y += lh;
+        });
+        ctx.y += mm(1);
+      });
+      ctx.y += mm(1);
+    }
+    // equação em caixa (texto do motor, igual à tela)
+    function caixa(t){
+      doc.setFont(FT,"normal"); doc.setFontSize(9.5);   // Carlito: a courier do jsPDF não tem "Á" (saía \u0000 e passava da margem)
+      const ls = doc.splitTextToSize(t, L - mm(6)), h = ls.length * mm(4.2) + mm(5);
+      ensure(doc,ctx, h + mm(3));
+      doc.setFillColor(240,247,255); doc.setDrawColor(188,214,240); doc.roundedRect(ctx.ML, ctx.y, L, h, 3, 3, "FD");
+      doc.setTextColor(20,41,74); ls.forEach(function(l, i){ doc.text(l, ctx.ML + mm(3), ctx.y + mm(5) + i*mm(4.2)); });
+      ctx.y += h + mm(3); doc.setTextColor(0,0,0);
+    }
+    // tabela do manual (§2.7): título "Tabela N – …", faixa de títulos repetida em página nova, zebra, filete; cols: [{t, w (fração), align}]
+    function tabela(titulo, cols, linhas, fonte){
+      const K = DT.tabela, x0 = ctx.ML/MM, w0 = L/MM, ws = cols.map(function(c){ return c.w * w0; });
+      const cab = function(){
+        let x = x0;
+        const cs = cols.map(function(c, i){ const o = { t:c.t, x: c.align === "center" ? x + ws[i]/2 : x + 1.5, align: c.align === "center" ? "center" : undefined }; x += ws[i]; return o; });
+        ctx.y = DOCPDF.tabelaCab(doc, { fonte:FT, x:x0, y:ctx.y/MM, w:w0, cols:cs, tam:8.5 }) * MM;
+      };
+      ensure(doc,ctx, mm(7 + 7 + 8));
+      doc.setFont(FT,"bolditalic"); doc.setFontSize(9.5); doc.setTextColor(0,0,0);
+      doc.splitTextToSize("Tabela " + (++nTab) + " – " + titulo, L).forEach(function(l){ doc.text(l, ctx.CX, ctx.y + mm(4), { align:"center" }); ctx.y += mm(4.4); });
+      ctx.y += mm(1.5); cab();
+      linhas.forEach(function(r, i){
+        doc.setFont(FT,"normal"); doc.setFontSize(8.5);
+        const cel = r.map(function(v, j){ return doc.splitTextToSize(String(v), (ws[j] - 3) * MM); });
+        const h = Math.max.apply(null, cel.map(function(a){ return a.length; })) * mm(3.9) + mm(2.2);
+        const fim = (i === linhas.length - 1 && fonte) ? mm(8) : 0;   // a última linha não se separa da "Fonte"
+        if(ctx.y + h + fim > ctx.MB){ novaPagina(doc,ctx); cab(); }
+        DOCPDF.tabelaZebra(doc, x0, ctx.y/MM, w0, h/MM, i);
+        let x = ctx.ML;
+        cel.forEach(function(a, j){
+          doc.setFont(FT,"normal"); doc.setFontSize(8.5); doc.setTextColor(K.corpoCor ? K.corpoCor[0] : 40, K.corpoCor ? K.corpoCor[1] : 51, K.corpoCor ? K.corpoCor[2] : 63);
+          a.forEach(function(l, k){ const cx = cols[j].align === "center" ? x + ws[j]*MM/2 : x + mm(1.5); doc.text(l, cx, ctx.y + mm(3.4) + k*mm(3.9), cols[j].align === "center" ? { align:"center" } : undefined); });
+          x += ws[j]*MM;
+        });
+        ctx.y += h; DOCPDF.tabelaLinha(doc, x0, ctx.y/MM, w0);
+      });
+      if(fonte){ ctx.y += mm(1.5); ensure(doc,ctx, mm(5)); doc.setFont(FT,"italic"); doc.setFontSize(8.5); doc.setTextColor(90,100,115); doc.text(fonte, ctx.CX, ctx.y + mm(3), { align:"center" }); ctx.y += mm(6.5); }
+      else ctx.y += mm(4);
+      doc.setTextColor(0,0,0);
+    }
+
+    const m = P.modelo, Lm = m.limites, fRGV = "Fonte: " + P.titulo + " (SEI " + P.sei + ")";
+    n1("NORMAS E DOCUMENTOS DE REFERÊNCIA");
+    corpo("Esta avaliação segue as normas e os documentos abaixo, com os valores e o modelo estatístico do Relatório Genérico de Valores (RGV) do trecho:");
+    itens(["ABNT NBR 14.653-1:2019 — Avaliação de bens, Parte 1: Procedimentos gerais;",
+      "ABNT NBR 14.653-3:2019, versão corrigida 2:2022 — Avaliação de bens, Parte 3: Imóveis rurais;",
+      "ABNT NBR 12.721 — áreas equivalentes de construção;",
+      "Resolução Normativa VALEC nº 10/2022/DIREX-VALEC/PRESI-VALEC e Decreto-Lei nº 3.365/1941;",
+      "Relatório Genérico de Valores — EF-232 Ferrovia Transnordestina, lotes SPS-06 e SPS-07 (Pesqueira a São Joaquim do Monte/PE), SEI " + P.sei + ", processo " + P.processo + ", data de referência do modelo " + P.data_ref.split("-").reverse().join("/") + ", válido por 24 meses (até " + P.validade.split("-").reverse().join("/") + ")."]);
+
+    if(c.tn && (c.br || c.bnr)){
+      n1("MÉTODO EVOLUTIVO");
+      corpo("O valor do imóvel é obtido pelo método evolutivo (NBR 14.653-3), somando o valor da terra nua, determinado pelo método comparativo direto de dados de mercado, ao valor das benfeitorias, determinado pelo método da quantificação de custo:");
+      caixa("VTI = VTN + VBR + VBNR + AA - PA");
+      corpo("em que VTI é o valor total do imóvel; VTN, o valor da terra nua; VBR, o valor das benfeitorias reprodutivas; VBNR, o valor das benfeitorias não reprodutivas; AA e PA, os ativos e passivos ambientais, quando considerados pelo avaliador.");
+    }
+
+    if(c.tn){
+      n1("VALOR DA TERRA NUA");
+      corpo("A terra nua é avaliada pelo método comparativo direto de dados de mercado, com tratamento por inferência estatística (regressão linear múltipla, software SisDEA). O modelo do RGV usa 31 dados de mercado de imóveis rurais dos municípios do trecho e vizinhos; nas ofertas aplicou-se o fator oferta de 0,90 antes de descontar o valor das benfeitorias. A variável dependente é o valor unitário da terra nua (R$/ha) e as variáveis independentes são:");
+      tabela("Variáveis independentes do modelo",
+        [{t:"Variável",w:.22},{t:"Tipo",w:.2},{t:"Como é medida no imóvel avaliando",w:.4},{t:"Faixa da amostra",w:.18,align:"center"}],
+        [["Área (ha)","Quantitativa (ln)","Área total do imóvel, em hectares", fmt(Lm.area[0],2) + " a " + fmt(Lm.area[1],2)],
+         ["PIB per capita (R$)","Quantitativa","PIB per capita do município do imóvel (IBGE, 2021 — Tabela 10 do RGV)", fmt(Lm.pib[0],2) + " a " + fmt(Lm.pib[1],2)],
+         ["Nota Agronômica (N.A.)","Proxy (x²)","CCU por glebas × situação/circulação (Kozma)", fmt(Lm.na[0],4) + " a " + fmt(Lm.na[1],4)],
+         ["Influência da Sede","Código alocado","2 = o imóvel toca o raio de influência da sede municipal (4 km; Caruaru 8 km); 1 = fora","1 ou 2"]], fRGV);
+      corpo("Com R² = 0,9670 e significância do modelo de 0,00% (F de Snedecor = 190,21), a equação adotada é a da moda (tendência central do RGV):");
+      caixa(window.RGVMOD.textoEquacao(P, "VTN/ha", "moda", { minus:"-" }));
+      n3("Nota Agronômica");
+      corpo("A Classe de Capacidade de Uso do Solo (CCU) é obtida por glebas homogêneas: soma das frações de área de cada gleba multiplicadas pela escala de valor da classe (I = 1,00; II = 0,95; III = 0,75; IV = 0,55; V = 0,50; VI = 0,40; VII = 0,30; VIII = 0,20). Áreas de preservação permanente e de reserva legal entram como classe VIII. A Nota Agronômica é a CCU multiplicada pela escala da situação e viabilidade de circulação (Ótima 1,00; Muito boa 0,95; Boa 0,90; Desfavorável 0,80; Má 0,75; Péssima 0,70). CCU e N.A. são truncadas na quarta casa decimal, como determina o RGV.");
+      n3("PIB per capita");
+      const pibs = Object.keys(P.pib).map(function(k){ return [k + "/PE", fmt(P.pib[k], 2)]; });
+      tabela("PIB per capita dos municípios (RGV, Tabela 10)", [{t:"Município",w:.6},{t:"PIB per capita (R$)",w:.4,align:"center"}], pibs, "Fonte: IBGE, 2021, apud " + P.titulo);
+      n3("Influência da Sede");
+      corpo("Imóveis rurais dentro do raio de influência das sedes municipais têm valorização pela proximidade de serviços e infraestrutura. Adota-se o código 2 quando o perímetro do imóvel toca o raio de 4 km do centro da sede municipal (8 km para Caruaru), conforme os raios do RGV, e o código 1 nos demais casos.");
+      n3("Resultado, precisão e fundamentação");
+      corpo("O valor unitário é a estimativa de tendência central (moda), com intervalo de confiança de 80% pela distribuição t de Student (26 graus de liberdade). A amplitude do intervalo define o grau de precisão; o campo de arbítrio é de ±15% sobre o valor unitário. O valor da terra nua é o valor unitário multiplicado pela área avaliada.");
+      tabela("Grau de precisão (NBR 14.653-3)", [{t:"Grau",w:.3,align:"center"},{t:"Amplitude do intervalo de confiança de 80%",w:.7,align:"center"}],
+        [["III","até 30%"],["II","até 40%"],["I","até 50%"]], "Fonte: ABNT NBR 14.653-3");
+      corpo("O grau de fundamentação segue a tabela de pontos da NBR 14.653-3 (itens 1 a 6): o RGV atinge 17 pontos (grau III). No imóvel avaliando, o item 4 (extrapolação) é revisto: não há extrapolação quando todas as variáveis estão na faixa da amostra; fora dela, admite-se até o dobro do limite superior ou a metade do inferior, com variação do valor de até 20% (uma variável, grau II) ou 30% (grau I) em relação ao calculado na fronteira amostral. É vedada a extrapolação de variáveis por código alocado.");
+    }
+
+    if(c.bnr){
+      n1("BENFEITORIAS NÃO REPRODUTIVAS");
+      corpo("As benfeitorias não reprodutivas são avaliadas pelo método da quantificação de custo de reedição, com os custos unitários do RGV: Custo Unitário Básico (CUB/m²) do Sinduscon-PE de janeiro de 2025 para as edificações e composições próprias com base no SINAPI (dezembro de 2024), SICRO, PINI e Sinduscon, completadas por pesquisa de mercado, para as demais benfeitorias. Nas edificações, as áreas são convertidas em áreas equivalentes pelos coeficientes da NBR 12.721.");
+      corpo("A depreciação segue o método de Ross-Heidecke, D = (100 - k)/100, com o coeficiente k obtido na tabela de dupla entrada pela idade aparente em percentual da vida útil (normalmente 50 anos) e pelo estado de conservação (A novo; B entre novo e regular; C regular; D entre regular e reparos simples; E reparos simples; F entre reparos simples e importantes; G reparos importantes; H entre reparos importantes e sem valor). Caracterizada a vulnerabilidade social do expropriado (Resolução VALEC nº 10/2022, art. 14), as benfeitorias podem ser avaliadas pelo custo de reprodução, sem depreciação.");
+      tabela("Coeficientes de depreciação de Ross-Heidecke (k, %)", TBL_ROSS.cols.map(function(c0, i){ return { t:c0.t, w: i ? .09 : .28, align:"center" }; }), TBL_ROSS.dados, "Fonte: ROSS-HEIDECKE, apud " + P.titulo + ", Tabela 15");
+    }
+
+    if(c.br){
+      n1("BENFEITORIAS REPRODUTIVAS");
+      corpo("As benfeitorias reprodutivas são avaliadas pelo custo de formação ou implantação das composições do RGV (preparo do solo, plantio, insumos e tratos culturais). Plantas domésticas sem exploração econômica usam os valores unitários do RGV; espécies não listadas são indenizadas pelo valor de similares (mesmo gênero ou família). A depreciação é aplicada só às pastagens, pelo estado de conservação (Savietto, 1997, apud Lima, 2011), conforme a presença dos itens: ervas invasoras; falhas ou claros na pastagem; processos erosivos; cupinzeiros ou sauveiros; baixo nível de manejo; ausência de divisão de pastagem; aspecto vegetativo ruim.");
+      tabela("Depreciação de pastagens", [{t:"Estado",w:.25,align:"center"},{t:"Itens presentes",w:.5,align:"center"},{t:"Fator",w:.25,align:"center"}],
+        [["Ótimo","nenhum","100%"],["Bom","um","80%"],["Regular","dois","60%"],["Mau","três","40%"],["Péssimo","quatro ou mais","20%"]], "Fonte: SAVIETTO (1997) apud LIMA (2011), apud " + P.titulo + ", Tabela 16");
+    }
+
+    n1("ÁREAS ESPECIALMENTE PROTEGIDAS");
+    corpo("Glebas em área de preservação permanente ou de reserva legal entram como classe VIII de capacidade de uso. É vedada a indenização de benfeitorias ou de exploração econômica nessas áreas, salvo autorização do órgão ambiental competente (Resolução VALEC nº 10/2022, art. 35).");
+
+    doc.deletePage(1);
+    await juntar(out, await PDFLib.PDFDocument.load(doc.output("arraybuffer")));
+  }
+  // RGV-2: relatório estatístico e planilha da amostra = páginas do RGV assinado, servidas de CONFIG/RGV/<perfil> (GET /api/rgv/<id>/anexo/est|amo)
+  async function anexoRgvPdf(out, procRef, P, k){
+    await juntar(out, await capaPdf(k, procRef));
+    const base = (typeof window.CAD_SERVIDOR_URL === "string" ? window.CAD_SERVIDOR_URL : "").replace(/\/+$/, "");
+    const r = await fetch(base + "/api/rgv/" + encodeURIComponent(P.id) + "/anexo/" + k, { cache:"no-store" });
+    if(!r.ok) throw new Error("anexo do " + P.titulo + " não encontrado no servidor (CONFIG/RGV/" + P.id + "/anexo-" + k + ".pdf)");
+    await juntar(out, await PDFLib.PDFDocument.load(new Uint8Array(await r.arrayBuffer())));
+  }
+
   async function anexoMet(out, procRef){
+    { const P2 = rgvAtivo(); if(P2) return anexoMetRgv(out, procRef, P2); }
     const c = anxCasos();
     const {jsPDF} = window.jspdf, doc = new jsPDF({unit:"pt",format:"a4",compress:true}), ctx = ctxAnx(doc, procRef, "met");
     // 25/10/2026: o texto do PDF-modelo da metodologia ocupa x 20–190 mm; os recortes são reduzidos (S) e deslocados (X0) para caber
@@ -21887,11 +22185,13 @@ telefones: ["(+55 85) 3289-6363","(+55 85) 3289-6363","(+55 85) 3289-6363","(+55
     });
   }
   async function anexoEst(out, procRef){                                            // relatório do SisDEA tal qual, sem a capa original
+    { const P2 = rgvAtivo(); if(P2) return anexoRgvPdf(out, procRef, P2, "est"); }
     await juntar(out, await capaPdf("est", procRef));
     const est = await PDFLib.PDFDocument.load(anxBytes(window.__ANX_EST_B64__));
     await juntar(out, est, est.getPageIndices().slice(1));
   }
   async function anexoAmo(out, procRef){                                            // planilha da amostra e mapa, sem a capa original
+    { const P2 = rgvAtivo(); if(P2) return anexoRgvPdf(out, procRef, P2, "amo"); }
     await juntar(out, await capaPdf("amo", procRef));
     const amo = await PDFLib.PDFDocument.load(anxBytes(window.__ANX_AMO_B64__));
     await juntar(out, amo, amo.getPageIndices().slice(1));
@@ -22444,6 +22744,20 @@ function AV_gerarDescSituacao(){
     txt("ia_dsp_amp", (el("ia_amplitude") ? el("ia_amplitude").textContent : "") || "—");
     // conferência: o VTN/ha da Memória de Cálculo tem que bater com o valor unitário médio da amostra (mesma área, N.A. e Influência Vila)
     const cf = el("av_vtn_confere");
+    // RGV-2 (js/209): o intervalo é calculado pelo sistema; a amostra importada do SisDEA, se houver, só confere o unitário médio
+    const P2 = typeof window.AVRGV_ativo === "function" ? window.AVRGV_ativo() : null;
+    if(cf && P2){
+      const vtn = num2(el("av_vtn") ? el("av_vtn").textContent : ""), a = window.__AV_AMOSTRA__, med = a ? num2(a.vu_med) : NaN;
+      if(!isFinite(vtn)){ cf.hidden = true; cf.textContent = ""; }
+      else if(!isFinite(med)){ cf.hidden = false; cf.className = "vtn-confere av-so-ftn ok"; cf.textContent = "Intervalo de confiança, amplitude e campo de arbítrio calculados pelo sistema com o " + P2.titulo + "."; }
+      else {
+        const dif = Math.abs(vtn - med), ok = dif <= Math.max(0.05, med * 0.0005);
+        cf.hidden = false; cf.className = "vtn-confere av-so-ftn " + (ok ? "ok" : "dif");
+        cf.textContent = ok ? "✓ VTN/ha confere com o unitário médio da amostra importada do SisDEA (R$ " + fmt2(med) + ")."
+          : "⚠ VTN/ha (R$ " + fmt2(vtn) + ") difere do unitário médio da amostra importada do SisDEA (R$ " + fmt2(med) + ") em R$ " + fmt2(dif) + ". Os valores da tabela são os calculados com o " + P2.titulo + "; confira se a amostra importada é do RGV-2, com a mesma área, PIB, N.A. e Influência da Sede.";
+      }
+      return;
+    }
     if(cf){
       const vtn = num2(el("av_vtn") ? el("av_vtn").textContent : ""), med = num2(el("ia_ic_med") ? el("ia_ic_med").textContent : "");
       if(!isFinite(vtn) || !isFinite(med)){ cf.hidden = true; cf.textContent = ""; }
@@ -22646,6 +22960,8 @@ function AV_gerarDescSituacao(){
     const sa = el("av_amostra_status");
     if(sa && d && d.arquivo && d.arquivo.nome && !/Lendo|importado/.test(sa.textContent)){ sa.textContent = "Amostra: \""+d.arquivo.nome+"\" (importada em "+d.arquivo.data+")."; sa.style.color = "#159a3c"; }
     if(typeof window.REL_atualizarTela==="function") window.REL_atualizarTela();
+    // RGV-2: a tabela volta aos valores calculados pelo sistema (a amostra importada fica só como conferência)
+    if(typeof window.AVRGV_ativo === "function" && window.AVRGV_ativo() && typeof window.AVRGV_depois === "function") window.AVRGV_depois();
   };
 
   /* 25/11/2026 (Fernando): pré-visualização da amostra importada — o arquivo (texto lido dele) e os valores que entraram */
@@ -22784,7 +23100,11 @@ function AV_gerarDescSituacao(){
   };
   function tipoDe(grupo){ return grupo === "131" ? "principal" : grupo === "132" ? "acessoria" : "reprodutiva"; }
   function padroes(tipo){
-    const d = { situacao:SG.SITUACOES[0], excluir:false, fonte:"Outra", outraFonte:(tipo === "principal" ? SG.RGV_PRINCIPAL : SG.RGV_ITEM), mes:"FEV", ano:"2025" };
+    // RGV-2 (27/11/2026, F5/D8): fonte e data-base do perfil de RGV do cadastro (js/209); RGV-1 continua como sempre
+    const B = rgvBenf();
+    const d = { situacao:SG.SITUACOES[0], excluir:false, fonte:"Outra",
+      outraFonte: B ? (tipo === "principal" ? B.fonte_principal : B.fonte_item) : (tipo === "principal" ? SG.RGV_PRINCIPAL : SG.RGV_ITEM),
+      mes: B ? B.mes : "FEV", ano: B ? B.ano : "2025" };
     if(tipo === "reprodutiva"){ d.secao = "VB4"; }
     if(tipo !== "reprodutiva"){ d.bdi = "0,00"; d.justificativa = SG.JUSTIF; d.residual = ""; d.conserv = ""; d.vidaUtil = ""; d.idade = ""; }
     if(tipo === "principal"){
@@ -22794,8 +23114,18 @@ function AV_gerarDescSituacao(){
     }
     return d;
   }
+  // perfil de RGV do cadastro com dados de benfeitorias (RGV-2); null = RGV-1
+  function rgvBenf(){ try{ const P = typeof window.AVRGV_ativo === "function" ? window.AVRGV_ativo() : null; return P && P.benf && P.benf.quadros ? P.benf : null; }catch(e){ return null; } }
+  // citação da linha no RGV em uso (js/071 converte a referência do RGV-1 para o RGV-2)
+  function citacao(tabela, img){ return typeof window.BENF_citacao === "function" ? window.BENF_citacao({ tabela:tabela, img:img }) : { tabela:tabela, img:img, anexo:"Anexo 3" }; }
+  function textoFonte(tabela){ const c = citacao(tabela); return "Fonte: " + c.tabela + " — " + c.anexo + " (" + (c.rgv2 ? "RGV-2" : "RGV") + ")"; }
+  // ao trocar de RGV (Usar o RGV-2) ou abrir o cadastro: refaz a "Fonte" de todas as linhas
+  window.BNF_atualizarFontes = function(){
+    document.querySelectorAll("tr[data-tabela]").forEach(function(tr){ const f = tr.querySelector(".bnf-fonte"); if(f && tr.dataset.tabela){ const t = textoFonte(tr.dataset.tabela); if(f.textContent !== t) f.textContent = t; } });
+  };
   // "Tabela 52 (pág. 275)" → "Tab. 52, p. 275"; "Tabela 57 (págs. 281-282)" → "Tab. 57, p. 281-282"
   function codigoComposicao(tabela){
+    tabela = String(citacao(tabela).tabela || "").replace(/,\s*RGV-\d+\)/, ")");   // RGV-2: "Tabela 82 (pág. 169, RGV-2)" → "Tab. 82, p. 169"
     const m = /Tabela\s+(\S+)(?:\s*\(p[áa]gs?\.\s*([^)]+)\))?/i.exec(String(tabela || ""));
     return m ? ("Tab. " + m[1] + (m[2] ? ", p. " + m[2].trim() : "")) : "";
   }
@@ -22951,7 +23281,7 @@ function AV_gerarDescSituacao(){
       if(dados.img){ tr.dataset.img = dados.img; }
       if(dados.sg && typeof dados.sg === "object"){ tr.dataset.sg = JSON.stringify(dados.sg); }
       const fonteEl = tr.querySelector(".bnf-fonte");
-      if(fonteEl && dados.tabela){ fonteEl.textContent = "Fonte: "+dados.tabela+" — Anexo 3 (RGV)"; }
+      if(fonteEl && dados.tabela){ fonteEl.textContent = textoFonte(dados.tabela); }
     }
     marcaPendente(tr, sgFinal(tr, grupo));
     BNF_recalc();
@@ -23128,6 +23458,8 @@ function AV_gerarDescSituacao(){
 <script>
 /* ===== Anexo 09 — Relatório Estatístico ===== */
 (function(){
+  // 27/11/2026 (RGV-2): perfil de RGV em uso no cadastro (js/209); no RGV-2 a variável de localização é a Influência da Sede
+  function rgv2(){ try{ return typeof window.AVRGV_ativo === "function" ? window.AVRGV_ativo() : null; }catch(e){ return null; } }
   function el(id){ return document.getElementById(id); }
   let __relPronto=false;
   let modeloBytes=null, modeloNome="";
@@ -23205,7 +23537,7 @@ function AV_gerarDescSituacao(){
           '<tr class="rel-h"><td colspan="2">Características do imóvel</td></tr>'+
           '<tr><td>Área (ha)</td><td>'+g("ia_area")+'</td></tr>'+
           '<tr><td>N.A.</td><td>'+g("ia_na")+'</td></tr>'+
-          '<tr><td>Zona</td><td>'+g("ia_zona")+'</td></tr>'+
+          (window.__AV_MODO__ === "obs" ? '<tr><td>Zona</td><td>'+g("ia_zona")+'</td></tr>' : '<tr><td>'+(rgv2() ? 'Influência da Sede' : 'Influência Vila')+'</td><td>'+g("ia_vila")+'</td></tr>')+   // 27/11/2026: na FTN mostrava "Zona"
           '<tr><td>Município</td><td>'+g("ia_municipio")+'</td></tr>'+
           '<tr class="rel-h"><td colspan="2">Valores Unitário / Hectare (R$)</td></tr>'+
           '<tr><td>Intervalo de confiança — Mín / Méd / Máx</td><td>'+g("ia_ic_min")+' / '+g("ia_ic_med")+' / '+g("ia_ic_max")+'</td></tr>'+
@@ -23251,7 +23583,7 @@ function AV_gerarDescSituacao(){
       y+=16;
       const linhas=[
         ["Área (ha)", dados.area||"—", "N.A.", dados.na||"—"],
-        ftn ? ["Influência Vila", dados.vila||"—", "Município", dados.municipio||"—"] : ["Zona", dados.zona||"—", "Município", dados.municipio||"—"]
+        ftn ? [(rgv2() ? "Influência da Sede" : "Influência Vila"), dados.vila||"—", "Município", dados.municipio||"—"] : ["Zona", dados.zona||"—", "Município", dados.municipio||"—"]
       ];
       doc.setTextColor(35,45,60); doc.setFontSize(8);
       const q=lw/4;
@@ -23366,7 +23698,7 @@ function AV_gerarDescSituacao(){
       doc.setFont("helvetica","normal");
       doc.text("Área (ha) = "+(a.area||"—"), 60, y); y+=13;
       doc.text("Nota agronômica = "+(a.na||"—"), 60, y); y+=13;
-      doc.text(ftn ? ("Influência Vila = "+(a.vila||"—")) : ("Zona = "+(a.zona||"—")), 60, y); y+=22;
+      doc.text(ftn ? ((rgv2() ? "Influência da sede = " : "Influência Vila = ")+(a.vila||"—")) : ("Zona = "+(a.zona||"—")), 60, y); y+=22;
       doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor(23,90,159);
       doc.text("Valores da Moda para Nível de Confiança de 80%", 40, y); y+=18;
       doc.setTextColor(35,45,60); doc.setFontSize(9);
@@ -24318,7 +24650,7 @@ function AV_gerarDescSituacao(){
     var num = function(v){ return v == null ? '' : String(v).replace('.', ','); };
     if(_pgxModoValores){   // modo "$ Valores": exporta só as colunas da tela; "*" marca o valor que entrou no cálculo
       var mk = function(v, usado){ return v === '' ? '' : v + (usado ? ' *' : ''); };
-      var lv = [['Medição','Lote','Nº Laudo Origem','Nº Processo SEI','Cadastro','Proprietário','Posseiro','Área total (ha) registrada','Área total (ha) ocupada','Área abrangida pelo projeto (ha)','N.A.','Influência Vila','R$ VTN/ha','R$ Terra nua','R$ Benf. não reprodutivas','R$ Total']];
+      var lv = [['Medição','Lote','Nº Laudo Origem','Nº Processo SEI','Cadastro','Proprietário','Posseiro','Área total (ha) registrada','Área total (ha) ocupada','Área abrangida pelo projeto (ha)','N.A.','Influência (Vila ou Sede)','R$ VTN/ha','R$ Terra nua','R$ Benf. não reprodutivas','R$ Total']];
       itens.forEach(function(it){
         lv.push([it.medicao || '', loteFmt(it.lote), laudoFmt(it.laudo_origem), it.sei || '', ctdFmt(it.ctd), it.proprietario || '', it.posseiro || '',
           mk(num(haNum(it.area_total)), it.calc_area === 'total'), mk(num(haNum(it.area_ocupada)), it.calc_area === 'ocupada'),
@@ -24443,9 +24775,12 @@ function AV_gerarDescSituacao(){
     return '<td class="pg-num pgx-col-v' + (v != null ? ' pgx-calc' : '') + '"' + tit + '>' + (v != null ? esc(v) + (dif ? ' ⚠' : '') : '—') + '</td>';
   }
   function PG_vilaCelHTML(it){
-    var v = it.calc_vila, t = v == null ? '—' : esc(v) + (String(v).trim() === '2' ? ' <small>(até 1 km)</small>' : String(v).trim() === '1' ? ' <small>(fora)</small>' : '');
+    // 27/11/2026: no RGV-2 (it.rgv) a coluna mostra a Influência da Sede (raio de 4 km; Caruaru 8 km) e o PIB entra no balão
+    var r2 = !!it.rgv;
+    var v = it.calc_vila, t = v == null ? '—' : (r2 ? 'Sede ' : '') + esc(v) + (String(v).trim() === '2' ? (r2 ? ' <small>(no raio)</small>' : ' <small>(até 1 km)</small>') : String(v).trim() === '1' ? ' <small>(fora)</small>' : '');
     var dif = v != null && it.mem_vila != null && String(it.mem_vila).trim() !== String(v).trim();
-    var tit = dif ? ' title="A Memória de Cálculo usa Influência Vila ' + esc(it.mem_vila) + '; o valor unitário veio da amostra com ' + esc(v) + '"' : '';
+    var tit = dif ? ' title="A Memória de Cálculo usa Influência Vila ' + esc(it.mem_vila) + '; o valor unitário veio da amostra com ' + esc(v) + '"'
+      : (r2 && v != null ? ' title="RGV-2: Influência da Sede ' + esc(v) + (it.calc_pib ? ' · PIB per capita R$ ' + esc(it.calc_pib) : '') + ' · valor unitário calculado pelo sistema"' : '');
     return '<td class="pg-center pgx-col-v' + (v != null ? ' pgx-calc' : '') + '"' + tit + '>' + t + (dif ? ' ⚠' : '') + '</td>';
   }
   function PG_kmCelHTML(it){
@@ -73514,6 +73849,435 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ background:var(--pend-cl
   if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", ligar); else ligar();
   window.FB_cascata = tudo;
 })();
+</script><script>/* ===== RGV — motor do modelo de terra nua por perfil (F1, 27/11/2026) =====
+   docs/decisoes/2026-11-27-rgv2-sps06-07.md §4. O RGV deixa de estar no código: cada RGV é um PERFIL em
+   dados/rgv-perfis.json (FTN-RGV1 = SPS-04/05; FTN-RGV2 = SPS-06/07), com os termos da regressão
+   ({var, tr: ln | x | x2, coef}), constantes (moda/mediana/média), (X'X)⁻¹ e s² para o intervalo de confiança,
+   limites da amostra, PIB por município e a camada de influência (dados/rgv2-sedes.json).
+   F1: só o motor (window.RGVMOD) e os dados — a tela da Avaliação FTN (js/097) ainda não usa (F2).
+   Contas conferidas contra o SisDEA: os 6 imóveis hipotéticos do RGV-2 ao centavo (app-html/test/rgv-modelo.test.js). */
+(function(){
+  "use strict";
+
+  /* ---------------- RGV: contas (puras) ---------------- */
+  // truncar em c casas (o RGV, p. 131, manda truncar para não haver dízimas); 1e-9 absorve o erro de ponto flutuante
+  function rgvTrunc(x, c){ const f = Math.pow(10, c); return Math.floor(x * f + 1e-9) / f; }
+  function rgvArred(x, c){ const f = Math.pow(10, c); return Math.round(x * f + (x >= 0 ? 1e-9 : -1e-9)) / f; }
+
+  function rgvTransf(tr, x){ return tr === "ln" ? Math.log(x) : tr === "x2" ? x * x : x; }
+
+  // entradas que faltam (ou inválidas) para os termos do perfil. Todas as variáveis dos RGVs são positivas
+  // (área, PIB, N.A., códigos 1/2): zero = campo não preenchido (ex.: N.A. 0,0000 sem glebas), não um valor a extrapolar.
+  function rgvFaltam(perfil, ent){
+    const f = [];
+    perfil.modelo.termos.forEach(function(t){
+      const v = ent ? ent[t.var] : undefined;
+      if(typeof v !== "number" || !isFinite(v) || !(v > 0)) f.push(t.var);
+    });
+    return f;
+  }
+
+  // valor unitário (R$/ha) na tendência escolhida; fatores = e^(coef × transf(x)) de cada termo
+  function rgvUnitario(perfil, ent, tendencia){
+    const m = perfil.modelo, k = m.constantes[tendencia || m.padrao] || m.constantes[m.padrao];
+    let soma = 0, prod = 1;
+    const fatores = m.termos.map(function(t){
+      const z = rgvTransf(t.tr, ent[t.var]), fat = Math.exp(t.coef * z);
+      soma += t.coef * z; prod *= fat;
+      return { var: t.var, valor: ent[t.var], fator: fat };
+    });
+    const c = k.ln ? Math.exp(m.b0) : k.c;
+    return { unitario: k.ln ? Math.exp(m.b0 + soma) : c * prod, constante: c, fatores: fatores, ln: m.b0 + soma };
+  }
+
+  // intervalo de confiança da estimativa (t de Student, nível do perfil): est × e^(±t·√(s²·x'(X'X)⁻¹x)).
+  // Amplitude como o SisDEA imprime: % abaixo + % acima, cada um arredondado em 2 casas (Hip. 1: 14,17 + 16,51 = 30,68).
+  function rgvIC(perfil, ent, unitario){
+    const ic = perfil.modelo.ic; if(!ic) return null;
+    const x = [1].concat(perfil.modelo.termos.map(function(t){ return rgvTransf(t.tr, ent[t.var]); }));
+    let h = 0;
+    for(let i = 0; i < x.length; i++) for(let j = 0; j < x.length; j++) h += x[i] * ic.XtXi[i][j] * x[j];
+    const sm = Math.sqrt(ic.s2 * h);
+    const min = unitario * Math.exp(-ic.t * sm), max = unitario * Math.exp(ic.t * sm);
+    const pMin = rgvArred((unitario - min) / unitario * 100, 2), pMax = rgvArred((max - unitario) / unitario * 100, 2);
+    const amp = rgvArred(pMin + pMax, 2);
+    return { nivel: ic.nivel, min: min, max: max, pctMin: pMin, pctMax: pMax, amplitude: amp, grau: rgvGrauPrecisao(amp) };
+  }
+  // NBR 14.653-3, tabela do grau de precisão (amplitude do IC de 80%)
+  function rgvGrauPrecisao(amp){ return amp <= 30 ? "III" : amp <= 40 ? "II" : amp <= 50 ? "I" : "—"; }
+
+  /* Extrapolação (NBR 14.653-3, tabela de fundamentação, item 4):
+     - variável por código alocado (Sede, Vila): vedada fora dos códigos da amostra;
+     - quantitativa fora da faixa: a) até o dobro do limite superior / metade do inferior; b) valor estimado até 20% (grau II,
+       uma só variável) ou 30% (grau I, de per si e simultaneamente) do valor calculado na fronteira amostral. */
+  function rgvExtrapolacao(perfil, ent, tendencia){
+    const L = perfil.modelo.limites;
+    if(!L) return { itens: [], grauItem4: null };
+    const base = rgvUnitario(perfil, ent, tendencia).unitario;
+    const front = Object.assign({}, ent), itens = [];
+    let vedada = false;
+    perfil.modelo.termos.forEach(function(t){
+      const lim = L[t.var]; if(!lim) return;
+      const v = ent[t.var], lo = lim[0], hi = lim[1];
+      if(v >= lo && v <= hi && (!t.codigo || Math.round(v) === v)) return;
+      if(t.codigo){ vedada = true; itens.push({ var: t.var, valor: v, lim: lim, codigo: true }); return; }
+      const f = v > hi ? hi : lo, dobro = v <= 2 * hi && v >= lo / 2;
+      const e1 = Object.assign({}, ent); e1[t.var] = f; front[t.var] = f;
+      const vf = rgvUnitario(perfil, e1, tendencia).unitario;
+      itens.push({ var: t.var, valor: v, lim: lim, fronteira: f, dentroDobro: dobro, variacao: Math.abs(base - vf) / vf });
+    });
+    let grau = 3, simult = 0;
+    if(itens.length){
+      const vfs = rgvUnitario(perfil, front, tendencia).unitario;
+      simult = Math.abs(base - vfs) / vfs;
+      const okA = itens.every(function(i){ return i.dentroDobro; });
+      if(vedada || !okA) grau = 0;
+      else if(itens.length === 1 && itens[0].variacao <= 0.20) grau = 2;
+      else if(itens.every(function(i){ return i.variacao <= 0.30; }) && simult <= 0.30) grau = 1;
+      else grau = 0;
+    }
+    return { itens: itens, simultanea: simult, grauItem4: grau };
+  }
+
+  // enquadramento do laudo (NBR 14.653-3): pontos dos itens 1–6 (do RGV), item 4 do próprio laudo
+  function rgvFundamentacao(perfil, grauItem4){
+    const F = perfil.modelo.fundamentacao; if(!F) return null;
+    const p = Object.assign({}, F.pontos);
+    if(grauItem4 != null) p["4"] = grauItem4;
+    const v = ["1","2","3","4","5","6"].map(function(k){ return p[k] || 0; });
+    const total = v.reduce(function(a, b){ return a + b; }, 0);
+    const obrig = [v[1], v[4], v[5]], demais = [v[0], v[2], v[3]];
+    let grau = "—";
+    if(total >= 15 && obrig.every(function(x){ return x >= 3; }) && demais.every(function(x){ return x >= 2; })) grau = "III";
+    else if(total >= 9 && obrig.every(function(x){ return x >= 2; }) && demais.every(function(x){ return x >= 1; })) grau = "II";
+    else if(total >= 6 && v.every(function(x){ return x >= 1; })) grau = "I";
+    return { pontos: p, total: total, grau: grau };
+  }
+
+  /* CCU por glebas e N.A. = CCU × situação. glebas: [{area, val}] (val = escala da classe, I 1,00 … VIII 0,20).
+     perfil.casas = { ccu, na, modo: "truncar" | "arredondar" } (RGV-2, D5); sem casas (RGV-1): exatas, como a tela faz hoje.
+     Atenção: o p. 131 do RGV-2 manda truncar, mas o exemplo do item 10.2.10.2 arredonda (0,424865 → 0,4249). */
+  function rgvCcuNa(perfil, glebas, areaRef, situacao){
+    let ccu = 0;
+    (glebas || []).forEach(function(g){ if(g && g.area > 0 && areaRef > 0) ccu += g.area / areaRef * g.val; });
+    const C = perfil.casas, f = (C && C.modo === "arredondar") ? rgvArred : rgvTrunc;
+    if(C && C.ccu != null) ccu = f(ccu, C.ccu);
+    let na = ccu * situacao;
+    if(C && C.na != null) na = f(na, C.na);
+    return { ccu: ccu, na: na };
+  }
+
+  // estimativa completa para a tela/PDF
+  function rgvEstimar(perfil, ent, opc){
+    opc = opc || {};
+    const tend = opc.tendencia || perfil.modelo.padrao;
+    const faltam = rgvFaltam(perfil, ent);
+    if(faltam.length) return { ok: false, faltam: faltam };
+    const u = rgvUnitario(perfil, ent, tend);
+    const unit2 = rgvArred(u.unitario, 2);                       // o RGV multiplica o unitário de 2 casas pela área (Hip. 1: 2.864,50 × 10,12 = 28.988,74)
+    const ic = rgvIC(perfil, ent, u.unitario);
+    const ex = rgvExtrapolacao(perfil, ent, tend);
+    // campo de arbítrio sobre o unitário sem arredondar (como o SisDEA: Hip. 2 = 0,85 × 387.622,9735… = 329.479,53)
+    const arb = perfil.arbitrio && perfil.arbitrio.sobre === "unitario"
+      ? { min: rgvArred(u.unitario * (1 - perfil.arbitrio.pct), 2), max: rgvArred(u.unitario * (1 + perfil.arbitrio.pct), 2) } : null;
+    const areaAval = opc.areaAvaliada;
+    return {
+      ok: true, perfil: perfil.id, tendencia: tend,
+      unitario: u.unitario, unitario2: unit2, constante: u.constante, fatores: u.fatores, ln: u.ln,
+      ic: ic, arbitrio: arb, extrapolacao: ex,
+      fundamentacao: rgvFundamentacao(perfil, ex.grauItem4),
+      vtn: (typeof areaAval === "number" && isFinite(areaAval)) ? rgvArred(unit2 * areaAval, 2) : null
+    };
+  }
+
+  // texto da equação, no formato do SisDEA (e do AV_eq de hoje para o RGV-1). o = { rotulos:{var:texto}, minus, ascii }
+  function rgvTextoEquacao(perfil, pref, tendencia, o){
+    o = o || {};
+    const m = perfil.modelo, k = m.constantes[tendencia || m.padrao] || m.constantes[m.padrao];
+    const X = o.ascii ? " x " : " × ", M = o.minus || "−", R = o.rotulos || {};
+    const arg = function(t){ const r = R[t.var] || (t.rot + (t.tr === "x2" ? "²" : "")); return t.tr === "ln" ? "ln(" + r + ")" : r; };
+    if(k.ln){
+      return "ln(" + pref + ") = +" + k.b0Txt + m.termos.map(function(t){
+        return (t.coef < 0 ? " " + M + " " : " +") + t.coefTxt + X + arg(t);
+      }).join("");
+    }
+    return pref + " = " + k.txt + m.termos.map(function(t){
+      return X + "e^(" + (t.coef < 0 ? M : "+") + t.coefTxt + X + arg(t) + ")";
+    }).join("");
+  }
+
+  // texto livre → chave de comparação (sem acento, minúsculas, sem " – PE"/"/PE")
+  function rgvChave(s){
+    return String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
+      .replace(/\s*[-–\/]\s*(pe|al|pb|ba|ce)\s*$/i, "").replace(/\s+/g, " ").trim();
+  }
+  function rgvPib(perfil, municipio){
+    const T = perfil.pib; if(!T) return null;
+    const c = rgvChave(municipio); if(!c) return null;
+    for(const nome in T) if(rgvChave(nome) === c) return { municipio: nome, pib: T[nome] };
+    return null;
+  }
+  function rgvPerfilDoSps(dados, sps){
+    if(!dados || !dados.sps || !dados.perfis) return null;
+    const m = String(sps || "").toUpperCase().match(/SPS\s*[-–]?\s*0*(\d+)/);
+    if(!m) return null;
+    const id = dados.sps["SPS-" + (m[1].length < 2 ? "0" : "") + m[1]];
+    return (id && dados.perfis[id]) || null;
+  }
+
+  /* Influência por raio (RGV-2): o imóvel "toca" o raio se algum vértice está dentro, se o centro está dentro do imóvel
+     ou se algum lado passa a menos de r do centro (D3). aneis: [[[lon,lat],…],…]; sedes: [{sede,lat,lon,raio_m}].
+     Projeção local plana em volta de cada centro (raios de 4–8 km: erro desprezível). */
+  function rgvSedeDoImovel(aneis, sedes){
+    const toca = [];
+    (sedes || []).forEach(function(s){
+      const kx = 111320 * Math.cos(s.lat * Math.PI / 180), ky = 110574, r = s.raio_m;
+      const P = function(q){ return [(q[0] - s.lon) * kx, (q[1] - s.lat) * ky]; };
+      let dentroVert = false, perto = false, centroDentro = false;
+      (aneis || []).forEach(function(anel){
+        const pts = anel.map(P), n = pts.length;
+        let inside = false;
+        for(let i = 0, j = n - 1; i < n; j = i++){
+          const a = pts[i], b = pts[j];
+          if(Math.hypot(a[0], a[1]) <= r) dentroVert = true;
+          // distância do centro (0,0) ao segmento ab
+          const dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy;
+          const t = L2 > 0 ? Math.max(0, Math.min(1, -(a[0] * dx + a[1] * dy) / L2)) : 0;
+          if(Math.hypot(a[0] + t * dx, a[1] + t * dy) <= r) perto = true;
+          if(((a[1] > 0) !== (b[1] > 0)) && (0 < (b[0] - a[0]) * (0 - a[1]) / (b[1] - a[1]) + a[0])) inside = !inside;
+        }
+        if(inside) centroDentro = true;
+      });
+      if(dentroVert || perto || centroDentro) toca.push(s.sede);
+    });
+    return { codigo: toca.length ? 2 : 1, sedes: toca };
+  }
+  /* ---------------- RGV: fim das contas ---------------- */
+
+  // ---- acesso aos dados (dados/rgv-perfis.json e dados/rgv2-sedes.json, sob demanda: js/000) ----
+  function dados(){ try{ return window.__RGV_PERFIS__ || null; }catch(e){ return null; } }
+  window.RGVMOD = {
+    trunc: rgvTrunc, unitario: rgvUnitario, ic: rgvIC, grauPrecisao: rgvGrauPrecisao, extrapolacao: rgvExtrapolacao,
+    fundamentacao: rgvFundamentacao, ccuNa: rgvCcuNa, estimar: rgvEstimar, textoEquacao: rgvTextoEquacao,
+    pib: rgvPib, sedeDoImovel: rgvSedeDoImovel,
+    perfilDoSps: function(sps){ return rgvPerfilDoSps(dados(), sps); },
+    perfil: function(id){ const d = dados(); return (d && d.perfis && d.perfis[id]) || null; },
+    sedes: function(){ try{ const s = window.__RGV2_SEDES__; return (s && s.sedes) || []; }catch(e){ return []; } }
+  };
+})();
+</script><style>/* RGV por perfil na Avaliação FTN (27/11/2026, js/209): .av-rgv1 só no RGV-1 (Vila), .av-rgv2 só no RGV-2 (PIB, Sede) */
+#av_t11:not([data-rgv="FTN-RGV2"]) .av-rgv2{ display:none !important; }
+#av_t11[data-rgv="FTN-RGV2"] .av-rgv1{ display:none !important; }
+
+#av_t11 .av-rgv-faixa{ margin:6px 0 10px; padding:9px 12px; border-radius:8px; font-size:12.5px; line-height:1.45;
+  background:var(--pend-bg, #fff7e6); border:1px solid var(--pend-borda, #f0b44c); color:#5c3d00; }
+#av_t11 .av-rgv-faixa.ok{ background:#eef7ef; border-color:#9fcfa6; color:#1d4d26; }
+#av_t11 .av-rgv-faixa b{ font-weight:700; }
+#av_t11 .av-rgv-faixa button{ margin-left:8px; }
+#av_t11 .av-rgv-aviso{ margin-top:4px; font-size:11.5px; line-height:1.35; color:#8a5a00; }
+#av_t11 .av-rgv-fonte{ margin-top:3px; font-size:11px; color:#5a6b7c; }
+#av_t11 .av-rgv-fonte.falta{ color:#b45309; }
+</style><script>/* ===== Avaliação FTN × perfil de RGV (F2, 27/11/2026 — docs/decisoes/2026-11-27-rgv2-sps06-07.md §4.2) =====
+   Liga o motor js/208 (RGVMOD) à tela:
+   - perfil do SPS do cadastro (pasta "… SPS-07 …") × perfil gravado no cadastro (campo oculto av_rgv_perfil).
+     Sem av_rgv_perfil o cadastro segue no RGV-1, como sempre esteve (nada muda sozinho, D10); se o SPS pede outro RGV,
+     aparece a faixa âmbar com "Usar o RGV-2" — só o clique muda (e o cálculo passa a ser do perfil novo).
+   - RGV-2: PIB do município do imóvel (Tabela 10), Influência da Sede pelo raio (perímetro do imóvel toca o raio, D3),
+     área do modelo com padrão "área total" e aviso quando for outra (D2), fragmentos da Memória de Cálculo pelo perfil.
+   js/097 pergunta AVRGV_ativo() (perfil ≠ RGV-1 em uso) e chama AVRGV_aplicar() no começo do recalc. */
+(function(){
+  "use strict";
+  function G(id){ return document.getElementById(id); }
+  function M(){ return window.RGVMOD || null; }
+  function fmt(n, c){ return isFinite(n) ? n.toLocaleString("pt-BR", { minimumFractionDigits:c, maximumFractionDigits:c }) : "—"; }
+  function numBR(v){ v = String(v == null ? "" : v).trim().replace(/\./g, "").replace(",", "."); const n = parseFloat(v); return isNaN(n) ? NaN : n; }
+
+  // SPS do cadastro: nome da pasta do cadastro aberto; cadastro novo: "Resultado (Processo administrativo)" da Ficha
+  function spsDoCadastro(){
+    const a = window.__CAD_ATUAL;
+    const t = (a && a.ctd) || (G("fb_proc_preview") ? G("fb_proc_preview").value : "") || "";
+    const m = String(t).toUpperCase().match(/SPS\s*[-–]?\s*0*\d+/);
+    return m ? m[0] : "";
+  }
+  window.AVRGV_perfilDoCadastro = function(){ const R = M(); return R ? R.perfilDoSps(spsDoCadastro()) : null; };
+  // perfil em uso (≠ RGV-1) — null = caminho antigo do js/097
+  window.AVRGV_ativo = function(){
+    const R = M(), id = G("av_rgv_perfil") ? G("av_rgv_perfil").value : "";
+    if(!R || !id || id === "FTN-RGV1") return null;
+    return R.perfil(id);
+  };
+
+  // perímetro do imóvel (Relatório Técnico › KMLs do imóvel) → anéis [[lon,lat],…]
+  function aneisImovel(){
+    const k = G("imv_kml_area_dados") ? G("imv_kml_area_dados").value : "";
+    const out = [], re = /<coordinates>([\s\S]*?)<\/coordinates>/g; let m;
+    while((m = re.exec(k))){
+      const r = m[1].trim().split(/\s+/).map(function(t){ const q = t.split(","); return [+q[0], +q[1]]; }).filter(function(q){ return isFinite(q[0]) && isFinite(q[1]); });
+      if(r.length >= 3) out.push(r);
+    }
+    return out;
+  }
+  window.AVRGV_aneisImovel = aneisImovel;
+  // Influência da Sede pelo raio (D3). Só escolhe quando o campo está vazio ou foi o próprio sistema que escolheu.
+  // avisar = dispara "change" (fora do recalc); dentro do recalc (AVRGV_aplicar) só troca o valor, que o recalc lê logo depois
+  function sedeAuto(avisar){
+    const R = M(), sel = G("av_mem_sede"); if(!R || !sel) return null;
+    const aneis = aneisImovel();
+    if(!aneis.length) return { semPerimetro:true };
+    const sedes = R.sedes();
+    if(!sedes.length) return null;                       // camada dos raios ainda não carregou
+    const r = R.sedeDoImovel(aneis, sedes);
+    const cod = String(r.codigo);
+    if(!sel.value || sel.value === sel.getAttribute("data-sede-auto")){
+      sel.setAttribute("data-sede-auto", cod);
+      if(sel.value !== cod){ sel.value = cod; if(avisar) sel.dispatchEvent(new Event("change", { bubbles:true })); }
+    }
+    return r;
+  }
+  window.AVRGV_sedeAuto = function(){ return sedeAuto(true); };
+
+  function municipioDoImovel(){
+    const a = G("av_municipio") ? G("av_municipio").value : "", b = G("fb_prop_mun") ? G("fb_prop_mun").value : "";
+    return String(a || b || "").trim();
+  }
+
+  // textos do RGV-1 na Memória de Cálculo (para voltar quando o cadastro é do RGV-1)
+  const FRAG1 = { area:"e^(−0,6346406128 × ln(Área (ha)))", na:"e^(+8,17860439 × Nota agronômica²)" };
+  const TIT1 = "Variação da equação: muda a constante do modelo (Moda 3127,488781 · Mediana 3337,43421 · Média 3447,634276 · Regressão e^8,11295759 = Mediana)";
+  function frag(t){
+    const arg = t.tr === "ln" ? "ln(" + t.rot + ")" : t.rot + (t.tr === "x2" ? "²" : "");
+    return "e^(" + (t.coef < 0 ? "−" : "+") + t.coefTxt + " × " + arg + ")";
+  }
+
+  let _naoLiga = 0;
+  window.AVRGV_aplicar = function(){
+    if(_naoLiga) return;
+    const R = M(), painel = G("av_t11"); if(!painel) return;   // o bloco da avaliação muda de painel (panel-avaliacao-ftn); a marca vai nele
+    const P = window.AVRGV_ativo(), alvo = window.AVRGV_perfilDoCadastro();
+    painel.setAttribute("data-rgv", P ? P.id : "FTN-RGV1");
+    if(typeof window.BNF_atualizarFontes === "function"){ try{ window.BNF_atualizarFontes(); }catch(e){} }   // F5: "Fonte" das benfeitorias no RGV em uso
+
+    // fragmentos e título do seletor do modelo
+    const setT = function(id, t){ const e = G(id); if(e && e.textContent !== t) e.textContent = t; };
+    if(P){
+      P.modelo.termos.forEach(function(t){ setT("av_mem_" + t.var + "_frag", frag(t)); });
+      const k = P.modelo.constantes, s = G("av_mem_modelo");
+      if(s) s.title = "Variação da equação (" + P.titulo + "): Moda " + k.moda.txt + " · Mediana " + k.mediana.txt + " · Média " + k.media.txt + " · Regressão e^" + k.regressao.b0Txt + " = Mediana";
+    } else {
+      setT("av_mem_area_frag", FRAG1.area); setT("av_mem_na_frag", FRAG1.na);
+      const s = G("av_mem_modelo"); if(s) s.title = TIT1;
+    }
+
+    // faixa: perfil do SPS × perfil em uso
+    const fx = G("av_rgv_faixa");
+    if(fx){
+      const usado = P ? P.id : "FTN-RGV1";
+      if(alvo && alvo.id !== usado && alvo.id !== "FTN-RGV1"){
+        const calc = numBR(G("av_mem_na") ? G("av_mem_na").value : "") > 0;
+        fx.className = "av-rgv-faixa av-so-ftn";
+        fx.innerHTML = "⚠ Este cadastro é do <b>" + spsDoCadastro() + "</b> e deve ser avaliado pelo <b>" + alvo.titulo + "</b> (SEI " + alvo.sei + ")." +
+          (calc ? " Os valores abaixo foram calculados com o <b>RGV-1 (SPS-04/05)</b>." : " A tela ainda está no RGV-1.") +
+          ' <button type="button" class="vbtn vbtn-primary vbtn-sm" onclick="AVRGV_adotar()">Usar o ' + alvo.id.replace(/^FTN-RGV/, "RGV-") + "</button>";
+        fx.hidden = false;
+      } else if(P){
+        fx.className = "av-rgv-faixa ok av-so-ftn";
+        fx.textContent = "Modelo: " + P.titulo + " (SEI " + P.sei + ", válido até " + P.validade.split("-").reverse().join("/") + "). Variáveis: Área, PIB per capita, Nota Agronômica e Influência da Sede.";
+        fx.hidden = false;
+      } else { fx.hidden = true; fx.textContent = ""; }
+    }
+
+    if(!P || !R) return;
+    // PIB do município do imóvel (Tabela 10)
+    const pibEl = G("av_mem_pib"), fonte = G("av_mem_pib_fonte"), mun = municipioDoImovel(), pib = R.pib(P, mun);
+    const v = pib ? fmt(pib.pib, 2) : "";
+    if(pibEl && pibEl.value !== v) pibEl.value = v;
+    if(fonte){
+      fonte.textContent = pib ? pib.municipio + " — " + P.pib_fonte
+        : (mun ? "“" + mun + "” não está na Tabela 10 do RGV: sem PIB não há cálculo. Confira o município do imóvel (Ficha 1.4)." : "Preencha o município do imóvel (Ficha de Vistoria, 1.4 Propriedade).");
+      fonte.className = "av-rgv-fonte" + (pib ? "" : " falta");
+    }
+    // Influência da Sede pelo raio
+    const r = sedeAuto(false), nota = G("av_vila_nota"), sel = G("av_mem_sede");
+    if(nota && r){
+      const cod = r.semPerimetro ? "" : String(r.codigo);
+      nota.textContent = r.semPerimetro ? "Sem o perímetro do imóvel (Relatório Técnico › KML da área total): escolha a Influência da Sede à mão."
+        : "Pelo perímetro do imóvel: " + (r.codigo === 2 ? "toca o raio de influência da sede de " + r.sedes.join(", ") : "fora dos raios de influência das sedes municipais") +
+          " → Influência da Sede = " + cod + "." + (sel && sel.value && sel.value !== cod ? "  ⚠ A Memória de Cálculo está com Influência da Sede = " + sel.value + "." : "");
+      nota.className = "av-vila-nota" + (sel && sel.value && cod && sel.value !== cod ? " dif" : "");
+    }
+  };
+
+  // fim do recalc (js/097): aviso de área e rótulos do Imóvel avaliando, com os valores já recalculados
+  window.AVRGV_depois = function(){
+    const P = window.AVRGV_ativo(); if(!P) return;
+    // aviso de área (D2): o RGV-2 usa a área total do imóvel na equação
+    const av = G("av_mem_area_aviso");
+    if(av){
+      const aMem = numBR(G("av_mem_area") ? G("av_mem_area").value : ""), aTot = numBR(G("av_areatotal") ? G("av_areatotal").value : "");
+      const dif = isFinite(aMem) && isFinite(aTot) && aTot > 0 && Math.abs(aMem - aTot) > 1e-4;
+      av.hidden = !dif && aTot > 0;
+      av.textContent = !(aTot > 0) ? "⚠ Área total do imóvel vazia ou zero (Ficha 1.4): o RGV-2 usa a área total na equação."
+        : dif ? "⚠ O RGV-2 usa a área total do imóvel (" + fmt(aTot, 4) + " ha) na equação (imóveis hipotéticos, §11.1.18); aqui está " + fmt(aMem, 4) + " ha." : "";
+    }
+    const sel = G("av_mem_sede");
+    preencherResultados(P);
+    // Imóvel avaliando: rótulo da variável de localização
+    const ia = G("ia_vila"); if(ia){ const lb = ia.parentNode && ia.parentNode.previousElementSibling; if(lb){ const s = lb.querySelector(".av-so-ftn"); if(s && s.textContent !== "Influência da Sede") s.textContent = "Influência da Sede"; } ia.textContent = sel && sel.value ? sel.value : "—"; }
+  };
+
+  /* F3: no RGV-2 o próprio sistema calcula o que vinha da importação do relatório do SisDEA (js/104): intervalo de confiança
+     de 80%, amplitude e grau de precisão, campo de arbítrio ±15% do unitário (D9), VTN do imóvel (unitário × área do modelo),
+     extrapolação (D12) e grau de fundamentação do laudo. A amostra importada, se houver, fica só como conferência.
+     Resultado em window.__AV_RGV_EST__ (PDF, F4). */
+  const VARROT = { area:"Área", pib:"PIB per capita", na:"N.A.", sede:"Influência da Sede", vila:"Influência Vila" };
+  function preencherResultados(P){
+    const R = M(), c = window.__AV_CALC__ || {}, t = function(id, v){ const e = G(id); if(e) e.textContent = v; };
+    const ent = { area:c.areaMem, na:c.na, pib:c.pib, sede:c.sede };
+    const sel = G("av_mem_modelo");
+    const est = R ? R.estimar(P, ent, { tendencia: sel && sel.value, areaAvaliada: c.areaMem }) : null;
+    window.__AV_RGV_EST__ = est && est.ok ? est : null;
+    // o servidor lê estes dois para o Painel Geral (R$ Terra nua = unitário × área desapropriada; colunas N.A./Sede/PIB)
+    { const v = est && est.ok ? fmt(est.unitario2, 2) : "", e = G("av_rgv_vtn_ha"); if(e && e.value !== v) e.value = v;
+      const p = isFinite(c.pib) ? fmt(c.pib, 2) : "", e2 = G("av_rgv_pib"); if(e2 && e2.value !== p) e2.value = p; }
+    const money = function(n){ return isFinite(n) ? "R$ " + fmt(n, 2) : "—"; };
+    if(!est || !est.ok){
+      ["ia_ic_min","ia_ic_med","ia_ic_max","ia_amplitude","ia_ca_min","ia_ca_med","ia_ca_max","ia_vtn_min","ia_vtn_med","ia_vtn_max","ia_extrap","ia_fund"].forEach(function(id){ t(id, "—"); });
+      if(est && est.faltam) t("ia_extrap", "Falta: " + est.faltam.map(function(v){ return VARROT[v] || v; }).join(", "));
+    } else {
+      const ic = est.ic, a = c.areaMem;
+      t("ia_ic_min", money(ic.min)); t("ia_ic_med", money(est.unitario2)); t("ia_ic_max", money(ic.max));
+      t("ia_amplitude", fmt(ic.amplitude, 2) + "% (" + (ic.grau === "—" ? "fora do intervalo" : "Grau " + ic.grau) + ")");
+      t("ia_ca_min", money(est.arbitrio.min)); t("ia_ca_med", money(est.unitario2)); t("ia_ca_max", money(est.arbitrio.max));
+      t("ia_vtn_min", money(ic.min * a)); t("ia_vtn_med", money(est.unitario2 * a)); t("ia_vtn_max", money(ic.max * a));
+      const ex = est.extrapolacao;
+      t("ia_extrap", !ex.itens.length ? "Não há (dentro da amostra)"
+        : ex.itens.map(function(i){
+            return VARROT[i.var] + " " + fmt(i.valor, i.var === "pib" ? 2 : 4) + " fora de " + fmt(i.lim[0], i.var === "pib" ? 2 : 4) + "–" + fmt(i.lim[1], i.var === "pib" ? 2 : 4) +
+              (i.codigo ? " (código alocado: vedada)" : " (variação na fronteira " + fmt(i.variacao * 100, 2) + "%" + (i.dentroDobro ? "" : ", passa do dobro do limite") + ")");
+          }).join("; ") + " → item 4 " + (ex.grauItem4 ? "grau " + ["", "I", "II", "III"][ex.grauItem4] : "não atende"));
+      const f = est.fundamentacao;
+      t("ia_fund", f ? "Grau " + f.grau + " (" + f.total + " pontos; item 4 = " + f.pontos["4"] + ")" : "—");
+      const cel = G("ia_extrap"); if(cel) cel.style.color = ex.itens.length ? "#b45309" : "";
+    }
+    if(typeof window.AV_atualizarDesapropriacao === "function") window.AV_atualizarDesapropriacao();
+  }
+
+  // "Usar o RGV-2": grava o perfil no cadastro (campo oculto), área do modelo = total (D2), Sede pelo raio; recalcula.
+  window.AVRGV_adotar = function(){
+    const alvo = window.AVRGV_perfilDoCadastro(), campo = G("av_rgv_perfil");
+    if(!alvo || !campo) return;
+    if(!confirm("Passar a Avaliação FTN deste cadastro para o " + alvo.titulo + "?\n\nA terra nua passa a ser calculada com Área total do imóvel, PIB per capita do município, Nota Agronômica (CCU e N.A. truncadas em 4 casas) e Influência da Sede. A Influência Vila do RGV-1 deixa de entrar no cálculo. Salve o cadastro depois de conferir.")) return;
+    _naoLiga++;
+    try{
+      campo.value = alvo.id;
+      const f = G("av_mem_area_fonte"); if(f) f.value = "total";
+      const s = G("av_mem_sede"); if(s){ s.value = ""; s.removeAttribute("data-sede-auto"); }
+      [campo, f].forEach(function(e){ if(e){ e.dispatchEvent(new Event("input", { bubbles:true })); e.dispatchEvent(new Event("change", { bubbles:true })); } });
+    } finally { _naoLiga--; }
+    if(typeof window.AV_recalcular === "function") window.AV_recalcular();
+    if(typeof window.AVVILA_gerar === "function") window.AVVILA_gerar(true);
+  };
+})();
 </script><style>/* DESP 3 › Avaliação FTN — ajustes de 25/11/2026 */
 
 /* Descrição sumária do bem: o mesmo cinza dos campos da Vistoria (textarea.bloqueado), mas continua editável */
@@ -73643,6 +74407,15 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ background:var(--pend-cl
     return polys;
   }
   function st(m){ var e = G("av_vila_status"); if(e) e.textContent = m || ""; }
+  // RGV-2: raios das sedes (dados/rgv2-sedes.json) como anéis de 72 lados, para desenhar no mesmo mapa da Vila
+  function circulosSedes(){
+    var S = (window.RGVMOD && window.RGVMOD.sedes) ? window.RGVMOD.sedes() : [];
+    return S.map(function(s){
+      var kx = 111320 * Math.cos(s.lat * Math.PI / 180), ky = 110574, r = [];
+      for(var i = 0; i < 72; i++){ var a = i * Math.PI / 36; r.push([s.lon + s.raio_m * Math.cos(a) / kx, s.lat + s.raio_m * Math.sin(a) / ky]); }
+      return r;
+    });
+  }
 
   /* 25/11/2026: a área abrangida toca a área de influência? vértice de um dentro do outro ou lados que se cruzam
      (antes só olhava vértices da área dentro da Vila: uma Vila pequena dentro da área passava como "fora"). */
@@ -73668,12 +74441,17 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ background:var(--pend-cl
     sel.value = cod;
     sel.dispatchEvent(new Event("input", { bubbles:true })); sel.dispatchEvent(new Event("change", { bubbles:true }));
   }
-  var _gerando = false, _chave = "";
+  var _gerando = false, _chave = "", _denovo = false;
   window.AVVILA_gerar = async function(forcar){
-    if(_gerando) return; _gerando = true;
+    if(_gerando){ if(forcar) _denovo = true; return; }   // 27/11/2026: pedido durante outra geração (ex.: "Usar o RGV-2") refaz no fim
+    _gerando = true;
     try{
       var kml = (window.REL_getKML ? window.REL_getKML().kml : "") || "";
       var area = lerKml(kml);
+      // 27/11/2026 (RGV-2, js/209): a camada são os raios das sedes municipais e a decisão é pelo perímetro do imóvel (D3)
+      var P2 = (typeof window.AVRGV_ativo === "function") ? window.AVRGV_ativo() : null;
+      var imovel = P2 && window.AVRGV_aneisImovel ? window.AVRGV_aneisImovel() : [];
+      if(P2 && !area.length && imovel.length) area = imovel;
       var img = G("av_vila_img"), nota = G("av_vila_nota");
       if(!area.length){ window.__AV_VILA_IMG__ = null; if(img){ img.hidden = true; img.removeAttribute("src"); } if(nota){ nota.textContent = ""; nota.className = "av-vila-nota"; } st("Aguardando o KML da área abrangida pelo projeto (Relatório Técnico)…"); return; }
       st("Montando o mapa…");
@@ -73684,13 +74462,15 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ background:var(--pend-cl
       w -= dLon; e += dLon; s -= dLat; n += dLat;
       var kx = 111320 * Math.cos(la0 * Math.PI / 180), ky = 110574, mw = (e - w) * kx, mh = (n - s) * ky;
       if(mw / mh < 1.25){ var ex = (mh * 1.25 - mw) / 2 / kx; w -= ex; e += ex; } else { var ey = (mw / 1.25 - mh) / 2 / ky; s -= ey; n += ey; }
-      var vila = window.AVVILA_polys().filter(function(r){
+      var camada = P2 ? circulosSedes() : window.AVVILA_polys();
+      var vila = camada.filter(function(r){
         var a = 1e9, b = -1e9, c = 1e9, d = -1e9;
         r.forEach(function(q){ a = Math.min(a, q[0]); b = Math.max(b, q[0]); c = Math.min(c, q[1]); d = Math.max(d, q[1]); });
         return !(b < w || a > e || d < s || c > n);
       });
       // 25/11/2026 (Fernando): a análise da camada escolhe sozinha 1 ou 2 na Memória de Cálculo, antes do satélite (funciona offline)
-      escolherVila(cruzaVila(area, vila) ? "2" : "1");
+      if(P2){ if(window.AVRGV_sedeAuto) window.AVRGV_sedeAuto(); }
+      else escolherVila(cruzaVila(area, vila) ? "2" : "1");
       var z = 18; for(; z >= 10; z--){ if(lonpx(e, z) - lonpx(w, z) <= 2600 && latpx(s, z) - latpx(n, z) <= 2600) break; }
       var w0 = lonpx(w, z), n0 = latpx(n, z), cw = Math.max(1, Math.round(lonpx(e, z) - w0)), ch = Math.max(1, Math.round(latpx(s, z) - n0));
       var cv = document.createElement("canvas"); cv.width = cw; cv.height = ch; var ctx = cv.getContext("2d");
@@ -73712,10 +74492,14 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ background:var(--pend-cl
       area.forEach(function(r){ trilha(r); ctx.fillStyle = "rgba(255,230,0,0.28)"; ctx.fill(); });
       ctx.lineWidth = 2.6 * k; ctx.strokeStyle = "#ffe600"; ctx.lineJoin = "round";
       area.forEach(function(r){ trilha(r); ctx.stroke(); });
+      // RGV-2: perímetro do imóvel (é ele que decide a Influência da Sede) — contorno branco tracejado
+      if(P2 && imovel.length && imovel !== area){ ctx.lineWidth = 2.2 * k; ctx.strokeStyle = "#ffffff"; ctx.setLineDash([8 * k, 5 * k]); imovel.forEach(function(r){ trilha(r); ctx.stroke(); }); ctx.setLineDash([]); }
       // legenda
       var fs = 13 * k, pad = 9 * k, sw = 26 * k, lh = 22 * k;
       ctx.font = "600 " + fs + "px Arial, sans-serif"; ctx.textBaseline = "middle";
-      var itens = [["a", "Área abrangida pelo projeto"], ["v", "Área de influência de povoado (Vila) — conforme RGV"]];
+      var itens = P2
+        ? [["a", "Área abrangida pelo projeto"]].concat(imovel.length && imovel !== area ? [["i", "Imóvel (área total)"]] : []).concat([["v", "Raio de influência da sede municipal (4 km; Caruaru 8 km) — RGV-2"]])
+        : [["a", "Área abrangida pelo projeto"], ["v", "Área de influência de povoado (Vila) — conforme RGV"]];
       var lw = Math.max.apply(null, itens.map(function(i){ return ctx.measureText(i[1]).width; })) + sw + pad * 3;
       var lx = 12 * k, ly = ch - 12 * k - (lh * itens.length + pad * 2 - lh + 0);
       var lhh = lh * itens.length + pad * 2 - (lh - fs) + 2 * k;
@@ -73724,6 +74508,7 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ background:var(--pend-cl
       itens.forEach(function(it, i){
         var yy = ly + pad + lh * i + lh / 2 - 2 * k, xx = lx + pad;
         if(it[0] === "a"){ ctx.fillStyle = "rgba(255,230,0,0.28)"; ctx.fillRect(xx, yy - 7 * k, sw, 14 * k); ctx.lineWidth = 2.6 * k; ctx.strokeStyle = "#e6c800"; ctx.setLineDash([]); ctx.strokeRect(xx, yy - 7 * k, sw, 14 * k); }
+        else if(it[0] === "i"){ ctx.fillStyle = "#5a6b7c"; ctx.fillRect(xx, yy - 7 * k, sw, 14 * k); ctx.lineWidth = 2.2 * k; ctx.strokeStyle = "#ffffff"; ctx.setLineDash([8 * k, 5 * k]); ctx.strokeRect(xx, yy - 7 * k, sw, 14 * k); ctx.setLineDash([]); }
         else { ctx.fillStyle = "rgba(255,0,0,0.3)"; ctx.fillRect(xx, yy - 7 * k, sw, 14 * k); ctx.lineWidth = 2 * k; ctx.strokeStyle = "#ff0000"; ctx.setLineDash([6 * k, 4 * k]); ctx.strokeRect(xx, yy - 7 * k, sw, 14 * k); ctx.setLineDash([]); }
         ctx.fillStyle = "#1b2733"; ctx.fillText(it[1], xx + sw + pad, yy);
       });
@@ -73740,8 +74525,10 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ background:var(--pend-cl
       if(!url || !okTiles){
         // sem satélite (offline): mesmo mapa sobre fundo liso
         st(okTiles ? "Não consegui gravar a imagem do mapa." : "Sem internet para o satélite — mapa montado sobre fundo liso.");
-      } else st(vila.length ? vila.length + " área(s) de influência no enquadramento." : "Nenhuma área de influência de povoado no enquadramento (a área fica fora da influência).");
+      } else if(P2) st(vila.length ? vila.length + " raio(s) de influência de sede no enquadramento." : "Nenhum raio de influência de sede no enquadramento.");
+      else st(vila.length ? vila.length + " área(s) de influência no enquadramento." : "Nenhuma área de influência de povoado no enquadramento (a área fica fora da influência).");
       if(url){ window.__AV_VILA_IMG__ = url; if(img){ img.src = url; img.hidden = false; } }
+      if(P2){ if(typeof window.AV_recalcular === "function") window.AV_recalcular(); return; }   // nota da Sede: js/209 (pelo perímetro do imóvel)
       // conferência com a variável escolhida na Memória de Cálculo
       var cx = 0, cy = 0, cn = 0; area[0].forEach(function(q){ cx += q[0]; cy += q[1]; cn++; }); cx /= cn; cy /= cn;
       var dentroV = cruzaVila(area, vila);
@@ -73753,7 +74540,7 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ background:var(--pend-cl
         nota.className = "av-vila-nota" + (sel && sel !== cod ? " dif" : "");
       }
     }catch(err){ console.warn("AVVILA:", err); st("Não consegui montar o mapa: " + err.message); }
-    finally{ _gerando = false; }
+    finally{ _gerando = false; if(_denovo){ _denovo = false; setTimeout(function(){ window.AVVILA_gerar(true); }, 0); } }
   };
   // refaz sozinho quando o KML da área abrangida pelo projeto muda (inclui abrir outro cadastro)
   setInterval(function(){
@@ -74992,9 +75779,9 @@ body.ctx-on main h2.vsec.acc > span[data-ctx-n]::after{ background:var(--pend-cl
    SERVIDOR_MINIMO ......... abaixo disto o servidor DESTA máquina grava no lugar errado: escritas bloqueadas.
                              '2026.10.07-0' = qualquer servidor que já conhece o layout novo (campo layout_antigo no /api/health).
    SERVIDOR_RECOMENDADO .... versão do último server.js publicado; abaixo disto só avisa (versao.js --servidor atualiza). */
-window.APP_VERSAO = '2026.11.27-2';
+window.APP_VERSAO = '2026.11.27-3';
 window.SERVIDOR_MINIMO = '2026.10.07-0';
-window.SERVIDOR_RECOMENDADO = '2026.11.26-5';
+window.SERVIDOR_RECOMENDADO = '2026.11.27-3';
 (function(){
   var SEM_VERSAO = '0000.00.00-0';
   var LEGADO_LAYOUT = '2026.10.07-0';   // servidor que já tem layout_antigo no health, mas ainda sem número de versão
